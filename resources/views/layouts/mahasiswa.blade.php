@@ -14,15 +14,22 @@
 
     <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 hidden bg-ink/30 data-[open=true]:block lg:hidden"></div>
 
-    <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] -translate-x-full flex-col border-r border-line bg-white transition-transform data-[open=true]:translate-x-0 lg:translate-x-0">
+    <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] -translate-x-full flex-col bg-white shadow-[2px_0_16px_rgba(29,39,48,0.03)] transition-transform data-[open=true]:translate-x-0 lg:translate-x-0">
         <div class="px-6 pb-4 pt-6">
             <a href="{{ route('mahasiswa.dashboard') }}" class="block" aria-label="SALE, halaman utama">
                 <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
-                <span class="mt-0.5 block text-xs text-muted">Smart Academic Learning Ecosystem</span>
+                <span class="mt-0.5 block text-xs text-muted">{{ session('admin.settings.institution','Smart Academic Learning Ecosystem') }}</span>
             </a>
         </div>
 
-        @if(request()->is('dosen*'))
+        @if(request()->is('admin*'))
+        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi administrator">
+            <p class="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-muted">Administrasi</p>
+            @foreach(['dashboard'=>'Dashboard','akademik'=>'Data akademik','pengguna'=>'Pengguna & hak akses','aktivitas'=>'Activity log','monitoring'=>'Monitoring sistem','laporan'=>'Laporan','pengaturan'=>'Pengaturan sistem'] as $section=>$label)
+            <a href="{{ route('admin.page',$section) }}" @if(request()->is('admin/'.$section)) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium {{ request()->is('admin/'.$section) ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft' }}"><svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h4"/></svg>{{ $label }}</a>
+            @endforeach
+        </nav>
+        @elseif(request()->is('dosen*'))
         <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi dosen">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang mengajar</p>
             @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.grades' => 'Penilaian'] as $route => $label)
@@ -67,7 +74,7 @@
             </div>
         </nav>
         @endif
-        <div class="border-t border-line p-4 text-xs text-muted"><p class="mb-2">Pratinjau peran</p><div class="flex gap-4"><a class="quiet-link" href="{{ route('mahasiswa.course.index') }}">Mahasiswa</a><a class="quiet-link" href="{{ route('dosen.dashboard') }}">Dosen</a></div></div>
+        <div class="p-4 text-xs text-muted"><p class="mb-2">Pratinjau peran</p><div class="flex gap-4"><a class="quiet-link" href="{{ route('mahasiswa.course.index') }}">Mahasiswa</a><a class="quiet-link" href="{{ route('dosen.dashboard') }}">Dosen</a><a class="quiet-link" href="{{ route('admin.page','dashboard') }}">Admin</a></div></div>
     </aside>
 
     <div class="min-h-screen lg:pl-[248px]">
@@ -79,15 +86,15 @@
                     </button>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-ink">@yield('header', 'Dashboard')</p>
-                        <p class="hidden truncate text-xs text-muted sm:block">Semester Ganjil 2026/2027</p>
+                        <p class="hidden truncate text-xs text-muted sm:block">Semester {{ session('admin.settings.semester','Ganjil 2026/2027') }}</p>
                     </div>
                 </div>
-                <a href="{{ route('mahasiswa.profile.index') }}" class="flex items-center gap-3 rounded-md p-1.5 hover:bg-[#eceeeb]">
+                <a href="{{ request()->is('admin*') ? route('admin.page','pengaturan') : (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.profile.index')) }}" class="flex items-center gap-3 rounded-md p-1.5 hover:bg-[#eceeeb]">
                     <span class="hidden text-right sm:block">
-                        <span class="block text-sm font-semibold leading-4 text-ink">{{ request()->is('dosen*') ? 'Budi Santoso' : 'Ahmad' }}</span>
-                        <span class="block text-xs text-muted">{{ request()->is('dosen*') ? 'Dosen' : '231011401234' }}</span>
+                        <span class="block text-sm font-semibold leading-4 text-ink">{{ request()->is('admin*') ? 'Admin Akademik' : (request()->is('dosen*') ? 'Budi Santoso' : 'Ahmad') }}</span>
+                        <span class="block text-xs text-muted">{{ request()->is('admin*') ? 'Administrator' : (request()->is('dosen*') ? 'Dosen' : '231011401234') }}</span>
                     </span>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">AM</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">{{ request()->is('admin*') ? 'AD' : (request()->is('dosen*') ? 'BS' : 'AM') }}</span>
                 </a>
             </div>
         </header>

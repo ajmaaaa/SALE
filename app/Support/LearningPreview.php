@@ -47,6 +47,30 @@ class LearningPreview
         return $resource;
     }
 
+    public static function discussions(int $item): array
+    {
+        $examples = [
+            1 => [['author' => 'Budi Santoso', 'message' => 'Jika nilai yang dimasukkan sama dengan simpul induk, bagaimana sebaiknya kita menanganinya?', 'time' => 'Contoh percakapan', 'timestamp' => 1]],
+            4 => [['author' => 'Siti Aminah', 'message' => 'Bolehkah hasil pengujian usability dilengkapi rekaman layar?', 'time' => 'Contoh percakapan', 'timestamp' => 2]],
+            5 => [['author' => 'Raka Putra', 'message' => 'Kapan recall lebih tepat digunakan dibanding akurasi?', 'time' => 'Contoh percakapan', 'timestamp' => 3]],
+        ];
+
+        return session("learning.discussions.$item", $examples[$item] ?? []);
+    }
+
+    public static function recentDiscussions(): array
+    {
+        $messages = [];
+        foreach (self::items() as $item) {
+            foreach (self::discussions($item['id']) as $message) {
+                $messages[] = $message + ['item' => $item['id'], 'course' => $item['course'], 'course_title' => self::course($item['course'])['title'], 'timestamp' => 0];
+            }
+        }
+        usort($messages, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+
+        return array_slice($messages, 0, 3);
+    }
+
     public static function labels(): array
     {
         return ['materi' => 'Materi', 'tugas' => 'Tugas', 'coding' => 'Tugas coding', 'kuis' => 'Kuis', 'pengumuman' => 'Pengumuman'];

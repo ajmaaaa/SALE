@@ -86,3 +86,20 @@ Sebelum aplikasi menerima data nyata:
 Gunakan session driver `file` atau `database` untuk mencoba alur lintas halaman. Untuk batas upload UI (20 MB/berkas, 5 berkas), atur PHP `upload_max_filesize=20M`, `post_max_size=110M`, dan batas web server yang sesuai. Batas default PHP yang lebih kecil tetap berlaku bila belum diatur.
 
 Snapshot sebelum perubahan: `7c019fb`. Untuk meninjau versi lama tanpa menimpa pekerjaan sekarang, gunakan `git worktree add ../SALE-before-redesign 7c019fb`.
+
+## Revisi visual dan administrator
+
+Dashboard kembali memakai susunan visual awal: foto rekomendasi, tenggat, dan pesan diskusi terbaru. Area kartu course diganti grafik IP semester / IPK kumulatif (data contoh; bukan nilai mahasiswa sebenarnya). Komponen course dashboard awal disimpan utuh di `resources/views/mahasiswa/partials/dashboard-courses-original.blade.php` dan tidak dirender secara default.
+
+Area admin dimulai dari `/admin/dashboard` dan menyediakan:
+
+- Pengguna: tambah/edit identitas, peran, status, filter; mencegah email/identitas ganda dan penonaktifan admin aktif terakhir.
+- Akademik: fakultas, prodi, semester, kelas, course terkait, dan peserta mahasiswa; validasi induk serta peran peserta.
+- Activity log untuk perubahan admin; rekap akademik dengan ekspor CSV.
+- Pengaturan institusi dan semester; monitoring menyatakan integrasi yang belum tersedia.
+
+Seluruh perubahan admin masih berbasis sesi, bukan otorisasi atau sinkronisasi institusi. Penetapan peserta tercatat untuk pratinjau pengelolaan; pembatasan akses course berdasarkan enrollment belum diaktifkan. Backup, statistik layanan AI, dan laporan institusi tidak disimulasikan sebagai data operasional.
+
+Form konten mendukung gambar stimulus (maks. 5 MB, deskripsi wajib), gambar per pilihan (maks. 2 MB), 2–20 pilihan berbeda, poin maksimal, dokumen, video, dan tautan. Menu pengumpulan menyediakan berkas, gambar, tautan/Google Drive, dan teks sesuai format dosen. Google Drive menggunakan tautan yang ditempel, bukan pemilih berkas terintegrasi atau pembuatan Google Docs. Lampiran dapat dilihat/dihapus sebelum pengumpulan. Berkas pengumpulan sebelumnya dipertahankan kecuali secara eksplisit dilepas.
+
+Foto banner menggunakan aset foto yang sama dengan desain awal (Pexels photo 7989138), kini disimpan lokal di `public/images/learning-banner.jpg` agar tidak bergantung pada permintaan gambar eksternal saat membuka dashboard.

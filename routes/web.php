@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminPreviewController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\Mahasiswa\AssignmentController;
 use App\Http\Controllers\Mahasiswa\DashboardController;
@@ -40,4 +41,12 @@ Route::prefix('dosen')->name('dosen.')->group(function () {
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
     Route::view('/penilaian', 'dosen.grades')->name('grades');
+});
+
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/laporan/export', [AdminPreviewController::class, 'export'])->name('export');
+    Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
+    Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
+    Route::post('/pengaturan', [AdminPreviewController::class, 'settings'])->name('settings.store');
+    Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });

@@ -53,6 +53,27 @@ class LearningWorkflowTest extends TestCase
         $this->get('/mahasiswa/assignment/1/code')->assertSee('class Node:')->assertDontSee('@else');
     }
 
+    public function test_resubmission_preserves_files_until_explicitly_removed(): void
+    {
+        Storage::fake('local');
+        $this->post('/mahasiswa/course/2/item/4/submission', ['files' => [UploadedFile::fake()->create('jawaban.pdf', 10, 'application/pdf')]])->assertRedirect();
+        $files = session('learning.submissions.4.files');
+        $this->post('/mahasiswa/course/2/item/4/submission', ['answer' => 'Catatan tambahan'])->assertRedirect();
+        $this->assertSame($files, session('learning.submissions.4.files'));
+        $this->post('/mahasiswa/course/2/item/4/submission', ['keep_files' => ['00000000-0000-4000-8000-000000000000']])->assertUnprocessable();
+        $this->post('/mahasiswa/course/2/item/4/submission', ['replace_files' => 1, 'answer' => 'Jawaban revisi'])->assertRedirect();
+        $this->assertSame([], session('learning.submissions.4.files'));
+    }
+
+    public function test_numeric_zero_is_a_valid_choice_and_duplicate_choices_are_rejected(): void
+    {
+        $base = ['type' => 'kuis', 'title' => 'Angka', 'module' => 'Minggu 1', 'body' => 'Pilih angka.', 'question_type' => 'pilihan', 'cpmk' => 'Konsep angka.', 'formats' => ['text']];
+        $this->post('/dosen/course/1/items', $base + ['options' => "0\n1"])->assertRedirect();
+        $this->get('/mahasiswa/course/1/item/7')->assertSee('value="0"', false);
+        $this->post('/mahasiswa/course/1/item/7/submission', ['choices' => ['0']])->assertRedirect();
+        $this->post('/dosen/course/1/items', $base + ['options' => "Sama\nSama"])->assertSessionHasErrors('options');
+    }
+
     public function test_upload_and_choice_validation(): void
     {
         Storage::fake('local');
