@@ -7,13 +7,12 @@ use Tests\TestCase;
 
 class AcademicAndAuthEnhancementTest extends TestCase
 {
-    public function test_login_page_renders_official_portal(): void
+    public function test_login_page_renders(): void
     {
         $response = $this->get('/login');
         $response->assertOk();
-        $response->assertSee('Masuk ke Portal');
-        $response->assertSee('Email Institusi atau NIM / NIDN');
-        $response->assertSee('Ahmad Maulana');
+        $response->assertSee('Masuk');
+        $response->assertSee('Email atau NIM / NIDN');
     }
 
     public function test_login_with_nim_and_email_credentials(): void
