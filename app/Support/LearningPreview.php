@@ -21,7 +21,47 @@ class LearningPreview
             2 => self::item(2, 1, 'Pengenalan struktur data', 'materi', 'Pengantar struktur data', 'Struktur data membantu mengatur informasi agar operasi pencarian dan perubahan dapat dilakukan secara efisien. Bandingkan array dan linked list berdasarkan akses, penyisipan, serta penggunaan memori.'),
             3 => self::item(3, 1, 'Tree dan traversal', 'materi', 'Memahami traversal pada Binary Tree', 'Inorder mengunjungi kiri, akar, lalu kanan. Preorder mengunjungi akar lebih dahulu; postorder mengunjungi akar terakhir. Gambarkan pohon dengan nilai 8, 3, 10, 1, 6 dan tentukan hasil setiap traversal.'),
             4 => self::item(4, 2, 'Evaluasi usability', 'tugas', 'Laporan Evaluasi Usability', 'Evaluasi satu aplikasi menggunakan lima partisipan. Sertakan skenario pengujian, temuan, bukti gambar, dan rekomendasi perbaikan.', '2026-09-12T17:00'),
-            5 => self::item(5, 3, 'Evaluasi model', 'kuis', 'Kuis Evaluasi Model', 'Sebuah model memprediksi semua pasien sehat pada dataset dengan 95% pasien sehat. Apakah akurasi cukup untuk menilai model? Jelaskan pilihan metrik Anda.', '2026-09-14T20:00'),
+            5 => array_merge(self::item(5, 3, 'Evaluasi model', 'kuis', 'Kuis Evaluasi Model', 'Sebuah model memprediksi semua pasien sehat pada dataset dengan 95% pasien sehat. Selesaikan serangkaian soal evaluasi model berikut untuk menguji pemahaman Anda.', '2026-09-14T20:00'), [
+                'points' => 100,
+                'questions' => [
+                    [
+                        'id' => 1,
+                        'type' => 'pilihan',
+                        'prompt' => 'Metrik evaluasi mana yang paling tepat digunakan ketika dataset memiliki ketidakseimbangan kelas (imbalance class) ekstrem?',
+                        'options' => "Akurasi (Accuracy)\nF1-Score dan ROC-AUC\nMean Squared Error (MSE)\nPerplexity Skor",
+                        'points' => 25,
+                        'cpmk' => 'CPMK 1',
+                        'cpl' => 'CPL 2',
+                    ],
+                    [
+                        'id' => 2,
+                        'type' => 'benar_salah',
+                        'prompt' => 'Akurasi sebesar 95% selalu menjamin bahwa model pembelajaran mesin bekerja optimal dalam memprediksi kelas minoritas.',
+                        'options' => '',
+                        'points' => 20,
+                        'cpmk' => 'CPMK 1',
+                        'cpl' => 'CPL 2',
+                    ],
+                    [
+                        'id' => 3,
+                        'type' => 'mencocokkan',
+                        'prompt' => 'Jodohkan istilah metrik evaluasi klasifikasi di sebelah kiri dengan formula / karakteristik yang tepat di sebelah kanan:',
+                        'options' => "Precision = True Positive / (True Positive + False Positive)\nRecall = True Positive / (True Positive + False Negative)\nF1-Score = Rata-rata harmonis antara Precision dan Recall\nSpesifisitas = True Negative / (True Negative + False Positive)",
+                        'points' => 30,
+                        'cpmk' => 'CPMK 2',
+                        'cpl' => 'CPL 3',
+                    ],
+                    [
+                        'id' => 4,
+                        'type' => 'uraian',
+                        'prompt' => 'Jelaskan konsep trade-off antara Precision dan Recall dalam konteks sistem pendeteksi fraud perbankan. Mengapa kita memprioritaskan Recall tinggi?',
+                        'options' => '',
+                        'points' => 25,
+                        'cpmk' => 'CPMK 2',
+                        'cpl' => 'CPL 3',
+                    ],
+                ],
+            ]),
             6 => self::item(6, 1, 'Informasi kelas', 'pengumuman', 'Perubahan ruang perkuliahan', 'Pertemuan Kamis dipindahkan ke Lab Komputasi 2 pada pukul 10.00.'),
         ]);
     }
