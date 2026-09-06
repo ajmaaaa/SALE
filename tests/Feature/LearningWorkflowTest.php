@@ -229,4 +229,67 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('Petunjuk Pengerjaan')
             ->assertSee('Lumina AI');
     }
+
+    public function test_quiz_room_cbt_and_duration_settings(): void
+    {
+        // 1. Dosen creates quiz with duration setting
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+        $this->post('/dosen/course/1/items', [
+            'type' => 'kuis',
+            'title' => 'Kuis Algoritma Pemrograman',
+            'module' => 'Minggu 7',
+            'body' => 'Kerjakan kuis berikut secara mandiri.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Pemahaman Algoritma',
+            'formats' => ['text'],
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 45,
+            'questions' => [
+                [
+                    'type' => 'mencocokkan',
+                    'prompt' => 'Pasangkan konsep berikut.',
+                    'points' => 50,
+                    'cpmk' => 'CPMK-01',
+                    'options' => "QuickSort = O(n log n)\nBubbleSort = O(n^2)",
+                ],
+                [
+                    'type' => 'coding',
+                    'prompt' => 'Tuliskan fungsi pencarian binary search.',
+                    'points' => 50,
+                    'cpmk' => 'CPMK-02',
+                    'options' => 'def binary_search(): pass',
+                ],
+            ],
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $quizId = max(array_keys(session('learning.items')));
+        $savedItem = session('learning.items')[$quizId];
+        $this->assertTrue($savedItem['duration_enabled']);
+        $this->assertEquals(45, $savedItem['duration_minutes']);
+
+        // 2. Student enters the dedicated Quiz Room
+        session(['auth_user' => ['id' => 1, 'name' => 'Ahmad Maulana', 'role' => 'mahasiswa']]);
+        $room = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
+        $room->assertOk()
+            ->assertSee('Kuis Algoritma Pemrograman')
+            ->assertSee('Sebelumnya')
+            ->assertSee('Selanjutnya')
+            ->assertSee('Kumpulkan Kuis')
+            ->assertSee('QuickSort')
+            ->assertSee('sale@sandbox')
+            ->assertDontSee('Kumpulkan Tugas')
+            ->assertDontSee('+ Tambah atau buat');
+
+        // 3. Student submits quiz answers
+        $this->post("/mahasiswa/course/1/item/{$quizId}/submission", [
+            'question_answers' => [
+                0 => ['matching' => [0 => 'O(n log n)', 1 => 'O(n^2)']],
+                1 => ['text' => 'def binary_search(arr, x): return 0'],
+            ],
+        ])->assertRedirect("/mahasiswa/course/1/item/{$quizId}");
+
+        $submission = session("learning.submissions.{$quizId}");
+        $this->assertNotNull($submission);
+        $this->assertEquals('O(n log n)', $submission['question_answers'][0]['matching'][0]);
+    }
 }

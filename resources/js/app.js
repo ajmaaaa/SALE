@@ -831,10 +831,18 @@ if (builder) {
     const sync = () => {
         update();
         const active = ['tugas', 'kuis'].includes(type.value);
+        const isQuiz = type.value === 'kuis';
+        const quizDuration = document.querySelector('[data-quiz-duration-settings]');
+        if (quizDuration) quizDuration.hidden = !isQuiz;
         const legacy = document.querySelector('[data-legacy-question-settings]');
-        legacy.querySelector('#question_type').closest('.grid').querySelector('div').hidden = active;
-        legacy.querySelector('[data-choice-fields]').hidden = active || !['pilihan', 'kompleks'].includes(document.querySelector('#question_type').value);
-        if (active) document.querySelector('#question_type').value = 'uraian';
+        if (legacy) {
+            const gridDiv = legacy.querySelector('#question_type')?.closest('.grid')?.querySelector('div');
+            if (gridDiv) gridDiv.hidden = active;
+            const choiceFields = legacy.querySelector('[data-choice-fields]');
+            const qTypeVal = document.querySelector('#question_type')?.value;
+            if (choiceFields) choiceFields.hidden = active || !['pilihan', 'kompleks'].includes(qTypeVal);
+        }
+        if (active && document.querySelector('#question_type')) document.querySelector('#question_type').value = 'uraian';
     };
     type.addEventListener('change', sync);
     sync();

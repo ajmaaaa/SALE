@@ -74,6 +74,27 @@
                         </div>
                     @endif
 
+                    @if($item['type'] === 'kuis')
+                        {{-- Dedicated CBT Quiz Room Banner --}}
+                        <div class="mt-6 rounded-xl border border-brand/20 bg-brand-soft/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="rounded bg-brand px-2 py-0.5 text-[11px] font-bold text-white uppercase tracking-wider">Ruang Ujian CBT</span>
+                                    @if(!empty($item['duration_enabled']))
+                                        <span class="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Durasi: {{ $item['duration_minutes'] ?? 60 }} Menit</span>
+                                    @else
+                                        <span class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Durasi: Bebas / Tanpa Batas Waktu</span>
+                                    @endif
+                                </div>
+                                <h3 class="text-base font-bold text-ink mt-1.5">Ujian Kuis Interaktif</h3>
+                                <p class="text-xs text-muted mt-1">Kerjakan kuis ini di ruang ujian khusus dengan navigasi soal per halaman, lembar tarik garis interaktif, editor terminal coding, dan countdown timer.</p>
+                            </div>
+                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary shrink-0 text-xs py-2.5 px-4 font-bold inline-flex items-center gap-2 shadow-xs">
+                                Kerjakan Kuis →
+                            </a>
+                        </div>
+                    @endif
+
                     @if(!empty($item['question_image']))
                         <figure class="mt-6">
                             <a href="{{ route('preview.file', $item['question_image']) }}" target="_blank" rel="noopener">
@@ -243,7 +264,10 @@
                                             $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
                                             $pairs = [];
                                             foreach($pairLines as $pLine) {
-                                                if (str_contains($pLine, '=')) {
+                                                if (str_contains($pLine, ' = ')) {
+                                                    [$left, $right] = explode(' = ', $pLine, 2);
+                                                    $pairs[] = ['left' => trim($left), 'right' => trim($right)];
+                                                } elseif (str_contains($pLine, '=')) {
                                                     [$left, $right] = explode('=', $pLine, 2);
                                                     $pairs[] = ['left' => trim($left), 'right' => trim($right)];
                                                 } else {
@@ -499,124 +523,182 @@
                         </div>
                     </aside>
                 @else
-                    {{-- Student Submission Panel (Google Classroom Style) --}}
-                    <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-bold text-ink">{{ $item['type'] === 'kuis' ? 'Kuis Anda' : 'Tugas Anda' }}</h2>
-                            @if($submission)
-                                <span class="text-xs font-semibold text-emerald-600">Sudah dikumpulkan</span>
-                            @elseif($isPast)
-                                <span class="text-xs font-medium text-slate-500">Terlambat</span>
-                            @else
-                                <span class="text-xs font-semibold text-rose-600">Belum diserahkan</span>
-                            @endif
-                        </div>
-
-                        <div class="text-xs text-muted">
-                            <span>{{ $item['points'] ?? 100 }} Poin</span>
-                            <span>·</span>
-                            <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
-                        </div>
-
-                        @if($submission && $itemGrade)
-                            <div class="rounded-lg bg-canvas p-3 text-xs border border-line/50">
-                                <p class="font-bold text-ink">Nilai Dosen: {{ array_sum($itemGrade['points'] ?? []) }} / {{ $item['points'] ?? 100 }}</p>
-                                @if(!empty($itemGrade['feedback']))
-                                    <p class="mt-1 text-muted italic">"{{ $itemGrade['feedback'] }}"</p>
+                    @if($item['type'] === 'kuis')
+                        {{-- Student Quiz Information & Launch Card (No Classroom Submission Box) --}}
+                        <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
+                            <div class="flex items-center justify-between border-b border-line/60 pb-3">
+                                <h2 class="text-sm font-bold text-ink">Informasi Kuis</h2>
+                                @if($submission)
+                                    <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">Sudah dikerjakan</span>
+                                @elseif($isPast)
+                                    <span class="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Terlambat</span>
+                                @else
+                                    <span class="rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">Tersedia</span>
                                 @endif
                             </div>
-                        @endif
 
-                        {{-- Attached Work Items (Existing or New) --}}
-                        <div class="space-y-2" data-attachment-container>
-                            {{-- Saved files --}}
-                            @if(!empty($submission['files']))
-                                @foreach($submission['files'] as $sf)
+                            <div class="space-y-2.5 text-xs">
+                                <div class="flex items-center justify-between text-muted">
+                                    <span>Durasi Ujian:</span>
+                                    <span class="font-bold text-ink">
+                                        {{ !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60).' Menit' : 'Bebas / Tanpa Batas' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between text-muted">
+                                    <span>Jumlah Soal:</span>
+                                    <span class="font-bold text-ink">{{ count($item['questions'] ?? []) ?: 1 }} Butir Soal</span>
+                                </div>
+                                <div class="flex items-center justify-between text-muted">
+                                    <span>Total Bobot:</span>
+                                    <span class="font-bold text-ink">{{ $item['points'] ?? 100 }} Poin</span>
+                                </div>
+                                <div class="flex items-center justify-between text-muted">
+                                    <span>Tenggat Waktu:</span>
+                                    <span class="font-medium text-ink">{{ $item['due'] ? \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa batas waktu' }}</span>
+                                </div>
+                            </div>
+
+                            @if($submission && $itemGrade)
+                                <div class="rounded-lg bg-canvas p-3 text-xs border border-line/50 space-y-1">
+                                    <p class="font-bold text-ink">Nilai Dosen: {{ array_sum($itemGrade['points'] ?? []) }} / {{ $item['points'] ?? 100 }}</p>
+                                    @if(!empty($itemGrade['feedback']))
+                                        <p class="text-muted italic">"{{ $itemGrade['feedback'] }}"</p>
+                                    @endif
+                                </div>
+                            @endif
+
+                            <div class="rounded-lg bg-canvas/60 p-3 text-xs text-muted leading-relaxed">
+                                Kuis dikerjakan pada <strong class="text-ink">Ruang Ujian CBT Khusus</strong> tanpa distraksi, dilengkapi navigasi nomor soal dan lembar kerja interaktif.
+                            </div>
+
+                            <div class="pt-2">
+                                @if($isLocked)
+                                    <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-bold opacity-60 cursor-not-allowed">
+                                        Kuis Ditutup
+                                    </button>
+                                @else
+                                    <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block shadow-xs">
+                                        {{ $submission ? 'Kerjakan Ulang Kuis →' : 'Kerjakan Kuis →' }}
+                                    </a>
+                                @endif
+                            </div>
+                        </aside>
+                    @else
+                        {{-- Student Submission Panel (Google Classroom Style for Tugas & Coding) --}}
+                        <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-sm font-bold text-ink">Tugas Anda</h2>
+                                @if($submission)
+                                    <span class="text-xs font-semibold text-emerald-600">Sudah dikumpulkan</span>
+                                @elseif($isPast)
+                                    <span class="text-xs font-medium text-slate-500">Terlambat</span>
+                                @else
+                                    <span class="text-xs font-semibold text-rose-600">Belum diserahkan</span>
+                                @endif
+                            </div>
+
+                            <div class="text-xs text-muted">
+                                <span>{{ $item['points'] ?? 100 }} Poin</span>
+                                <span>·</span>
+                                <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
+                            </div>
+
+                            @if($submission && $itemGrade)
+                                <div class="rounded-lg bg-canvas p-3 text-xs border border-line/50">
+                                    <p class="font-bold text-ink">Nilai Dosen: {{ array_sum($itemGrade['points'] ?? []) }} / {{ $item['points'] ?? 100 }}</p>
+                                    @if(!empty($itemGrade['feedback']))
+                                        <p class="mt-1 text-muted italic">"{{ $itemGrade['feedback'] }}"</p>
+                                    @endif
+                                </div>
+                            @endif
+
+                            {{-- Attached Work Items (Existing or New) --}}
+                            <div class="space-y-2" data-attachment-container>
+                                {{-- Saved files --}}
+                                @if(!empty($submission['files']))
+                                    @foreach($submission['files'] as $sf)
+                                        <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                                <span class="text-ink truncate font-medium">{{ $sf['name'] }}</span>
+                                            </div>
+                                            <input type="hidden" name="keep_files[]" value="{{ $sf['id'] }}">
+                                        </div>
+                                    @endforeach
+                                @endif
+
+                                {{-- Saved link --}}
+                                @if(!empty($submission['link']))
                                     <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
                                         <div class="flex items-center gap-2 min-w-0">
-                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                            <span class="text-ink truncate font-medium">{{ $sf['name'] }}</span>
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                            <a href="{{ $submission['link'] }}" target="_blank" class="text-brand truncate font-medium hover:underline">{{ $submission['link'] }}</a>
                                         </div>
-                                        <input type="hidden" name="keep_files[]" value="{{ $sf['id'] }}">
                                     </div>
-                                @endforeach
-                            @endif
+                                @endif
 
-                            {{-- Saved link --}}
-                            @if(!empty($submission['link']))
-                                <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                        <a href="{{ $submission['link'] }}" target="_blank" class="text-brand truncate font-medium hover:underline">{{ $submission['link'] }}</a>
+                                {{-- Saved answer preview if exists --}}
+                                @if(!empty($submission['answer']) && empty($item['questions']))
+                                    <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
+                                        <span class="text-muted block text-[11px] font-semibold mb-1">Catatan / Jawaban:</span>
+                                        <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
+                                    </div>
+                                @endif
+
+                                {{-- Dynamic list for new additions --}}
+                                <div data-active-attachments class="space-y-2"></div>
+                            </div>
+
+                            {{-- Action Button: + Tambah atau buat --}}
+                            @if(!$isLocked)
+                                <div class="relative" data-add-work-dropdown>
+                                    <button type="button" data-toggle-dropdown class="button-secondary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2">
+                                        <span class="text-sm font-bold text-brand">+</span> Tambah atau buat
+                                    </button>
+                                    <div data-dropdown-menu hidden class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white p-1.5 shadow-lg border border-line/60 space-y-1">
+                                        <button type="button" data-action-add="link" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                            <span>Tautan / Link</span>
+                                        </button>
+                                        <button type="button" data-action-add="file" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                            <span>Berkas / File</span>
+                                        </button>
+                                        <button type="button" data-action-add="text" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            <span>Catatan / Jawaban Teks</span>
+                                        </button>
                                     </div>
                                 </div>
                             @endif
 
-                            {{-- Saved answer preview if exists --}}
-                            @if(!empty($submission['answer']) && empty($item['questions']))
-                                <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                    <span class="text-muted block text-[11px] font-semibold mb-1">Catatan / Jawaban:</span>
-                                    <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
+                            {{-- Hidden inputs for file/link/answer --}}
+                            <input type="file" name="files[]" multiple data-submission-files class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.webp">
+                            <input type="hidden" name="link" data-submission-link value="{{ old('link') }}">
+
+                            {{-- Optional text answer area --}}
+                            <div data-text-answer-box hidden class="space-y-1 pt-1">
+                                <div class="flex items-center justify-between">
+                                    <label class="form-label text-[11px] mb-0" for="answer_field">Jawaban Teks</label>
+                                    <button type="button" data-remove-text-box class="text-[11px] text-danger hover:underline">Batal</button>
                                 </div>
-                            @endif
-
-                            {{-- Dynamic list for new additions --}}
-                            <div data-active-attachments class="space-y-2"></div>
-                        </div>
-
-                        {{-- Action Button: + Tambah atau buat --}}
-                        @if(!$isLocked)
-                            <div class="relative" data-add-work-dropdown>
-                                <button type="button" data-toggle-dropdown class="button-secondary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2">
-                                    <span class="text-sm font-bold text-brand">+</span> Tambah atau buat
-                                </button>
-                                <div data-dropdown-menu hidden class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white p-1.5 shadow-lg border border-line/60 space-y-1">
-                                    <button type="button" data-action-add="link" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                        <span>Tautan / Link</span>
-                                    </button>
-                                    <button type="button" data-action-add="file" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                        <span>Berkas / File</span>
-                                    </button>
-                                    <button type="button" data-action-add="text" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                        <span>Catatan / Jawaban Teks</span>
-                                    </button>
-                                </div>
+                                <textarea id="answer_field" name="answer" rows="4" class="field text-xs" placeholder="Tuliskan jawaban atau catatan pengerjaan tugas...">{{ old('answer', $submission['answer'] ?? '') }}</textarea>
                             </div>
-                        @endif
 
-                        {{-- Hidden inputs for file/link/answer --}}
-                        <input type="file" name="files[]" multiple data-submission-files class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.webp">
-                        <input type="hidden" name="link" data-submission-link value="{{ old('link') }}">
-
-                        {{-- Optional text answer area --}}
-                        <div data-text-answer-box hidden class="space-y-1 pt-1">
-                            <div class="flex items-center justify-between">
-                                <label class="form-label text-[11px] mb-0" for="answer_field">Jawaban Teks</label>
-                                <button type="button" data-remove-text-box class="text-[11px] text-danger hover:underline">Batal</button>
-                            </div>
-                            <textarea id="answer_field" name="answer" rows="4" class="field text-xs" placeholder="Tuliskan jawaban atau catatan pengerjaan tugas...">{{ old('answer', $submission['answer'] ?? '') }}</textarea>
-                        </div>
-
-                        {{-- Submit Button: ONE AND ONLY (Right sidebar) --}}
-                        <div class="pt-2">
-                            @if($isLocked)
-                                <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-bold opacity-60 cursor-not-allowed">
-                                    Pengumpulan Ditutup
-                                </button>
-                            @else
-                                <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
-                                    @if($item['type'] === 'kuis')
-                                        {{ $submission ? 'Kerjakan Ulang Kuis' : 'Kerjakan Kuis' }}
-                                    @else
+                            {{-- Submit Button: ONE AND ONLY (Right sidebar) --}}
+                            <div class="pt-2">
+                                @if($isLocked)
+                                    <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-bold opacity-60 cursor-not-allowed">
+                                        Pengumpulan Ditutup
+                                    </button>
+                                @else
+                                    <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
                                         {{ $submission ? 'Kumpulkan Ulang Jawaban' : 'Kumpulkan Tugas' }}
-                                    @endif
-                                </button>
-                            @endif
-                        </div>
-                    </aside>
+                                    </button>
+                                @endif
+                            </div>
+                        </aside>
+                    @endif
                 @endif
             @endif
         </div>

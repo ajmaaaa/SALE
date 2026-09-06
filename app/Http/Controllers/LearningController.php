@@ -28,6 +28,20 @@ class LearningController extends Controller
         return view('learning.item', ['course' => Learning::course($course), 'item' => Learning::resource($course, $item)]);
     }
 
+    public function quizRoom(int $course, int $item)
+    {
+        $resource = Learning::resource($course, $item);
+        abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding']), 404);
+
+        $submission = session("learning.submissions.$item", null);
+
+        return view('learning.quiz-room', [
+            'course' => Learning::course($course),
+            'item' => $resource,
+            'submission' => $submission,
+        ]);
+    }
+
     public function assignments(Request $request)
     {
         $items = array_filter(Learning::items(), function ($item) use ($request) {
@@ -105,6 +119,8 @@ class LearningController extends Controller
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'questions.*.alt' => 'nullable|string|max:300',
             'options' => 'nullable|string|max:3000', 'cpmk' => 'required|string|max:1000',
+            'duration_mode' => 'nullable|in:enabled,disabled',
+            'duration_minutes' => 'nullable|integer|min:1|max:1440',
         ]);
         if (in_array($data['question_type'], ['pilihan', 'kompleks']) && in_array($data['type'], ['tugas', 'kuis'])) {
             $request->validate(['options' => ['required', function ($attribute, $value, $fail) {
@@ -144,6 +160,8 @@ class LearningController extends Controller
         $data['attachments'] = array_map(fn ($file) => $this->upload($file), $request->file('attachments', []));
         $data['points'] = $data['points'] ?? 100;
         $data['allow_late'] = $request->boolean('allow_late', true);
+        $data['duration_enabled'] = $request->input('duration_mode', 'enabled') === 'enabled';
+        $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
         $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
         $items = Learning::items();
         $data['id'] = max(array_keys($items)) + 1;

@@ -19,6 +19,8 @@ class LearningPreview
         return session('learning.items', [
             1 => array_merge(self::item(1, 1, 'Tree dan traversal', 'coding', 'Praktikum Binary Tree', 'Lengkapi metode insert() pada Binary Search Tree. Jelaskan penanganan cabang kiri, kanan, dan nilai duplikat.', '2026-09-10T23:59'), [
                 'points' => 100,
+                'duration_enabled' => true,
+                'duration_minutes' => 60,
                 'questions' => [
                     [
                         'id' => 1,
@@ -81,6 +83,8 @@ class LearningPreview
             4 => self::item(4, 2, 'Evaluasi usability', 'tugas', 'Laporan Evaluasi Usability', 'Evaluasi satu aplikasi menggunakan lima partisipan. Sertakan skenario pengujian, temuan, bukti gambar, dan rekomendasi perbaikan.', '2026-09-12T17:00'),
             5 => array_merge(self::item(5, 3, 'Evaluasi model', 'kuis', 'Kuis Evaluasi Model', 'Sebuah model memprediksi semua pasien sehat pada dataset dengan 95% pasien sehat. Selesaikan serangkaian soal evaluasi model berikut untuk menguji pemahaman Anda.', '2026-09-14T20:00'), [
                 'points' => 100,
+                'duration_enabled' => true,
+                'duration_minutes' => 45,
                 'questions' => [
                     [
                         'id' => 1,
@@ -133,6 +137,8 @@ class LearningPreview
             'question_type' => 'uraian',
             'cpmk' => 'Mampu menganalisis dan menerapkan konsep pada permasalahan yang diberikan.',
             'allow_late' => true,
+            'duration_enabled' => false,
+            'duration_minutes' => 60,
         ];
     }
 

@@ -68,6 +68,45 @@
             <input id="link" name="link" type="url" class="field" value="{{ old('link') }}" placeholder="https://">
         </div>
 
+        {{-- Pengaturan Batas Waktu & Durasi Kuis --}}
+        <section data-quiz-duration-settings class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4" hidden>
+            <div class="border-b border-line/60 pb-3">
+                <h2 class="text-sm font-bold text-ink">Batas Waktu &amp; Durasi Pengerjaan Kuis</h2>
+                <p class="mt-0.5 text-xs text-muted">Tentukan apakah mahasiswa memiliki batas waktu countdown saat membuka ruang ujian kuis, atau pengerjaan bebas tanpa batas waktu.</p>
+            </div>
+
+            <div class="space-y-3">
+                <label class="flex items-start gap-3 rounded-lg border border-line/60 p-3.5 hover:bg-slate-50 cursor-pointer transition">
+                    <input type="radio" name="duration_mode" value="enabled" checked class="mt-0.5" id="duration_mode_enabled">
+                    <div class="space-y-2 flex-1">
+                        <div>
+                            <span class="text-xs font-bold text-ink block">Aktifkan Batas Waktu (Countdown Timer)</span>
+                            <span class="text-[11px] text-muted block mt-0.5">Waktu akan berjalan mundur otomatis di pojok header ruang ujian saat mahasiswa mulai mengerjakan.</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                            <input type="number" name="duration_minutes" id="duration_minutes" value="60" min="1" max="1440" class="field text-xs py-1.5 w-24 bg-white" aria-label="Durasi menit">
+                            <span class="text-xs font-semibold text-muted">Menit</span>
+                            <div class="flex flex-wrap items-center gap-1.5 ml-2">
+                                <button type="button" onclick="document.getElementById('duration_minutes').value=15" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">15 Menit</button>
+                                <button type="button" onclick="document.getElementById('duration_minutes').value=30" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">30 Menit</button>
+                                <button type="button" onclick="document.getElementById('duration_minutes').value=60" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">60 Menit</button>
+                                <button type="button" onclick="document.getElementById('duration_minutes').value=90" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">90 Menit</button>
+                                <button type="button" onclick="document.getElementById('duration_minutes').value=120" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">120 Menit (2 Jam)</button>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 rounded-lg border border-line/60 p-3.5 hover:bg-slate-50 cursor-pointer transition">
+                    <input type="radio" name="duration_mode" value="disabled" class="mt-0.5" id="duration_mode_disabled">
+                    <div>
+                        <span class="text-xs font-bold text-ink block">Matikan Durasi (Bebas / Tanpa Batas Waktu)</span>
+                        <span class="text-[11px] text-muted block mt-0.5">Mahasiswa dapat mengerjakan tanpa rasa tertekan oleh timer hitung mundur. Cocok untuk latihan mandiri atau praktikum santai.</span>
+                    </div>
+                </label>
+            </div>
+        </section>
+
         {{-- Paket Soal Campuran / Multi-Question Builder --}}
         <section data-question-builder class="rounded-xl bg-canvas p-5" hidden>
             <div class="flex flex-wrap items-center justify-between gap-3">
