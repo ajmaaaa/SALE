@@ -80,8 +80,8 @@
                     <input type="radio" name="duration_mode" value="enabled" checked class="mt-0.5" id="duration_mode_enabled">
                     <div class="space-y-2 flex-1">
                         <div>
-                            <span class="text-xs font-bold text-ink block">Aktifkan Batas Waktu (Countdown Timer)</span>
-                            <span class="text-[11px] text-muted block mt-0.5">Waktu akan berjalan mundur otomatis di pojok header ruang ujian saat mahasiswa mulai mengerjakan.</span>
+                            <span class="text-xs font-bold text-ink block">Batas Waktu (Countdown Timer)</span>
+                            <span class="text-[11px] text-muted block mt-0.5">Waktu ujian berjalan mundur otomatis saat mahasiswa memulai pengerjaan kuis.</span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 pt-1">
                             <input type="number" name="duration_minutes" id="duration_minutes" value="60" min="1" max="1440" class="field text-xs py-1.5 w-24 bg-white" aria-label="Durasi menit">
@@ -100,8 +100,8 @@
                 <label class="flex items-start gap-3 rounded-lg border border-line/60 p-3.5 hover:bg-slate-50 cursor-pointer transition">
                     <input type="radio" name="duration_mode" value="disabled" class="mt-0.5" id="duration_mode_disabled">
                     <div>
-                        <span class="text-xs font-bold text-ink block">Matikan Durasi (Bebas / Tanpa Batas Waktu)</span>
-                        <span class="text-[11px] text-muted block mt-0.5">Mahasiswa dapat mengerjakan tanpa rasa tertekan oleh timer hitung mundur. Cocok untuk latihan mandiri atau praktikum santai.</span>
+                        <span class="text-xs font-bold text-ink block">Tanpa Batas Waktu (Durasi Bebas)</span>
+                        <span class="text-[11px] text-muted block mt-0.5">Kuis dapat diselesaikan secara fleksibel tanpa pembatasan timer hitung mundur.</span>
                     </div>
                 </label>
             </div>

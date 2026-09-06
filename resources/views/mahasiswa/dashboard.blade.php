@@ -14,15 +14,19 @@
         <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="button-primary shrink-0">Lanjutkan belajar</a>
     </header>
 
-    <section class="relative grid min-h-52 overflow-hidden rounded-xl px-5 py-7 text-white shadow-sm sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-8" aria-labelledby="recommendation-heading">
-        <img src="{{ asset('images/learning-banner.jpg') }}" alt="" class="absolute inset-0 h-full w-full object-cover object-center" fetchpriority="high">
-        <div class="absolute inset-0 bg-[#102f50]/80" aria-hidden="true"></div>
-        <div class="relative z-10">
-            <p class="text-sm font-semibold text-white">Rekomendasi materi untuk Anda</p>
-            <h2 id="recommendation-heading" class="mt-2 text-xl font-semibold text-white">Perkuat pemahaman traversal pada binary tree</h2>
-            <p class="mt-2 max-w-3xl text-sm leading-6 text-white">Pelajari kembali preorder dan postorder, lalu terapkan pemahamanmu pada praktikum berikutnya.</p>
+    <section class="rounded-xl bg-[#102f50] p-6 sm:p-7 text-white shadow-2xs border border-[#1b3f68]" aria-labelledby="recommendation-heading">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div class="space-y-2 max-w-3xl">
+                <div class="inline-flex items-center gap-2 rounded bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-slate-200">
+                    <span>Rekomendasi Materi</span>
+                </div>
+                <h2 id="recommendation-heading" class="text-lg sm:text-xl font-bold text-white tracking-tight">Perkuat pemahaman traversal pada binary tree</h2>
+                <p class="text-xs sm:text-sm text-slate-200 leading-relaxed">Pelajari kembali preorder, inorder, dan postorder, lalu terapkan pemahaman Anda pada lembar praktikum interaktif.</p>
+            </div>
+            <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-white px-5 text-xs font-bold text-[#102f50] hover:bg-slate-100 transition shadow-xs">
+                Buka Materi Rekomendasi →
+            </a>
         </div>
-        <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="relative z-10 inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-dark hover:bg-[#f1f3f5]">Buka materi rekomendasi</a>
     </section>
 
     <div class="rounded-2xl bg-[#e9edf1] p-4 sm:p-5">
@@ -35,7 +39,7 @@
                     <a href="{{ route('mahasiswa.assignment.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark"><span class="hidden min-[1320px]:inline">Lihat semua</span><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                 </div>
 
-                <div class="rounded-2xl bg-white px-2 py-2 shadow-sm">
+                <div class="rounded-xl bg-white px-2 py-2 shadow-sm border border-line/60">
                     @forelse(collect(\App\Support\LearningPreview::items())->whereIn('type',['tugas','coding','kuis'])->filter(fn($i)=>!session('learning.submissions.'.$i['id']))->sortBy('due')->take(3) as $item)
                         @if(!$loop->first)
                             <div class="mx-4 h-px bg-[#e7eaee]" aria-hidden="true"></div>

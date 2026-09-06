@@ -60,37 +60,31 @@
                     <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
                     <p class="prose-content mt-4 text-sm">{{ $item['body'] }}</p>
 
-                    @if($item['type'] === 'coding')
-                        {{-- Harmonious Lumina AI banner (Clean, not out-of-place black bar) --}}
-                        <div class="mt-6 rounded-xl border border-brand/20 bg-brand-soft/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <span class="text-xs font-bold text-brand uppercase tracking-wider">Lumina AI Asisten Coding</span>
-                                <h3 class="text-base font-bold text-ink mt-0.5">Code Editor &amp; Pengujian Interaktif</h3>
-                                <p class="text-xs text-muted mt-1">Kerjakan kode di editor interaktif dengan syntax highlighting, draf lokal, dan tanya petunjuk logika ke Lumina AI.</p>
+                    @if($item['id'] === 1 || $item['type'] === 'kuis')
+                        <div class="mt-5 pt-4 border-t border-line/60 flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 text-xs text-muted">
+                                <span>Durasi: {{ !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60).' Menit' : 'Bebas' }}</span>
+                                <span>·</span>
+                                <span>{{ count($item['questions'] ?? []) ?: 1 }} Butir Soal</span>
+                                <span>·</span>
+                                <span>{{ $item['points'] ?? 100 }} Poin</span>
                             </div>
-                            <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-primary shrink-0 text-xs py-2.5 px-4 font-semibold inline-flex items-center gap-2 shadow-xs">
-                                Buka Editor &amp; Tanya AI ↗
-                            </a>
+                            <div class="flex items-center gap-2">
+                                @if($item['type'] === 'coding')
+                                    <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-secondary text-xs py-2 px-3 font-semibold">
+                                        Buka Code Editor ↗
+                                    </a>
+                                @endif
+                                <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
+                                    Kerjakan Kuis →
+                                </a>
+                            </div>
                         </div>
-                    @endif
-
-                    @if($item['type'] === 'kuis')
-                        {{-- Dedicated CBT Quiz Room Banner --}}
-                        <div class="mt-6 rounded-xl border border-brand/20 bg-brand-soft/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="rounded bg-brand px-2 py-0.5 text-[11px] font-bold text-white uppercase tracking-wider">Ruang Ujian CBT</span>
-                                    @if(!empty($item['duration_enabled']))
-                                        <span class="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Durasi: {{ $item['duration_minutes'] ?? 60 }} Menit</span>
-                                    @else
-                                        <span class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Durasi: Bebas / Tanpa Batas Waktu</span>
-                                    @endif
-                                </div>
-                                <h3 class="text-base font-bold text-ink mt-1.5">Ujian Kuis Interaktif</h3>
-                                <p class="text-xs text-muted mt-1">Kerjakan kuis ini di ruang ujian khusus dengan navigasi soal per halaman, lembar tarik garis interaktif, editor terminal coding, dan countdown timer.</p>
-                            </div>
-                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary shrink-0 text-xs py-2.5 px-4 font-bold inline-flex items-center gap-2 shadow-xs">
-                                Kerjakan Kuis →
+                    @elseif($item['type'] === 'coding')
+                        <div class="mt-5 pt-4 border-t border-line/60 flex items-center justify-between gap-4">
+                            <span class="text-xs text-muted">Tugas pemrograman dikerjakan menggunakan editor kode interaktif.</span>
+                            <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-secondary text-xs py-1.5 px-3 font-semibold shrink-0">
+                                Buka Code Editor ↗
                             </a>
                         </div>
                     @endif
@@ -523,7 +517,7 @@
                         </div>
                     </aside>
                 @else
-                    @if($item['type'] === 'kuis')
+                    @if($item['type'] === 'kuis' || $item['id'] === 1)
                         {{-- Student Quiz Information & Launch Card (No Classroom Submission Box) --}}
                         <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
                             <div class="flex items-center justify-between border-b border-line/60 pb-3">
@@ -566,10 +560,6 @@
                                     @endif
                                 </div>
                             @endif
-
-                            <div class="rounded-lg bg-canvas/60 p-3 text-xs text-muted leading-relaxed">
-                                Kuis dikerjakan pada <strong class="text-ink">Ruang Ujian CBT Khusus</strong> tanpa distraksi, dilengkapi navigasi nomor soal dan lembar kerja interaktif.
-                            </div>
 
                             <div class="pt-2">
                                 @if($isLocked)
