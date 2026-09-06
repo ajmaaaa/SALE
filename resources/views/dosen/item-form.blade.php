@@ -193,32 +193,19 @@
                         </div>
                     </div>
 
-                    {{-- Mencocokkan / Menjodohkan (Visual Pairs + Format Selector + Panduan Kapan Isi Teks vs Gambar) --}}
+                    {{-- Mencocokkan / Menjodohkan (Visual Pairs + Format Selector) --}}
                     <div data-q-matching class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
-                        {{-- Panduan Jelas: Kapan Isi Teks vs Gambar --}}
-                        <div class="rounded-lg bg-blue-50/80 border border-blue-200 p-3 text-xs text-blue-900 space-y-1.5">
-                            <div class="font-semibold flex items-center gap-1.5">
-                                <svg class="h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <span>Panduan: Kapan Mengisi Teks vs Kapan Mengisi Gambar?</span>
-                            </div>
-                            <ul class="list-disc pl-5 space-y-1 text-[11px] text-blue-800">
-                                <li><strong>Gambar Rujukan Utama (di atas):</strong> Unggah jika ada <em>1 gambar umum</em> untuk keseluruhan soal (misal satu diagram arsitektur).</li>
-                                <li><strong>Format Teks ↔ Teks (di bawah):</strong> Pilih jika Anda ingin mahasiswa menjodohkan <em>kata/istilah teks</em> dengan <em>definisi/keterangan teks</em>.</li>
-                                <li><strong>Format Gambar ↔ Teks (di bawah):</strong> Pilih jika setiap baris membutuhkan <em>gambar berbeda di sisi kiri</em> (misal: 3 gambar komponen/grafik) yang harus dicocokkan dengan nama/label teks di sisi kanan.</li>
-                            </ul>
-                        </div>
-
                         {{-- Mode Selector Pasangan --}}
                         <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-white border border-line/40 text-xs">
                             <div class="flex items-center gap-4">
                                 <span class="font-semibold text-ink">Format Pasangan:</span>
                                 <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
                                     <input type="radio" data-pair-mode value="text" checked class="text-brand">
-                                    <span>📝 Teks ↔ Teks</span>
+                                    <span>Teks ↔ Teks</span>
                                 </label>
                                 <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
                                     <input type="radio" data-pair-mode value="image" class="text-brand">
-                                    <span>🖼️ Gambar ↔ Teks</span>
+                                    <span>Gambar ↔ Teks</span>
                                 </label>
                             </div>
                             <span class="text-[11px] text-muted" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>

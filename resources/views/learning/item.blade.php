@@ -437,7 +437,7 @@
                                 @foreach($submission['files'] as $sf)
                                     <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
                                         <div class="flex items-center gap-2 min-w-0">
-                                            <span class="text-muted">📎</span>
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                                             <span class="text-ink truncate font-medium">{{ $sf['name'] }}</span>
                                         </div>
                                         <input type="hidden" name="keep_files[]" value="{{ $sf['id'] }}">
@@ -449,7 +449,7 @@
                             @if(!empty($submission['link']))
                                 <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
                                     <div class="flex items-center gap-2 min-w-0">
-                                        <span class="text-muted">🔗</span>
+                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                                         <a href="{{ $submission['link'] }}" target="_blank" class="text-brand truncate font-medium hover:underline">{{ $submission['link'] }}</a>
                                     </div>
                                 </div>
@@ -475,13 +475,16 @@
                                 </button>
                                 <div data-dropdown-menu hidden class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white p-1.5 shadow-lg border border-line/60 space-y-1">
                                     <button type="button" data-action-add="link" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <span class="text-sm">🔗</span> Tautan / Link
+                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                        <span>Tautan / Link</span>
                                     </button>
                                     <button type="button" data-action-add="file" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <span class="text-sm">📎</span> Berkas / File
+                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                        <span>Berkas / File</span>
                                     </button>
                                     <button type="button" data-action-add="text" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                        <span class="text-sm">📝</span> Catatan / Jawaban Teks
+                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        <span>Catatan / Jawaban Teks</span>
                                     </button>
                                 </div>
                             </div>

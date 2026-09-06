@@ -30,24 +30,27 @@ class AuthController extends Controller
     {
         $users = AdminPreview::users();
 
-        // Check if 1-click persona switch/login
+        // Check if persona quick access is used
         if ($request->filled('persona_id')) {
             $user = $users[$request->integer('persona_id')] ?? null;
             if ($user) {
                 session(['auth_user' => $user]);
-                return $this->redirectForRole($user['role'], "Masuk sebagai {$user['name']} ({$user['role']}).");
+                return $this->redirectForRole($user['role'], "Masuk sebagai {$user['name']}.");
             }
         }
 
-        $data = $request->validate([
-            'email' => 'required|email',
-            'password' => 'nullable|string',
-        ]);
+        $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
+        if ($loginId === '') {
+            return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
+        }
 
-        $user = collect($users)->first(fn ($u) => strcasecmp($u['email'], $data['email']) === 0);
+        $user = collect($users)->first(function ($u) use ($loginId) {
+            return strcasecmp($u['email'] ?? '', $loginId) === 0
+                || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0;
+        });
 
         if (! $user) {
-            return back()->withErrors(['email' => 'Akun dengan email tersebut tidak ditemukan.'])->withInput();
+            return back()->withErrors(['login_id' => 'Kredensial akun tidak terdaftar pada sistem institusi.'])->withInput();
         }
 
         session(['auth_user' => $user]);

@@ -7,14 +7,24 @@ use Tests\TestCase;
 
 class AcademicAndAuthEnhancementTest extends TestCase
 {
-    public function test_login_page_renders_with_demo_personas(): void
+    public function test_login_page_renders_official_portal(): void
     {
         $response = $this->get('/login');
         $response->assertOk();
-        $response->assertSee('Masuk Satu Klik (Demo Persona)');
+        $response->assertSee('Masuk ke Portal');
+        $response->assertSee('Email Institusi atau NIM / NIDN');
         $response->assertSee('Ahmad Maulana');
-        $response->assertSee('Budi Santoso');
-        $response->assertSee('Admin Akademik');
+    }
+
+    public function test_login_with_nim_and_email_credentials(): void
+    {
+        $res1 = $this->post('/login', ['login_id' => '231011401234', 'password' => 'secret']);
+        $res1->assertRedirect(route('mahasiswa.dashboard'));
+        $this->assertEquals(1, session('auth_user.id'));
+
+        $res2 = $this->post('/login', ['login_id' => 'budi@example.test', 'password' => 'secret']);
+        $res2->assertRedirect(route('dosen.dashboard'));
+        $this->assertEquals(2, session('auth_user.id'));
     }
 
     public function test_one_click_persona_login_and_logout(): void

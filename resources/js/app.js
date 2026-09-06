@@ -864,7 +864,7 @@ if (addWorkDropdown) {
         }
         chip.innerHTML = `
             <div class="flex items-center gap-2 min-w-0">
-                <span class="text-sm">🔗</span>
+                <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                 <a href="${url.replace(/"/g, '&quot;')}" target="_blank" class="text-brand truncate font-medium hover:underline">${url}</a>
             </div>
             <button type="button" class="text-muted hover:text-danger text-sm font-bold px-1" title="Hapus tautan">×</button>
@@ -890,7 +890,7 @@ if (addWorkDropdown) {
             chip.className = 'flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40';
             chip.innerHTML = `
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-sm">📎</span>
+                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                     <span class="text-ink truncate font-medium">${file.name}</span>
                     <span class="text-[10px] text-muted">(${(file.size / 1024 / 1024).toFixed(1)} MB)</span>
                 </div>
