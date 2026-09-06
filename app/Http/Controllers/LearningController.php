@@ -77,21 +77,33 @@ class LearningController extends Controller
     public function storeItem(Request $request, int $course)
     {
         Learning::course($course);
+        $academic = \App\Support\AcademicPreview::config($course);
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
             'type' => ['required', Rule::in(array_keys(Learning::labels()))],
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
+            'allow_late' => 'nullable|in:0,1,true,false',
             'link' => 'nullable|url:http,https|max:2000',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,webp,mp4|max:20480',
             'formats' => 'required_if:type,tugas,kuis,coding|array|min:1',
             'formats.*' => [Rule::in(['file', 'image', 'link', 'text'])],
-            'question_type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding'])],
+            'question_type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
             'question_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'image_alt' => 'required_with:question_image|nullable|string|max:300',
             'option_images' => 'nullable|array|max:20',
             'option_images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'points' => 'nullable|integer|min:1|max:1000',
+            'component' => ['nullable', Rule::in(array_column($academic['components'],'code'))],
+            'questions' => 'nullable|array|min:1|max:30',
+            'questions.*.type' => ['required', Rule::in(['uraian','pilihan','kompleks','coding','benar_salah','mencocokkan'])],
+            'questions.*.prompt' => 'required|string|max:10000',
+            'questions.*.points' => 'required|integer|min:1|max:1000',
+            'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'],'code'))],
+            'questions.*.options' => 'nullable|string|max:3000',
+            'questions.*.matching' => 'nullable|array',
+            'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'questions.*.alt' => 'nullable|string|max:300',
             'options' => 'nullable|string|max:3000', 'cpmk' => 'required|string|max:1000',
         ]);
         if (in_array($data['question_type'], ['pilihan', 'kompleks']) && in_array($data['type'], ['tugas', 'kuis'])) {
@@ -106,10 +118,32 @@ class LearningController extends Controller
         foreach (array_keys($request->file('option_images', [])) as $index) {
             abort_unless(ctype_digit((string) $index) && (int) $index < $optionCount && in_array($data['question_type'], ['pilihan', 'kompleks']), 422);
         }
+        foreach ($data['questions'] ?? [] as $index => $question) {
+            if ($request->hasFile("questions.$index.image") && empty($question['alt'])) {
+                return back()->withErrors(["questions.$index.alt"=>'Deskripsi gambar soal wajib diisi.'])->withInput();
+            }
+            if (in_array($question['type'], ['pilihan','kompleks'])) {
+                $options = array_values(array_filter(array_map('trim', explode("\n",$question['options'] ?? '')), fn($v)=>$v!==''));
+                if (count($options)<2 || count($options)>20 || count(array_unique($options))!==count($options)) return back()->withErrors(["questions.$index.options"=>'Isi 2–20 pilihan berbeda untuk soal '.($index+1).'.'])->withInput();
+            }
+        }
+        if (!empty($data['questions'])) {
+            if (!in_array($data['type'], ['tugas','kuis'])) return back()->withErrors(['type'=>'Paket soal campuran digunakan untuk tugas atau kuis.'])->withInput();
+            foreach ($data['questions'] as $index => &$question) {
+                $question['image'] = $request->hasFile("questions.$index.image") ? $this->upload($request->file("questions.$index.image")) : null;
+                $mapping = collect($academic['cpmk'])->firstWhere('code',$question['cpmk']);
+                $question['cpl'] = $mapping['cpl'];
+            }
+            unset($question);
+            $data['questions'] = array_values($data['questions']);
+            $data['points'] = array_sum(array_column($data['questions'],'points'));
+            $data['component'] ??= $data['type']==='kuis' ? 'kuis' : 'tugas';
+        }
         $data['question_image'] = $request->hasFile('question_image') ? $this->upload($request->file('question_image')) : null;
         $data['option_images'] = array_map(fn ($file) => $this->upload($file), $request->file('option_images', []));
         $data['attachments'] = array_map(fn ($file) => $this->upload($file), $request->file('attachments', []));
         $data['points'] = $data['points'] ?? 100;
+        $data['allow_late'] = $request->boolean('allow_late', true);
         $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
         $items = Learning::items();
         $data['id'] = max(array_keys($items)) + 1;
@@ -135,19 +169,51 @@ class LearningController extends Controller
     {
         $resource = Learning::resource($course, $item);
         abort_unless(in_array($resource['type'], ['tugas', 'coding', 'kuis']), 404);
+
+        $allowLate = $resource['allow_late'] ?? true;
+        if (! $allowLate && ! empty($resource['due']) && \Carbon\Carbon::parse($resource['due'])->isPast()) {
+            return back()->withErrors(['answer' => 'Batas waktu pengumpulan telah berakhir. Pengampu mengunci tugas ini dan tidak menerima pengumpulan terlambat.'])->withInput();
+        }
+
         $data = $request->validate([
+            'question_answers' => 'nullable|array|max:30',
+            'question_answers.*.text' => 'nullable|string|max:30000',
+            'question_answers.*.choices' => 'nullable|array|max:20',
+            'question_answers.*.choices.*' => 'string|max:1000',
+            'question_answers.*.boolean_choice' => 'nullable|string|in:Benar,Salah',
+            'question_answers.*.matching' => 'nullable|array',
             'answer' => 'nullable|string|max:30000', 'link' => 'nullable|url:http,https|max:2000',
             'files' => 'nullable|array|max:5', 'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,jpeg,png,webp|max:20480',
             'keep_files' => 'nullable|array|max:5', 'keep_files.*' => 'uuid',
             'choices' => 'nullable|array|max:20', 'choices.*' => 'string|max:1000',
+            'boolean_choice' => 'nullable|string|in:Benar,Salah',
+            'matching' => 'nullable|array',
         ]);
+        if (!empty($resource['questions'])) {
+            $answers=$data['question_answers'] ?? [];
+            if (count($answers)!==count($resource['questions'])) return back()->withErrors(['question_answers'=>'Jawab seluruh soal sebelum mengumpulkan.'])->withInput();
+            foreach ($resource['questions'] as $index=>$question) {
+                $answer=$answers[$index] ?? [];
+                if (in_array($question['type'],['pilihan','kompleks'])) {
+                    $options=array_values(array_filter(array_map('trim',explode("\n",$question['options'] ?? '')),fn($v)=>$v!==''));
+                    $choices=$answer['choices'] ?? [];
+                    if (!$choices || array_diff($choices,$options) || ($question['type']==='pilihan' && count($choices)!==1)) return back()->withErrors(['question_answers'=>'Periksa pilihan pada soal '.($index+1).'.'])->withInput();
+                } elseif ($question['type'] === 'benar_salah') {
+                    if (empty($answer['boolean_choice'])) return back()->withErrors(['question_answers'=>'Pilih Benar atau Salah pada soal '.($index+1).'.'])->withInput();
+                } elseif ($question['type'] === 'mencocokkan') {
+                    if (empty($answer['matching'])) return back()->withErrors(['question_answers'=>'Pasangkan seluruh item pada soal '.($index+1).'.'])->withInput();
+                } elseif (trim($answer['text'] ?? '')==='') return back()->withErrors(['question_answers'=>'Isi jawaban soal '.($index+1).'.'])->withInput();
+            }
+        } else {
+            unset($data['question_answers']);
+        }
         $previousFiles = session("learning.submissions.$item.files", []);
         $keep = $request->input('keep_files', $request->boolean('replace_files') ? [] : $previousFiles);
         abort_if(array_diff($keep, $previousFiles), 422);
         if (count($keep) + count($request->file('files', [])) > 5) {
             return back()->withErrors(['files' => 'Maksimal lima lampiran, termasuk berkas sebelumnya.'])->withInput();
         }
-        if (! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices')) {
+        if (empty($data['question_answers']) && ! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices') && ! $request->filled('boolean_choice') && ! $request->filled('matching')) {
             return back()->withErrors(['answer' => 'Tambahkan jawaban, berkas, atau tautan sebelum mengumpulkan.'])->withInput();
         }
         abort_if($request->filled('link') && ! in_array('link', $resource['formats']), 422);

@@ -61,7 +61,6 @@ root.right = deleteNode(root.right, minNode.value);</code></pre>
             <section class="relative ml-2 mt-8 pl-9 sm:ml-4 sm:pl-12" aria-labelledby="reply-heading">
                 <span class="absolute bottom-0 left-3 top-[-32px] w-px bg-[#cbd2d9] sm:left-4" aria-hidden="true"></span>
                 <span class="absolute left-3 top-7 h-px w-6 bg-[#cbd2d9] sm:left-4 sm:w-8" aria-hidden="true"></span>
-                <span class="absolute left-[9px] top-[24px] h-2 w-2 rounded-full bg-brand sm:left-[13px]" aria-hidden="true"></span>
                 <article class="rounded-xl bg-white px-5 py-5 shadow-[0_3px_16px_rgba(29,39,48,0.09)]">
                     <p class="text-sm font-semibold text-brand">Jawaban dosen</p>
                     <div class="mt-4 flex flex-wrap items-center justify-between gap-3">

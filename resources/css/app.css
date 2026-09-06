@@ -91,13 +91,15 @@
 }
 
 .code-editor .cm-editor {
-    min-height: 520px;
+    min-height: 300px;
+    max-height: 420px;
     font-family: var(--font-mono);
     font-size: 13px;
 }
 
 .code-editor .cm-scroller {
-    min-height: 520px;
+    min-height: 300px;
+    max-height: 420px;
     line-height: 1.65;
 }
 

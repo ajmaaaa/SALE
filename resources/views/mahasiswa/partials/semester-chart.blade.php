@@ -1,5 +1,5 @@
 <section aria-labelledby="academic-heading" class="min-w-0">
-    <div class="mb-4 flex min-h-[92px] items-start justify-between gap-4">
+    <div class="mb-4 flex items-start justify-between gap-4">
         <div><h2 id="academic-heading" class="section-heading">Perkembangan akademik</h2><p class="mt-1 text-sm text-muted">Hasil belajar dari semester ke semester.</p></div>
         <span class="shrink-0 text-xs text-muted">Data contoh</span>
     </div>
@@ -15,7 +15,7 @@
             <path data-chart-area d="M60 48.65L180 41.34L300 36.18L420 33.6V197H60Z" fill="#edf3f9"/>
             <path data-chart-line d="M60 48.65L180 41.34L300 36.18L420 33.6" fill="none" stroke="#1f4b7a" stroke-width="2.5" stroke-linejoin="round"/>
             @foreach([['x'=>60,'y'=>48.65,'ips'=>'3,45','ipk'=>'3,45'],['x'=>180,'y'=>41.34,'ips'=>'3,62','ipk'=>'3,54'],['x'=>300,'y'=>36.18,'ips'=>'3,74','ipk'=>'3,61'],['x'=>420,'y'=>33.6,'ips'=>'3,80','ipk'=>'3,65']] as $point)
-            <g data-chart-point data-x="{{ $point['x'] }}" data-ips="{{ $point['ips'] }}" data-ipk="{{ $point['ipk'] }}"><circle cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="5" fill="white" stroke="#1f4b7a" stroke-width="2"/><text data-point-value x="{{ $point['x'] }}" y="{{ $point['y'] - 13 }}" text-anchor="middle" fill="#1f4b7a" font-size="12" font-weight="600">{{ $point['ips'] }}</text><text x="{{ $point['x'] }}" y="222" text-anchor="middle" fill="#77818c" font-size="11">Sem {{ $loop->iteration }}</text></g>
+            <g data-chart-point data-x="{{ $point['x'] }}" data-ips="{{ $point['ips'] }}" data-ipk="{{ $point['ipk'] }}"><text data-point-value x="{{ $point['x'] }}" y="{{ $point['y'] - 8 }}" text-anchor="middle" fill="#1f4b7a" font-size="12" font-weight="600">{{ $point['ips'] }}</text><text x="{{ $point['x'] }}" y="222" text-anchor="middle" fill="#77818c" font-size="11">Sem {{ $loop->iteration }}</text></g>
             @endforeach
         </svg>
         <p class="mt-4 text-xs leading-5 text-muted" data-chart-caption>IP semester menunjukkan hasil setiap semester. IPK memperhitungkan seluruh SKS yang sudah ditempuh.</p>

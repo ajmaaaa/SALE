@@ -28,7 +28,14 @@ class LearningPreview
 
     private static function item(int $id, int $course, string $module, string $type, string $title, string $body, ?string $due = null): array
     {
-        return compact('id', 'course', 'module', 'type', 'title', 'body', 'due') + ['attachments' => [], 'link' => null, 'formats' => ['file', 'image', 'link', 'text'], 'question_type' => 'uraian', 'cpmk' => 'Mampu menganalisis dan menerapkan konsep pada permasalahan yang diberikan.'];
+        return compact('id', 'course', 'module', 'type', 'title', 'body', 'due') + [
+            'attachments' => [],
+            'link' => null,
+            'formats' => ['file', 'image', 'link', 'text'],
+            'question_type' => 'uraian',
+            'cpmk' => 'Mampu menganalisis dan menerapkan konsep pada permasalahan yang diberikan.',
+            'allow_late' => true,
+        ];
     }
 
     public static function course(int $id): array

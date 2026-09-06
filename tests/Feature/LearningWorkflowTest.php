@@ -85,4 +85,148 @@ class LearningWorkflowTest extends TestCase
         $this->post('/mahasiswa/course/1/item/7/submission', ['choices' => ['Pertama', 'Kedua']])->assertRedirect('/mahasiswa/course/1/item/7');
         $this->post('/mahasiswa/course/1/item/7/submission', ['files' => [UploadedFile::fake()->create('answer.pdf', 10, 'application/pdf')]])->assertUnprocessable();
     }
+
+    public function test_matching_and_boolean_question_types(): void
+    {
+        // 1. Create a task with mixed questions including benar_salah and mencocokkan
+        $this->post('/dosen/course/1/items', [
+            'type' => 'tugas',
+            'title' => 'Tugas Struktur Data Lanjutan',
+            'module' => 'Minggu 5',
+            'body' => 'Kerjakan soal-soal berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Memahami konsep.',
+            'formats' => ['text'],
+            'questions' => [
+                [
+                    'type' => 'benar_salah',
+                    'prompt' => 'Binary Search Tree selalu seimbang secara alami.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'options' => null,
+                ],
+                [
+                    'type' => 'mencocokkan',
+                    'prompt' => 'Pasangkan istilah struktur data dengan karakteristiknya.',
+                    'points' => 30,
+                    'cpmk' => 'CPMK-02',
+                    'options' => "Stack = LIFO (Last In First Out)\nQueue = FIFO (First In First Out)",
+                ],
+            ],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $itemId = max(array_keys(session('learning.items')));
+
+        // 2. Student views the item
+        $response = $this->get("/mahasiswa/course/1/item/{$itemId}");
+        $response->assertSee('Salah');
+        $response->assertSee('Stack');
+        $response->assertSee('LIFO (Last In First Out)');
+
+        // 3. Student submits answers
+        $this->post("/mahasiswa/course/1/item/{$itemId}/submission", [
+            'question_answers' => [
+                ['boolean_choice' => 'Salah'],
+                ['matching' => ['0' => 'LIFO (Last In First Out)', '1' => 'FIFO (First In First Out)']],
+            ],
+        ])->assertRedirect("/mahasiswa/course/1/item/{$itemId}");
+
+        // 4. Discussion index navigation
+        $discResponse = $this->get('/mahasiswa/discussion');
+        $discResponse->assertOk();
+        $discResponse->assertDontSee('Buka Diskusi →');
+        $discResponse->assertDontSee('<th>Aksi</th>', false);
+    }
+
+    public function test_late_submission_policy_is_enforced(): void
+    {
+        // 1. Disallow late submission
+        $this->post('/dosen/course/1/items', [
+            'type' => 'tugas',
+            'title' => 'Tugas Ketat Waktu',
+            'module' => 'Minggu 6',
+            'body' => 'Kumpulkan sebelum tenggat.',
+            'due' => '2020-01-01T23:59',
+            'allow_late' => '0',
+            'question_type' => 'uraian',
+            'cpmk' => 'Memahami tenggat.',
+            'formats' => ['text'],
+        ])->assertRedirect();
+
+        $lockedId = max(array_keys(session('learning.items')));
+        $this->get("/mahasiswa/course/1/item/{$lockedId}")
+            ->assertSee('Pengumpulan Ditutup')
+            ->assertSee('Terlambat');
+
+        // Attempt submission should fail
+        $this->post("/mahasiswa/course/1/item/{$lockedId}/submission", [
+            'answer' => 'Jawaban terlambat saya.',
+        ])->assertSessionHasErrors('answer');
+
+        // 2. Allow late submission
+        $this->post('/dosen/course/1/items', [
+            'type' => 'tugas',
+            'title' => 'Tugas Fleksibel',
+            'module' => 'Minggu 6',
+            'body' => 'Boleh terlambat.',
+            'due' => '2020-01-01T23:59',
+            'allow_late' => '1',
+            'question_type' => 'uraian',
+            'cpmk' => 'Memahami fleksibilitas.',
+            'formats' => ['text'],
+        ])->assertRedirect();
+
+        $flexibleId = max(array_keys(session('learning.items')));
+        $this->post("/mahasiswa/course/1/item/{$flexibleId}/submission", [
+            'answer' => 'Jawaban fleksibel terlambat.',
+        ])->assertSessionHasNoErrors()->assertRedirect("/mahasiswa/course/1/item/{$flexibleId}");
+    }
+
+    public function test_grades_and_discussions_ui(): void
+    {
+        $gradesResponse = $this->get(route('mahasiswa.nilai'));
+        $gradesResponse->assertOk()
+            ->assertDontSee('Total Beban SKS Semester Ini')
+            ->assertSee('Daftar Mata Kuliah Semester');
+
+        $assignmentsResponse = $this->get('/mahasiswa/assignment');
+        $assignmentsResponse->assertOk()
+            ->assertSee('Belum dikumpulkan')
+            ->assertSee('text-rose-600', false)
+            ->assertDontSee('bg-rose-100', false);
+
+        $discResponse = $this->get('/mahasiswa/discussion');
+        $discResponse->assertOk()
+            ->assertSee('bg-blue-600', false)
+            ->assertDontSee('bg-brand-soft text-brand', false);
+    }
+
+    public function test_lecturer_view_and_quiz_action(): void
+    {
+        // 1. Dosen view has no student submission and shows management panel
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+        $lecturerView = $this->get('/mahasiswa/course/1/item/1');
+        $lecturerView->assertOk()
+            ->assertSee('Pengelolaan Pengampu')
+            ->assertSee('Lihat &amp; Nilai Jawaban Mahasiswa', false)
+            ->assertDontSee('+ Tambah atau buat')
+            ->assertDontSee('Kumpulkan Tugas');
+
+        // 2. Student viewing quiz sees 'Kerjakan Kuis'
+        session(['auth_user' => ['id' => 1, 'name' => 'Ahmad Maulana', 'role' => 'mahasiswa']]);
+        $quizView = $this->get('/mahasiswa/course/3/item/5');
+        $quizView->assertOk()
+            ->assertSee('Kerjakan Kuis')
+            ->assertDontSee('Kumpulkan Tugas');
+    }
+
+    public function test_code_workbench_linux_layout(): void
+    {
+        $codeView = $this->get('/mahasiswa/assignment/1/code');
+        $codeView->assertOk()
+            ->assertSee('sale@sandbox')
+            ->assertSee('python3 --version')
+            ->assertSee('Petunjuk Pengerjaan')
+            ->assertSee('Lumina AI');
+    }
 }

@@ -48,6 +48,74 @@ class AdminPreviewController extends Controller
         return redirect('/admin/pengguna')->with('notice', 'Data pengguna disimpan dalam pratinjau.');
     }
 
+    public function bulkUsers(Request $request)
+    {
+        $data = $request->validate([
+            'raw_users' => 'required|string|max:50000',
+        ]);
+
+        $users = AdminPreview::users();
+        $lines = preg_split('/\r\n|\r|\n/', trim($data['raw_users']));
+        $added = 0;
+        $errors = [];
+
+        foreach ($lines as $lineIndex => $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            $delimiter = str_contains($line, "\t") ? "\t" : (str_contains($line, ';') ? ';' : ',');
+            $cols = array_map('trim', str_getcsv($line, $delimiter, '"', '\\'));
+
+            if (count($cols) < 3) {
+                $errors[] = "Baris " . ($lineIndex + 1) . ": Format tidak lengkap (harus NIM, Nama, Email).";
+                continue;
+            }
+
+            $number = $cols[0];
+            $name = $cols[1];
+            $email = $cols[2];
+            $role = isset($cols[3]) && in_array(strtolower($cols[3]), ['mahasiswa', 'dosen', 'admin']) ? strtolower($cols[3]) : 'mahasiswa';
+            $status = isset($cols[4]) && in_array(strtolower($cols[4]), ['aktif', 'nonaktif']) ? strtolower($cols[4]) : 'aktif';
+
+            $exists = false;
+            foreach ($users as $existing) {
+                if (strcasecmp($existing['email'], $email) === 0 || $existing['number'] === $number) {
+                    $errors[] = "Baris " . ($lineIndex + 1) . ": Email/NIM '{$number}' atau '{$email}' sudah digunakan.";
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if ($exists) {
+                continue;
+            }
+
+            $nextId = (max(array_keys($users) ?: [0])) + 1;
+            $users[$nextId] = [
+                'id' => $nextId,
+                'number' => $number,
+                'name' => $name,
+                'email' => $email,
+                'role' => $role,
+                'status' => $status,
+            ];
+            $added++;
+        }
+
+        if ($added > 0) {
+            session(['admin.users' => $users]);
+            AdminPreview::log("Mengimpor {$added} pengguna secara massal.");
+        }
+
+        if (count($errors) > 0) {
+            return redirect('/admin/pengguna')->with('notice', "Berhasil menambahkan {$added} pengguna. " . count($errors) . " baris dilewati karena duplikat/format.");
+        }
+
+        return redirect('/admin/pengguna')->with('notice', "Berhasil mengimpor {$added} pengguna secara massal.");
+    }
+
     public function academic(Request $request)
     {
         $data = $request->validate(['id' => 'nullable|integer', 'type' => ['required', Rule::in(['fakultas', 'prodi', 'semester', 'kelas'])], 'code' => 'required|string|max:30', 'name' => 'required|string|max:150', 'parent' => 'nullable|integer', 'course' => ['nullable', 'integer', Rule::in(array_keys(LearningPreview::courses()))], 'students' => 'nullable|array', 'students.*' => ['integer', Rule::in(array_keys(array_filter(AdminPreview::users(), fn ($u) => $u['role'] === 'mahasiswa' && $u['status'] === 'aktif')))], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);

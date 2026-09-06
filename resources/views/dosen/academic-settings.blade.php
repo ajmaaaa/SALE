@@ -1,0 +1,13 @@
+@extends('layouts.mahasiswa')
+@section('header','CPL, CPMK & penilaian')
+@section('content')
+<div class="max-w-5xl space-y-5"><a class="quiet-link" href="{{ route('dosen.course.show',$course['id']) }}">← {{ $course['title'] }}</a><header><h1 class="page-heading">Perencanaan & penilaian</h1><p class="page-description">Petakan CPL ke CPMK, lalu tentukan kontribusi setiap komponen nilai.</p></header>
+<form class="space-y-5" method="post" action="{{ route('dosen.academic.save',$course['id']) }}">@csrf
+@foreach(['cpl'=>'Capaian pembelajaran lulusan (CPL)','cpmk'=>'Capaian pembelajaran mata kuliah (CPMK)','components'=>'Komponen & bobot nilai'] as $group=>$label)
+<section class="surface p-5" data-repeat-group="{{ $group }}"><div class="mb-4 flex items-center justify-between gap-3"><h2 class="section-heading">{{ $label }}</h2><button class="quiet-link" data-add-row type="button">+ Tambah baris</button></div><div data-rows class="space-y-3">@foreach(old($group,$config[$group]) as $index=>$row)<div data-row class="grid items-start gap-3 sm:grid-cols-[120px_minmax(0,1fr)_110px_32px]">
+<label><span class="form-label text-xs">Kode</span><input class="field" required name="{{ $group }}[{{ $index }}][code]" value="{{ $row['code'] }}"></label>
+<label><span class="form-label text-xs">{{ $group==='components' ? 'Nama komponen' : 'Deskripsi' }}</span><input class="field" required name="{{ $group }}[{{ $index }}][{{ $group==='components' ? 'name' : 'description' }}]" value="{{ $row[$group==='components' ? 'name' : 'description'] }}"></label>
+@if($group==='cpmk')<label><span class="form-label text-xs">Kode CPL</span><input class="field" required name="cpmk[{{ $index }}][cpl]" value="{{ $row['cpl'] }}" list="cpl-codes"></label>@elseif($group==='components')<label><span class="form-label text-xs">Bobot (%)</span><input class="field" required type="number" min="0" max="100" step="0.01" name="components[{{ $index }}][weight]" value="{{ $row['weight'] }}" data-weight></label>@else<span></span>@endif
+<button type="button" data-remove-row class="mt-7 text-muted" aria-label="Hapus baris">×</button></div>@endforeach</div>@if($group==='components')<p class="mt-4 text-sm font-semibold" data-weight-total>Total bobot: {{ array_sum(array_column($config['components'],'weight')) }}%</p><p class="mt-1 text-xs text-muted">Total harus 100%. Nilai kosong berarti belum dinilai, bukan nol.</p>@endif</section>@endforeach
+<datalist id="cpl-codes">@foreach($config['cpl'] as $cpl)<option value="{{ $cpl['code'] }}">@endforeach</datalist><button class="button-primary">Simpan pengaturan</button></form></div>
+@endsection

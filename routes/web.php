@@ -11,6 +11,11 @@ Route::get('/', function () {
     return redirect()->route('mahasiswa.dashboard');
 });
 
+Route::get('/login', [\App\Http\Controllers\AuthController::class, 'login'])->name('login');
+Route::post('/login', [\App\Http\Controllers\AuthController::class, 'authenticate'])->name('login.post');
+Route::match(['get', 'post'], '/logout', [\App\Http\Controllers\AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/switch-role/{role}', [\App\Http\Controllers\AuthController::class, 'switchRole'])->name('switch-role');
+
 // Public only while SALE remains a frontend prototype. See README before adding real data.
 Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -46,7 +51,16 @@ Route::prefix('dosen')->name('dosen.')->group(function () {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/laporan/export', [AdminPreviewController::class, 'export'])->name('export');
     Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
+    Route::post('/pengguna/bulk', [AdminPreviewController::class, 'bulkUsers'])->name('users.bulk');
     Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
     Route::post('/pengaturan', [AdminPreviewController::class, 'settings'])->name('settings.store');
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
+
+Route::get('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'settings'])->whereNumber('course')->name('dosen.academic');
+Route::post('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'saveSettings'])->whereNumber('course')->name('dosen.academic.save');
+Route::get('/dosen/gradebook', [\App\Http\Controllers\AcademicController::class,'gradebook'])->name('dosen.gradebook');
+Route::post('/dosen/gradebook/{course}', [\App\Http\Controllers\AcademicController::class,'saveScores'])->whereNumber('course')->name('dosen.scores.save');
+Route::post('/dosen/gradebook/{course}/bulk', [\App\Http\Controllers\AcademicController::class,'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
+Route::post('/dosen/penilaian/{item}', [\App\Http\Controllers\AcademicController::class,'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
+Route::get('/mahasiswa/nilai', [\App\Http\Controllers\AcademicController::class,'student'])->name('mahasiswa.nilai');
