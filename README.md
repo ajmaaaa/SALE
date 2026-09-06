@@ -8,7 +8,9 @@ Repository ini masih berupa prototype frontend. Halaman mahasiswa menggunakan da
 
 Jangan gunakan data mahasiswa nyata atau deploy sebagai aplikasi production sebelum autentikasi, authorization policy, validasi, dan model domain selesai dibuat.
 
-Kontrol upload foto, perubahan kata sandi, forum, asisten course, eksekusi kode, dan pengumpulan tugas belum terhubung ke backend.
+Alur course, materi/tugas, diskusi, dan pengumpulan kini menggunakan sesi Laravel untuk pratinjau. Data tidak dibagikan antar pengguna. Upload sampul dan lampiran divalidasi dan disimpan pada disk privat `local`, hanya dapat dibuka oleh sesi pengunggah. Metadata hilang ketika sesi kedaluwarsa; berkas pada `storage/app/private/learning-preview` perlu dibersihkan setelah pengujian.
+
+AI/RAG, runner Python terisolasi, nilai otomatis, enrollment, autentikasi peran, analitik, kehadiran, dan administrasi kampus belum terhubung. Upload foto profil dan perubahan kata sandi juga belum aktif. Navigasi pratinjau peran bukan mekanisme otorisasi.
 
 ## Tech Stack
 
@@ -58,7 +60,7 @@ npm audit
 - `app/Http/Controllers/Mahasiswa`: controller halaman mahasiswa
 - `routes/web.php`: route web dan route preview mahasiswa
 
-Data contoh saat ini berada di template Blade. Saat backend domain dibuat, pindahkan data tersebut ke model/controller dan gunakan Blade hanya untuk presentasi.
+Data course dan konten ada di `app/Support/LearningPreview.php`. Alur pratinjau ditangani `LearningController`, dengan view di `resources/views/learning` dan `resources/views/dosen`. Model persisten dan policy diperlukan sebelum penggunaan bersama.
 
 ## Batas Keamanan
 
@@ -71,3 +73,16 @@ Sebelum aplikasi menerima data nyata:
 5. Jalankan production dengan `APP_ENV=production`, `APP_DEBUG=false`, HTTPS, dan secret yang dikelola di luar repository.
 
 `package-lock.json` harus selalu ikut di-commit agar `npm ci` menghasilkan dependency tree yang konsisten.
+
+## Alur penyesuaian September 2026
+
+- Course → modul → detail materi/tugas → lampiran, pengumpulan, dan diskusi khusus konten tersebut.
+- Tugas & Kuis adalah rekap lintas course dengan filter; tab Nilai & umpan balik menggantikan menu Nilai terpisah.
+- Dosen: `/dosen/dashboard`, `/dosen/course`, dan `/dosen/penilaian`. Tambah course mendukung sampul JPG/PNG/WebP dan video pengantar. Tambah konten mendukung materi, pengumuman, tugas, coding, dan kuis dengan pilihan soal AKM.
+- Pengumpulan menerima format yang ditentukan dosen: dokumen/ZIP, gambar, tautan, teks, atau pilihan jawaban.
+- Ruang koding menyimpan draf lokal per tugas. Seleksi teks → Tanyakan baris terpilih → konteks berkas/baris → pratinjau pesan. Tidak ada respons AI atau hasil tes kode buatan.
+- Gaya visual mengikuti biru tua, Inter, dan struktur sederhana proyek awal. Referensi Figma tidak dapat diakses pada sesi pengerjaan; PDF dipakai sebagai acuan struktur.
+
+Gunakan session driver `file` atau `database` untuk mencoba alur lintas halaman. Untuk batas upload UI (20 MB/berkas, 5 berkas), atur PHP `upload_max_filesize=20M`, `post_max_size=110M`, dan batas web server yang sesuai. Batas default PHP yang lebih kecil tetap berlaku bila belum diatur.
+
+Snapshot sebelum perubahan: `7c019fb`. Untuk meninjau versi lama tanpa menimpa pekerjaan sekarang, gunakan `git worktree add ../SALE-before-redesign 7c019fb`.

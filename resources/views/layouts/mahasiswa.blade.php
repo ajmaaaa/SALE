@@ -22,6 +22,15 @@
             </a>
         </div>
 
+        @if(request()->is('dosen*'))
+        <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi dosen">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang mengajar</p>
+            @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.grades' => 'Penilaian'] as $route => $label)
+                <a href="{{ route($route) }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs($route) || ($route === 'dosen.course.index' && request()->routeIs('dosen.course.*','dosen.item.*')) ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">{{ $label }}</a>
+            @endforeach
+            <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
+        </nav>
+        @else
         <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
             <div class="space-y-1">
@@ -36,11 +45,7 @@
                 <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 4h10l2 2v14H5V4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
                     Tugas &amp; Kuis
-                    <span class="ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-white text-brand-dark' : 'bg-brand-dark text-white' }}">3</span>
-                </a>
-                <a href="{{ route('mahasiswa.grade.index') }}" @if(request()->routeIs('mahasiswa.grade.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.grade.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
-                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h3M8 16h2M14 12h2M14 16h2"/></svg>
-                    Nilai
+
                 </a>
                 <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
@@ -50,18 +55,19 @@
 
             <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
             <div class="space-y-1">
-                <button type="button" class="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-left text-[14px] font-medium text-[#4d5964] hover:bg-[#f0f1ee] hover:text-ink">
+                <a href="{{ route('mahasiswa.notifications') }}" class="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-left text-[14px] font-medium text-[#4d5964] hover:bg-[#f0f1ee] hover:text-ink">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     Notifikasi
-                    <span class="ml-auto text-xs font-semibold text-danger">2</span>
-                </button>
+
+                </a>
                 <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
                     Profil &amp; Pengaturan
                 </a>
             </div>
         </nav>
-
+        @endif
+        <div class="border-t border-line p-4 text-xs text-muted"><p class="mb-2">Pratinjau peran</p><div class="flex gap-4"><a class="quiet-link" href="{{ route('mahasiswa.course.index') }}">Mahasiswa</a><a class="quiet-link" href="{{ route('dosen.dashboard') }}">Dosen</a></div></div>
     </aside>
 
     <div class="min-h-screen lg:pl-[248px]">
@@ -78,8 +84,8 @@
                 </div>
                 <a href="{{ route('mahasiswa.profile.index') }}" class="flex items-center gap-3 rounded-md p-1.5 hover:bg-[#eceeeb]">
                     <span class="hidden text-right sm:block">
-                        <span class="block text-sm font-semibold leading-4 text-ink">Ahmad</span>
-                        <span class="block text-xs text-muted">231011401234</span>
+                        <span class="block text-sm font-semibold leading-4 text-ink">{{ request()->is('dosen*') ? 'Budi Santoso' : 'Ahmad' }}</span>
+                        <span class="block text-xs text-muted">{{ request()->is('dosen*') ? 'Dosen' : '231011401234' }}</span>
                     </span>
                     <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">AM</span>
                 </a>
@@ -87,6 +93,8 @@
         </header>
 
         <main id="main-content" class="page-shell">
+            @if(session('notice'))<div role="status" class="mb-5 rounded-lg border border-line bg-brand-soft p-4 text-sm">{{ session('notice') }}</div>@endif
+            @if($errors->any())<div role="alert" class="mb-5 rounded-lg border border-danger bg-white p-4 text-sm text-danger"><p class="font-semibold">Periksa kembali isian berikut.</p><ul class="mt-2 list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             @yield('content')
         </main>
 
