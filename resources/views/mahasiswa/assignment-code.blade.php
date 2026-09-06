@@ -24,6 +24,7 @@
     </header>
 
     <main class="w-full p-4 sm:p-6 lg:p-7">
+        @if($errors->any())<div role="alert" class="mb-5 rounded-lg border border-danger bg-white p-4 text-sm text-danger">{{ $errors->first() }}</div>@endif
         <div class="grid gap-5 2xl:grid-cols-[280px_minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
             <section class="rounded-xl bg-white px-5 py-5 shadow-sm xl:col-span-2 2xl:col-span-1" aria-labelledby="question-heading">
                 <div class="flex items-center justify-between gap-3 pb-2"><p class="text-sm font-semibold text-ink">Praktikum</p><p class="text-xs text-muted">CPMK · Struktur data</p></div>
@@ -51,7 +52,9 @@ class BinaryTree:
 
         # Lengkapi logika insert di sini
 
-        return root@else# Tulis jawaban Python kamu di sini
+        return root
+@else
+# Tulis jawaban Python kamu di sini
 @endif</textarea>
                     <div data-code-editor data-assignment-id="{{ $item['id'] }}" class="code-editor overflow-hidden rounded-t-xl bg-[#282c34] shadow-sm" aria-label="Editor kode Python"></div>
                     <div class="flex flex-wrap items-center justify-between gap-2 rounded-b-xl bg-[#20242b] px-4 py-2 text-xs text-[#aeb8c4] shadow-sm"><span data-code-save-status>Draf lokal di browser ini</span><span>Python 3.12</span></div>

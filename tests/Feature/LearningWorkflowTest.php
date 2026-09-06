@@ -46,6 +46,13 @@ class LearningWorkflowTest extends TestCase
         $this->post('/mahasiswa/course/1/item/2/submission', ['answer' => 'x'])->assertNotFound();
     }
 
+    public function test_new_coding_tasks_get_their_own_editor_template(): void
+    {
+        $this->post('/dosen/course/1/items', ['type' => 'coding', 'title' => 'Kode baru', 'module' => 'Minggu 4', 'body' => 'Buat fungsi.', 'question_type' => 'coding', 'cpmk' => 'Membuat fungsi.', 'formats' => ['text']])->assertRedirect();
+        $this->get('/mahasiswa/assignment/7/code')->assertOk()->assertSee('Tulis jawaban Python kamu di sini')->assertDontSee('class Node:');
+        $this->get('/mahasiswa/assignment/1/code')->assertSee('class Node:')->assertDontSee('@else');
+    }
+
     public function test_upload_and_choice_validation(): void
     {
         Storage::fake('local');
