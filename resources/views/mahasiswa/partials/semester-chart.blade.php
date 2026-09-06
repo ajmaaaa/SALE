@@ -1,5 +1,5 @@
 <section aria-labelledby="academic-heading" class="min-w-0">
-    <div class="mb-4 flex items-start justify-between gap-4">
+    <div class="mb-4 flex min-h-[56px] items-start justify-between gap-4">
         <div><h2 id="academic-heading" class="section-heading">Perkembangan akademik</h2><p class="mt-1 text-sm text-muted">Hasil belajar dari semester ke semester.</p></div>
         <span class="shrink-0 text-xs text-muted">Data contoh</span>
     </div>

@@ -491,29 +491,48 @@ if (builder) {
         item.setAttribute('data-pair-item', '');
         item.className = 'flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-lg bg-white border border-line/40';
 
-        const isImg = mode === 'image';
-        const hasImg = isImg && left && (left.startsWith('http') || left.startsWith('data:image'));
-        const leftHtml = isImg ? `
+        const isLeftImg = mode === 'image' || mode === 'image_image';
+        const isRightImg = mode === 'image_image';
+        const hasLeftImg = isLeftImg && left && (left.startsWith('http') || left.startsWith('data:image') || left.startsWith('/'));
+        const hasRightImg = isRightImg && right && (right.startsWith('http') || right.startsWith('data:image') || right.startsWith('/'));
+
+        const leftHtml = isLeftImg ? `
             <div class="flex-1 flex items-center gap-2 min-w-0">
-                <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-canvas border border-line/60 text-xs text-ink hover:bg-slate-100 font-semibold shrink-0" title="Pilih berkas gambar lokal">
+                <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-canvas border border-line/60 text-xs text-ink hover:bg-slate-100 font-semibold shrink-0" title="Pilih berkas gambar kiri">
                     <svg class="h-3.5 w-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     <span>Pilih Gambar</span>
-                    <input type="file" accept="image/*" class="sr-only" data-pair-file>
+                    <input type="file" accept="image/*" class="sr-only" data-pair-file="left">
                 </label>
-                <input type="text" class="field text-xs py-1.5 flex-1 min-w-0" value="${(left || '').replace(/"/g, '&quot;')}" placeholder="Atau ketik URL gambar..." data-pair-left>
-                <div class="relative shrink-0 ${hasImg ? '' : 'hidden'}" data-pair-preview-box>
-                    <img src="${left}" class="h-7 w-10 object-contain rounded border border-line/60 bg-slate-50" data-pair-preview alt="Pratinjau">
+                <input type="text" class="field text-xs py-1.5 flex-1 min-w-0" value="${(left || '').replace(/"/g, '&quot;')}" placeholder="URL / Data Gambar Kiri..." data-pair-left>
+                <div class="relative shrink-0 ${hasLeftImg ? '' : 'hidden'}" data-pair-preview-box="left">
+                    <img src="${left}" class="h-7 w-10 object-contain rounded border border-line/60 bg-slate-50" data-pair-preview="left" alt="Pratinjau Kiri">
                 </div>
             </div>
         ` : `
             <input type="text" class="field text-xs py-1.5 flex-1" value="${(left || '').replace(/"/g, '&quot;')}" placeholder="Premis / Istilah kiri (teks)" data-pair-left>
         `;
 
+        const rightHtml = isRightImg ? `
+            <div class="flex-1 flex items-center gap-2 min-w-0">
+                <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-canvas border border-line/60 text-xs text-ink hover:bg-slate-100 font-semibold shrink-0" title="Pilih berkas gambar kanan">
+                    <svg class="h-3.5 w-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span>Pilih Gambar</span>
+                    <input type="file" accept="image/*" class="sr-only" data-pair-file="right">
+                </label>
+                <input type="text" class="field text-xs py-1.5 flex-1 min-w-0" value="${(right || '').replace(/"/g, '&quot;')}" placeholder="URL / Data Gambar Kanan..." data-pair-right>
+                <div class="relative shrink-0 ${hasRightImg ? '' : 'hidden'}" data-pair-preview-box="right">
+                    <img src="${right}" class="h-7 w-10 object-contain rounded border border-line/60 bg-slate-50" data-pair-preview="right" alt="Pratinjau Kanan">
+                </div>
+            </div>
+        ` : `
+            <input type="text" class="field text-xs py-1.5 flex-1" value="${(right || '').replace(/"/g, '&quot;')}" placeholder="${isLeftImg ? 'Nama / Label teks jawaban...' : 'Pasangan / Jawaban kanan (teks)...'}" data-pair-right>
+        `;
+
         item.innerHTML = `
             <span class="text-[11px] font-bold text-muted shrink-0 w-16" data-pair-label>Item ${idx + 1}:</span>
             ${leftHtml}
             <span class="text-xs text-muted font-bold self-center px-1 hidden sm:inline">↔</span>
-            <input type="text" class="field text-xs py-1.5 flex-1" value="${(right || '').replace(/"/g, '&quot;')}" placeholder="${isImg ? 'Nama / Label teks jawaban...' : 'Pasangan / Jawaban kanan (teks)...'}" data-pair-right>
+            ${rightHtml}
             <button type="button" class="h-7 w-7 rounded-md text-muted hover:text-danger hover:bg-rose-50 flex items-center justify-center text-sm shrink-0 self-end sm:self-center font-bold" data-remove-pair title="Hapus pasangan">×</button>
         `;
         return item;
@@ -523,27 +542,44 @@ if (builder) {
         const list = row.querySelector('[data-pair-list]');
         if (!list) return;
 
-        const isImageMode = pairs.some(p => (p.left || '').startsWith('http') || (p.left || '').startsWith('data:image'));
+        const isImgImg = pairs.some(p => {
+            const l = p.left || '';
+            const r = p.right || '';
+            return (l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/')) &&
+                   (r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/'));
+        });
+        const isImgText = !isImgImg && pairs.some(p => {
+            const l = p.left || '';
+            return l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/');
+        });
+
         const modeRadios = row.querySelectorAll('[data-pair-mode]');
         let currentMode = 'text';
         modeRadios.forEach(radio => {
-            if (isImageMode) {
-                radio.checked = radio.value === 'image';
-            }
+            if (isImgImg && radio.value === 'image_image') radio.checked = true;
+            else if (isImgText && radio.value === 'image') radio.checked = true;
             if (radio.checked) currentMode = radio.value;
         });
 
         const hint = row.querySelector('[data-pair-mode-hint]');
         const instruction = row.querySelector('[data-pair-instruction]');
         if (hint) {
-            hint.textContent = currentMode === 'image'
-                ? 'Unggah gambar/URL di kiri, ketik nama/label di kanan'
-                : 'Ketik istilah di kiri dan penjelasan di kanan';
+            if (currentMode === 'image_image') {
+                hint.textContent = 'Unggah/masukkan gambar di kiri dan gambar pasangan di kanan';
+            } else if (currentMode === 'image') {
+                hint.textContent = 'Unggah gambar/URL di kiri, ketik nama/label di kanan';
+            } else {
+                hint.textContent = 'Ketik istilah di kiri dan penjelasan di kanan';
+            }
         }
         if (instruction) {
-            instruction.textContent = currentMode === 'image'
-                ? 'Setiap baris mencocokkan gambar di sisi kiri dengan teks pilihan di sisi kanan.'
-                : 'Isi item premis di sebelah kiri dan pasangan jawaban di sebelah kanan.';
+            if (currentMode === 'image_image') {
+                instruction.textContent = 'Setiap baris mencocokkan gambar stimulus di kiri dengan gambar jawaban di kanan.';
+            } else if (currentMode === 'image') {
+                instruction.textContent = 'Setiap baris mencocokkan gambar di sisi kiri dengan teks pilihan di sisi kanan.';
+            } else {
+                instruction.textContent = 'Isi item premis di sebelah kiri dan pasangan jawaban di sebelah kanan.';
+            }
         }
 
         list.innerHTML = '';
@@ -619,17 +655,17 @@ if (builder) {
         if (event.target.matches('[data-choice-item-input]')) {
             if (row) syncChoices(row);
         } else if (event.target.matches('[data-pair-left], [data-pair-right]')) {
-            if (event.target.matches('[data-pair-left]')) {
-                const item = event.target.closest('[data-pair-item]');
-                const preview = item?.querySelector('[data-pair-preview]');
-                const previewBox = item?.querySelector('[data-pair-preview-box]');
-                const val = event.target.value.trim();
-                if (preview && (val.startsWith('http') || val.startsWith('data:image'))) {
-                    preview.src = val;
-                    if (previewBox) previewBox.classList.remove('hidden');
-                } else if (previewBox) {
-                    previewBox.classList.add('hidden');
-                }
+            const isLeft = event.target.matches('[data-pair-left]');
+            const side = isLeft ? 'left' : 'right';
+            const item = event.target.closest('[data-pair-item]');
+            const preview = item?.querySelector(`[data-pair-preview="${side}"]`);
+            const previewBox = item?.querySelector(`[data-pair-preview-box="${side}"]`);
+            const val = event.target.value.trim();
+            if (preview && (val.startsWith('http') || val.startsWith('data:image') || val.startsWith('/'))) {
+                preview.src = val;
+                if (previewBox) previewBox.classList.remove('hidden');
+            } else if (previewBox) {
+                previewBox.classList.add('hidden');
             }
             if (row) syncPairs(row);
         }
@@ -653,15 +689,16 @@ if (builder) {
         }
 
         if (event.target.matches('[data-pair-file]')) {
+            const side = event.target.dataset.pairFile || 'left';
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const item = event.target.closest('[data-pair-item]');
-                    const leftInp = item?.querySelector('[data-pair-left]');
-                    const preview = item?.querySelector('[data-pair-preview]');
-                    const previewBox = item?.querySelector('[data-pair-preview-box]');
-                    if (leftInp) leftInp.value = e.target.result;
+                    const inp = item?.querySelector(side === 'right' ? '[data-pair-right]' : '[data-pair-left]');
+                    const preview = item?.querySelector(`[data-pair-preview="${side}"]`);
+                    const previewBox = item?.querySelector(`[data-pair-preview-box="${side}"]`);
+                    if (inp) inp.value = e.target.result;
                     if (preview) preview.src = e.target.result;
                     if (previewBox) previewBox.classList.remove('hidden');
                     syncPairs(row);

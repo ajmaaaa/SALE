@@ -30,7 +30,7 @@
             @include('mahasiswa.partials.semester-chart')
 
             <aside aria-labelledby="deadline-heading">
-                <div class="mb-4 flex items-start justify-between gap-2">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
                     <div><h2 id="deadline-heading" class="section-heading">Tenggat terdekat</h2><p class="mt-1 text-sm leading-5 text-muted">Pekerjaan yang perlu segera diselesaikan.</p></div>
                     <a href="{{ route('mahasiswa.assignment.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark"><span class="hidden min-[1320px]:inline">Lihat semua</span><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                 </div>
@@ -64,7 +64,7 @@
             </aside>
 
             <section aria-labelledby="discussion-heading">
-                <div class="mb-4 flex items-start justify-between gap-2">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
                     <div><h2 id="discussion-heading" class="section-heading">Diskusi terbaru</h2><p class="mt-1 text-sm leading-5 text-muted">Percakapan dari course aktif.</p></div>
                     <a href="{{ route('mahasiswa.discussion.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark"><span class="hidden min-[1320px]:inline">Buka forum</span><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                 </div>

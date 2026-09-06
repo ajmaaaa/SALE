@@ -197,7 +197,7 @@
                     <div data-q-matching class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         {{-- Mode Selector Pasangan --}}
                         <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-white border border-line/40 text-xs">
-                            <div class="flex items-center gap-4">
+                            <div class="flex flex-wrap items-center gap-4">
                                 <span class="font-semibold text-ink">Format Pasangan:</span>
                                 <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
                                     <input type="radio" data-pair-mode value="text" checked class="text-brand">
@@ -206,6 +206,10 @@
                                 <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
                                     <input type="radio" data-pair-mode value="image" class="text-brand">
                                     <span>Gambar ↔ Teks</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
+                                    <input type="radio" data-pair-mode value="image_image" class="text-brand">
+                                    <span>Gambar ↔ Gambar</span>
                                 </label>
                             </div>
                             <span class="text-[11px] text-muted" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>

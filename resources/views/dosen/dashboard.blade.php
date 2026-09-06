@@ -21,7 +21,7 @@
         <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
             {{-- Column 1: Course yang diampu --}}
             <section aria-labelledby="course-heading">
-                <div class="mb-4 flex items-start justify-between gap-2">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
                     <div>
                         <h2 id="course-heading" class="section-heading">Course yang diampu</h2>
                         <p class="mt-1 text-sm leading-5 text-muted">Kelas aktif semester ini.</p>
@@ -65,7 +65,7 @@
 
             {{-- Column 2: Tugas perlu dinilai (Exact same structure & style as mahasiswa deadlines) --}}
             <aside aria-labelledby="grading-heading">
-                <div class="mb-4 flex items-start justify-between gap-2">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
                     <div>
                         <h2 id="grading-heading" class="section-heading">Tugas perlu dinilai</h2>
                         <p class="mt-1 text-sm leading-5 text-muted">Pengumpulan menunggu penilaian.</p>
@@ -105,7 +105,7 @@
 
             {{-- Column 3: Diskusi terbaru (Exact same structure & style as mahasiswa discussions) --}}
             <section aria-labelledby="discussion-heading">
-                <div class="mb-4 flex items-start justify-between gap-2">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
                     <div>
                         <h2 id="discussion-heading" class="section-heading">Diskusi terbaru</h2>
                         <p class="mt-1 text-sm leading-5 text-muted">Percakapan dari course aktif.</p>
@@ -116,12 +116,12 @@
                     </a>
                 </div>
 
-                <div class="space-y-3">
+                <div class="rounded-xl bg-white shadow-sm divide-y divide-line/60 overflow-hidden">
                     @foreach(\App\Support\LearningPreview::recentDiscussions() as $discussion)
-                        <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block rounded-xl bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                            <p class="text-xs font-semibold text-muted">{{ $discussion['course_title'] }}</p>
-                            <p class="mt-2 text-sm font-semibold leading-5 text-ink">{{ $discussion['message'] }}</p>
-                            <p class="mt-2 text-xs text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                        <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block p-4 text-xs transition duration-200 hover:bg-[#f3f6f9]">
+                            <p class="text-[11px] font-semibold text-muted">{{ $discussion['course_title'] }}</p>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed text-ink line-clamp-2">{{ $discussion['message'] }}</p>
+                            <p class="mt-1.5 text-[11px] text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
                         </a>
                     @endforeach
                 </div>
