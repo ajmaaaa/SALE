@@ -1,275 +1,83 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Forum Diskusi - Lumina Academy')
+@section('title', 'Forum Diskusi | SALE')
+@section('header', 'Forum Diskusi')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-7">
+    <header class="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
+        <div><h1 class="page-heading">Forum Diskusi</h1><p class="page-description">Diskusi course untuk bertanya, membagikan pemahaman, dan menindaklanjuti materi perkuliahan.</p></div>
+        <button type="button" class="button-primary shrink-0">Buat diskusi</button>
+    </header>
 
-    <!-- Top Bar Header (Search, Title, Action Button) -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Forum Diskusi</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Diskusikan materi kuliah, bagikan ide, dan tanyakan keraguanmu di sini.</p>
-        </div>
+    <form class="grid gap-3 md:grid-cols-[minmax(0,1fr)_260px_auto]" action="{{ route('mahasiswa.discussion.index') }}" method="GET">
+        <div><label class="sr-only" for="discussion-search">Cari diskusi</label><input id="discussion-search" name="q" type="search" class="field" placeholder="Cari judul atau isi diskusi"></div>
+        <div><label class="sr-only" for="discussion-course">Pilih course</label><select id="discussion-course" name="course" class="field"><option>Semua course</option><option>IF204, Struktur Data</option><option>IF218, Interaksi Manusia dan Komputer</option><option>IF221, Kecerdasan Buatan Terapan</option></select></div>
+        <button type="submit" class="button-secondary">Terapkan</button>
+    </form>
 
-        <div class="flex items-center gap-4">
-            <!-- Search Bar -->
-            <div class="relative w-64 md:w-80">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" 
-                       placeholder="Search courses, documents..." 
-                       class="w-full pl-9 pr-4 py-2 bg-slate-100/80 border border-transparent rounded-full text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all">
+    <div class="grid gap-7 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section aria-labelledby="thread-heading">
+            <div class="mb-3 flex items-center justify-between"><h2 id="thread-heading" class="section-heading">Topik course</h2><span class="text-sm text-muted">18 topik</span></div>
+            <div class="space-y-2">
+                <a href="#thread-detail" aria-current="true" class="block rounded-xl bg-brand px-4 py-5 text-white shadow-sm">
+                    <p class="text-xs font-semibold text-white">IF204, belum terjawab</p>
+                    <h3 class="mt-2 font-semibold leading-5 text-white">Kendala implementasi Binary Search Tree di Java</h3>
+                    <p class="mt-2 line-clamp-2 text-sm leading-5 text-white">NullPointerException muncul ketika node yang dihapus memiliki dua anak.</p>
+                    <p class="mt-3 text-xs text-white">Budi Santoso, 2 jam lalu, 4 balasan</p>
+                </a>
+                <a href="#thread-detail" class="block rounded-xl bg-white px-4 py-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                    <p class="text-xs font-semibold text-muted">IF204, diskusi umum</p>
+                    <h3 class="mt-2 font-semibold leading-5 text-ink">Pembentukan kelompok tugas besar</h3>
+                    <p class="mt-2 line-clamp-2 text-sm leading-5 text-muted">Mencari dua anggota untuk kelompok praktikum minggu depan.</p>
+                    <p class="mt-3 text-xs text-muted">Siti Aminah, kemarin, 12 balasan</p>
+                </a>
+                <a href="#thread-detail" class="block rounded-xl bg-white px-4 py-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                    <p class="text-xs font-semibold text-muted">IF218, materi</p>
+                    <h3 class="mt-2 font-semibold leading-5 text-ink">Contoh penyusunan usability test plan</h3>
+                    <p class="mt-2 line-clamp-2 text-sm leading-5 text-muted">Apakah format test plan perlu memuat profil setiap partisipan?</p>
+                    <p class="mt-3 text-xs text-muted">Doni Wijaya, 3 hari lalu, 6 balasan</p>
+                </a>
+            </div>
+        </section>
+
+        <article id="thread-detail" class="min-w-0 rounded-xl bg-white px-5 py-6 shadow-sm sm:px-7">
+            <header class="pb-5">
+                <p class="mb-4 text-sm font-semibold text-brand">Pertanyaan</p>
+                <p class="text-xs font-semibold text-muted">IF204, materi Java, topik BST</p>
+                <h2 class="mt-2 text-2xl font-semibold leading-8 tracking-[-0.015em] text-ink">Kendala implementasi Binary Search Tree di Java</h2>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-muted"><p><span class="font-semibold text-ink">Budi Santoso</span>, mahasiswa</p><time datetime="2026-09-01T09:30">Hari ini, 09.30</time></div>
+            </header>
+
+            <div class="space-y-4 py-6 text-[15px] leading-7 text-[#35414c]">
+                <p>Saya sedang mengerjakan praktikum dan mengalami masalah saat mengimplementasikan fungsi <code class="font-mono text-[13px] text-brand-dark">deleteNode</code>. Program menampilkan <code class="font-mono text-[13px] text-danger">NullPointerException</code> ketika node yang dihapus memiliki dua anak.</p>
+                <pre class="overflow-x-auto rounded-lg bg-[#172633] p-4 font-mono text-[13px] leading-6 text-[#dce4e8]"><code>Node minNode = findMin(root.right);
+root.value = minNode.value;
+root.right = deleteNode(root.right, minNode.value);</code></pre>
+                <p>Apakah kondisi dasar pada fungsi tersebut masih kurang, atau ada kesalahan pada pemanggilan <code class="font-mono text-[13px] text-brand-dark">findMin</code>?</p>
+                <button type="button" class="text-sm font-semibold text-brand hover:underline">Pertanyaan ini membantu, 2 suara</button>
             </div>
 
-            <!-- Action Icons -->
-            <div class="flex items-center gap-2">
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-moon"></i>
-                </button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-bell"></i>
-                </button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-star"></i>
-                </button>
-                <div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
-                    <img src="https://ui-avatars.com/api/?name=Mahasiswa&background=0D8ABC&color=fff" alt="User" class="w-full h-full object-cover">
-                </div>
-            </div>
+            <section class="relative ml-2 mt-8 pl-9 sm:ml-4 sm:pl-12" aria-labelledby="reply-heading">
+                <span class="absolute bottom-0 left-3 top-[-32px] w-px bg-[#cbd2d9] sm:left-4" aria-hidden="true"></span>
+                <span class="absolute left-3 top-7 h-px w-6 bg-[#cbd2d9] sm:left-4 sm:w-8" aria-hidden="true"></span>
+                <span class="absolute left-[9px] top-[24px] h-2 w-2 rounded-full bg-brand sm:left-[13px]" aria-hidden="true"></span>
+                <article class="rounded-xl bg-white px-5 py-5 shadow-[0_3px_16px_rgba(29,39,48,0.09)]">
+                    <p class="text-sm font-semibold text-brand">Jawaban dosen</p>
+                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-dark">BS</span><h3 id="reply-heading" class="text-sm font-semibold text-ink">Dr. Budi Santoso, M.Kom.<span class="mt-0.5 block text-xs font-normal text-muted">Dosen pengampu</span></h3></div>
+                        <time class="text-xs text-muted">Hari ini, 11.05</time>
+                    </div>
+                    <div class="mt-4 space-y-3 text-[15px] leading-7 text-[#35414c]"><p>Periksa kondisi ketika <code class="font-mono text-[13px]">root.right</code> kosong sebelum memanggil <code class="font-mono text-[13px]">findMin</code>. Tambahkan juga pengujian untuk node daun dan node dengan satu anak agar alur rekursinya terlihat.</p><p>Jangan langsung mengganti implementasi. Coba tuliskan dahulu kondisi dasar yang harus selalu terpenuhi.</p></div>
+                </article>
+            </section>
 
-            <!-- New Discussion Button -->
-            <button class="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-medium text-xs rounded-xl shadow-md shadow-indigo-100 transition-colors flex items-center gap-2">
-                <i class="fa-solid fa-plus text-xs"></i>
-                <span>Buat Diskusi Baru</span>
-            </button>
-        </div>
+            <form class="mt-7 pt-2">
+                <label for="reply" class="mb-2 block text-sm font-semibold text-ink">Tulis tanggapan</label>
+                <textarea id="reply" rows="4" class="field resize-y" placeholder="Tambahkan tanggapan atau pertanyaan lanjutan"></textarea>
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-3"><button type="button" class="button-secondary">Lampirkan berkas</button><button type="button" class="button-primary">Kirim tanggapan</button></div>
+            </form>
+        </article>
     </div>
-
-    <!-- Main Content Split Layout (Left: Thread List, Right: Discussion Detail) -->
-    <div class="grid grid-cols-12 gap-6 items-start">
-
-        <!-- ================= LEFT COLUMN: THREAD LIST (4 Cols) ================= -->
-        <div class="col-span-12 lg:col-span-4 space-y-4">
-            
-            <!-- Filter Dropdown Mata Kuliah -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Mata Kuliah</label>
-                <div class="relative">
-                    <select class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold rounded-xl px-3 py-2.5 appearance-none focus:outline-none focus:border-indigo-500 pr-8 cursor-pointer">
-                        <option>CS201: Algoritma Lanjut</option>
-                        <option>NET101: Pengantar Jaringan</option>
-                        <option>DES202: Interaction Design</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
-                        <i class="fa-solid fa-chevron-down text-xs"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Thread Cards List -->
-            <div class="space-y-3">
-
-                <!-- Thread Item 1 (Active) -->
-                <div class="bg-white p-4 rounded-2xl border-2 border-indigo-600 shadow-sm relative space-y-2 cursor-pointer">
-                    <div class="flex items-center justify-between">
-                        <span class="px-2.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] font-bold rounded">Tanya Dosen</span>
-                        <span class="text-[10px] text-slate-400">2 jam lalu</span>
-                    </div>
-
-                    <h3 class="text-sm font-bold text-indigo-900 leading-snug">
-                        Kendala implementasi Binary Search Tree di Java
-                    </h3>
-
-                    <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        Saya mendapatkan NullPointerException di baris ke-45 ketika node yang dihapus...
-                    </p>
-
-                    <div class="flex items-center justify-between pt-2 text-xs text-slate-500">
-                        <div class="flex items-center gap-2">
-                            <img src="https://ui-avatars.com/api/?name=Budi+Santoso&background=E0E7FF&color=4F46E5" class="w-5 h-5 rounded-full" alt="Budi">
-                            <span class="text-[11px] font-medium text-slate-700">Budi Santoso</span>
-                        </div>
-                        <span class="flex items-center gap-1 text-[11px] text-slate-400">
-                            <i class="fa-regular fa-comment"></i> 4
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Thread Item 2 -->
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors space-y-2 cursor-pointer">
-                    <div class="flex items-center justify-between">
-                        <span class="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded">Diskusi Umum</span>
-                        <span class="text-[10px] text-slate-400">Kemarin</span>
-                    </div>
-
-                    <h3 class="text-sm font-bold text-slate-900 leading-snug">
-                        Pembentukan Kelompok Tugas Besar
-                    </h3>
-
-                    <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        Mencari 2 anggota lagi untuk kelompok pemrograman web lanjut...
-                    </p>
-
-                    <div class="flex items-center justify-between pt-2 text-xs text-slate-500">
-                        <div class="flex items-center gap-2">
-                            <img src="https://ui-avatars.com/api/?name=Siti+Aminah&background=FCE7F3&color=BE185D" class="w-5 h-5 rounded-full" alt="Siti">
-                            <span class="text-[11px] font-medium text-slate-700">Siti Aminah</span>
-                        </div>
-                        <span class="flex items-center gap-1 text-[11px] text-slate-400">
-                            <i class="fa-regular fa-comment"></i> 12
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Thread Item 3 -->
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors space-y-2 cursor-pointer">
-                    <div class="flex items-center justify-between">
-                        <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">Materi</span>
-                        <span class="text-[10px] text-slate-400">3 hari lalu</span>
-                    </div>
-
-                    <h3 class="text-sm font-bold text-slate-900 leading-snug">
-                        Ringkasan Bab 4: Kompleksitas Waktu
-                    </h3>
-
-                    <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        Berikut catatan singkat saya mengenai Big-O Notation dan analisis algoritma...
-                    </p>
-
-                    <div class="flex items-center justify-between pt-2 text-xs text-slate-500">
-                        <div class="flex items-center gap-2">
-                            <div class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-bold">
-                                DW
-                            </div>
-                            <span class="text-[11px] font-medium text-slate-700">Doni Wijaya</span>
-                        </div>
-                        <span class="flex items-center gap-1 text-[11px] text-slate-400">
-                            <i class="fa-regular fa-comment"></i> 0
-                        </span>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ================= RIGHT COLUMN: DISCUSSION DETAIL (8 Cols) ================= -->
-        <div class="col-span-12 lg:col-span-8 space-y-4">
-            
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-
-                <!-- Question Post Header -->
-                <div class="space-y-3">
-                    <!-- Badges & Tags -->
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] font-bold rounded">Tanya Dosen</span>
-                        <span class="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-medium rounded flex items-center gap-1">
-                            <i class="fa-solid fa-tag text-[9px]"></i> Java
-                        </span>
-                        <span class="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-medium rounded flex items-center gap-1">
-                            <i class="fa-solid fa-tag text-[9px]"></i> BST
-                        </span>
-                    </div>
-
-                    <!-- Question Title -->
-                    <h2 class="text-xl font-extrabold text-indigo-950 leading-snug">
-                        Kendala implementasi Binary Search Tree di Java
-                    </h2>
-
-                    <!-- Author Info -->
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                        <div class="flex items-center gap-3">
-                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop" 
-                                 class="w-9 h-9 rounded-full object-cover" alt="Author">
-                            <div>
-                                <h4 class="font-bold text-slate-900 text-xs">Budi Santoso</h4>
-                                <p class="text-[10px] text-slate-400">Mahasiswa</p>
-                            </div>
-                        </div>
-                        <span class="text-[11px] text-slate-400">Hari ini, 09:30 AM</span>
-                    </div>
-                </div>
-
-                <!-- Question Post Body -->
-                <div class="space-y-4 text-xs text-slate-700 leading-relaxed">
-                    <p>Halo semuanya,</p>
-                    <p>
-                        Saya sedang mengerjakan tugas struktur data dan mengalami masalah saat mengimplementasikan fungsi <code class="bg-slate-100 text-indigo-700 font-mono px-1.5 py-0.5 rounded">deleteNode</code> pada BST. Kode saya melempar <code class="bg-rose-50 text-rose-600 font-mono px-1.5 py-0.5 rounded">NullPointerException</code> pada baris ke-45 ketika node yang dihapus memiliki dua anak.
-                    </p>
-
-                    <!-- Code Snippet Box -->
-                    <div class="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-[11px] overflow-x-auto leading-normal">
-                        <p class="text-slate-500">// Baris 43-46</p>
-                        <p>Node minNode = findMin(root.right);</p>
-                        <p>root.value = minNode.value;</p>
-                        <p>root.right = deleteNode(root.right, minNode.value); <span class="text-rose-400">// Error terjadi di sini</span></p>
-                    </div>
-
-                    <p>
-                        Apakah ada yang bisa memberikan petunjuk bagian mana yang salah dari logika tersebut?
-                    </p>
-
-                    <!-- Like / Upvote Button -->
-                    <div class="pt-2">
-                        <button class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg flex items-center gap-1.5 text-xs transition-colors">
-                            <i class="fa-regular fa-thumbs-up text-indigo-600"></i>
-                            <span>2 Likes</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Replies Section -->
-                <div class="space-y-4 pt-4 border-t border-slate-100">
-
-                    <!-- Reply Item 1 (Lecturer Reply) -->
-                    <div class="bg-emerald-50/40 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs">
-                                    DA
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="font-bold text-slate-900 text-xs">Dr. Dian Sastrowardoyo</h4>
-                                        <span class="px-2 py-0.5 bg-emerald-800 text-white text-[9px] font-bold rounded">DOSEN PENGAMPU</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <span class="text-[10px] text-slate-400">Hari ini, 11:05 AM</span>
-                        </div>
-
-                        <div class="pl-11 text-xs text-slate-700 leading-relaxed space-y-2">
-                            <p>Halo Budi,</p>
-                            <p>
-                                Kesalahan umum pada bagian ini adalah memastikan bahwa fungsi <code class="bg-white border border-emerald-200 text-emerald-800 font-mono px-1 rounded">findMin()</code> tidak mengembalikan <code class="bg-white border border-emerald-200 text-emerald-800 font-mono px-1 rounded">null</code> jika <code class="bg-white border border-emerald-200 text-emerald-800 font-mono px-1 rounded">root.right</code> ternyata kosong di kondisi tertentu.
-                            </p>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Input Reply Box -->
-                <div class="pt-2">
-                    <div class="flex items-center gap-3 p-2 bg-slate-100 rounded-2xl border border-slate-200">
-                        <img src="https://ui-avatars.com/api/?name=Mahasiswa&background=0D8ABC&color=fff" class="w-8 h-8 rounded-full ml-1" alt="User">
-                        <input type="text" 
-                               placeholder="Tulis balasan Anda di sini..." 
-                               class="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none">
-                        <button class="text-slate-400 hover:text-slate-600 p-2">
-                            <i class="fa-solid fa-paperclip text-sm"></i>
-                        </button>
-                        <button class="w-8 h-8 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl flex items-center justify-center shadow transition-colors">
-                            <i class="fa-solid fa-paper-plane text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
 </div>
 @endsection

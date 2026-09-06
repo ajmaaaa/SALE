@@ -1,236 +1,116 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Algoritma & Struktur Data Lanjut - Lumina Academy')
+@section('title', 'Struktur Data dan Algoritma | SALE')
+@section('header', 'Struktur Data dan Algoritma')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-7">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted">
+        <a href="{{ route('mahasiswa.course.index') }}" class="hover:text-brand">Course</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-ink">IF204</span>
+    </nav>
 
-    <!-- Top Navigation & Search Bar -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-xs text-slate-500">
-            <a href="/mahasiswa/course" class="hover:text-indigo-600 transition-colors">Courses</a>
-            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-            <span class="font-semibold text-slate-800">Pemrograman Web Lanjut</span>
-        </nav>
-
-        <!-- Search Bar & Header Icons -->
-        <div class="flex items-center gap-4">
-            <div class="relative w-64 md:w-80">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" 
-                       placeholder="Cari mata kuliah..." 
-                       class="w-full pl-9 pr-4 py-2 bg-slate-100 border border-transparent rounded-full text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-300 transition-all">
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-moon"></i>
-                </button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-bell"></i>
-                </button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 text-sm">
-                    <i class="fa-regular fa-star"></i>
-                </button>
-                <div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
-                    <img src="https://ui-avatars.com/api/?name=Mahasiswa&background=0D8ABC&color=fff" alt="User" class="w-full h-full object-cover">
-                </div>
-            </div>
+    <header class="pb-2">
+        <div>
+            <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm font-semibold text-brand"><span>IF204</span><span>3 SKS</span><span>Wajib</span></div>
+            <h1 class="page-heading mt-2">Struktur Data dan Algoritma</h1>
+            <p class="page-description">Mempelajari struktur data fundamental, analisis kompleksitas, serta penerapannya dalam penyelesaian masalah komputasi.</p>
         </div>
+    </header>
+
+    <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div class="min-w-0 space-y-8">
+            <section aria-labelledby="video-heading">
+                <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-sm">
+                    <div class="flex h-full flex-col items-center justify-center px-6 text-center text-white">
+                        <svg class="mb-4 h-11 w-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/></svg>
+                        <h2 id="video-heading" class="text-lg font-semibold">Traversal pada Binary Tree</h2>
+                        <p class="mt-1 text-sm text-[#c9d3d9]">Video pengantar, 24 menit</p>
+                        <button type="button" class="mt-5 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#172633]">Putar video</button>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="module-heading">
+                <div class="mb-4 flex items-end justify-between gap-4">
+                    <div><h2 id="module-heading" class="section-heading">Modul mingguan</h2><p class="mt-1 text-sm text-muted">Materi disusun berdasarkan RPS course.</p></div>
+                    <a href="#rps" class="quiet-link shrink-0">Lihat RPS dan CPMK</a>
+                </div>
+
+                <div class="space-y-2">
+                    <details open class="group overflow-hidden rounded-xl shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center gap-4 bg-white p-5 hover:bg-[#f8f9fa]">
+                            <span class="w-8 shrink-0 text-sm font-semibold text-ink">01</span>
+                            <span class="min-w-0 flex-1"><span class="block font-semibold text-ink">Pengenalan struktur data</span><span class="mt-0.5 block text-sm text-muted">Minggu 1, selesai</span></span>
+                            <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </summary>
+                        <div class="space-y-2 bg-[#f3f6f9] p-3 sm:pl-[68px]">
+                            <button type="button" class="grid w-full gap-3 rounded-lg bg-white px-4 py-3 text-left sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3zM14 3v5h5"/></svg><span><span class="block text-xs font-semibold text-brand">Materi PDF</span><span class="mt-1 block text-sm font-semibold text-ink">Slide pengantar struktur data</span><span class="mt-1 block text-xs text-muted">2,4 MB</span></span><span class="text-sm font-medium text-ink sm:text-right">Selesai</span></button>
+                            <button type="button" class="grid w-full gap-3 rounded-lg bg-white px-4 py-3 text-left sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 8 7 4-7 4z"/><circle cx="12" cy="12" r="9"/></svg><span><span class="block text-xs font-semibold text-brand">Materi video</span><span class="mt-1 block text-sm font-semibold text-ink">Rekaman perkuliahan</span><span class="mt-1 block text-xs text-muted">48 menit</span></span><span class="text-sm font-medium text-ink sm:text-right">Selesai</span></button>
+                        </div>
+                    </details>
+
+                    <details class="group overflow-hidden rounded-xl shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center gap-4 bg-white p-5 hover:bg-[#f8f9fa]">
+                            <span class="w-8 shrink-0 text-sm font-semibold text-ink">02</span>
+                            <span class="min-w-0 flex-1"><span class="block font-semibold text-ink">Linked list, stack, dan queue</span><span class="mt-0.5 block text-sm text-muted">Minggu 2, selesai</span></span>
+                            <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </summary>
+                        <div class="bg-[#eef0f2] px-5 py-4 text-sm text-muted sm:pl-[68px]">Tiga materi dan satu kuis telah diselesaikan.</div>
+                    </details>
+
+                    <details open class="group overflow-hidden rounded-xl shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center gap-4 bg-white p-5 hover:bg-[#f8f9fa]">
+                            <span class="w-8 shrink-0 text-sm font-semibold text-brand">03</span>
+                            <span class="min-w-0 flex-1"><span class="block font-semibold text-ink">Tree dan traversal</span><span class="mt-0.5 block text-sm text-muted">Minggu 3, sedang dipelajari</span></span>
+                            <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </summary>
+                        <div class="space-y-2 bg-[#f3f6f9] p-3 sm:pl-[68px]">
+                            <button type="button" class="grid w-full gap-3 rounded-lg bg-white px-4 py-3 text-left sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 8 7 4-7 4z"/><circle cx="12" cy="12" r="9"/></svg><span><span class="block text-xs font-semibold text-brand">Materi video</span><span class="mt-1 block text-sm font-semibold text-ink">Traversal pada Binary Tree</span><span class="mt-1 block text-xs text-muted">24 menit</span></span><span class="text-sm font-semibold text-brand sm:text-right">Lanjutkan</span></button>
+                            <a href="{{ route('mahasiswa.assignment.code', 1) }}" class="grid gap-3 rounded-lg bg-white px-4 py-3 sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg><span><span class="block text-xs font-semibold text-brand">Tugas coding</span><span class="mt-1 block text-sm font-semibold text-ink">Praktikum Binary Tree</span><span class="mt-1 block text-xs text-danger">Tenggat hari ini, 23.59</span></span><span class="text-sm font-semibold text-brand sm:text-right">Kerjakan</span></a>
+                            <button type="button" class="grid w-full gap-3 rounded-lg bg-white px-4 py-3 text-left sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .8-1.8 1.2-1.8 2.5M12 17h.01"/></svg><span><span class="block text-xs font-semibold text-brand">Kuis</span><span class="mt-1 block text-sm font-semibold text-ink">Kuis Traversal Tree</span><span class="mt-1 block text-xs text-muted">20 menit, satu percobaan</span></span><span class="text-sm font-medium text-muted sm:text-right">7 September</span></button>
+                        </div>
+                    </details>
+
+                    <details class="group overflow-hidden rounded-xl shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center gap-4 bg-white p-5 hover:bg-[#f8f9fa]">
+                            <span class="w-8 shrink-0 text-sm font-semibold text-muted">04</span>
+                            <span class="min-w-0 flex-1"><span class="block font-semibold text-ink">Graph dan algoritma pencarian</span><span class="mt-0.5 block text-sm text-muted">Minggu 4, belum dibuka</span></span>
+                            <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </summary>
+                        <div class="bg-[#f3f6f9] p-3 pl-[68px]"><div class="grid gap-3 rounded-lg bg-white px-4 py-3 sm:grid-cols-[24px_minmax(0,1fr)_100px] sm:items-center"><svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h16v14H4zM8 2v6M16 2v6M4 10h16"/></svg><span><span class="block text-xs font-semibold text-brand">Ujian</span><span class="mt-1 block text-sm font-semibold text-ink">Ujian Tengah Semester</span><span class="mt-1 block text-xs text-muted">90 menit, jadwal terkontrol</span></span><span class="text-sm font-medium text-muted sm:text-right">Belum dibuka</span></div></div>
+                    </details>
+                </div>
+            </section>
+        </div>
+
+        <aside class="space-y-7">
+            <section class="rounded-xl bg-brand px-5 py-5 text-white shadow-sm" aria-labelledby="announcement-heading">
+                <p class="text-sm font-semibold text-white">Pengumuman course</p>
+                <h2 id="announcement-heading" class="mt-3 font-semibold text-white">Perubahan ruang perkuliahan</h2>
+                <p class="mt-2 text-sm leading-6 text-white">Pertemuan Kamis dipindahkan ke Lab Komputasi 2 pada pukul 10.00.</p>
+                <p class="mt-3 text-xs text-white">Diperbarui 31 Agustus 2026</p>
+            </section>
+
+            <section class="rounded-xl bg-white px-5 py-5 shadow-sm" aria-labelledby="lecturer-heading">
+                <p class="text-xs font-semibold uppercase tracking-[0.06em] text-muted">Dosen pengampu</p>
+                <h2 id="lecturer-heading" class="mt-2 text-base font-semibold text-ink">Dr. Budi Santoso, M.Kom.</h2>
+                <p class="mt-1 text-sm text-muted">Fakultas Ilmu Komputer</p>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div><dt class="text-muted">Email</dt><dd class="mt-0.5 break-all text-ink">budi.santoso@kampus.ac.id</dd></div>
+                    <div><dt class="text-muted">Konsultasi</dt><dd class="mt-0.5 text-ink">Selasa dan Kamis, 13.00 sampai 15.00</dd></div>
+                </dl>
+                <button type="button" class="button-secondary mt-5 w-full">Kirim pesan</button>
+            </section>
+
+            <section id="rps" class="rounded-xl bg-white px-5 py-5 shadow-sm" aria-labelledby="outcome-heading">
+                <p class="text-xs font-semibold uppercase tracking-[0.06em] text-muted">Capaian pembelajaran</p>
+                <h2 id="outcome-heading" class="mt-2 text-base font-semibold text-ink">CPMK terkait modul ini</h2>
+                <p class="mt-2 text-sm leading-6 text-muted">Mahasiswa mampu memilih dan menerapkan struktur data yang tepat untuk menyelesaikan masalah komputasi.</p>
+                <button type="button" class="quiet-link mt-3 inline-block">Buka dokumen RPS</button>
+            </section>
+        </aside>
     </div>
-
-    <!-- Grid Content Utama -->
-    <div class="grid grid-cols-12 gap-6">
-
-        <!-- Kolom Kiri: Video, Info Course, Modul (8 Cols) -->
-        <div class="col-span-12 lg:col-span-8 space-y-6">
-
-            <!-- Video Player Banner -->
-            <div class="relative rounded-2xl overflow-hidden aspect-video bg-slate-900 shadow-md group">
-                <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=1000&auto=format&fit=crop" 
-                     alt="Video Thumbnail" 
-                     class="w-full h-full object-cover opacity-80">
-                <div class="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <button class="w-16 h-16 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
-                        <i class="fa-solid fa-play text-xl ml-1"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Course Header Info -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-2">
-                    <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded">CS301</span>
-                    <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-[11px] font-bold rounded">Wajib</span>
-                </div>
-                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Algoritma & Struktur Data Lanjut</h1>
-                <p class="text-xs text-slate-600 leading-relaxed">
-                    Pelajari implementasi graf, tree lanjutan, dan analisis kompleksitas algoritma untuk menyelesaikan masalah komputasi kompleks.
-                </p>
-            </div>
-
-            <!-- Tabs Navigation -->
-            <div class="border-b border-slate-200">
-                <div class="flex gap-6 text-sm font-semibold">
-                    <button class="pb-3 border-b-2 border-indigo-600 text-indigo-600">Modul</button>
-                    <button class="pb-3 text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
-                        Pengumuman <span class="w-4 h-4 bg-rose-500 text-white text-[10px] rounded-full flex items-center justify-center">2</span>
-                    </button>
-                    <button class="pb-3 text-slate-500 hover:text-slate-700">Tentang</button>
-                </div>
-            </div>
-
-            <!-- Modul Accordion List -->
-            <div class="space-y-4">
-
-                <!-- Modul 1 (Active / Expanded) -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <!-- Header Modul 1 -->
-                    <div class="p-4 bg-indigo-50/50 flex items-center justify-between cursor-pointer">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
-                                1
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 text-sm">Pengenalan Graf & Representasinya</h4>
-                                <p class="text-[11px] text-slate-500">Minggu 1 • Selesai</p>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-up text-xs text-slate-400"></i>
-                    </div>
-
-                    <!-- Content Item Modul 1 -->
-                    <div class="p-4 space-y-3 border-t border-slate-100">
-                        <!-- Item 1: Slide -->
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2 bg-rose-100 text-rose-600 rounded-lg text-sm">
-                                    <i class="fa-regular fa-file-pdf"></i>
-                                </div>
-                                <div>
-                                    <h5 class="text-xs font-bold text-slate-800">Slide Kuliah: Representasi Graf.pdf</h5>
-                                    <p class="text-[10px] text-slate-400">Materi • 2.4 MB</p>
-                                </div>
-                            </div>
-                            <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-                        </div>
-
-                        <!-- Item 2: Video Sesi Sinkron -->
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg text-sm">
-                                    <i class="fa-solid fa-video"></i>
-                                </div>
-                                <div>
-                                    <h5 class="text-xs font-bold text-slate-800">Rekaman Sesi Sinkron</h5>
-                                    <p class="text-[10px] text-slate-400">Materi • 45 Menit</p>
-                                </div>
-                            </div>
-                            <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
-                        </div>
-
-                        <!-- Item 3: Tugas -->
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-indigo-50/60 border border-indigo-100">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2 bg-amber-100 text-amber-600 rounded-lg text-sm">
-                                    <i class="fa-regular fa-clipboard"></i>
-                                </div>
-                                <div>
-                                    <h5 class="text-xs font-bold text-slate-800">Tugas Praktikum 1: Adjacency Matrix</h5>
-                                    <p class="text-[10px] text-rose-500 font-semibold">Tenggat: 12 Okt 2024</p>
-                                </div>
-                            </div>
-                            <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-md">95/100</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modul 2 (Collapsed) -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full border-2 border-indigo-600 text-indigo-600 flex items-center justify-center font-bold text-sm">
-                                2
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 text-sm">Algoritma Pencarian (BFS & DFS)</h4>
-                                <p class="text-[11px] text-slate-500">Minggu 2 • Sedang Berlangsung</p>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Kolom Kanan: Progres, Dosen, Lumina AI Widget (4 Cols) -->
-        <div class="col-span-12 lg:col-span-4 space-y-6">
-
-            <!-- Card 1: Progres Pembelajaran -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                <h3 class="font-bold text-slate-900 text-sm">Progres Pembelajaran</h3>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-3xl font-extrabold text-indigo-600">35%</span>
-                    <span class="text-xs text-slate-400">Selesai</span>
-                </div>
-                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div class="bg-indigo-600 h-full w-[35%] rounded-full"></div>
-                </div>
-                <p class="text-[11px] text-slate-400">2 dari 6 modul telah diselesaikan. Pertahankan semangatmu!</p>
-            </div>
-
-            <!-- Card 2: Dosen Pengampu -->
-            <div class="bg-gradient-to-br from-indigo-50/50 via-white to-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <span class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Dosen Pengampu</span>
-                
-                <div class="flex items-center gap-3">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop" 
-                         alt="Dosen" 
-                         class="w-12 h-12 rounded-full object-cover">
-                    <div>
-                        <h4 class="font-bold text-slate-900 text-sm leading-tight">Dr. Budi Santoso, M.Kom</h4>
-                        <p class="text-[11px] text-indigo-600">Fakultas Ilmu Komputer</p>
-                    </div>
-                </div>
-
-                <div class="space-y-2 text-xs text-slate-600 pt-1 border-t border-slate-100">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-regular fa-envelope text-slate-400"></i>
-                        <span>b.santoso@lumina.ac.id</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i class="fa-regular fa-clock text-slate-400"></i>
-                        <span>Waktu Konsultasi: Sel & Kam, 13:00 - 15:00</span>
-                    </div>
-                </div>
-
-                <button class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors">
-                    Kirim Pesan
-                </button>
-            </div>
-
-            <!-- Card 3: Lumina AI Prompt Widget -->
-            <div class="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-5 rounded-2xl border border-indigo-200/80 shadow-sm space-y-3 relative overflow-hidden">
-                <div class="flex items-center gap-2 text-indigo-600">
-                    <i class="fa-solid fa-sparkles text-xs"></i>
-                    <span class="text-xs font-bold">Lumina AI</span>
-                </div>
-                <p class="text-xs text-slate-700 leading-relaxed">
-                    Kesulitan memahami materi BFS? Tanya Lumina AI untuk penjelasan interaktif.
-                </p>
-                <button class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-colors shadow-md shadow-indigo-200">
-                    Tanya Sekarang
-                </button>
-            </div>
-
-        </div>
-
-    </div>
-
 </div>
 @endsection

@@ -1,245 +1,53 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Daftar Mata Kuliah - Lumina Academy')
+@section('title', 'Course | SALE')
+@section('header', 'Course')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-7">
+    <header class="pb-2">
+        <h1 class="page-heading">Course</h1>
+        <p class="page-description">Kelas aktif yang telah ditetapkan oleh program studi pada semester ini.</p>
+    </header>
 
-    <!-- Top Header Bar (Search & Quick Icons) -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <!-- Search Bar -->
-        <div class="relative w-full md:w-96">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                <i class="fa-solid fa-magnifying-glass text-sm"></i>
-            </span>
-            <input type="text" 
-                   placeholder="Cari mata kuliah..." 
-                   class="w-full pl-10 pr-4 py-2.5 bg-slate-100/80 border border-transparent rounded-full text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all">
-        </div>
+    <form class="flex flex-col gap-3 sm:flex-row" action="{{ route('mahasiswa.course.index') }}" method="GET">
+        <label class="sr-only" for="course-search">Cari course</label>
+        <input id="course-search" name="q" type="search" class="field sm:max-w-md" placeholder="Cari judul, kode, atau dosen">
+        <label class="sr-only" for="course-status">Status course</label>
+        <select id="course-status" name="status" class="field sm:w-48"><option value="">Semua status</option><option value="active">Sedang berjalan</option><option value="complete">Selesai</option></select>
+        <button type="submit" class="button-secondary">Terapkan</button>
+    </form>
 
-        <!-- Right Quick Actions / Icons -->
-        <div class="flex items-center gap-4 self-end md:self-auto">
-            <button class="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
-                <i class="fa-regular fa-moon text-base"></i>
-            </button>
-            <button class="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors relative">
-                <i class="fa-regular fa-bell text-base"></i>
-            </button>
-            <button class="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
-                <i class="fa-regular fa-star text-base"></i>
-            </button>
-            <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-200 ml-1">
-                <img src="https://ui-avatars.com/api/?name=Mahasiswa&background=0D8ABC&color=fff" alt="User Profile" class="w-full h-full object-cover">
-            </div>
-        </div>
-    </div>
-
-    <!-- Title & Filter Section -->
-    <div class="space-y-2">
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Daftar Mata Kuliah</h1>
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-            <p class="text-sm text-slate-500">Kelola dan pantau progress belajar Anda semester ini.</p>
-            
-            <!-- Filter Pills -->
-            <div class="flex flex-wrap items-center gap-2">
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-indigo-600 text-indigo-600 shadow-sm">
-                    Semua
-                </button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                    Sedang Berlangsung
-                </button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                    Selesai
-                </button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                    Wajib
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Course Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-
-        <!-- Card 1: Pemrograman Web Lanjut -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div>
-                <!-- Accent Line Header -->
-                <div class="h-1.5 bg-emerald-700 w-1/3"></div>
-                
-                <div class="p-6 space-y-4">
-                    <!-- Status Badges -->
-                    <div class="flex items-center justify-between">
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md">
-                            Sedang Berlangsung
-                        </span>
-                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-md">
-                            Wajib
-                        </span>
-                    </div>
-
-                    <!-- Title & Instructor -->
-                    <div class="space-y-1">
-                        <h2 class="text-lg font-bold text-slate-900 leading-snug">Pemrograman Web Lanjut</h2>
-                        <p class="text-xs text-slate-500 flex items-center gap-1.5">
-                            <i class="fa-regular fa-user text-slate-400"></i> Dr. Alan Turing
-                        </p>
-                    </div>
-
-                    <!-- Meta Info -->
-                    <div class="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-book-open text-slate-400"></i> 12 Modul
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-clipboard-list text-slate-400"></i> 3 Tugas
-                        </span>
-                    </div>
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar course">
+        @foreach ([
+            ['id' => 1, 'code' => 'IF204', 'sks' => '3 SKS', 'title' => 'Struktur Data dan Algoritma', 'lecturer' => 'Dr. Budi Santoso, M.Kom.', 'modules' => '12 modul', 'tasks' => '3 tugas', 'type' => 'Tugas coding', 'work' => 'Praktikum Binary Tree', 'due' => 'Hari ini, 23.59'],
+            ['id' => 2, 'code' => 'IF218', 'sks' => '3 SKS', 'title' => 'Interaksi Manusia dan Komputer', 'lecturer' => 'Dr. Ratna Prameswari, M.Ds.', 'modules' => '10 modul', 'tasks' => '2 tugas', 'type' => 'Tugas dokumen', 'work' => 'Laporan Evaluasi Usability', 'due' => '3 September'],
+            ['id' => 3, 'code' => 'IF221', 'sks' => '3 SKS', 'title' => 'Kecerdasan Buatan Terapan', 'lecturer' => 'Prof. Nadia Rahman, Ph.D.', 'modules' => '14 modul', 'tasks' => '4 tugas', 'type' => 'Kuis', 'work' => 'Kuis Evaluasi Model', 'due' => '7 September'],
+            ['id' => 4, 'code' => 'IF230', 'sks' => '3 SKS', 'title' => 'Rekayasa Perangkat Lunak', 'lecturer' => 'Ir. Fajar Nugroho, M.T.', 'modules' => '12 modul', 'tasks' => '3 tugas', 'type' => 'Jadwal course', 'work' => 'Tidak ada pekerjaan terjadwal', 'due' => ''],
+        ] as $course)
+            <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="group flex min-h-64 flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <div class="relative min-h-32 overflow-hidden bg-brand-dark px-5 py-5 text-white">
+                    @if($course['id'] === 1)
+                        <svg class="absolute -right-3 -top-3 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="60" cy="22" r="10"/><circle cx="31" cy="64" r="10"/><circle cx="89" cy="64" r="10"/><circle cx="17" cy="101" r="8"/><circle cx="47" cy="101" r="8"/><circle cx="75" cy="101" r="8"/><circle cx="104" cy="101" r="8"/><path d="M54 30 36 55M66 30l18 25M27 74l-7 19M35 74l9 19M85 74l-8 19M93 74l8 19"/></svg>
+                    @elseif($course['id'] === 2)
+                        <svg class="absolute -right-3 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="13" y="17" width="94" height="74" rx="7"/><path d="M13 35h94M27 26h1M36 26h1M45 26h1M76 51 54 74l14 3 5 15 10-4-6-14 14-4z"/></svg>
+                    @elseif($course['id'] === 3)
+                        <svg class="absolute -right-3 -top-3 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="60" cy="60" r="13"/><circle cx="22" cy="28" r="8"/><circle cx="98" cy="26" r="8"/><circle cx="18" cy="93" r="8"/><circle cx="101" cy="94" r="8"/><path d="m29 34 21 18M91 32 70 52M26 88l24-19M94 88 70 69"/></svg>
+                    @else
+                        <svg class="absolute -right-2 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="15" y="20" width="34" height="22" rx="4"/><rect x="70" y="20" width="34" height="22" rx="4"/><rect x="43" y="79" width="34" height="22" rx="4"/><path d="M49 31h21M32 42v24h28v13M87 42v24H60"/></svg>
+                    @endif
+                    <div class="relative z-10"><div class="flex items-center gap-3 text-xs font-semibold"><span>{{ $course['code'] }}</span><span>{{ $course['sks'] }}</span></div>
+                    <h2 class="mt-3 text-xl font-semibold leading-7 text-white">{{ $course['title'] }}</h2>
+                    <p class="mt-1 text-xs text-white">{{ $course['lecturer'] }}</p></div>
                 </div>
-            </div>
-
-            <!-- Action Button -->
-            <div class="p-6 pt-0">
-                <a href="#" class="block w-full py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white text-center font-medium text-sm rounded-xl transition-colors">
-                    Lanjutkan Belajar
-                </a>
-            </div>
-        </div>
-
-        <!-- Card 2: Kecerdasan Buatan Terapan -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div>
-                <!-- Accent Line Header -->
-                <div class="h-1.5 bg-emerald-700 w-1/3"></div>
-                
-                <div class="p-6 space-y-4">
-                    <!-- Status Badges -->
-                    <div class="flex items-center justify-between">
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md">
-                            Sedang Berlangsung
-                        </span>
-                        <span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md">
-                            Pilihan
-                        </span>
-                    </div>
-
-                    <!-- Title & Instructor -->
-                    <div class="space-y-1">
-                        <h2 class="text-lg font-bold text-slate-900 leading-snug">Kecerdasan Buatan Terapan</h2>
-                        <p class="text-xs text-slate-500 flex items-center gap-1.5">
-                            <i class="fa-regular fa-user text-slate-400"></i> Prof. Ada Lovelace
-                        </p>
-                    </div>
-
-                    <!-- Meta Info -->
-                    <div class="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-book-open text-slate-400"></i> 14 Modul
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-clipboard-list text-slate-400"></i> 5 Tugas
-                        </span>
-                    </div>
+                <div class="flex flex-1 flex-col px-5 py-4">
+                    <p class="text-xs font-semibold text-brand">{{ $course['type'] }}</p>
+                    <p class="mt-1 text-sm font-medium text-ink">{{ $course['work'] }}</p>
+                    @if($course['due'])<p class="mt-2 text-xs font-medium {{ $loop->first ? 'text-danger' : 'text-muted' }}">{{ $course['due'] }}</p>@endif
+                    <div class="mt-auto flex gap-4 pt-5 text-xs font-medium text-muted"><span>{{ $course['modules'] }}</span><span>{{ $course['tasks'] }}</span></div>
                 </div>
-            </div>
-
-            <!-- Action Button -->
-            <div class="p-6 pt-0">
-                <a href="#" class="block w-full py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white text-center font-medium text-sm rounded-xl transition-colors">
-                    Lanjutkan Belajar
-                </a>
-            </div>
-        </div>
-
-        <!-- Card 3: Struktur Data & Algoritma (Selesai) -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div>
-                <!-- Accent Line Header -->
-                <div class="h-1.5 bg-emerald-700 w-full"></div>
-                
-                <div class="p-6 space-y-4">
-                    <!-- Status Badges -->
-                    <div class="flex items-center justify-between">
-                        <span class="px-3 py-1 bg-sky-50 text-sky-600 text-xs font-semibold rounded-md flex items-center gap-1">
-                            <i class="fa-regular fa-circle-check"></i> Selesai
-                        </span>
-                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-md">
-                            Wajib
-                        </span>
-                    </div>
-
-                    <!-- Title & Instructor -->
-                    <div class="space-y-1">
-                        <h2 class="text-lg font-bold text-slate-900 leading-snug">Struktur Data & Algoritma</h2>
-                        <p class="text-xs text-slate-500 flex items-center gap-1.5">
-                            <i class="fa-regular fa-user text-slate-400"></i> Dr. Grace Hopper
-                        </p>
-                    </div>
-
-                    <!-- Meta Info -->
-                    <div class="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-book-open text-slate-400"></i> 10 Modul
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-clipboard-list text-slate-400"></i> 4 Tugas
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Button / Link -->
-            <div class="p-6 pt-0 border-t border-slate-100 flex items-center justify-center">
-                <a href="#" class="inline-flex items-center gap-2 text-indigo-600 font-semibold text-xs hover:text-indigo-800 transition-colors py-2">
-                    <span>Lihat Sertifikat</span>
-                    <i class="fa-regular fa-award text-sm"></i>
-                </a>
-            </div>
-        </div>
-
-        <!-- Card 4: Interaksi Manusia & Komputer (Belum Dimulai) -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div>
-                <div class="p-6 space-y-4">
-                    <!-- Status Badges -->
-                    <div class="flex items-center justify-between">
-                        <span class="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md">
-                            Belum Dimulai
-                        </span>
-                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-md">
-                            Wajib
-                        </span>
-                    </div>
-
-                    <!-- Title & Instructor -->
-                    <div class="space-y-1">
-                        <h2 class="text-lg font-bold text-slate-900 leading-snug">Interaksi Manusia & Komputer</h2>
-                        <p class="text-xs text-slate-500 flex items-center gap-1.5">
-                            <i class="fa-regular fa-user text-slate-400"></i> Prof. Don Norman
-                        </p>
-                    </div>
-
-                    <!-- Meta Info -->
-                    <div class="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-book-open text-slate-400"></i> 8 Modul
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <i class="fa-regular fa-clipboard-list text-slate-400"></i> 2 Tugas
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Button -->
-            <div class="p-6 pt-0">
-                <a href="#" class="block w-full py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white text-center font-medium text-sm rounded-xl transition-colors">
-                    Mulai Belajar
-                </a>
-            </div>
-        </div>
-
-    </div>
-
+            </a>
+        @endforeach
+    </section>
 </div>
 @endsection

@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Mahasiswa;
 use App\Http\Controllers\Controller;
 use Illuminate\View\View;
 
-class DiscussionController extends Controller
+class GradeController extends Controller
 {
     public function index(): View
     {
-        return view('mahasiswa.discussion');
+        return view('mahasiswa.grade');
     }
 }

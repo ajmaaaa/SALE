@@ -3,17 +3,19 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AssignmentController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         return view('mahasiswa.assignment');
     }
 
-    public function doCode($id)
+    public function code(int $assignment): View
     {
-        return view('mahasiswa.assignment-code', compact('id'));
+        abort_unless($assignment === 1, 404);
+
+        return view('mahasiswa.assignment-code');
     }
 }

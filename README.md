@@ -1,66 +1,73 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SALE
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Smart Academic Learning Ecosystem (SALE) adalah antarmuka ruang belajar mahasiswa yang dibangun dengan Laravel dan Blade.
 
-## About Laravel
+## Status Proyek
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Repository ini masih berupa prototype frontend. Halaman mahasiswa menggunakan data contoh dan sengaja dapat diakses tanpa autentikasi untuk kebutuhan evaluasi antarmuka.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Jangan gunakan data mahasiswa nyata atau deploy sebagai aplikasi production sebelum autentikasi, authorization policy, validasi, dan model domain selesai dibuat.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Kontrol upload foto, perubahan kata sandi, forum, asisten course, eksekusi kode, dan pengumpulan tugas belum terhubung ke backend.
 
-## Learning Laravel
+## Tech Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.2 atau lebih baru
+- Laravel 12
+- Blade server-side templates
+- Tailwind CSS 4 melalui plugin Vite
+- Vite 6
+- Vanilla JavaScript ES modules
+- CodeMirror 6 untuk editor Python
+- PHPUnit 11
+- Laravel Pint
+- Node.js 22 LTS dan npm 10 atau lebih baru
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Proyek ini tidak menggunakan React, Vue, Alpine, Livewire, Inertia, Bootstrap, atau CDN frontend. Tailwind 4 menggunakan konfigurasi CSS-first di `resources/css/app.css`, sehingga tidak diperlukan `tailwind.config.js`.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Menjalankan Proyek
 
-## Laravel Sponsors
+```bash
+composer install
+npm ci
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+composer run dev
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Aplikasi tersedia melalui URL yang ditampilkan oleh `php artisan serve`. Preview mahasiswa dimulai dari `/mahasiswa/dashboard`.
 
-### Premium Partners
+## Pemeriksaan Kualitas
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+```bash
+npm run build
+php artisan test
+vendor/bin/pint --test
+composer audit --locked
+npm audit
+```
 
-## Contributing
+## Struktur Frontend
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- `resources/views/layouts/mahasiswa.blade.php`: shell dan navigasi mahasiswa
+- `resources/views/mahasiswa`: halaman Blade mahasiswa
+- `resources/css/app.css`: design tokens dan komponen Tailwind
+- `resources/js/app.js`: sidebar, CodeMirror, dan interaksi tab profil
+- `app/Http/Controllers/Mahasiswa`: controller halaman mahasiswa
+- `routes/web.php`: route web dan route preview mahasiswa
 
-## Code of Conduct
+Data contoh saat ini berada di template Blade. Saat backend domain dibuat, pindahkan data tersebut ke model/controller dan gunakan Blade hanya untuk presentasi.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Batas Keamanan
 
-## Security Vulnerabilities
+Sebelum aplikasi menerima data nyata:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Lindungi group route mahasiswa dengan middleware `auth`, verifikasi akun, dan role mahasiswa.
+2. Gunakan route-model binding dan policy untuk memeriksa enrollment serta kepemilikan submission.
+3. Gunakan Form Request, CSRF, validasi upload, dan rate limiting pada endpoint mutasi.
+4. Jangan jalankan kode mahasiswa pada host Laravel. Gunakan sandbox terisolasi tanpa credential atau host mount, dengan batas jaringan, CPU, memori, proses, waktu, dan output.
+5. Jalankan production dengan `APP_ENV=production`, `APP_DEBUG=false`, HTTPS, dan secret yang dikelola di luar repository.
 
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+`package-lock.json` harus selalu ikut di-commit agar `npm ci` menghasilkan dependency tree yang konsisten.

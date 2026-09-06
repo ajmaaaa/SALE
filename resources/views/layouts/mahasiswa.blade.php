@@ -3,103 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Lumina Academy')</title>
-    
-    <!-- Gunakan Tailwind CSS via CDN / Vite -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="theme-color" content="#f5f5f2">
+    <title>@yield('title', 'SALE')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-slate-50 font-sans antialiased text-slate-800">
+<body class="min-h-screen font-sans antialiased">
+    <a href="#main-content" class="fixed left-3 top-3 z-[70] -translate-y-20 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white focus:translate-y-0">
+        Lewati ke konten utama
+    </a>
 
-    <div class="flex min-h-screen">
-        <!-- Sidebar Lumina Academy -->
-        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between">
-            <div>
-                <!-- Logo & Brand -->
-                <div class="p-6 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-200">
-                        L
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-slate-900 leading-tight">Lumina</h1>
-                        <p class="text-xs text-slate-500">Academy</p>
-                    </div>
-                </div>
+    <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 hidden bg-ink/30 data-[open=true]:block lg:hidden"></div>
 
-                <!-- Navigation Menu -->
-                <nav class="px-4 space-y-1">
-                    <a href="/mahasiswa/dashboard" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl {{ request()->is('mahasiswa/dashboard') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50' }}">
-                        <i class="fa-solid fa-grid-2"></i> Dashboard
-                    </a>
-                    <a href="/mahasiswa/course" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl {{ request()->is('mahasiswa/course*') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50' }}">
-                        <i class="fa-solid fa-book-open"></i> Courses
-                    </a>
-                    <a href="/mahasiswa/assignment" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl {{ request()->is('mahasiswa/assignment*') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50' }}">
-                        <i class="fa-solid fa-list-check"></i> Assignments
-                    </a>
-                    <a href="/mahasiswa/discussion" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl {{ request()->is('mahasiswa/discussion*') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50' }}">
-                        <i class="fa-solid fa-comments"></i> Discussion
-                    </a>
-                    <a href="/mahasiswa/profile" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl {{ request()->is('mahasiswa/profile*') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50' }}">
-                        <i class="fa-solid fa-user"></i> Profile
-                    </a>
-                </nav>
-            </div>
-
-            <!-- Bottom Menu -->
-            <div class="p-4 border-t border-slate-100 space-y-1">
-                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 rounded-xl hover:bg-slate-50">
-                    <i class="fa-solid fa-sparkles text-amber-500"></i> Lumina AI Help
-                </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 rounded-xl hover:bg-slate-50">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </a>
-                <a href="/logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 rounded-xl hover:bg-rose-50">
-                    <i class="fa-solid fa-right-from-bracket"></i> Logout
-                </a>
-            </div>
-        </aside>
-
-        <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col">
-            <!-- Header Bar -->
-            <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">Selamat Datang, Mahasiswa</h2>
-                    <p class="text-xs text-slate-500">Siap untuk melanjutkan pembelajaran hari ini?</p>
-                </div>
-
-                <!-- Stats Badges & Profile Dropdown -->
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700">
-                        <i class="fa-solid fa-bolt text-amber-500"></i>
-                        <span>XP: 1,250</span>
-                    </div>
-                    <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700">
-                        <i class="fa-solid fa-fire text-orange-500"></i>
-                        <span>5 Day Streak</span>
-                    </div>
-                    <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700">
-                        <i class="fa-solid fa-award text-indigo-500"></i>
-                        <span>12 Badges</span>
-                    </div>
-                    <div class="w-10 h-10 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center font-bold text-indigo-600 ml-2">
-                        M
-                    </div>
-                </div>
-            </header>
-
-            <!-- Page Content -->
-            <main class="p-8 flex-1">
-                @yield('content')
-            </main>
-
-            <!-- Footer -->
-            <footer class="p-6 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
-                © 2026 Lumina Academy. Empowering University Students.
-            </footer>
+    <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] -translate-x-full flex-col border-r border-line bg-white transition-transform data-[open=true]:translate-x-0 lg:translate-x-0">
+        <div class="px-6 pb-4 pt-6">
+            <a href="{{ route('mahasiswa.dashboard') }}" class="block" aria-label="SALE, halaman utama">
+                <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
+                <span class="mt-0.5 block text-xs text-muted">Smart Academic Learning Ecosystem</span>
+            </a>
         </div>
-    </div>
 
+        <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
+            <div class="space-y-1">
+                <a href="{{ route('mahasiswa.dashboard') }}" @if(request()->routeIs('mahasiswa.dashboard')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
+                    Dashboard
+                </a>
+                <a href="{{ route('mahasiswa.course.index') }}" @if(request()->routeIs('mahasiswa.course.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.course.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                    Course
+                </a>
+                <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 4h10l2 2v14H5V4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+                    Tugas &amp; Kuis
+                    <span class="ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-white text-brand-dark' : 'bg-brand-dark text-white' }}">3</span>
+                </a>
+                <a href="{{ route('mahasiswa.grade.index') }}" @if(request()->routeIs('mahasiswa.grade.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.grade.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h3M8 16h2M14 12h2M14 16h2"/></svg>
+                    Nilai
+                </a>
+                <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+                    Forum Diskusi
+                </a>
+            </div>
+
+            <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
+            <div class="space-y-1">
+                <button type="button" class="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-left text-[14px] font-medium text-[#4d5964] hover:bg-[#f0f1ee] hover:text-ink">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
+                    Notifikasi
+                    <span class="ml-auto text-xs font-semibold text-danger">2</span>
+                </button>
+                <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+                    Profil &amp; Pengaturan
+                </a>
+            </div>
+        </nav>
+
+    </aside>
+
+    <div class="min-h-screen lg:pl-[248px]">
+        <header class="sticky top-0 z-30 bg-white/95 shadow-[0_2px_12px_rgba(29,39,48,0.07)] backdrop-blur-sm">
+            <div class="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10">
+                <div class="flex min-w-0 items-center gap-3">
+                    <button data-sidebar-toggle type="button" aria-label="Buka navigasi" aria-expanded="false" class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-ink shadow-sm hover:bg-brand-soft lg:hidden">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                    </button>
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-ink">@yield('header', 'Dashboard')</p>
+                        <p class="hidden truncate text-xs text-muted sm:block">Semester Ganjil 2026/2027</p>
+                    </div>
+                </div>
+                <a href="{{ route('mahasiswa.profile.index') }}" class="flex items-center gap-3 rounded-md p-1.5 hover:bg-[#eceeeb]">
+                    <span class="hidden text-right sm:block">
+                        <span class="block text-sm font-semibold leading-4 text-ink">Ahmad</span>
+                        <span class="block text-xs text-muted">231011401234</span>
+                    </span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">AM</span>
+                </a>
+            </div>
+        </header>
+
+        <main id="main-content" class="page-shell">
+            @yield('content')
+        </main>
+
+    </div>
 </body>
 </html>

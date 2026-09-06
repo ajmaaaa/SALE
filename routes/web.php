@@ -1,30 +1,28 @@
 <?php
 
+use App\Http\Controllers\Mahasiswa\AssignmentController;
+use App\Http\Controllers\Mahasiswa\CourseController;
+use App\Http\Controllers\Mahasiswa\DashboardController;
+use App\Http\Controllers\Mahasiswa\DiscussionController;
+use App\Http\Controllers\Mahasiswa\GradeController;
+use App\Http\Controllers\Mahasiswa\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Mahasiswa;
 
 Route::get('/', function () {
-    return redirect('/mahasiswa/dashboard');
+    return redirect()->route('mahasiswa.dashboard');
 });
 
-// Group Route tanpa Auth Middleware (khusus untuk cek tampilan frontend dulu)
-Route::prefix('mahasiswa')->group(function () {
-    
-    // 1. Dashboard Mahasiswa
-    Route::get('/dashboard', [Mahasiswa\DashboardController::class, 'index'])->name('mahasiswa.dashboard');
+// Public only while SALE remains a frontend prototype. See README before adding real data.
+Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // 2. Courses / Mata Kuliah
-    Route::get('/course', [Mahasiswa\CourseController::class, 'index'])->name('mahasiswa.course.index');
-    Route::get('/course/{id}', [Mahasiswa\CourseController::class, 'show'])->name('mahasiswa.course.show');
+    Route::get('/course', [CourseController::class, 'index'])->name('course.index');
+    Route::get('/course/{course}', [CourseController::class, 'show'])->whereNumber('course')->name('course.show');
 
-    // 3. Assignments / Tugas & Kuis
-    Route::get('/assignment', [Mahasiswa\AssignmentController::class, 'index'])->name('mahasiswa.assignment.index');
-    Route::get('/assignment/{id}/code', [Mahasiswa\AssignmentController::class, 'doCode'])->name('mahasiswa.assignment.code');
+    Route::get('/assignment', [AssignmentController::class, 'index'])->name('assignment.index');
+    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->name('assignment.code');
 
-    // 4. Discussion / Forum Diskusi
-    Route::get('/discussion', [Mahasiswa\DiscussionController::class, 'index'])->name('mahasiswa.discussion.index');
-
-    // 5. Profile & Settings
-    Route::get('/profile', [Mahasiswa\ProfileController::class, 'index'])->name('mahasiswa.profile.index');
-
+    Route::get('/grade', [GradeController::class, 'index'])->name('grade.index');
+    Route::get('/discussion', [DiscussionController::class, 'index'])->name('discussion.index');
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
 });
