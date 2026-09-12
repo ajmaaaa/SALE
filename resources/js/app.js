@@ -1,5 +1,6 @@
 import './submission-preview';
 import './grade-import';
+import { runWeb } from './web-preview';
 
 const sidebar = document.querySelector('[data-sidebar]');
 const sidebarBackdrop = document.querySelector('[data-sidebar-backdrop]');
@@ -153,7 +154,7 @@ updateCounter();
                 changes: { from: 0, to: editor.state.doc.length, insert: files[active].code },
                 effects: compartment.reconfigure(modeFor(files[active].name)),
             });
-            fileNameEl.textContent = files[active].name;
+            if (fileNameEl) fileNameEl.textContent = files[active].name;
             refreshLanguageBadge();
             renderTabs();
         };
@@ -285,13 +286,18 @@ updateCounter();
             if (!candidate) return setStatus('Nama berkas tidak boleh kosong.', true);
             if (candidate.includes('/') || candidate.includes('\\')) return setStatus('Nama berkas tidak boleh memuat jalur folder.', true);
             const lastDot = candidate.lastIndexOf('.');
-            const ext = lastDot >= 0 ? candidate.slice(lastDot + 1).toLowerCase() : DEFAULT_EXT;
-            const name = lastDot >= 0 ? candidate : `${candidate}.${DEFAULT_EXT}`;
+            let defaultForCandidate = DEFAULT_EXT;
+            const lower = candidate.toLowerCase();
+            if (lower.startsWith('style') || lower === 'css') defaultForCandidate = 'css';
+            else if (lower.startsWith('script') || lower === 'js' || lower === 'app') defaultForCandidate = 'js';
+            else if (lower.startsWith('index') || lower === 'html' || lower === 'page') defaultForCandidate = 'html';
+            const ext = lastDot >= 0 ? candidate.slice(lastDot + 1).toLowerCase() : defaultForCandidate;
+            const name = lastDot >= 0 ? candidate : `${candidate}.${ext}`;
             if (!ALLOWED.includes(ext)) return setStatus(`Ekstensi .${ext} tidak diizinkan. Gunakan .html, .css, .js, atau .py.`, true);
             if (files.some((file, i) => i !== index && file.name.toLowerCase() === name.toLowerCase())) return setStatus(`Berkas "${name}" sudah ada.`, true);
             files[index].name = name;
             if (index === active) {
-                fileNameEl.textContent = name;
+                if (fileNameEl) fileNameEl.textContent = name;
                 editor.dispatch({ effects: compartment.reconfigure(modeFor(name)) });
             }
             persist();
@@ -367,7 +373,175 @@ updateCounter();
         const outputTabs = [...document.querySelectorAll('[data-output-tab]')];
         const consolePanel = document.querySelector('[data-console-panel]');
         const previewPanel = document.querySelector('[data-preview-panel]');
+        const terminalWrapper = document.querySelector('#terminal-wrapper');
+        const panelTerminal = document.querySelector('#panel-terminal');
+        const terminalToggleBtn = document.querySelector('[data-terminal-toggle]');
+        const terminalCloseBtns = document.querySelectorAll('[data-terminal-close], [data-terminal-close-btn], [data-terminal-minimize]');
+        const terminalMaximizeBtn = document.querySelector('[data-terminal-maximize]');
+        const terminalResizer = document.querySelector('[data-resizer="terminal"]');
         let execution = null;
+
+        // Terminal On-Demand Toggle Logic
+        const updateTerminalToggleState = (isOpen) => {
+            if (!terminalToggleBtn) return;
+            terminalToggleBtn.classList.toggle('bg-brand/10', isOpen);
+            terminalToggleBtn.classList.toggle('text-brand', isOpen);
+            terminalToggleBtn.classList.toggle('border-brand/40', isOpen);
+            terminalToggleBtn.classList.toggle('bg-white', !isOpen);
+            terminalToggleBtn.classList.toggle('text-ink', !isOpen);
+        };
+
+        const openTerminal = () => {
+            if (!terminalWrapper) return;
+            terminalWrapper.hidden = false;
+            updateTerminalToggleState(true);
+        };
+
+        const closeTerminal = () => {
+            if (!terminalWrapper) return;
+            terminalWrapper.hidden = true;
+            updateTerminalToggleState(false);
+        };
+
+        const toggleTerminal = () => {
+            if (!terminalWrapper) return;
+            if (terminalWrapper.hidden) {
+                openTerminal();
+            } else {
+                closeTerminal();
+            }
+        };
+
+        terminalToggleBtn?.addEventListener('click', toggleTerminal);
+        terminalCloseBtns.forEach((btn) => btn.addEventListener('click', closeTerminal));
+        terminalMaximizeBtn?.addEventListener('click', () => {
+            if (!panelTerminal) return;
+            const currentH = panelTerminal.offsetHeight;
+            if (currentH < 360) {
+                panelTerminal.style.height = '420px';
+            } else {
+                panelTerminal.style.height = '240px';
+            }
+            openTerminal();
+        });
+
+        // Vertical Resizing for Terminal
+        if (terminalResizer && panelTerminal) {
+            const savedHeight = localStorage.getItem('sale.workbench.terminalHeight');
+            if (savedHeight) {
+                const h = Math.max(120, Math.min(window.innerHeight - 220, parseInt(savedHeight, 10)));
+                if (!isNaN(h)) panelTerminal.style.height = `${h}px`;
+            }
+
+            let isDraggingTerminal = false;
+            let startY = 0;
+            let startHeight = 0;
+
+            const onTerminalPointerMove = (e) => {
+                if (!isDraggingTerminal) return;
+                const deltaY = e.clientY - startY;
+                const newHeight = Math.max(120, Math.min(window.innerHeight - 200, startHeight - deltaY));
+                panelTerminal.style.height = `${newHeight}px`;
+            };
+
+            const onTerminalPointerUp = () => {
+                if (!isDraggingTerminal) return;
+                isDraggingTerminal = false;
+                document.body.classList.remove('workbench-resizing', 'workbench-resizing-row');
+                window.removeEventListener('pointermove', onTerminalPointerMove);
+                window.removeEventListener('pointerup', onTerminalPointerUp);
+                localStorage.setItem('sale.workbench.terminalHeight', parseInt(panelTerminal.style.height, 10));
+            };
+
+            terminalResizer.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                isDraggingTerminal = true;
+                startY = e.clientY;
+                startHeight = panelTerminal.offsetHeight;
+                document.body.classList.add('workbench-resizing', 'workbench-resizing-row');
+                window.addEventListener('pointermove', onTerminalPointerMove);
+                window.addEventListener('pointerup', onTerminalPointerUp);
+            });
+        }
+
+        // Horizontal Workbench Resizers (Soal <-> Editor <-> Lumina AI)
+        const workbenchContainer = document.querySelector('#workbench-container');
+        const panelQuestion = document.querySelector('#panel-question');
+        const panelAi = document.querySelector('#panel-ai');
+        const leftResizer = document.querySelector('[data-resizer="left"]');
+        const rightResizer = document.querySelector('[data-resizer="right"]');
+
+        if (workbenchContainer && panelQuestion && panelAi) {
+            const savedLeft = localStorage.getItem('sale.workbench.leftWidth');
+            if (savedLeft && window.innerWidth >= 1280) {
+                const w = Math.max(220, Math.min(600, parseInt(savedLeft, 10)));
+                if (!isNaN(w)) panelQuestion.style.width = `${w}px`;
+            }
+            const savedRight = localStorage.getItem('sale.workbench.rightWidth');
+            if (savedRight && window.innerWidth >= 1280) {
+                const w = Math.max(250, Math.min(600, parseInt(savedRight, 10)));
+                if (!isNaN(w)) panelAi.style.width = `${w}px`;
+            }
+
+            if (leftResizer) {
+                let isDraggingLeft = false;
+
+                const onLeftPointerMove = (e) => {
+                    if (!isDraggingLeft) return;
+                    const rect = workbenchContainer.getBoundingClientRect();
+                    const maxW = Math.min(600, rect.width - 550);
+                    const newWidth = Math.max(220, Math.min(maxW, e.clientX - rect.left));
+                    panelQuestion.style.width = `${newWidth}px`;
+                };
+
+                const onLeftPointerUp = () => {
+                    if (!isDraggingLeft) return;
+                    isDraggingLeft = false;
+                    document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
+                    window.removeEventListener('pointermove', onLeftPointerMove);
+                    window.removeEventListener('pointerup', onLeftPointerUp);
+                    localStorage.setItem('sale.workbench.leftWidth', parseInt(panelQuestion.style.width, 10));
+                };
+
+                leftResizer.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    isDraggingLeft = true;
+                    document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
+                    window.addEventListener('pointermove', onLeftPointerMove);
+                    window.addEventListener('pointerup', onLeftPointerUp);
+                });
+            }
+
+            if (rightResizer) {
+                let isDraggingRight = false;
+
+                const onRightPointerMove = (e) => {
+                    if (!isDraggingRight) return;
+                    const rect = workbenchContainer.getBoundingClientRect();
+                    const maxW = Math.min(600, rect.width - 550);
+                    const newWidth = Math.max(250, Math.min(maxW, rect.right - e.clientX));
+                    panelAi.style.width = `${newWidth}px`;
+                };
+
+                const onRightPointerUp = () => {
+                    if (!isDraggingRight) return;
+                    isDraggingRight = false;
+                    document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
+                    window.removeEventListener('pointermove', onRightPointerMove);
+                    window.removeEventListener('pointerup', onRightPointerUp);
+                    localStorage.setItem('sale.workbench.rightWidth', parseInt(panelAi.style.width, 10));
+                };
+
+                rightResizer.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    isDraggingRight = true;
+                    document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
+                    window.addEventListener('pointermove', onRightPointerMove);
+                    window.addEventListener('pointerup', onRightPointerUp);
+                });
+            }
+        }
+
         const appendOutput = (text, stream = 'stdout') => {
             const line = document.createElement('pre');
             line.className = `whitespace-pre-wrap break-words ${stream === 'stderr' ? 'text-amber-300' : 'text-slate-300'}`;
@@ -393,27 +567,56 @@ updateCounter();
         outputTabs.forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.outputTab)));
         runBtn.disabled = false;
         if (testBtn) testBtn.disabled = false;
+        const setRunBtnState = (running) => {
+            if (!runBtn) return;
+            runBtn.disabled = running;
+            if (running) {
+                runBtn.innerHTML = '<svg class="h-3.5 w-3.5 animate-spin text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor"/></svg>';
+                runBtn.title = 'Sedang menjalankan…';
+            } else {
+                runBtn.innerHTML = '<svg class="h-3.5 w-3.5 fill-current text-white ml-0.5" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+                runBtn.title = 'Jalankan kode';
+            }
+        };
+
+        const isHtmlCode = (text) => /^<!doctype\s+html|^<html|^<body|^<div|^<h[1-6]|^<p[\s>]/i.test(String(text || '').trim());
+        const detectRunAsWeb = (testAssignment) => {
+            if (testAssignment) return false;
+            if (isWeb) return true;
+            const currentName = files[active]?.name?.toLowerCase() || '';
+            if (currentName.endsWith('.html') || currentName.endsWith('.htm')) return true;
+            if (isHtmlCode(files[active]?.code)) return true;
+            const hasHtml = files.some((f) => f.name.toLowerCase().endsWith('.html') || f.name.toLowerCase().endsWith('.htm') || isHtmlCode(f.code));
+            const hasPy = files.some((f) => f.name.toLowerCase().endsWith('.py'));
+            if (hasHtml && !hasPy) return true;
+            if ((currentName.endsWith('.css') || currentName.endsWith('.js')) && hasHtml) return true;
+            return false;
+        };
+
         const execute = async (testAssignment = false) => {
             if (execution) return;
+            openTerminal();
             flush();
             const problem = validate();
             if (problem) return appendOutput(problem, 'stderr');
-            if (!files.some((file) => file.code.trim())) return appendOutput(isWeb ? 'Tulis kode HTML/CSS/JS terlebih dahulu.' : 'Tulis kode Python terlebih dahulu.');
+            const runAsWeb = detectRunAsWeb(testAssignment);
+            if (!files.some((file) => file.code.trim())) return appendOutput(runAsWeb ? 'Tulis kode HTML/CSS/JS terlebih dahulu.' : 'Tulis kode Python terlebih dahulu.');
             execution = new AbortController();
-            runBtn.disabled = true;
+            setRunBtnState(true);
             if (testBtn) testBtn.disabled = true;
             terminalOutput.replaceChildren();
-            runBtn.textContent = 'Menjalankan…';
             stopBtn.hidden = false;
-            const progress = appendOutput(isWeb ? 'Menyiapkan pratinjau…' : 'Sedang mengompilasi…');
+            const progress = appendOutput(runAsWeb ? 'Menyiapkan pratinjau…' : 'Sedang mengompilasi…');
             progress.dataset.executionProgress = '';
             progress.setAttribute('role', 'status');
             try {
-                if (isWeb) {
+                if (runAsWeb) {
                     if (!previewFrame) throw new Error('Panel pratinjau tidak tersedia. Muat ulang halaman.');
-                    const { runWeb } = await import('./web-preview');
                     await runWeb({
-                        files, frame: previewFrame, signal: execution.signal,
+                        files,
+                        activeName: files[active]?.name,
+                        frame: previewFrame,
+                        signal: execution.signal,
                         onOutput: (stream, text) => {
                             progress.remove();
                             appendOutput(text, stream === 'warn' || stream === 'error' ? 'stderr' : 'stdout');
@@ -433,7 +636,8 @@ updateCounter();
                             appendOutput(text, stream);
                         },
                         onReady: (version) => {
-                            document.querySelector('[data-python-version]').textContent = `Python ${version}`;
+                            const pyVerEl = document.querySelector('[data-python-version]');
+                            if (pyVerEl) pyVerEl.textContent = `Python ${version}`;
                             progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : 'Sedang menjalankan main.py…';
                         },
                     });
@@ -441,6 +645,7 @@ updateCounter();
                     appendOutput(exitCode === 0
                         ? 'Selesai · exit code 0.'
                         : `Eksekusi gagal · exit code ${exitCode}.`, exitCode === 0 ? 'stdout' : 'stderr');
+                    activateTab('console');
                 }
             } catch (error) {
                 progress.remove();
@@ -448,9 +653,8 @@ updateCounter();
             } finally {
                 progress.remove();
                 execution = null;
-                runBtn.disabled = false;
+                setRunBtnState(false);
                 if (testBtn) testBtn.disabled = false;
-                runBtn.textContent = '▶ Jalankan Kode';
                 stopBtn.hidden = true;
             }
         };
@@ -588,8 +792,26 @@ updateCounter();
         };
         if (aiForm) updateStatus(true);
 
+        const assistantInput = document.querySelector('#assistant-message');
+        const assistantSubmitBtn = aiForm?.querySelector('button[type="submit"]');
+
+        const updateAssistantSubmitVisibility = () => {
+            if (!assistantSubmitBtn || !assistantInput) return;
+            const hasText = assistantInput.value.trim().length > 0;
+            if (hasText) {
+                assistantSubmitBtn.classList.remove('scale-0', 'opacity-0', 'pointer-events-none');
+                assistantSubmitBtn.classList.add('scale-100', 'opacity-100');
+            } else {
+                assistantSubmitBtn.classList.add('scale-0', 'opacity-0', 'pointer-events-none');
+                assistantSubmitBtn.classList.remove('scale-100', 'opacity-100');
+            }
+        };
+
+        assistantInput?.addEventListener('input', updateAssistantSubmitVisibility);
+        updateAssistantSubmitVisibility();
+
         // Enter submits; Shift+Enter inserts a new line
-        document.querySelector('#assistant-message')?.addEventListener('keydown', (e) => {
+        assistantInput?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (!busy && ready) aiForm.requestSubmit();
@@ -638,6 +860,7 @@ updateCounter();
                     input.value = '';
                     context = null;
                     document.querySelector('[data-code-context]').hidden = true;
+                    updateAssistantSubmitVisibility();
                 }
             } catch {
                 removeThinking();
@@ -646,6 +869,7 @@ updateCounter();
                 removeThinking();
                 busy = false;
                 await updateStatus();
+                updateAssistantSubmitVisibility();
             }
         });
     }).catch(() => {

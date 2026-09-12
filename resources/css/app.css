@@ -197,22 +197,39 @@
     }
 }
 
+.code-editor {
+    height: 100%;
+}
+
 .code-editor .cm-editor {
-    min-height: 300px;
-    max-height: 420px;
+    height: 100%;
+    min-height: 140px;
     font-family: var(--font-mono);
     font-size: 13px;
 }
 
 .code-editor .cm-scroller {
-    min-height: 300px;
-    max-height: 420px;
+    height: 100%;
+    min-height: 140px;
     line-height: 1.65;
 }
 
 .code-editor .cm-focused {
     outline: 2px solid var(--color-brand);
     outline-offset: -2px;
+}
+
+body.workbench-resizing {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.workbench-resizing-col {
+    cursor: col-resize !important;
+}
+
+body.workbench-resizing-row {
+    cursor: row-resize !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
