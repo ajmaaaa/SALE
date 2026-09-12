@@ -16,7 +16,7 @@
                 <span class="text-ink font-semibold">Gradebook</span>
             </nav>
             <h1 class="page-heading">Rekap Nilai Kelas</h1>
-            <p class="page-description">Perhitungan nilai transparan berdasarkan multi-komponen bobot (Tugas, Kuis, UTS, UAS, Proyek, Partisipasi).</p>
+            <p class="page-description">Dari rekap kelas hingga rincian soal. Telusuri nilai setiap penilaian dan ketercapaian CPMK secara terpisah.</p>
         </div>
         <div class="flex flex-wrap gap-2.5 shrink-0">
             <button type="button" onclick="document.getElementById('bulk-score-section').toggleAttribute('hidden')" class="button-secondary">
@@ -46,6 +46,8 @@
             <span>Total Bobot: <strong class="text-brand">{{ array_sum(array_column($config['components'], 'weight')) }}%</strong></span>
         </div>
     </div>
+
+    @include('dosen.partials.gradebook-detail')
 
     {{-- Bulk Score Section (Collapsible) --}}
     <section id="bulk-score-section" hidden class="surface p-6">
@@ -89,6 +91,7 @@
     </section>
 
     {{-- Main Gradebook Table --}}
+    @if($componentFilter === '')
     <form method="post" action="{{ route('dosen.scores.save', $course['id']) }}">
         @csrf
         <div class="surface overflow-x-auto">
@@ -103,8 +106,9 @@
                                 <span class="mt-0.5 block text-xs font-normal text-muted">{{ $component['weight'] }}%</span>
                             </th>
                         @endforeach
-                        <th class="text-center min-w-[120px]">Nilai Akhir</th>
+                        <th class="text-center min-w-[120px]">Nilai / 100</th>
                         <th class="text-center">Indeks</th>
+                        <th class="min-w-[240px]">Ketercapaian CPMK</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -145,7 +149,7 @@
                             <td class="text-center whitespace-nowrap">
                                 <span class="text-sm font-bold text-ink">{{ $result['average'] !== null ? number_format($result['average'], 1, ',', '.') : '—' }}</span>
                                 <span class="block text-xs text-muted">
-                                    {{ $result['complete'] ? 'Lengkap' : $result['coverage'].'% dinilai' }}
+                                    {{ $result['complete'] ? 'Nilai akhir' : 'Sementara' }}
                                 </span>
                             </td>
                             <td class="text-center whitespace-nowrap">
@@ -153,10 +157,21 @@
                                     {{ $letter }}
                                 </span>
                             </td>
+                            <td>
+                                @php($attainment = \App\Support\AcademicPreview::breakdown($course['id'], $student['id']))
+                                <details class="text-xs">
+                                    <summary class="cursor-pointer font-semibold {{ $attainment['passed'] === false ? 'text-danger' : 'text-brand' }}">{{ $attainment['passed'] === null ? 'Menunggu penilaian' : ($attainment['passed'] ? 'Memenuhi seluruh CPMK' : 'Belum memenuhi CPMK') }}</summary>
+                                    <div class="mt-3 space-y-3">
+                                        @foreach($attainment['cpmk'] as $outcome)
+                                            <div><p class="font-semibold">{{ $outcome['code'] }} <span class="font-normal text-muted">Batas {{ $outcome['threshold'] }}</span></p><p>{{ $outcome['score'] === null ? 'Belum lengkap' : number_format($outcome['score'], 1, ',', '.').' / 100' }} · {{ $outcome['passed'] === null ? 'Menunggu' : ($outcome['passed'] ? 'Tercapai' : 'Belum tercapai') }}</p></div>
+                                        @endforeach
+                                    </div>
+                                </details>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($config['components']) + 4 }}" class="p-6 text-center text-xs text-muted">
+                            <td colspan="{{ count($config['components']) + 5 }}" class="p-6 text-center text-xs text-muted">
                                 Belum ada mahasiswa terdaftar di kelas ini.
                             </td>
                         </tr>
@@ -167,7 +182,7 @@
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
             <p class="text-xs text-muted leading-relaxed max-w-xl">
-                Skala nilai: 0–100. Komponen tugas dihitung dari rata-rata pengumpulan tugas mahasiswa jika sudah dinilai pengampu.
+                Nilai sementara dihitung dari bobot komponen yang sudah dinilai. Nilai komponen manual tidak menjadi bukti ketercapaian CPMK. Buka filter penilaian untuk melihat rincian soal.
             </p>
             <div class="flex items-center gap-3">
                 <a href="{{ route('dosen.grades') }}" class="quiet-link text-xs">
@@ -179,5 +194,6 @@
             </div>
         </div>
     </form>
+    @endif
 </div>
 @endsection

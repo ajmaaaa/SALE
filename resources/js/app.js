@@ -1,3 +1,6 @@
+import './submission-preview';
+import './grade-import';
+
 const sidebar = document.querySelector('[data-sidebar]');
 const sidebarBackdrop = document.querySelector('[data-sidebar-backdrop]');
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
@@ -966,4 +969,3 @@ if (addWorkDropdown) {
         renderLinkChip(linkInput.value);
     }
 }
-

@@ -1,5 +1,81 @@
 @extends('layouts.mahasiswa')
-@section('header', 'Penilaian')
+
+@section('title', request()->has('room') || request()->has('course') ? 'Ruang Penilaian Kelas | SALE' : 'Kelas yang Saya Ajar | SALE')
+@section('header', request()->has('room') || request()->has('course') ? 'Ruang Penilaian Kelas' : 'Penilaian Kelas')
+
 @section('content')
-<h1 class="page-heading">Penilaian</h1><p class="page-description">Tinjau jawaban yang dikumpulkan dalam sesi pratinjau.</p><div class="mt-7 space-y-4">@forelse(session('learning.submissions', []) as $id=>$submission)@php($item = \App\Support\LearningPreview::items()[$id])<section class="surface p-6"><p class="eyebrow">Ahmad · {{ $submission['time'] }}</p><h2 class="section-heading mt-2">{{ $item['title'] }}</h2>@if(!empty($submission['answer']))<pre class="mt-4 whitespace-pre-wrap break-words rounded-lg bg-canvas p-4 text-sm">{{ $submission['answer'] }}</pre>@endif @if(!empty($submission['choices']))<p class="mt-4 text-sm">{{ implode('; ', $submission['choices']) }}</p>@endif @foreach($submission['files'] as $file)<a class="quiet-link mt-3 block" href="{{ route('preview.file', $file) }}">{{ session('learning.files.'.$file.'.name') }}</a>@endforeach @if(!empty($submission['link']))<a class="quiet-link mt-3 block break-all" href="{{ $submission['link'] }}" target="_blank" rel="noopener noreferrer">{{ $submission['link'] }}</a>@endif<p class="mt-4 text-xs text-muted">Input nilai dan rubrik belum dihubungkan.</p></section>@empty<section class="surface p-8"><h2 class="section-heading">Belum ada jawaban masuk</h2><p class="mt-2 text-sm text-muted">Coba kumpulkan tugas melalui pratinjau mahasiswa, lalu kembali ke sini.</p></section>@endforelse</div>
+<div class="space-y-6">
+
+    {{-- Toast Notification --}}
+    <div id="sync-toast" hidden class="surface p-4 border-l-4 border-brand text-xs text-ink shadow-sm">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-brand">✓ Perubahan Tersimpan:</span>
+                <span class="text-muted" id="toast-message">Data nilai dan capaian CPMK kelas telah diperbarui.</span>
+            </div>
+            <button type="button" onclick="document.getElementById('sync-toast').setAttribute('hidden', '')" class="text-xs text-muted hover:text-ink">Tutup</button>
+        </div>
+    </div>
+
+    @if(request()->has('room') || request()->has('course'))
+        {{-- ── RUANG PENILAIAN ── --}}
+        @php
+            $activeType = strtolower(request()->query('type', 'uts'));
+            $courseId   = request()->integer('course', 1);
+            $courses    = \App\Support\LearningPreview::courses();
+            $selectedCourse = $courses[$courseId] ?? $courses[1];
+        @endphp
+
+        @include('dosen.partials.grades-room-header')
+
+        @include('dosen.partials.assessment-' . ($activeType ?: 'uts'))
+        @include('dosen.partials.submission-preview')
+        @include('dosen.partials.grade-import')
+
+    @else
+        {{-- ── DAFTAR KELAS ── --}}
+        @include('dosen.partials.grades-class-list')
+    @endif
+
+</div>
+
+<script>
+    function filterClasses() {
+        const search = document.getElementById('class-search')?.value.toLowerCase().trim() ?? '';
+        const status = document.getElementById('status-filter')?.value ?? 'all';
+        let count = 0;
+        document.querySelectorAll('.class-row').forEach(row => {
+            const show = (!search || row.dataset.name.includes(search) || row.dataset.code.includes(search))
+                      && (status === 'all' || row.dataset.status === status);
+            row.style.display = show ? '' : 'none';
+            if (show) count++;
+        });
+        const el = document.getElementById('class-count-text');
+        if (el) el.innerHTML = `Menampilkan <strong class="text-ink">${count}</strong> dari <strong class="text-ink">${document.querySelectorAll('.class-row').length}</strong> kelas aktif`;
+    }
+
+    function filterStudents() {
+        const search = document.getElementById('student-search')?.value.toLowerCase().trim() ?? '';
+        const status = document.getElementById('student-status-filter')?.value ?? 'all';
+        let count = 0;
+        document.querySelectorAll('.student-row').forEach(row => {
+            const show = (!search || row.dataset.name.includes(search) || row.dataset.number.includes(search))
+                      && (status === 'all' || row.dataset.status === status);
+            row.style.display = show ? '' : 'none';
+            if (show) count++;
+        });
+        const el = document.getElementById('student-count-text');
+        if (el) el.innerHTML = `Menampilkan <strong class="text-ink">${count}</strong> dari <strong class="text-ink">${document.querySelectorAll('.student-row').length}</strong> mahasiswa terdaftar`;
+    }
+
+    function triggerOBESync(msg) {
+        const toast = document.getElementById('sync-toast');
+        const label = document.getElementById('toast-message');
+        if (!toast) return;
+        if (label && msg) label.textContent = msg;
+        toast.removeAttribute('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => toast.setAttribute('hidden', ''), 4000);
+    }
+</script>
 @endsection

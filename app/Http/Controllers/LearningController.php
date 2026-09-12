@@ -247,6 +247,7 @@ class LearningController extends Controller
         }
         $data['files'] = array_merge($keep, array_map(fn ($file) => $this->upload($file), $request->file('files', [])));
         $data['time'] = now()->format('d M Y, H:i');
+        $data['student_number'] = session('auth_user.number');
         session(["learning.submissions.$item" => $data]);
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban dikumpulkan dalam sesi pratinjau. Belum dinilai.');
@@ -260,14 +261,17 @@ class LearningController extends Controller
         return $id;
     }
 
-    public function file(string $file)
+    public function file(Request $request, string $file)
     {
         $meta = session("learning.files.$file");
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
-        if (in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])) {
-            return Storage::disk('local')->response($meta['path'], $meta['name'], ['X-Content-Type-Options' => 'nosniff']);
+        $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])
+            || ($request->boolean('inline') && $meta['mime'] === 'application/pdf');
+        $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
+        if ($inline && !$request->boolean('download')) {
+            return Storage::disk('local')->response($meta['path'], $meta['name'], $headers + ['Content-Type' => $meta['mime']]);
         }
 
-        return Storage::disk('local')->download($meta['path'], $meta['name']);
+        return Storage::disk('local')->download($meta['path'], $meta['name'], $headers);
     }
 }
