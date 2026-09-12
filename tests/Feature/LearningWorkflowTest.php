@@ -42,7 +42,8 @@ class LearningWorkflowTest extends TestCase
         $this->post('/mahasiswa/course/2/item/4/submission', ['link' => 'javascript:alert(1)'])->assertSessionHasErrors('link');
         $this->post('/mahasiswa/course/2/item/4/submission', ['answer' => 'Hasil evaluasi: navigasi sulit ditemukan.'])->assertRedirect('/mahasiswa/course/2/item/4');
         $this->get('/mahasiswa/course/2/item/4')->assertSee('Sudah dikumpulkan');
-        $this->get('/dosen/penilaian')->assertSee('Hasil evaluasi: navigasi sulit ditemukan.');
+        $this->get('/dosen/penilaian')->assertSee('Kelas yang Saya Ajar')->assertSee('Buka Ruang Penilaian');
+        $this->get('/dosen/penilaian?room=1&course=2&type=uts')->assertOk()->assertSee('Ujian Tengah Semester (UTS)');
         $this->post('/mahasiswa/course/1/item/2/submission', ['answer' => 'x'])->assertNotFound();
     }
 
@@ -224,8 +225,9 @@ class LearningWorkflowTest extends TestCase
     {
         $codeView = $this->get('/mahasiswa/assignment/1/code');
         $codeView->assertOk()
-            ->assertSee('sale@sandbox')
-            ->assertSee('python3 --version')
+            ->assertSee('Output Python')
+            ->assertSee('data-stop-code', false)
+            ->assertSee('data-runtime-url', false)
             ->assertSee('Petunjuk Pengerjaan')
             ->assertSee('Lumina AI');
     }

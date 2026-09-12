@@ -83,7 +83,9 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        session()->forget('auth_user');
+        \Illuminate\Support\Facades\Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('notice', 'Anda telah berhasil keluar dari akun.');
     }

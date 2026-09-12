@@ -280,6 +280,14 @@
                             <option value="{{ $value }}" @selected(old('question_type') === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
+                    <div data-code-language-fields class="mt-3" @if(old('question_type') !== 'coding') hidden @endif>
+                        <label class="form-label" for="code_language">Bahasa kode</label>
+                        <select id="code_language" name="code_language" class="field" data-code-language-input @if(old('question_type') !== 'coding') disabled @endif>
+                            <option value="python" @selected(old('code_language', 'python') === 'python')>Python</option>
+                            <option value="web" @selected(old('code_language') === 'web')>HTML + CSS + JavaScript</option>
+                        </select>
+                        <p class="mt-1.5 text-[11px] text-muted">Python dieksekusi di browser (Pyodide). HTML/CSS/JS dirender di panel Pratinjau tanpa akses ke data situs.</p>
+                    </div>
                 </div>
                 <div>
                     <label class="form-label" for="points">Poin maksimal</label>

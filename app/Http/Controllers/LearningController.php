@@ -103,6 +103,7 @@ class LearningController extends Controller
             'formats' => 'required_if:type,tugas,kuis,coding|array|min:1',
             'formats.*' => [Rule::in(['file', 'image', 'link', 'text'])],
             'question_type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
+            'code_language' => 'nullable|in:python,web',
             'question_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'image_alt' => 'required_with:question_image|nullable|string|max:300',
             'option_images' => 'nullable|array|max:20',
@@ -162,6 +163,7 @@ class LearningController extends Controller
         $data['allow_late'] = $request->boolean('allow_late', true);
         $data['duration_enabled'] = $request->input('duration_mode', 'enabled') === 'enabled';
         $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
+        $data['language'] = $data['question_type'] === 'coding' ? ($data['code_language'] ?? 'python') : 'python';
         $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
         $items = Learning::items();
         $data['id'] = max(array_keys($items)) + 1;
@@ -247,6 +249,7 @@ class LearningController extends Controller
         }
         $data['files'] = array_merge($keep, array_map(fn ($file) => $this->upload($file), $request->file('files', [])));
         $data['time'] = now()->format('d M Y, H:i');
+        $data['student_number'] = session('auth_user.number');
         session(["learning.submissions.$item" => $data]);
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban dikumpulkan dalam sesi pratinjau. Belum dinilai.');
@@ -260,14 +263,17 @@ class LearningController extends Controller
         return $id;
     }
 
-    public function file(string $file)
+    public function file(Request $request, string $file)
     {
         $meta = session("learning.files.$file");
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
-        if (in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])) {
-            return Storage::disk('local')->response($meta['path'], $meta['name'], ['X-Content-Type-Options' => 'nosniff']);
+        $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])
+            || ($request->boolean('inline') && $meta['mime'] === 'application/pdf');
+        $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
+        if ($inline && !$request->boolean('download')) {
+            return Storage::disk('local')->response($meta['path'], $meta['name'], $headers + ['Content-Type' => $meta['mime']]);
         }
 
-        return Storage::disk('local')->download($meta['path'], $meta['name']);
+        return Storage::disk('local')->download($meta['path'], $meta['name'], $headers);
     }
 }

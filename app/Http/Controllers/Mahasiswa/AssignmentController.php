@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Support\LearningPreview;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -17,6 +19,14 @@ class AssignmentController extends Controller
     {
         $item = LearningPreview::items()[$assignment] ?? null;
         abort_unless($item && $item['type'] === 'coding', 404);
+
+        if (Schema::hasTable('ai_tasks')) {
+            $aiTask = DB::table('ai_tasks')->where('id', $assignment)->first();
+            if ($aiTask) {
+                $item['title'] = $aiTask->title;
+                $item['body'] = $aiTask->body;
+            }
+        }
 
         return view('mahasiswa.assignment-code', ['item' => $item, 'course' => LearningPreview::course($item['course'])]);
     }

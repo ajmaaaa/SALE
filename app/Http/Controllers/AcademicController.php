@@ -22,6 +22,7 @@ class AcademicController extends Controller
             'cpl'=>'required|array|min:1|max:30','cpl.*.code'=>'required|alpha_dash|max:30|distinct','cpl.*.description'=>'required|string|max:1000',
             'cpmk'=>'required|array|min:1|max:50','cpmk.*.code'=>'required|alpha_dash|max:30|distinct','cpmk.*.cpl'=>['required',Rule::in(array_column($request->input('cpl',[]),'code'))],'cpmk.*.description'=>'required|string|max:1000',
             'components'=>'required|array|min:1|max:20','components.*.code'=>'required|alpha_dash|max:30|distinct','components.*.name'=>'required|string|max:80','components.*.weight'=>'required|numeric|min:0|max:100',
+            'cpmk.*.threshold'=>'sometimes|required|numeric|min:0|max:100',
         ]);
         if(abs(array_sum(array_column($data['components'],'weight'))-100)>0.001) return back()->withErrors(['components'=>'Total bobot harus tepat 100%.'])->withInput();
         foreach(Learning::items() as $item){
@@ -38,7 +39,13 @@ class AcademicController extends Controller
     public function gradebook(Request $request)
     {
         $course=$request->integer('course',1);
-        return view('dosen.gradebook',['course'=>Learning::course($course),'config'=>Academic::config($course),'students'=>array_filter(AdminPreview::users(),fn($u)=>$u['role']==='mahasiswa')]);
+        $config=Academic::config($course);
+        $component=$request->query('component', '');
+        abort_unless(is_string($component) && ($component === '' || in_array($component, array_column($config['components'], 'code'), true)), 422);
+        $assessments=array_values(array_filter(Academic::breakdown($course)['items'], fn($item)=>$item['component']===$component));
+        $assessment=$request->integer('assessment');
+        abort_unless($assessment===0 || in_array($assessment, array_column($assessments, 'id')), 422);
+        return view('dosen.gradebook',['course'=>Learning::course($course),'config'=>$config,'students'=>array_filter(AdminPreview::users(),fn($u)=>$u['role']==='mahasiswa'),'componentFilter'=>$component,'assessments'=>$assessments,'assessmentFilter'=>$assessment]);
     }
 
     public function saveScores(Request $request,int $course)

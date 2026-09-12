@@ -19,6 +19,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (class_exists(\Illuminate\Foundation\Console\ServeCommand::class)) {
+            \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables[] = 'PHPRC';
+            \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables[] = 'LD_LIBRARY_PATH';
+        }
+        putenv('PHPRC=/home/ajmaaa/.local/etc/php');
+        $_ENV['PHPRC'] = '/home/ajmaaa/.local/etc/php';
+        $_SERVER['PHPRC'] = '/home/ajmaaa/.local/etc/php';
     }
 }

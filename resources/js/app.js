@@ -1,3 +1,6 @@
+import './submission-preview';
+import './grade-import';
+
 const sidebar = document.querySelector('[data-sidebar]');
 const sidebarBackdrop = document.querySelector('[data-sidebar-backdrop]');
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
@@ -19,46 +22,317 @@ document.addEventListener('keydown', (event) => {
 });
 
 const editorMount = document.querySelector('[data-code-editor]');
-const editorSource = document.querySelector('[data-code-source]');
+const editorSource = document.querySelector('[data-code-files-json]');
 
 if (editorMount && editorSource) {
+    const isWeb = editorMount.dataset.codeLanguage === 'web';
+    const maxFiles = Number(editorMount.dataset.maxFiles) || 5;
+    const maxFileChars = Number(editorMount.dataset.maxFileChars) || 8000;
+    const maxTotalChars = Number(editorMount.dataset.maxTotalChars) || 20000;
+    const ALLOWED = ['html', 'htm', 'css', 'js', 'py'];
+    const DEFAULT_EXT = isWeb ? 'html' : 'py';
+    let defaultFiles = [];
+    try { defaultFiles = JSON.parse(editorSource.value || '[]'); } catch { /* keep template. */ }
+    if (!Array.isArray(defaultFiles) || !defaultFiles.length) defaultFiles = [{ name: `main.${DEFAULT_EXT}`, code: '' }];
+
     Promise.all([
         import('codemirror'),
         import('@codemirror/lang-python'),
+        import('@codemirror/lang-html'),
+        import('@codemirror/lang-css'),
+        import('@codemirror/lang-javascript'),
         import('@codemirror/theme-one-dark'),
-    ]).then(([{ basicSetup, EditorView }, { python }, { oneDark }]) => {
+        import('@codemirror/state'),
+    ]).then(([cm, langPy, langHtml, langCss, langJs, { oneDark }, { Compartment }]) => {
+        const { basicSetup, EditorView } = cm;
+        const { python } = langPy;
+        const { html } = langHtml;
+        const { css } = langCss;
+        const { javascript } = langJs;
+        const modeFor = (name) => {
+            const ext = String(name).split('.').pop().toLowerCase();
+            if (ext === 'css') return css();
+            if (ext === 'js') return javascript();
+            if (ext === 'py') return python();
+            return isWeb ? html() : python();
+        };
+
+        let files = defaultFiles.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
+        const draftKey = `sale.code.assignment.${editorMount.dataset.assignmentId}`;
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length) {
+                    files = parsed.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
+                }
+            }
+        } catch { /* Storage is optional. */ }
+
+        let active = Math.max(0, files.findIndex((file) => isWeb ? /\.htm?l$/i.test(file.name) : file.name === 'main.py'));
+
         let context = null;
         const mention = document.querySelector('[data-mention-code]');
         const saveStatus = document.querySelector('[data-code-save-status]');
-        const draftKey = `sale.code.assignment.${editorMount.dataset.assignmentId}`;
-        let draft = editorSource.value;
-        try { draft = localStorage.getItem(draftKey) ?? draft; } catch { /* Storage is optional. */ }
+        const fileNameEl = document.querySelector('[data-code-filename]');
+        const fileTabs = document.querySelector('[data-file-tabs]');
+        const counterEl = document.querySelector('[data-chars-count]');
+        const fileLanguageBadge = document.querySelector('[data-file-language-badge]');
         document.querySelector('[data-code-submit] button').disabled = false;
+
+        const flush = () => { if (files[active]) files[active].code = editor.state.doc.toString(); };
+        const updateCounter = () => {
+            const current = files[active]?.code.length ?? 0;
+            const total = files.reduce((sum, file) => sum + file.code.length, 0);
+            if (counterEl) counterEl.textContent = `${current.toLocaleString('id-ID')}/${maxFileChars.toLocaleString('id-ID')} char · total ${total.toLocaleString('id-ID')}/${maxTotalChars.toLocaleString('id-ID')}`;
+        };
+        const setStatus = (text, temporary = false) => {
+            if (!saveStatus) return;
+            saveStatus.textContent = text;
+            if (temporary) setTimeout(() => { saveStatus.textContent = 'Draf tersimpan di browser ini'; }, 2600);
+        };
+        const persist = () => {
+            flush();
+            try {
+                localStorage.setItem(draftKey, JSON.stringify(files));
+                saveStatus.textContent = 'Draf tersimpan di browser ini';
+            } catch { saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+            updateCounter();
+        };
+        const validate = () => {
+            if (files.length > maxFiles) return `Maksimal ${maxFiles} berkas per tugas.`;
+            if (files.some((file) => file.code.length > maxFileChars)) return `Satu berkas melebihi batas ${maxFileChars.toLocaleString('id-ID')} karakter.`;
+            if (files.reduce((sum, file) => sum + file.code.length, 0) > maxTotalChars) return `Total kode melebihi batas ${maxTotalChars.toLocaleString('id-ID')} karakter.`;
+            const badExt = files.some((file) => {
+                const ext = String(file.name).split('.').pop().toLowerCase();
+                return ext !== '' && !ALLOWED.includes(ext);
+            });
+            if (badExt) return `Ekstensi berkas tidak diizinkan. Gunakan .html, .css, .js, atau .py.`;
+            return null;
+        };
+
+        const compartment = new Compartment();
         const editor = new EditorView({
-            doc: draft,
+            doc: files[active].code,
             extensions: [
                 basicSetup,
-                python(),
+                compartment.of(modeFor(files[active].name)),
                 oneDark,
                 EditorView.lineWrapping,
                 EditorView.updateListener.of((update) => {
                     if (mention) mention.disabled = update.state.selection.main.empty;
                     if (update.docChanged) {
+                        files[active].code = update.state.doc.toString();
                         try {
-                            localStorage.setItem(draftKey, update.state.doc.toString());
+                            localStorage.setItem(draftKey, JSON.stringify(files));
                             saveStatus.textContent = 'Draf tersimpan di browser ini';
                         } catch { saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+updateCounter();
+        refreshLanguageBadge();
                     }
                 }),
             ],
             parent: editorMount,
         });
+        updateCounter();
+
+        const refreshLanguageBadge = () => {
+            const key = String(files[active].name).split('.').pop().toLowerCase();
+            const meta = FILE_ICONS[key];
+            if (fileLanguageBadge) {
+                fileLanguageBadge.innerHTML = buildIcon(files[active].name, 18);
+                fileLanguageBadge.title = meta?.label || key || 'File';
+                fileLanguageBadge.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/70';
+                fileLanguageBadge.dataset.fileLanguage = key;
+            }
+        };
+
+        const load = (index) => {
+            active = index;
+            editor.dispatch({
+                changes: { from: 0, to: editor.state.doc.length, insert: files[active].code },
+                effects: compartment.reconfigure(modeFor(files[active].name)),
+            });
+            fileNameEl.textContent = files[active].name;
+            refreshLanguageBadge();
+            renderTabs();
+        };
+        const select = (index) => {
+            if (index === active) { flush(); return; }
+            flush();
+            load(index);
+        };
+
+        const FILE_ICONS = {
+            py: {
+                label: 'Python',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 8 128 108" aria-hidden="true"><path fill="#3776AB" d="M63.391 1.988c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V67.234c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V15.833c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-1.027-12.866-1.008zM50.037 9.557c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z" transform="translate(0 10.26)"/><path fill="#FFD43B" d="M91.682 28.38v10.966c0 8.5-7.208 15.655-15.426 15.655H51.591c-6.756 0-12.346 5.783-12.346 12.549v23.515c0 6.691 5.818 10.628 12.346 12.547 7.816 2.297 15.312 2.713 24.665 0 6.216-1.801 12.346-5.423 12.346-12.547v-9.412H63.938v-3.138h37.012c7.176 0 9.852-5.005 12.348-12.519 2.578-7.735 2.467-15.174 0-25.096-1.774-7.145-5.161-12.521-12.348-12.521h-9.268zM77.809 87.927c2.561 0 4.634 2.097 4.634 4.692 0 2.602-2.074 4.719-4.634 4.719-2.55 0-4.633-2.117-4.633-4.719 0-2.595 2.083-4.692 4.633-4.692z" transform="translate(0 10.26)"/></svg>',
+            },
+            html: {
+                label: 'HTML',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
+            },
+            htm: {
+                label: 'HTML',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
+            },
+            css: {
+                label: 'CSS',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#1572B6" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"/></svg>',
+            },
+            js: {
+                label: 'JavaScript',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 128 128" aria-hidden="true"><path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/><path fill="#323330" d="M116.347 96.736c-.917-5.711-4.641-10.508-15.672-14.981-3.832-1.761-8.104-3.022-9.377-5.926-.452-1.69-.512-2.642-.226-3.665.821-3.32 4.784-4.355 7.925-3.403 2.023.678 3.938 2.237 5.093 4.724 5.402-3.498 5.391-3.475 9.163-5.879-1.381-2.141-2.118-3.129-3.022-4.045-3.249-3.629-7.676-5.498-14.756-5.355l-3.688.477c-3.534.893-6.902 2.748-8.877 5.235-5.926 6.724-4.236 18.492 2.975 23.335 7.104 5.332 17.54 6.545 18.873 11.531 1.297 6.104-4.486 8.08-10.234 7.378-4.236-.881-6.592-3.034-9.139-6.949-4.688 2.713-4.688 2.713-9.508 5.485 1.143 2.499 2.344 3.63 4.26 5.795 9.068 9.198 31.76 8.746 35.83-5.176.165-.478 1.261-3.666.38-8.581zM69.462 58.943H57.753l-.048 30.272c0 6.438.333 12.34-.714 14.149-1.713 3.558-6.152 3.117-8.175 2.427-2.059-1.012-3.106-2.451-4.319-4.485-.333-.584-.583-1.036-.667-1.071l-9.52 5.83c1.583 3.249 3.915 6.069 6.902 7.901 4.462 2.678 10.459 3.499 16.731 2.059 4.082-1.189 7.604-3.652 9.448-7.401 2.666-4.915 2.094-10.864 2.07-17.444.06-10.735.001-21.468.001-32.237z"/></svg>',
+            },
+        };
+        const FILE_ICON_FALLBACK = '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="#cbd5e1"/><path d="M15 3l4 4h-4z" fill="#94a3b8"/></svg>';
+        const buildIcon = (name, size = 14) => {
+            const key = String(name).split('.').pop().toLowerCase();
+            const meta = FILE_ICONS[key];
+            return (meta?.icon || FILE_ICON_FALLBACK).replace('@SIZE@', String(size));
+        };
+        const languageBadge = (name) => {
+            const key = String(name).split('.').pop().toLowerCase();
+            const meta = FILE_ICONS[key];
+            const badge = document.createElement('span');
+            badge.dataset.fileLanguage = key;
+            badge.title = meta?.label || key || 'File';
+            badge.className = 'flex shrink-0 items-center';
+            badge.innerHTML = buildIcon(name);
+            return badge;
+        };
+
+        function renderTabs() {
+            if (!fileTabs) return;
+            fileTabs.replaceChildren();
+            files.forEach((file, index) => {
+                const tab = document.createElement('div');
+                tab.dataset.fileTab = file.name;
+                tab.className = `group flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-mono ${index === active ? 'border-brand/25 bg-brand/10 text-brand-dark' : 'border-transparent text-muted hover:bg-white'}`;
+                const core = document.createElement('button');
+                core.type = 'button';
+                core.dataset.fileSelect = '';
+                core.title = file.name;
+                core.className = 'max-w-44 truncate font-semibold';
+                core.textContent = file.name;
+                core.addEventListener('click', () => select(index));
+                core.addEventListener('dblclick', () => startRename(index));
+                const renameBtn = document.createElement('button');
+                renameBtn.type = 'button';
+                renameBtn.dataset.fileRename = '';
+                renameBtn.title = 'Ubah nama berkas';
+                renameBtn.setAttribute('aria-label', `Ubah nama ${file.name}`);
+                renameBtn.className = 'px-0.5 leading-none text-muted opacity-60 hover:text-ink group-hover:opacity-100';
+                renameBtn.textContent = '✎';
+                renameBtn.addEventListener('click', () => startRename(index));
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.dataset.fileDelete = '';
+                deleteBtn.title = 'Hapus berkas';
+                deleteBtn.setAttribute('aria-label', `Hapus ${file.name}`);
+                deleteBtn.className = 'px-0.5 leading-none text-muted opacity-60 hover:text-danger group-hover:opacity-100';
+                deleteBtn.textContent = '×';
+                deleteBtn.addEventListener('click', () => removeFile(index));
+                tab.append(languageBadge(file.name), core, renameBtn, deleteBtn);
+                fileTabs.append(tab);
+            });
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.dataset.fileAdd = '';
+            addBtn.title = 'Tambah berkas baru';
+            addBtn.className = 'shrink-0 rounded-md border border-dashed border-line/70 px-2 py-1 text-[11px] font-semibold text-muted hover:bg-white hover:text-ink';
+            addBtn.textContent = '+ Berkas';
+            addBtn.addEventListener('click', addFile);
+            fileTabs.append(addBtn);
+        }
+
+        let renameInput = null;
+        function startRename(index) {
+            if (renameInput) { renameInput.remove(); renameInput = null; }
+            const tab = fileTabs?.children[index];
+            const core = tab?.querySelector('[data-file-select]');
+            if (!core) return;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = String(files[index].name).replace(/\.\w+$/, '');
+            input.spellcheck = false;
+            input.setAttribute('aria-label', 'Nama berkas baru');
+            input.className = 'w-28 rounded border border-brand/50 bg-white px-1.5 py-0.5 text-[11px] font-mono text-ink outline-none';
+            core.replaceWith(input);
+            renameInput = input;
+            input.focus();
+            input.select();
+            let settled = false;
+            const finish = (commit) => {
+                if (settled) return;
+                settled = true;
+                renameInput = null;
+                const candidate = input.value.trim();
+                input.remove();
+                if (commit) commitRename(index, candidate);
+                renderTabs();
+            };
+            input.addEventListener('keydown', (event) => {
+                event.stopPropagation();
+                if (event.key === 'Enter') finish(true);
+                if (event.key === 'Escape') finish(false);
+            });
+            input.addEventListener('blur', () => finish(true));
+            if (fileTabs) fileTabs.scrollLeft = fileTabs.scrollWidth;
+        }
+
+        function commitRename(index, candidate) {
+            if (!candidate) return setStatus('Nama berkas tidak boleh kosong.', true);
+            if (candidate.includes('/') || candidate.includes('\\')) return setStatus('Nama berkas tidak boleh memuat jalur folder.', true);
+            const lastDot = candidate.lastIndexOf('.');
+            const ext = lastDot >= 0 ? candidate.slice(lastDot + 1).toLowerCase() : DEFAULT_EXT;
+            const name = lastDot >= 0 ? candidate : `${candidate}.${DEFAULT_EXT}`;
+            if (!ALLOWED.includes(ext)) return setStatus(`Ekstensi .${ext} tidak diizinkan. Gunakan .html, .css, .js, atau .py.`, true);
+            if (files.some((file, i) => i !== index && file.name.toLowerCase() === name.toLowerCase())) return setStatus(`Berkas "${name}" sudah ada.`, true);
+            files[index].name = name;
+            if (index === active) {
+                fileNameEl.textContent = name;
+                editor.dispatch({ effects: compartment.reconfigure(modeFor(name)) });
+            }
+            persist();
+        }
+
+        function addFile() {
+            if (files.length >= maxFiles) return setStatus(`Maksimal ${maxFiles} berkas.`, true);
+            let n = 1;
+            let name;
+            do { name = `berkas-${n}`; n += 1; } while (files.some((file) => file.name.toLowerCase() === name.toLowerCase()));
+            flush();
+            files.push({ name, code: '' });
+            active = files.length - 1;
+            load(active);
+            startRename(active);
+        }
+
+        function removeFile(index) {
+            if (files.length <= 1) return setStatus('Berkas terakhir tidak dapat dihapus.', true);
+            if (!window.confirm(`Hapus berkas "${files[index].name}"?`)) return;
+            const wasActive = index === active;
+            flush();
+            files.splice(index, 1);
+            if (wasActive) {
+                active = Math.min(index, files.length - 1);
+                load(active);
+            } else {
+                if (index < active) active -= 1;
+                renderTabs();
+                persist();
+            }
+        }
+
+        renderTabs();
+
         mention?.addEventListener('click', () => {
             const { from, to, empty } = editor.state.selection.main;
             if (empty) return;
             const first = editor.state.doc.lineAt(from).number;
             const last = editor.state.doc.lineAt(Math.max(from, to - 1)).number;
-            context = { label: `main.py · Baris ${first}${last === first ? '' : `–${last}`}`, code: editor.state.sliceDoc(from, to) };
+            context = { label: `${files[active].name} · Baris ${first}${last === first ? '' : `–${last}`}`, code: editor.state.sliceDoc(from, to) };
             document.querySelector('[data-code-context-label]').textContent = context.label;
             document.querySelector('[data-code-context-text]').textContent = context.code;
             document.querySelector('[data-code-context]').hidden = false;
@@ -69,153 +343,310 @@ if (editorMount && editorSource) {
             document.querySelector('[data-code-context]').hidden = true;
         });
         document.querySelector('[data-code-reset]')?.addEventListener('click', () => {
-            if (!window.confirm('Kembalikan kode ke template awal? Draf saat ini akan diganti.')) return;
-            editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: editorSource.value } });
+            if (!window.confirm('Kembalikan semua berkas ke template awal? Draf saat ini akan diganti.')) return;
+            files = defaultFiles.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
+            load(0);
         });
-        document.querySelector('[data-code-submit]')?.addEventListener('submit', () => {
-            document.querySelector('[data-code-answer]').value = editor.state.doc.toString();
-        });
-
-        // Interactive Terminal Runner
-        const runBtn = document.querySelector('[data-run-code]');
-        const clearBtn = document.querySelector('[data-clear-terminal]');
-        const terminalOutput = document.querySelector('[data-terminal-output]');
-        const terminalBody = document.querySelector('[data-terminal-body]');
-
-        const appendTerminal = (text, className = 'text-slate-300') => {
-            if (!terminalOutput) return;
-            const p = document.createElement('p');
-            p.className = className;
-            p.textContent = text;
-            terminalOutput.append(p);
-            if (terminalBody) terminalBody.scrollTop = terminalBody.scrollHeight;
-        };
-
-        runBtn?.addEventListener('click', () => {
-            const currentCode = editor.state.doc.toString().trim();
-            appendTerminal('<span class="text-emerald-400 font-bold">sale@sandbox</span>:<span class="text-sky-400 font-bold">~/bst</span>$ <span class="text-slate-100 font-medium">python3 -m unittest test_bst.py</span>', 'mt-2.5');
-
-            if (!currentCode) {
-                appendTerminal('<span class="text-rose-400 font-bold">FileNotFoundError</span>: Berkas main.py kosong. Tulis implementasi fungsi sebelum menjalankan.', 'text-rose-400');
+        document.querySelector('[data-code-submit]')?.addEventListener('submit', (event) => {
+            flush();
+            const problem = validate();
+            if (problem) {
+                event.preventDefault();
+                setStatus(problem, true);
                 return;
             }
-
-            appendTerminal('<span class="text-slate-500">running 4 test cases on Linux 6.8.0-generic x86_64 sandbox...</span>', 'text-slate-400');
-
-            setTimeout(() => {
-                const hasRootNone = currentCode.includes('root is None') || currentCode.includes('not root');
-                const hasReturnNode = currentCode.includes('Node(key)');
-                const hasLeftRecur = currentCode.includes('insert(root.left') || currentCode.includes('self.insert(root.left');
-                const hasRightRecur = currentCode.includes('insert(root.right') || currentCode.includes('self.insert(root.right');
-                const hasReturnRoot = currentCode.includes('return root');
-
-                let passedCount = 0;
-
-                if (hasRootNone && hasReturnNode) {
-                    appendTerminal('test_01_empty_tree_init (__main__.TestBST) ... <span class="text-emerald-400 font-bold">ok</span>');
-                    passedCount++;
-                } else {
-                    appendTerminal('test_01_empty_tree_init (__main__.TestBST) ... <span class="text-amber-400 font-bold">FAIL</span> (<span class="text-slate-400 text-[11px]">cek if root is None: return Node(key)</span>)');
-                }
-
-                if (hasLeftRecur) {
-                    appendTerminal('test_02_branch_left_recur (__main__.TestBST) ... <span class="text-emerald-400 font-bold">ok</span>');
-                    passedCount++;
-                } else {
-                    appendTerminal('test_02_branch_left_recur (__main__.TestBST) ... <span class="text-slate-500">PENDING</span> (<span class="text-slate-400 text-[11px]">cek jika key &lt; root.value</span>)');
-                }
-
-                if (hasRightRecur) {
-                    appendTerminal('test_03_branch_right_recur (__main__.TestBST) ... <span class="text-emerald-400 font-bold">ok</span>');
-                    passedCount++;
-                } else {
-                    appendTerminal('test_03_branch_right_recur (__main__.TestBST) ... <span class="text-slate-500">PENDING</span> (<span class="text-slate-400 text-[11px]">cek jika key &gt; root.value</span>)');
-                }
-
-                if (hasReturnRoot) {
-                    appendTerminal('test_04_root_reference_integrity (__main__.TestBST) ... <span class="text-emerald-400 font-bold">ok</span>');
-                    passedCount++;
-                } else {
-                    appendTerminal('test_04_root_reference_integrity (__main__.TestBST) ... <span class="text-amber-400 font-bold">FAIL</span> (<span class="text-slate-400 text-[11px]">pastikan mengembalikan simpul root</span>)');
-                }
-
-                appendTerminal('----------------------------------------------------------------------', 'text-slate-700');
-                if (passedCount === 4) {
-                    appendTerminal('<span class="text-emerald-400 font-bold">RAN 4 TESTS IN 0.042s — OK</span> <span class="text-slate-400">(exit code: 0)</span>');
-                    appendTerminal('<span class="text-emerald-300">✔ Semua unit tests lulus! Silakan klik "Kumpulkan Kode" di bagian kiri atau atas.</span>');
-                } else {
-                    appendTerminal(`<span class="text-amber-400 font-bold">FAILED (failures=${4 - passedCount})</span> · Ran 4 tests in 0.038s <span class="text-slate-400">(exit code: 1)</span>`);
-                    appendTerminal('<span class="text-slate-400">Petunjuk: Konsultasikan logika yang belum lulus ke Lumina AI di sebelah kanan.</span>');
-                }
-            }, 250);
+            document.querySelector('[data-code-answer]').value = JSON.stringify(files);
         });
 
-        clearBtn?.addEventListener('click', () => {
-            if (terminalOutput) terminalOutput.innerHTML = '';
-            appendTerminal('<span class="text-emerald-400 font-bold">sale@sandbox</span>:<span class="text-sky-400 font-bold">~/bst</span>$ <span class="text-slate-100 font-medium">python3 --version</span>', 'text-slate-400');
-            appendTerminal('Python 3.12.3 (SALE Linux Sandbox Environment)', 'text-slate-300 pl-2');
-            appendTerminal('<span class="text-slate-500 pl-2"># Terminal dibersihkan. Siap mengeksekusi pengujian.</span>', 'text-slate-500');
-        });
-
-        document.querySelector('[data-ai-form]')?.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const input = document.querySelector('#assistant-message');
-            const query = input.value.trim();
-            if (!query) return;
-            const messages = document.querySelector('[data-ai-messages]');
-
-            // Student message bubble
-            const userBubble = document.createElement('article');
-            userBubble.className = 'rounded-lg bg-white border border-line/60 p-3 shadow-xs';
-            const userHeader = document.createElement('p');
-            userHeader.className = 'mb-1 text-[11px] font-semibold text-muted';
-            userHeader.textContent = 'Pertanyaan Anda';
-            userBubble.append(userHeader);
-            if (context) {
-                const codeSnippet = document.createElement('pre');
-                codeSnippet.className = 'my-1.5 max-h-24 overflow-auto rounded bg-canvas p-2 font-mono text-[11px] text-ink';
-                codeSnippet.textContent = `${context.label}:\n${context.code}`;
-                userBubble.append(codeSnippet);
+        const runBtn = document.querySelector('[data-run-code]');
+        const testBtn = document.querySelector('[data-test-code]');
+        const stopBtn = document.querySelector('[data-stop-code]');
+        const terminalOutput = document.querySelector('[data-terminal-output]');
+        const terminalBody = document.querySelector('[data-terminal-body]');
+        const previewFrame = document.querySelector('[data-preview-frame]');
+        const outputTabs = [...document.querySelectorAll('[data-output-tab]')];
+        const consolePanel = document.querySelector('[data-console-panel]');
+        const previewPanel = document.querySelector('[data-preview-panel]');
+        let execution = null;
+        const appendOutput = (text, stream = 'stdout') => {
+            const line = document.createElement('pre');
+            line.className = `whitespace-pre-wrap break-words ${stream === 'stderr' ? 'text-amber-300' : 'text-slate-300'}`;
+            line.textContent = text;
+            terminalOutput.append(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+            return line;
+        };
+        const activateTab = (name) => {
+            outputTabs.forEach((tab) => {
+                const active = tab.dataset.outputTab === name;
+                tab.setAttribute('aria-selected', String(active));
+                tab.classList.toggle('bg-white/10', active);
+                tab.classList.toggle('text-white', active);
+                tab.classList.toggle('border-white/10', active);
+                tab.classList.toggle('border-transparent', !active);
+                tab.classList.toggle('text-slate-400', !active);
+                tab.classList.toggle('hover:text-slate-200', !active);
+            });
+            if (consolePanel) consolePanel.hidden = name !== 'console';
+            if (previewPanel) previewPanel.hidden = name !== 'preview';
+        };
+        outputTabs.forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.outputTab)));
+        runBtn.disabled = false;
+        if (testBtn) testBtn.disabled = false;
+        const execute = async (testAssignment = false) => {
+            if (execution) return;
+            flush();
+            const problem = validate();
+            if (problem) return appendOutput(problem, 'stderr');
+            if (!files.some((file) => file.code.trim())) return appendOutput(isWeb ? 'Tulis kode HTML/CSS/JS terlebih dahulu.' : 'Tulis kode Python terlebih dahulu.');
+            execution = new AbortController();
+            runBtn.disabled = true;
+            if (testBtn) testBtn.disabled = true;
+            terminalOutput.replaceChildren();
+            runBtn.textContent = 'Menjalankan…';
+            stopBtn.hidden = false;
+            const progress = appendOutput(isWeb ? 'Menyiapkan pratinjau…' : 'Sedang mengompilasi…');
+            progress.dataset.executionProgress = '';
+            progress.setAttribute('role', 'status');
+            try {
+                if (isWeb) {
+                    if (!previewFrame) throw new Error('Panel pratinjau tidak tersedia. Muat ulang halaman.');
+                    const { runWeb } = await import('./web-preview');
+                    await runWeb({
+                        files, frame: previewFrame, signal: execution.signal,
+                        onOutput: (stream, text) => {
+                            progress.remove();
+                            appendOutput(text, stream === 'warn' || stream === 'error' ? 'stderr' : 'stdout');
+                        },
+                    });
+                    progress.remove();
+                    appendOutput('Selesai · pratinjau dirender di tab Pratinjau. Kode berjalan di iframe tanpa akses data situs.');
+                    activateTab('preview');
+                } else {
+                    const { runPython } = await import('./python-runner');
+                    const exitCode = await runPython({
+                        files, assignmentId: editorMount.dataset.assignmentId, testAssignment,
+                        runtimeUrl: editorMount.dataset.runtimeUrl,
+                        signal: execution.signal,
+                        onOutput: (stream, text) => {
+                            progress.remove();
+                            appendOutput(text, stream);
+                        },
+                        onReady: (version) => {
+                            document.querySelector('[data-python-version]').textContent = `Python ${version}`;
+                            progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : 'Sedang menjalankan main.py…';
+                        },
+                    });
+                    progress.remove();
+                    appendOutput(exitCode === 0
+                        ? 'Selesai · exit code 0.'
+                        : `Eksekusi gagal · exit code ${exitCode}.`, exitCode === 0 ? 'stdout' : 'stderr');
+                }
+            } catch (error) {
+                progress.remove();
+                appendOutput(error.message || 'Eksekusi gagal.', 'stderr');
+            } finally {
+                progress.remove();
+                execution = null;
+                runBtn.disabled = false;
+                if (testBtn) testBtn.disabled = false;
+                runBtn.textContent = '▶ Jalankan Kode';
+                stopBtn.hidden = true;
             }
-            const userText = document.createElement('p');
-            userText.className = 'text-xs text-ink';
-            userText.textContent = query;
-            userBubble.append(userText);
-            messages.append(userBubble);
+        };
+        runBtn.addEventListener('click', () => execute(false));
+        testBtn?.addEventListener('click', () => execute(true));
+        stopBtn.addEventListener('click', () => execution?.abort());
+        document.querySelector('[data-clear-terminal]')?.addEventListener('click', () => terminalOutput.replaceChildren());
 
-            input.value = '';
-            context = null;
-            document.querySelector('[data-code-context]').hidden = true;
+        const aiForm = document.querySelector('[data-ai-form]');
+        const messages = document.querySelector('[data-ai-messages]');
+        const status = document.querySelector('[data-ai-status]');
+        let busy = false;
+        let ready = false;
+        let thinkingEl = null;
+
+        const showThinking = () => {
+            if (thinkingEl) return;
+            thinkingEl = document.createElement('article');
+            thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted';
+            thinkingEl.innerHTML = `
+                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
+                <span class="font-medium text-slate-600">Lumina AI sedang berpikir</span>
+                <span class="inline-flex items-center gap-1 pl-1 py-0.5" aria-hidden="true">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </span>
+            `;
+            messages.append(thinkingEl);
             messages.scrollTop = messages.scrollHeight;
+        };
 
-            // Generate pedagogical Lumina AI response
-            setTimeout(() => {
-                const qLower = query.toLowerCase();
-                let aiResponse = '';
-                if (qLower.includes('indent') || qLower.includes('error')) {
-                    aiResponse = 'Pastikan blok kode di bawah fungsi atau percabangan sejajar dengan tepat 4 spasi. Error ini biasanya terjadi karena ada baris yang lupa diberi indentasi atau spasi tidak konsisten.';
-                } else if (qLower.includes('none') || qLower.includes('base case') || qLower.includes('kosong')) {
-                    aiResponse = 'Kondisi basis (base case): jika pohon masih kosong (`root is None`), fungsi harus membuat dan mengembalikan simpul baru: `return Node(key)`.';
-                } else if (qLower.includes('banding') || qLower.includes('lebih kecil') || qLower.includes('root.val') || qLower.includes('key')) {
-                    aiResponse = 'Bandingkan nilai masukan: jika `key < root.value`, panggil secara rekursif ke anak kiri: `root.left = self.insert(root.left, key)`. Jika lebih besar, arahkan ke cabang kanan `root.right`. Selalu kembalikan `root` di akhir.';
-                } else if (qLower.includes('rekursi') || qLower.includes('alur') || qLower.includes('insert')) {
-                    aiResponse = 'Alur algoritma insert BST: 1) Cek apakah `root is None` (return Node(key)), 2) Jika `key < root.value`, insert ke kiri, 3) Jika `key > root.value`, insert ke kanan, 4) Selalu kembalikan `root`.';
-                } else {
-                    aiResponse = 'Pertanyaan Anda tercatat: Untuk struktur data Binary Search Tree, setiap simpul di cabang kiri memiliki nilai lebih kecil dari simpul induk, dan cabang kanan memiliki nilai lebih besar. Periksa apakah base case dan rekursi ke kiri/kanan sudah lengkap.';
+        const removeThinking = () => {
+            if (thinkingEl) {
+                thinkingEl.remove();
+                thinkingEl = null;
+            }
+        };
+
+        /** Minimal markdown renderer for AI responses: bold, italic, inline-code, code-block, unordered lists. */
+        const renderMarkdown = (text) => {
+            // Escape HTML entities first to prevent XSS
+            const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const lines = text.split('\n');
+            let html = '';
+            let inCode = false;
+            let inList = false;
+            for (let i = 0; i < lines.length; i++) {
+                const raw = lines[i];
+                // Fenced code block
+                if (raw.trim().startsWith('```')) {
+                    if (inList) { html += '</ul>'; inList = false; }
+                    if (!inCode) {
+                        html += '<div class="ai-code-wrap"><pre class="ai-code-block">';
+                        inCode = true;
+                    } else {
+                        html += '</pre><button class="ai-copy-btn" data-copy-code type="button">Salin kode</button></div>';
+                        inCode = false;
+                    }
+                    continue;
                 }
+                if (inCode) {
+                    html += esc(raw) + '\n';
+                    continue;
+                }
+                // Unordered list items
+                if (/^[\-\*] /.test(raw)) {
+                    if (!inList) { html += '<ul class="ai-list">'; inList = true; }
+                    const content = inlineMarkdown(esc(raw.replace(/^[\-\*] /, '')));
+                    html += `<li>${content}</li>`;
+                    continue;
+                }
+                if (inList) { html += '</ul>'; inList = false; }
+                if (raw.trim() === '') {
+                    html += '<br>';
+                    continue;
+                }
+                html += `<p class="ai-para">${inlineMarkdown(esc(raw))}</p>`;
+            }
+            if (inCode) html += '</pre>';
+            if (inList) html += '</ul>';
+            return html;
+        };
+        const inlineMarkdown = (s) => s
+            .replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/\_\_([^_]+)\_\_/g, '<strong>$1</strong>')
+            .replace(/\_([^_]+)\_/g, '<em>$1</em>');
 
-                const aiBubble = document.createElement('article');
-                aiBubble.className = 'rounded-lg bg-canvas border border-line/40 p-3';
-                const aiHeader = document.createElement('div');
-                aiHeader.className = 'flex items-center gap-1.5 mb-1';
-                aiHeader.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-500"></span><span class="text-[11px] font-bold text-ink">Lumina AI</span>';
-                const aiBody = document.createElement('p');
-                aiBody.className = 'text-xs text-muted leading-relaxed';
-                aiBody.innerHTML = aiResponse.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-white font-mono text-[11px] text-ink border border-line/40">$1</code>');
-                aiBubble.append(aiHeader, aiBody);
-                messages.append(aiBubble);
-                messages.scrollTop = messages.scrollHeight;
-            }, 300);
+        const bubble = (name, text, isUser = false) => {
+            const article = document.createElement('article');
+            if (isUser) {
+                article.className = 'self-end ml-auto max-w-[72%] rounded-2xl rounded-tr-xs bg-brand-soft border border-brand/20 p-3 shadow-xs text-ink';
+                const heading = document.createElement('p');
+                heading.className = 'text-[11px] font-semibold text-brand-dark mb-1 text-right';
+                heading.textContent = name;
+                const body = document.createElement('p');
+                body.className = 'text-xs leading-relaxed text-ink whitespace-pre-wrap text-right';
+                body.textContent = text;
+                article.append(heading, body);
+            } else {
+                article.className = 'self-start mr-auto max-w-[90%] rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3.5 shadow-xs text-ink';
+                const heading = document.createElement('div');
+                heading.className = 'flex items-center gap-1.5 mb-2';
+                heading.innerHTML = `
+                    <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
+                    <span class="text-[11px] font-semibold text-ink">${name}</span>
+                `;
+                const body = document.createElement('div');
+                body.className = 'text-xs leading-relaxed text-slate-700 ai-response';
+                body.innerHTML = renderMarkdown(text);
+                article.append(heading, body);
+            }
+            messages.append(article);
+            messages.scrollTop = messages.scrollHeight;
+        };
+        const updateStatus = async (restore = false) => {
+            try {
+                const response = await fetch(aiForm.action, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await response.json();
+                ready = response.ok && data.enabled && data.remaining_turns > 0 && data.remaining_tokens > 0;
+                status.textContent = response.ok
+                    ? `${data.enabled ? 'Sisa' : 'AI belum aktif · sisa'} ${data.remaining_tokens.toLocaleString('id-ID')} token · ${data.remaining_turns} permintaan tugas · reset token 07.00 WIB`
+                    : (data.message || 'Status AI belum tersedia.');
+                if (restore && response.ok) data.history.forEach(turn => {
+                    bubble('Anda', turn.question, true);
+                    bubble('Lumina AI', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
+                });
+            } catch {
+                ready = false;
+                status.textContent = 'Tidak dapat memuat status AI. Muat ulang halaman.';
+            }
+            aiForm.querySelector('button[type="submit"]').disabled = busy || !ready;
+        };
+        if (aiForm) updateStatus(true);
+
+        // Enter submits; Shift+Enter inserts a new line
+        document.querySelector('#assistant-message')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!busy && ready) aiForm.requestSubmit();
+            }
+        });
+
+        // Copy code block via event delegation
+        messages?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-copy-code]');
+            if (!btn) return;
+            const pre = btn.closest('.ai-code-wrap')?.querySelector('pre');
+            if (!pre) return;
+            navigator.clipboard.writeText(pre.textContent.trimEnd()).then(() => {
+                btn.textContent = '✓ Tersalin';
+                btn.classList.add('ai-copy-btn--done');
+                setTimeout(() => { btn.textContent = 'Salin'; btn.classList.remove('ai-copy-btn--done'); }, 2000);
+            }).catch(() => { btn.textContent = 'Gagal'; setTimeout(() => { btn.textContent = 'Salin'; }, 1500); });
+        });
+
+        aiForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (busy || !ready) return;
+            const input = document.querySelector('#assistant-message');
+            const question = input.value.trim();
+            if (!question || !aiForm.reportValidity()) return;
+            const code = context?.code || '';
+            if (code.length > 4000) {
+                status.textContent = 'Pilih potongan kode maksimal 4.000 karakter.';
+                return;
+            }
+            busy = true;
+            aiForm.querySelector('button[type="submit"]').disabled = true;
+            bubble('Anda', question + (context ? `\n${context.label}\n${code}` : ''), true);
+            showThinking();
+            status.textContent = 'Memeriksa pertanyaan dan menyiapkan bantuan…';
+            try {
+                const response = await fetch(aiForm.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': aiForm.querySelector('[name="_token"]').value },
+                    body: JSON.stringify({ question, code }),
+                });
+                const data = await response.json();
+                removeThinking();
+                bubble('Lumina AI', response.ok ? data.answer : (data.message || 'Permintaan tidak dapat diproses.'), false);
+                if (response.ok) {
+                    input.value = '';
+                    context = null;
+                    document.querySelector('[data-code-context]').hidden = true;
+                }
+            } catch {
+                removeThinking();
+                bubble('Lumina AI', 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
+            } finally {
+                removeThinking();
+                busy = false;
+                await updateStatus();
+            }
         });
     }).catch(() => {
         editorMount.textContent = 'Editor gagal dimuat. Muat ulang halaman untuk mencoba kembali.';
@@ -311,12 +742,17 @@ if (coverInput) {
 const contentType = document.querySelector('[data-content-type]');
 if (contentType) {
     const questionType = document.querySelector('[data-question-type]');
+    const codeLanguageFields = document.querySelector('[data-code-language-fields]');
+    const codeLanguageInput = document.querySelector('[data-code-language-input]');
     const sync = () => {
         const assignment = ['tugas', 'coding', 'kuis'].includes(contentType.value);
         document.querySelector('[data-assignment-fields]').hidden = !assignment;
         const hasChoices = assignment && ['pilihan', 'kompleks'].includes(questionType.value);
         document.querySelector('[data-choice-fields]').hidden = !hasChoices;
         document.querySelectorAll('[data-option-images] input').forEach(input => input.disabled = !hasChoices);
+        const isCoding = assignment && questionType.value === 'coding';
+        if (codeLanguageFields) codeLanguageFields.hidden = !isCoding;
+        if (codeLanguageInput) codeLanguageInput.disabled = !isCoding;
     };
     contentType.addEventListener('change', () => { if (contentType.value === 'coding') questionType.value = 'coding'; sync(); });
     questionType.addEventListener('change', sync);
@@ -966,4 +1402,3 @@ if (addWorkDropdown) {
         renderLinkChip(linkInput.value);
     }
 }
-

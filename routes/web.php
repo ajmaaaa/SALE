@@ -65,3 +65,14 @@ Route::post('/dosen/gradebook/{course}', [\App\Http\Controllers\AcademicControll
 Route::post('/dosen/gradebook/{course}/bulk', [\App\Http\Controllers\AcademicController::class,'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
 Route::post('/dosen/penilaian/{item}', [\App\Http\Controllers\AcademicController::class,'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
 Route::get('/mahasiswa/nilai', [\App\Http\Controllers\AcademicController::class,'student'])->name('mahasiswa.nilai');
+
+Route::post('/ai/login', [\App\Http\Controllers\AiTutorController::class, 'login'])->middleware('throttle:10,1')->name('ai.login');
+Route::post('/ai/logout', [\App\Http\Controllers\AiTutorController::class, 'logout'])->name('ai.logout');
+Route::get('/ai/tasks/{assignment}', [\App\Http\Controllers\AiTutorController::class, 'status'])->whereNumber('assignment')->name('ai.status');
+Route::post('/ai/tasks/{assignment}', [\App\Http\Controllers\AiTutorController::class, 'send'])->whereNumber('assignment')->name('ai.send');
+
+// Optional configured Piston runner; requires an authenticated account.
+Route::post('/code/run/{assignment}', [\App\Http\Controllers\CodeRunnerController::class, 'run'])
+    ->whereNumber('assignment')
+    ->middleware(['auth', 'throttle:15,1'])
+    ->name('code.run');

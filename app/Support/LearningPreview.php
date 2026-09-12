@@ -137,6 +137,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'link' => null,
             'formats' => ['file', 'image', 'link', 'text'],
             'question_type' => 'uraian',
+            'language' => 'python',
             'cpmk' => 'Mampu menganalisis dan menerapkan konsep pada permasalahan yang diberikan.',
             'allow_late' => true,
             'duration_enabled' => false,
