@@ -31,9 +31,9 @@ class LearningWorkflowTest extends TestCase
 
     public function test_discussion_is_scoped_and_user_text_is_escaped(): void
     {
-        $this->post('/mahasiswa/course/1/item/3/discussion', ['message' => '<script>alert(1)</script>'])->assertRedirect();
-        $this->get('/mahasiswa/course/1/item/3')->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)->assertDontSee('<script>alert(1)</script>', false);
-        $this->get('/mahasiswa/course/1/item/2')->assertDontSee('alert(1)');
+        $this->post('/mahasiswa/course/1/discussion', ['message' => '<script>alert(1)</script>'])->assertRedirect();
+        $this->get('/mahasiswa/course/1')->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)->assertDontSee('<script>alert(1)</script>', false);
+        $this->get('/mahasiswa/course/2')->assertDontSee('alert(1)');
     }
 
     public function test_submission_requires_content_and_is_visible_for_review(): void
@@ -234,7 +234,7 @@ class LearningWorkflowTest extends TestCase
 
     public function test_quiz_room_cbt_and_duration_settings(): void
     {
-        // 1. Dosen creates quiz with duration setting
+        // 1. Dosen creates quiz with duration setting and randomize questions setting
         session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
         $this->post('/dosen/course/1/items', [
             'type' => 'kuis',
@@ -246,6 +246,7 @@ class LearningWorkflowTest extends TestCase
             'formats' => ['text'],
             'duration_mode' => 'enabled',
             'duration_minutes' => 45,
+            'randomize_questions' => '1',
             'questions' => [
                 [
                     'type' => 'mencocokkan',
@@ -268,6 +269,7 @@ class LearningWorkflowTest extends TestCase
         $savedItem = session('learning.items')[$quizId];
         $this->assertTrue($savedItem['duration_enabled']);
         $this->assertEquals(45, $savedItem['duration_minutes']);
+        $this->assertTrue($savedItem['randomize_questions']);
 
         // 2. Student enters the dedicated Quiz Room
         session(['auth_user' => ['id' => 1, 'name' => 'Ahmad Maulana', 'role' => 'mahasiswa']]);
@@ -279,6 +281,17 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('Kumpulkan Kuis')
             ->assertSee('QuickSort')
             ->assertSee('sale@sandbox')
+            ->assertSee('id="exit-confirm-modal"', false)
+            ->assertSee('id="btn-top-prev"', false)
+            ->assertSee('id="btn-top-next"', false)
+            ->assertSee('id="btn-top-finish"', false)
+            ->assertSee('Ujian Selesai &amp; Tidak Dapat Diulang', false)
+            ->assertSee('Keluar &amp; Kumpulkan Ujian', false)
+            ->assertDontSee('id="btn-bottom-prev"', false)
+            ->assertDontSee('id="btn-bottom-next"', false)
+            ->assertDontSee('id="btn-bottom-finish"', false)
+            ->assertDontSee('<footer', false)
+            ->assertDontSee('Buka Kisi Soal')
             ->assertDontSee('Kumpulkan Tugas')
             ->assertDontSee('+ Tambah atau buat');
 
@@ -293,5 +306,88 @@ class LearningWorkflowTest extends TestCase
         $submission = session("learning.submissions.{$quizId}");
         $this->assertNotNull($submission);
         $this->assertEquals('O(n log n)', $submission['question_answers'][0]['matching'][0]);
+
+        // 4. Completed quiz is locked and displays radiant checkmark receipt screen
+        $completedRoom = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
+        $completedRoom->assertOk()
+            ->assertSee('Kuis Telah Berhasil Dikumpulkan!')
+            ->assertSee('Kuis Terkunci (Telah Selesai)')
+            ->assertSee('Lembar Jawaban Terkumpul')
+            ->assertDontSee('id="exam-form"', false)
+            ->assertDontSee('Kerjakan Ulang');
+
+        // 5. Item overview shows completion badge and links to receipt, without CPMK or duplicate info
+        $overview = $this->get("/mahasiswa/course/1/item/{$quizId}");
+        $overview->assertOk()
+            ->assertSee('Kuis Telah Berhasil Dikumpulkan')
+            ->assertSee('Lihat Tanda Terima Kuis')
+            ->assertDontSee('Capaian Pembelajaran (CPMK)')
+            ->assertDontSee('Kerjakan Ulang');
+    }
+
+    public function test_quiz_room_early_exit_submits_automatically_and_locks_quiz(): void
+    {
+        // 1. Create a quiz
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+        $this->post('/dosen/course/1/items', [
+            'type' => 'kuis',
+            'title' => 'Kuis Mandiri Struktur Data',
+            'module' => 'Minggu 8',
+            'body' => 'Ujian cepat struktur data.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Pemahaman Struktur Data',
+            'formats' => ['text'],
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 30,
+            'questions' => [
+                [
+                    'type' => 'uraian',
+                    'prompt' => 'Jelaskan apa itu Tree.',
+                    'points' => 50,
+                    'cpmk' => 'CPMK-01',
+                    'options' => '',
+                ],
+                [
+                    'type' => 'uraian',
+                    'prompt' => 'Jelaskan apa itu Graph.',
+                    'points' => 50,
+                    'cpmk' => 'CPMK-02',
+                    'options' => '',
+                ],
+            ],
+        ])->assertRedirect('/dosen/course/1');
+
+        $quizId = max(array_keys(session('learning.items')));
+
+        // 2. Student enters quiz room
+        session(['auth_user' => ['id' => 1, 'name' => 'Ahmad Maulana', 'role' => 'mahasiswa']]);
+        $this->get("/mahasiswa/course/1/item/{$quizId}/quiz")->assertOk();
+
+        // 3. Student exits early with partial answers (only answered question 0)
+        $this->post("/mahasiswa/course/1/item/{$quizId}/submission", [
+            'from_quiz_room' => 1,
+            'question_answers' => [
+                0 => ['text' => 'Tree adalah struktur data hierarkis.'],
+            ],
+        ])->assertRedirect("/mahasiswa/course/1/item/{$quizId}/quiz");
+
+        // 4. Answers are saved in session
+        $submission = session("learning.submissions.{$quizId}");
+        $this->assertNotNull($submission);
+        $this->assertEquals('Tree adalah struktur data hierarkis.', $submission['question_answers'][0]['text']);
+
+        // 5. Quiz room is now permanently locked
+        $room = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
+        $room->assertOk()
+            ->assertSee('Kuis Terkunci (Telah Selesai)')
+            ->assertSee('Kuis Telah Berhasil Dikumpulkan!')
+            ->assertDontSee('id="exam-form"', false);
+
+        // 6. Item overview no longer allows starting the quiz
+        $itemPage = $this->get("/mahasiswa/course/1/item/{$quizId}");
+        $itemPage->assertOk()
+            ->assertSee('Kuis Telah Berhasil Dikumpulkan')
+            ->assertSee('Lihat Tanda Terima Kuis')
+            ->assertDontSee('Mulai Kerjakan Kuis');
     }
 }

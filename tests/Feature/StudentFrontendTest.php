@@ -50,4 +50,34 @@ class StudentFrontendTest extends TestCase
         $this->get(route('mahasiswa.course.show', 999))->assertNotFound();
         $this->get(route('mahasiswa.assignment.code', 999))->assertNotFound();
     }
+
+    public function test_student_and_lecturer_dashboards_render_course_cards_without_ipk(): void
+    {
+        $studentDash = $this->get(route('mahasiswa.dashboard'));
+        $studentDash->assertOk()
+            ->assertDontSee('IPK kumulatif')
+            ->assertDontSee('Perkembangan akademik')
+            ->assertSee('Course semester ini')
+            ->assertSee(route('mahasiswa.course.index'))
+            ->assertSee('Struktur Data dan Algoritma')
+            ->assertSee(route('mahasiswa.course.show', 1));
+
+        $dosenDash = $this->get(route('dosen.dashboard'));
+        $dosenDash->assertOk()
+            ->assertSee('Course yang diampu')
+            ->assertSee(route('dosen.course.index'))
+            ->assertSee('Struktur Data dan Algoritma')
+            ->assertSee(route('dosen.course.show', 1));
+    }
+
+    public function test_course_detail_page_layout_has_sidebar_discussion_and_no_lihat_nilai_saya(): void
+    {
+        $response = $this->get(route('mahasiswa.course.show', 1));
+        $response->assertOk()
+            ->assertDontSee('Lihat Nilai Saya')
+            ->assertSee('Forum Diskusi Kelas')
+            ->assertSee('diskusi-kelas')
+            ->assertSee('Dosen Pengampu')
+            ->assertSee('Dr. Budi Santoso, M.Kom.');
+    }
 }

@@ -36,6 +36,103 @@ if (editorMount && editorSource) {
     try { defaultFiles = JSON.parse(editorSource.value || '[]'); } catch { /* keep template. */ }
     if (!Array.isArray(defaultFiles) || !defaultFiles.length) defaultFiles = [{ name: `main.${DEFAULT_EXT}`, code: '' }];
 
+    // Horizontal Workbench Resizers (Soal <-> Editor <-> Lumina AI) - Synchronous execution
+    const workbenchContainer = document.querySelector('#workbench-container');
+    const panelQuestion = document.querySelector('#panel-question');
+    const panelAi = document.querySelector('#panel-ai');
+    const leftResizer = document.querySelector('[data-resizer="left"]');
+    const rightResizer = document.querySelector('[data-resizer="right"]');
+
+    if (workbenchContainer && panelQuestion && panelAi) {
+        const syncLeft = (width) => {
+            const w = Math.max(220, Math.min(600, width));
+            document.documentElement.style.setProperty('--workbench-left-width', `${w}px`);
+            panelQuestion.style.width = `${w}px`;
+            return w;
+        };
+        const syncRight = (width) => {
+            const w = Math.max(250, Math.min(600, width));
+            document.documentElement.style.setProperty('--workbench-right-width', `${w}px`);
+            panelAi.style.width = `${w}px`;
+            return w;
+        };
+
+        const savedLeft = localStorage.getItem('sale.workbench.leftWidth');
+        if (savedLeft && window.innerWidth >= 1280) {
+            const w = parseInt(savedLeft, 10);
+            if (!isNaN(w)) syncLeft(w);
+        }
+        const savedRight = localStorage.getItem('sale.workbench.rightWidth');
+        if (savedRight && window.innerWidth >= 1280) {
+            const w = parseInt(savedRight, 10);
+            if (!isNaN(w)) syncRight(w);
+        }
+
+        if (leftResizer) {
+            let isDraggingLeft = false;
+
+            const onLeftPointerMove = (e) => {
+                if (!isDraggingLeft) return;
+                const rect = workbenchContainer.getBoundingClientRect();
+                const maxW = Math.min(600, rect.width - 550);
+                const newWidth = Math.max(220, Math.min(maxW, e.clientX - rect.left));
+                syncLeft(newWidth);
+            };
+
+            const onLeftPointerUp = () => {
+                if (!isDraggingLeft) return;
+                isDraggingLeft = false;
+                document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
+                window.removeEventListener('pointermove', onLeftPointerMove);
+                window.removeEventListener('pointerup', onLeftPointerUp);
+                const finalW = parseInt(panelQuestion.style.width, 10);
+                if (!isNaN(finalW)) {
+                    localStorage.setItem('sale.workbench.leftWidth', finalW);
+                }
+            };
+
+            leftResizer.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                isDraggingLeft = true;
+                document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
+                window.addEventListener('pointermove', onLeftPointerMove);
+                window.addEventListener('pointerup', onLeftPointerUp);
+            });
+        }
+
+        if (rightResizer) {
+            let isDraggingRight = false;
+
+            const onRightPointerMove = (e) => {
+                if (!isDraggingRight) return;
+                const rect = workbenchContainer.getBoundingClientRect();
+                const maxW = Math.min(600, rect.width - 550);
+                const newWidth = Math.max(250, Math.min(maxW, rect.right - e.clientX));
+                syncRight(newWidth);
+            };
+
+            const onRightPointerUp = () => {
+                if (!isDraggingRight) return;
+                isDraggingRight = false;
+                document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
+                window.removeEventListener('pointermove', onRightPointerMove);
+                window.removeEventListener('pointerup', onRightPointerUp);
+                const finalW = parseInt(panelAi.style.width, 10);
+                if (!isNaN(finalW)) {
+                    localStorage.setItem('sale.workbench.rightWidth', finalW);
+                }
+            };
+
+            rightResizer.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                isDraggingRight = true;
+                document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
+                window.addEventListener('pointermove', onRightPointerMove);
+                window.addEventListener('pointerup', onRightPointerUp);
+            });
+        }
+    }
+
     Promise.all([
         import('codemirror'),
         import('@codemirror/lang-python'),
@@ -464,83 +561,6 @@ updateCounter();
             });
         }
 
-        // Horizontal Workbench Resizers (Soal <-> Editor <-> Lumina AI)
-        const workbenchContainer = document.querySelector('#workbench-container');
-        const panelQuestion = document.querySelector('#panel-question');
-        const panelAi = document.querySelector('#panel-ai');
-        const leftResizer = document.querySelector('[data-resizer="left"]');
-        const rightResizer = document.querySelector('[data-resizer="right"]');
-
-        if (workbenchContainer && panelQuestion && panelAi) {
-            const savedLeft = localStorage.getItem('sale.workbench.leftWidth');
-            if (savedLeft && window.innerWidth >= 1280) {
-                const w = Math.max(220, Math.min(600, parseInt(savedLeft, 10)));
-                if (!isNaN(w)) panelQuestion.style.width = `${w}px`;
-            }
-            const savedRight = localStorage.getItem('sale.workbench.rightWidth');
-            if (savedRight && window.innerWidth >= 1280) {
-                const w = Math.max(250, Math.min(600, parseInt(savedRight, 10)));
-                if (!isNaN(w)) panelAi.style.width = `${w}px`;
-            }
-
-            if (leftResizer) {
-                let isDraggingLeft = false;
-
-                const onLeftPointerMove = (e) => {
-                    if (!isDraggingLeft) return;
-                    const rect = workbenchContainer.getBoundingClientRect();
-                    const maxW = Math.min(600, rect.width - 550);
-                    const newWidth = Math.max(220, Math.min(maxW, e.clientX - rect.left));
-                    panelQuestion.style.width = `${newWidth}px`;
-                };
-
-                const onLeftPointerUp = () => {
-                    if (!isDraggingLeft) return;
-                    isDraggingLeft = false;
-                    document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
-                    window.removeEventListener('pointermove', onLeftPointerMove);
-                    window.removeEventListener('pointerup', onLeftPointerUp);
-                    localStorage.setItem('sale.workbench.leftWidth', parseInt(panelQuestion.style.width, 10));
-                };
-
-                leftResizer.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    isDraggingLeft = true;
-                    document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
-                    window.addEventListener('pointermove', onLeftPointerMove);
-                    window.addEventListener('pointerup', onLeftPointerUp);
-                });
-            }
-
-            if (rightResizer) {
-                let isDraggingRight = false;
-
-                const onRightPointerMove = (e) => {
-                    if (!isDraggingRight) return;
-                    const rect = workbenchContainer.getBoundingClientRect();
-                    const maxW = Math.min(600, rect.width - 550);
-                    const newWidth = Math.max(250, Math.min(maxW, rect.right - e.clientX));
-                    panelAi.style.width = `${newWidth}px`;
-                };
-
-                const onRightPointerUp = () => {
-                    if (!isDraggingRight) return;
-                    isDraggingRight = false;
-                    document.body.classList.remove('workbench-resizing', 'workbench-resizing-col');
-                    window.removeEventListener('pointermove', onRightPointerMove);
-                    window.removeEventListener('pointerup', onRightPointerUp);
-                    localStorage.setItem('sale.workbench.rightWidth', parseInt(panelAi.style.width, 10));
-                };
-
-                rightResizer.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    isDraggingRight = true;
-                    document.body.classList.add('workbench-resizing', 'workbench-resizing-col');
-                    window.addEventListener('pointermove', onRightPointerMove);
-                    window.addEventListener('pointerup', onRightPointerUp);
-                });
-            }
-        }
 
         const appendOutput = (text, stream = 'stdout') => {
             const line = document.createElement('pre');
@@ -1494,6 +1514,8 @@ if (builder) {
         const isQuiz = type.value === 'kuis';
         const quizDuration = document.querySelector('[data-quiz-duration-settings]');
         if (quizDuration) quizDuration.hidden = !isQuiz;
+        const quizOrder = document.querySelector('[data-quiz-order-settings]');
+        if (quizOrder) quizOrder.hidden = !isQuiz;
         const legacy = document.querySelector('[data-legacy-question-settings]');
         if (legacy) {
             const gridDiv = legacy.querySelector('#question_type')?.closest('.grid')?.querySelector('div');

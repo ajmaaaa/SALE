@@ -161,26 +161,50 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         return $resource;
     }
 
-    public static function discussions(int $item): array
+    public static function courseDiscussions(int $course): array
     {
         $examples = [
-            1 => [['author' => 'Budi Santoso', 'message' => 'Jika nilai yang dimasukkan sama dengan simpul induk, bagaimana sebaiknya kita menanganinya?', 'time' => 'Contoh percakapan', 'timestamp' => 1]],
-            4 => [['author' => 'Siti Aminah', 'message' => 'Bolehkah hasil pengujian usability dilengkapi rekaman layar?', 'time' => 'Contoh percakapan', 'timestamp' => 2]],
-            5 => [['author' => 'Raka Putra', 'message' => 'Kapan recall lebih tepat digunakan dibanding akurasi?', 'time' => 'Contoh percakapan', 'timestamp' => 3]],
+            1 => [
+                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Selamat datang di perkuliahan Struktur Data dan Algoritma. Silakan ajukan pertanyaan seputar materi atau praktikum kuis di forum kelas ini.', 'time' => '10 Sep, 08:00', 'timestamp' => 1788915600, 'role' => 'dosen'],
+                ['author' => 'Ahmad Maulana', 'message' => 'Pak, untuk praktikum Binary Tree apakah implementasi delete node juga akan diuji pada kuis akhir nanti?', 'time' => '11 Sep, 14:20', 'timestamp' => 1789024800, 'role' => 'mahasiswa'],
+                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu.', 'time' => '11 Sep, 15:05', 'timestamp' => 1789027500, 'role' => 'dosen'],
+            ],
+            2 => [
+                ['author' => 'Prof. Dr. Ir. Rian Saputra, S.T., M.Kom.', 'message' => 'Forum diskusi kelas Interaksi Manusia dan Komputer telah dibuka. Anda dapat berdiskusi mengenai prinsip evaluasi usability dan desain antarmuka di sini.', 'time' => '09 Sep, 09:15', 'timestamp' => 1788832500, 'role' => 'dosen'],
+                ['author' => 'Siti Aminah', 'message' => 'Prof, untuk laporan usability testing apakah jumlah partisipan minimal 5 orang?', 'time' => '11 Sep, 11:30', 'timestamp' => 1789014600, 'role' => 'mahasiswa'],
+            ],
+            3 => [
+                ['author' => 'Dr. Maya Kartika, M.Cs.', 'message' => 'Selamat belajar di kelas Pembelajaran Mesin. Silakan berdiskusi mengenai metrik evaluasi model (Confusion Matrix, ROC-AUC) di ruang kelas ini.', 'time' => '08 Sep, 10:00', 'timestamp' => 1788748800, 'role' => 'dosen'],
+            ],
         ];
 
-        return session("learning.discussions.$item", $examples[$item] ?? []);
+        return session("learning.course_discussions.$course", $examples[$course] ?? []);
+    }
+
+    public static function discussions(int $item): array
+    {
+        $itemData = self::items()[$item] ?? null;
+        if ($itemData && !empty($itemData['course'])) {
+            return self::courseDiscussions($itemData['course']);
+        }
+
+        return session("learning.discussions.$item", []);
     }
 
     public static function recentDiscussions(): array
     {
         $messages = [];
-        foreach (self::items() as $item) {
-            foreach (self::discussions($item['id']) as $message) {
-                $messages[] = $message + ['item' => $item['id'], 'course' => $item['course'], 'course_title' => self::course($item['course'])['title'], 'timestamp' => 0];
+        foreach (self::courses() as $course) {
+            foreach (self::courseDiscussions($course['id']) as $message) {
+                $messages[] = $message + [
+                    'course' => $course['id'],
+                    'course_title' => $course['title'],
+                    'item' => 1,
+                    'timestamp' => $message['timestamp'] ?? 0,
+                ];
             }
         }
-        usort($messages, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+        usort($messages, fn ($a, $b) => ($b['timestamp'] ?? 0) <=> ($a['timestamp'] ?? 0));
 
         return array_slice($messages, 0, 3);
     }

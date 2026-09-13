@@ -25,7 +25,7 @@
             <section class="overflow-hidden rounded-xl bg-white shadow-sm" aria-labelledby="course-if204">
                 <div class="bg-brand-dark px-5 py-4 text-white"><p class="text-xs font-semibold text-white">IF204, 3 SKS</p><h3 id="course-if204" class="mt-1 text-lg font-semibold text-white">Struktur Data dan Algoritma</h3></div>
                 <div class="space-y-1 p-3">
-                    <a href="{{ route('mahasiswa.assignment.code', 1) }}" class="group grid gap-3 rounded-lg px-3 py-3 hover:bg-[#f3f6f9] sm:grid-cols-[28px_minmax(0,1fr)_140px] sm:items-center">
+                    <a href="{{ route('mahasiswa.course.item', [1, 1]) }}" class="group grid gap-3 rounded-lg px-3 py-3 hover:bg-[#f3f6f9] sm:grid-cols-[28px_minmax(0,1fr)_140px] sm:items-center">
                         <svg class="h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg>
                         <div><p class="text-xs font-semibold text-brand">Tugas coding</p><h4 class="mt-1 font-semibold text-ink">Praktikum Binary Tree</h4><p class="mt-1 text-sm text-muted">Belum dikumpulkan</p></div>
                         <p class="text-sm font-semibold text-danger sm:text-right">Hari ini, 23.59</p>

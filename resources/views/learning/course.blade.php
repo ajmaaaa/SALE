@@ -54,40 +54,35 @@
                     + Tambah Konten
                 </a>
             </div>
-        @else
-            <div class="flex items-center gap-3 shrink-0">
-                <a href="{{ route('mahasiswa.nilai') }}" class="button-secondary text-xs">
-                    Lihat Nilai Saya →
-                </a>
-            </div>
         @endif
     </header>
 
-    {{-- Main Grid --}}
-    <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
-        {{-- Left: Video player & Weekly module accordions --}}
+    {{-- 2-Column Responsive Layout: Content di Kiri & Sidebar/Forum Diskusi di Kanan --}}
+    <div class="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        
+        {{-- KOLOM KIRI: Video Pengantar Perkuliahan & Daftar Modul/Tugas --}}
         <div class="min-w-0 space-y-7">
-            {{-- 16:9 Video Player Card (Restored from beloved original design) --}}
+            {{-- 16:9 Video Player Card --}}
             <section aria-labelledby="video-heading">
                 <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
                     <div class="flex h-full flex-col items-center justify-center px-6 text-center text-white">
-                        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white transition group-hover:scale-110 group-hover:bg-brand">
-                            <svg class="h-7 w-7 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <div class="mb-3.5 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white transition group-hover:scale-110 group-hover:bg-brand">
+                            <svg class="h-6 w-6 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <path d="m9 7 9 5-9 5V7z"/>
                             </svg>
                         </div>
-                        <h2 id="video-heading" class="text-xl font-bold text-white">
+                        <h2 id="video-heading" class="text-base sm:text-lg font-bold text-white">
                             {{ $course['title'] }}: Pengantar &amp; Konsep Utama
                         </h2>
-                        <p class="mt-1 text-sm text-[#c9d3d9]">Video pengantar perkuliahan · 24 menit</p>
+                        <p class="mt-1 text-xs text-[#c9d3d9]">Video pengantar perkuliahan · 24 menit</p>
                         @if(!empty($course['video']))
-                            <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#172633] shadow hover:bg-slate-100 transition">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
+                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                                 Putar Video Pengantar ↗
                             </a>
                         @else
-                            <button type="button" class="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#172633] shadow hover:bg-slate-100 transition">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <button type="button" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
+                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                                 Putar Video
                             </button>
                         @endif
@@ -97,7 +92,7 @@
 
             {{-- Modules List --}}
             <section aria-labelledby="module-heading">
-                <div class="mb-4 flex items-end justify-between gap-4">
+                <div class="mb-3.5 flex items-end justify-between gap-4">
                     <div>
                         <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
                         <p class="mt-1 text-xs text-muted">Buka konten untuk melihat lampiran, instruksi, dan diskusinya.</p>
@@ -136,7 +131,7 @@
                                             @endif
                                         </span>
 
-                                        {{-- Content info: Clean, natural hierarchy without colored label on top --}}
+                                        {{-- Content info --}}
                                         <div class="min-w-0 flex-1">
                                             <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
                                             <p class="mt-0.5 text-xs text-muted">
@@ -176,55 +171,108 @@
             </section>
         </div>
 
-        {{-- Right: Course Announcements, Lecturer Info, CPMK --}}
-        <aside class="space-y-5">
-            {{-- Lecturer Info Card (Clean, no Tanya button) --}}
-            <section class="surface p-5" aria-labelledby="lecturer-heading">
-                <p class="text-xs font-semibold text-muted uppercase tracking-wider">Dosen Pengampu</p>
-                <h2 id="lecturer-heading" class="mt-2 text-base font-semibold text-ink">{{ $course['lecturer'] }}</h2>
-                <p class="mt-1 text-xs text-muted">Fakultas Ilmu Komputer</p>
-                <p class="mt-3 text-xs leading-relaxed text-muted">Diskusikan pertanyaan melalui materi atau tugas terkait di kelas ini.</p>
+        {{-- KOLOM KANAN (SIDEBAR DISAMPING): Dosen Pengampu, Pengumuman, CPMK, & Forum Diskusi (Chat Paling Bawah) --}}
+        <aside class="space-y-6">
+            {{-- 1. Dosen Pengampu Info Card --}}
+            <section class="surface p-5 rounded-xl border border-line/60" aria-labelledby="lecturer-heading">
+                <span class="text-xs font-semibold text-muted uppercase tracking-wider block">Dosen Pengampu</span>
+                <h3 id="lecturer-heading" class="mt-1.5 text-sm font-bold text-ink">{{ $course['lecturer'] }}</h3>
+                <p class="mt-0.5 text-xs text-muted">Fakultas Ilmu Komputer</p>
+                <p class="mt-2 text-xs leading-relaxed text-muted">Diskusikan materi perkuliahan atau tugas melalui forum diskusi kelas di bawah.</p>
             </section>
 
-            {{-- Announcements Card (Clean surface, not dark blue block) --}}
-            <section class="surface p-5" aria-labelledby="announcement-heading">
-                <div class="flex items-center justify-between">
-                    <h2 id="announcement-heading" class="text-sm font-semibold text-ink">Pengumuman</h2>
-                    @if(count($announcements) > 0)
-                        <span class="text-xs text-muted">{{ count($announcements) }}</span>
-                    @endif
+            {{-- 2. Pengumuman Kelas jika ada --}}
+            @if(count($announcements) > 0)
+                <section class="surface p-5 rounded-xl border border-line/60" aria-labelledby="announcement-heading">
+                    <div class="flex items-center justify-between border-b border-line/40 pb-2.5 mb-3">
+                        <h2 id="announcement-heading" class="text-xs font-bold uppercase tracking-wider text-ink">Pengumuman Kelas</h2>
+                        <span class="text-xs text-muted font-semibold">{{ count($announcements) }}</span>
+                    </div>
+                    <div class="divide-y divide-line/40">
+                        @foreach($announcements as $announcement)
+                            <article class="py-2.5 first:pt-0 last:pb-0">
+                                <a href="{{ route('mahasiswa.course.item', [$course['id'], $announcement['id']]) }}" class="group block">
+                                    <h3 class="text-xs font-bold text-ink group-hover:text-brand transition">{{ $announcement['title'] }}</h3>
+                                    <p class="mt-1 text-xs leading-relaxed text-muted">{{ \Illuminate\Support\Str::limit($announcement['body'], 120) }}</p>
+                                </a>
+                            </article>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
+            {{-- 3. CPMK Outcomes (Collapsible Accordion) --}}
+            @if(count($cpmkList) > 0)
+                <details class="surface p-4 sm:p-5 rounded-xl border border-line/60">
+                    <summary class="cursor-pointer text-xs font-semibold text-ink">Capaian Pembelajaran (CPMK)</summary>
+                    <div class="mt-3 divide-y divide-line/40 text-xs">
+                        @foreach($cpmkList as $cpmk)
+                            <div class="py-2.5 first:pt-0 last:pb-0">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-ink">{{ $cpmk['code'] }}</span>
+                                    <span class="text-[11px] text-muted">{{ $cpmk['cpl'] ?? 'CPL' }}</span>
+                                </div>
+                                <p class="mt-1 text-muted leading-relaxed">{{ $cpmk['description'] }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @endif
+
+            {{-- 4. Forum Diskusi Kelas (Chat Paling Bawah di Sidebar) --}}
+            <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 space-y-4">
+                <div class="flex items-center justify-between border-b border-line/50 pb-3">
+                    <div>
+                        <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
+                        <p class="mt-0.5 text-xs text-muted">Tanya-jawab &amp; diskusi kelas.</p>
+                    </div>
+                    <span class="status font-semibold text-muted bg-canvas">
+                        {{ count(\App\Support\LearningPreview::courseDiscussions($course['id'])) }} Pesan
+                    </span>
                 </div>
-                <div class="mt-3 divide-y divide-line/50">
-                    @forelse($announcements as $announcement)
-                        <article class="py-3 first:pt-0 last:pb-0">
-                            <a href="{{ route('mahasiswa.course.item', [$course['id'], $announcement['id']]) }}" class="group block">
-                                <h3 class="text-sm font-semibold text-ink group-hover:text-brand">{{ $announcement['title'] }}</h3>
-                                <p class="mt-1 text-xs leading-5 text-muted">{{ \Illuminate\Support\Str::limit($announcement['body'], 120) }}</p>
-                            </a>
+
+                {{-- Messages List --}}
+                <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                    @forelse(\App\Support\LearningPreview::courseDiscussions($course['id']) as $msg)
+                        <article class="rounded-xl border border-line/50 bg-canvas/60 p-3.5 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
+                                        {{ collect(explode(' ', $msg['author']))->map(fn($part)=>mb_substr($part,0,1))->take(2)->implode('') }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <h3 class="text-xs font-bold text-ink truncate flex items-center gap-1.5">
+                                            {{ $msg['author'] }}
+                                            @if(($msg['role'] ?? '') === 'dosen')
+                                                <span class="status text-[10px] font-medium py-0 px-1 text-muted bg-canvas">Dosen</span>
+                                            @endif
+                                        </h3>
+                                        <span class="text-[10px] text-muted block">{{ $msg['time'] }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="prose-content text-xs leading-relaxed text-slate-700 whitespace-pre-line">{{ $msg['message'] }}</p>
                         </article>
                     @empty
-                        <p class="pt-2 text-xs text-muted">Belum ada pengumuman untuk kelas ini.</p>
-                    @endforelse
-                </div>
-            </section>
-
-            {{-- CPMK & CPL Outcomes Card (Neutral clean design, no rainbow/brand chips) --}}
-            <details class="surface p-5">
-                <summary class="cursor-pointer text-xs font-semibold text-ink">Capaian Pembelajaran (CPMK)</summary>
-                <div class="mt-3 divide-y divide-line/40 text-xs">
-                    @forelse($cpmkList as $cpmk)
-                        <div class="py-2.5 first:pt-0 last:pb-0">
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold text-ink">{{ $cpmk['code'] }}</span>
-                                <span class="text-[11px] text-muted">{{ $cpmk['cpl'] ?? 'CPL' }}</span>
-                            </div>
-                            <p class="mt-1 text-muted leading-relaxed">{{ $cpmk['description'] }}</p>
+                        <div class="rounded-xl border border-line/60 bg-canvas p-5 text-center text-xs text-muted">
+                            Belum ada pesan di forum kelas ini.
                         </div>
-                    @empty
-                        <p class="text-xs text-muted">CPMK belum diatur oleh dosen.</p>
                     @endforelse
                 </div>
-            </details>
+
+                {{-- Send Message Form --}}
+                <form method="post" action="{{ route('mahasiswa.course.discuss.class', $course['id']) }}" class="space-y-2.5 pt-2 border-t border-line/50">
+                    @csrf
+                    <div>
+                        <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
+                        <textarea maxlength="3000" name="message" id="course_discuss_message" rows="2" required class="field text-xs resize-none" placeholder="Tulis pesan untuk dosen &amp; kelas..."></textarea>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] text-muted">Terbuka untuk seisi kelas</span>
+                        <button type="submit" class="button-primary text-xs py-1.5 px-3.5 font-semibold shadow-xs">Kirim Pesan</button>
+                    </div>
+                </form>
+            </section>
         </aside>
     </div>
 </div>

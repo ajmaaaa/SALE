@@ -83,16 +83,9 @@
                             <span class="text-xs font-bold text-ink block">Batas Waktu (Countdown Timer)</span>
                             <span class="text-[11px] text-muted block mt-0.5">Waktu ujian berjalan mundur otomatis saat mahasiswa memulai pengerjaan kuis.</span>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2 pt-1">
-                            <input type="number" name="duration_minutes" id="duration_minutes" value="60" min="1" max="1440" class="field text-xs py-1.5 w-24 bg-white" aria-label="Durasi menit">
+                        <div class="flex items-center gap-2 pt-1">
+                            <input type="number" name="duration_minutes" id="duration_minutes" value="60" min="1" max="1440" class="field text-xs py-1.5 w-28 bg-white" aria-label="Durasi menit">
                             <span class="text-xs font-semibold text-muted">Menit</span>
-                            <div class="flex flex-wrap items-center gap-1.5 ml-2">
-                                <button type="button" onclick="document.getElementById('duration_minutes').value=15" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">15 Menit</button>
-                                <button type="button" onclick="document.getElementById('duration_minutes').value=30" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">30 Menit</button>
-                                <button type="button" onclick="document.getElementById('duration_minutes').value=60" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">60 Menit</button>
-                                <button type="button" onclick="document.getElementById('duration_minutes').value=90" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">90 Menit</button>
-                                <button type="button" onclick="document.getElementById('duration_minutes').value=120" class="px-2.5 py-1 text-[11px] font-semibold rounded bg-canvas border border-line/60 text-ink hover:bg-slate-200 transition">120 Menit (2 Jam)</button>
-                            </div>
                         </div>
                     </div>
                 </label>
@@ -102,6 +95,30 @@
                     <div>
                         <span class="text-xs font-bold text-ink block">Tanpa Batas Waktu (Durasi Bebas)</span>
                         <span class="text-[11px] text-muted block mt-0.5">Kuis dapat diselesaikan secara fleksibel tanpa pembatasan timer hitung mundur.</span>
+                    </div>
+                </label>
+            </div>
+        </section>
+
+        {{-- Pengaturan Urutan Soal (Berurutan atau Acak) --}}
+        <section data-quiz-order-settings class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-3" hidden>
+            <div class="border-b border-line/60 pb-3">
+                <h2 class="text-sm font-bold text-ink">Urutan Tampilan Soal</h2>
+                <p class="mt-0.5 text-xs text-muted">Tentukan apakah urutan nomor soal ditampilkan berurutan sama untuk seluruh mahasiswa, atau diacak secara unik.</p>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+                <label class="flex items-start gap-3 rounded-lg border border-line/60 p-3.5 hover:bg-slate-50 cursor-pointer transition">
+                    <input type="radio" name="randomize_questions" value="0" checked class="mt-0.5">
+                    <div>
+                        <span class="text-xs font-bold text-ink block">Berurutan (Sesuai Urutan Soal)</span>
+                        <span class="text-[11px] text-muted block mt-0.5">Nomor soal 1 hingga akhir tampil sama persis sesuai urutan pembuatan.</span>
+                    </div>
+                </label>
+                <label class="flex items-start gap-3 rounded-lg border border-line/60 p-3.5 hover:bg-slate-50 cursor-pointer transition">
+                    <input type="radio" name="randomize_questions" value="1" class="mt-0.5">
+                    <div>
+                        <span class="text-xs font-bold text-ink block">Acak Soal (Random per Mahasiswa)</span>
+                        <span class="text-[11px] text-muted block mt-0.5">Urutan soal diacak otomatis untuk tiap mahasiswa guna mencegah kecurangan.</span>
                     </div>
                 </label>
             </div>

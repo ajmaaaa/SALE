@@ -18,69 +18,45 @@
     </header>
 
     <div class="rounded-2xl bg-[#e9edf1] p-4 sm:p-5">
-        <div class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            {{-- Column 1: Course yang diampu --}}
-            <section aria-labelledby="course-heading">
-                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
-                    <div>
-                        <h2 id="course-heading" class="section-heading">Course yang diampu</h2>
-                        <p class="mt-1 text-sm leading-5 text-muted">Kelas aktif semester ini.</p>
+        <div class="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            {{-- Column 1 (KIRI): Course yang diampu (4 kartu petak-petak 2x2) --}}
+            <section aria-labelledby="course-heading" class="min-w-0 md:col-span-2 xl:col-span-1">
+                <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 id="course-heading" class="section-heading text-base sm:text-lg truncate">Course yang diampu</h2>
+                        <p class="mt-0.5 text-xs text-muted truncate">Kelas aktif semester ini</p>
                     </div>
-                    <a href="{{ route('dosen.course.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark">
-                        <span class="hidden min-[1320px]:inline">Lihat semua</span>
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    <a href="{{ route('dosen.course.index') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
+                        <span>Lihat semua</span>
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                     </a>
                 </div>
 
-                <div class="space-y-3">
-                    @foreach(\App\Support\LearningPreview::courses() as $course)
-                        @php
-                            $items = collect(\App\Support\LearningPreview::items())->where('course', $course['id']);
-                            $config = \App\Support\AcademicPreview::config($course['id']);
-                        @endphp
-                        <div class="rounded-xl bg-white p-5 shadow-sm">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <span class="text-xs font-semibold text-muted">{{ $course['code'] }}</span>
-                                    <h3 class="mt-1 text-base font-semibold text-ink">
-                                        <a href="{{ route('dosen.course.show', $course['id']) }}" class="hover:text-brand">
-                                            {{ $course['title'] }}
-                                        </a>
-                                    </h3>
-                                    <p class="mt-1 text-xs text-muted leading-5">{{ $course['description'] }}</p>
-                                </div>
-                            </div>
-                            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line/50 pt-3 text-xs">
-                                <span class="text-muted">{{ count($items) }} Konten · {{ count($config['cpmk']) }} CPMK · {{ count($config['components']) }} Komponen</span>
-                                <div class="flex items-center gap-3">
-                                    <a href="{{ route('dosen.academic', $course['id']) }}" class="quiet-link">Bobot &amp; CPMK</a>
-                                    <a href="{{ route('dosen.gradebook', ['course' => $course['id']]) }}" class="quiet-link">Rekap Nilai</a>
-                                    <a href="{{ route('dosen.course.show', $course['id']) }}" class="font-semibold text-brand hover:text-brand-dark">Buka Modul →</a>
-                                </div>
-                            </div>
-                        </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    @foreach(collect(\App\Support\LearningPreview::courses())->take(4) as $course)
+                        @include('learning.partials.course-card', ['course' => $course, 'role' => 'dosen', 'isFirst' => $loop->first])
                     @endforeach
                 </div>
             </section>
 
-            {{-- Column 2: Tugas perlu dinilai (Exact same structure & style as mahasiswa deadlines) --}}
-            <aside aria-labelledby="grading-heading">
-                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
-                    <div>
-                        <h2 id="grading-heading" class="section-heading">Tugas perlu dinilai</h2>
-                        <p class="mt-1 text-sm leading-5 text-muted">Pengumpulan menunggu penilaian.</p>
+            {{-- Column 2 (TENGAH): Tugas perlu dinilai --}}
+            <aside aria-labelledby="grading-heading" class="min-w-0">
+                <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 id="grading-heading" class="section-heading text-base sm:text-lg truncate">Tugas perlu dinilai</h2>
+                        <p class="mt-0.5 text-xs text-muted truncate">Menunggu penilaian dosen</p>
                     </div>
-                    <a href="{{ route('dosen.grades') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark">
-                        <span class="hidden min-[1320px]:inline">Lihat semua</span>
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    <a href="{{ route('dosen.grades') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
+                        <span>Lihat semua</span>
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                     </a>
                 </div>
 
-                <div class="rounded-2xl bg-white px-2 py-2 shadow-sm">
+                <div class="rounded-xl bg-white px-2 py-2 shadow-sm border border-line/60">
                     @php
-                        $pendingItems = collect(\App\Support\LearningPreview::items())->whereIn('type', ['tugas', 'coding', 'kuis'])->filter(fn($i) => session('learning.submissions.'.$i['id']))->take(3);
+                        $pendingItems = collect(\App\Support\LearningPreview::items())->whereIn('type', ['tugas', 'coding', 'kuis'])->filter(fn($i) => session('learning.submissions.'.$i['id']))->take(4);
                         if ($pendingItems->isEmpty()) {
-                            $pendingItems = collect(\App\Support\LearningPreview::items())->whereIn('type', ['tugas', 'coding'])->take(2);
+                            $pendingItems = collect(\App\Support\LearningPreview::items())->whereIn('type', ['tugas', 'coding'])->take(3);
                         }
                     @endphp
                     @forelse($pendingItems as $item)
@@ -103,20 +79,20 @@
                 </div>
             </aside>
 
-            {{-- Column 3: Diskusi terbaru (Exact same structure & style as mahasiswa discussions) --}}
-            <section aria-labelledby="discussion-heading">
-                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
-                    <div>
-                        <h2 id="discussion-heading" class="section-heading">Diskusi terbaru</h2>
-                        <p class="mt-1 text-sm leading-5 text-muted">Percakapan dari course aktif.</p>
+            {{-- Column 3 (KANAN): Diskusi terbaru --}}
+            <section aria-labelledby="discussion-heading" class="min-w-0">
+                <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 id="discussion-heading" class="section-heading text-base sm:text-lg truncate">Diskusi terbaru</h2>
+                        <p class="mt-0.5 text-xs text-muted truncate">Percakapan aktif kelas</p>
                     </div>
-                    <a href="{{ route('mahasiswa.discussion.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark">
-                        <span class="hidden min-[1320px]:inline">Buka forum</span>
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    <a href="{{ route('mahasiswa.discussion.index') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
+                        <span>Buka forum</span>
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                     </a>
                 </div>
 
-                <div class="rounded-xl bg-white shadow-sm divide-y divide-line/60 overflow-hidden">
+                <div class="rounded-xl bg-white shadow-sm divide-y divide-line/60 overflow-hidden border border-line/60">
                     @foreach(\App\Support\LearningPreview::recentDiscussions() as $discussion)
                         <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block p-4 text-xs transition duration-200 hover:bg-[#f3f6f9]">
                             <p class="text-[11px] font-semibold text-muted">{{ $discussion['course_title'] }}</p>

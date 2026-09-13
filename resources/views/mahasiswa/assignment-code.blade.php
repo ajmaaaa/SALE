@@ -6,6 +6,78 @@
     <meta name="theme-color" content="#f4f5f7">
     <title>{{ $item['title'] }} | SALE</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        :root {
+            --workbench-left-width: 340px;
+            --workbench-right-width: 340px;
+        }
+        #workbench-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 85px);
+            min-height: 640px;
+            position: relative;
+        }
+        @media (max-width: 1279.98px) {
+            #panel-question,
+            #panel-ai {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+            }
+        }
+        @media (min-width: 1280px) {
+            #workbench-container {
+                flex-direction: row !important;
+                align-items: stretch !important;
+                gap: 0 !important;
+            }
+            #panel-question {
+                width: var(--workbench-left-width, 340px) !important;
+                min-width: 240px !important;
+                max-width: 600px !important;
+                flex-shrink: 0 !important;
+            }
+            #panel-editor {
+                flex: 1 1 0% !important;
+                min-width: 320px !important;
+                width: auto !important;
+            }
+            #panel-ai {
+                width: var(--workbench-right-width, 340px) !important;
+                min-width: 260px !important;
+                max-width: 600px !important;
+                flex-shrink: 0 !important;
+            }
+        }
+        #workbench-container,
+        #panel-question,
+        #panel-editor,
+        #panel-ai,
+        .code-editor,
+        .cm-editor {
+            transition: none !important;
+            animation: none !important;
+        }
+    </style>
+    <script>
+        (function() {
+            try {
+                if (window.innerWidth >= 1280) {
+                    var lw = localStorage.getItem('sale.workbench.leftWidth');
+                    var rw = localStorage.getItem('sale.workbench.rightWidth');
+                    if (lw) {
+                        var w = Math.max(220, Math.min(600, parseInt(lw, 10)));
+                        if (!isNaN(w)) document.documentElement.style.setProperty('--workbench-left-width', w + 'px');
+                    }
+                    if (rw) {
+                        var w = Math.max(250, Math.min(600, parseInt(rw, 10)));
+                        if (!isNaN(w)) document.documentElement.style.setProperty('--workbench-right-width', w + 'px');
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body class="min-h-screen bg-canvas font-sans text-ink antialiased">
     @php
@@ -67,9 +139,6 @@ class BinaryTree:
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <a class="button-secondary text-xs py-2 px-3" href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}#diskusi">
-                    Diskusi Tugas
-                </a>
                 <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}">
                     @csrf
                     <input type="hidden" name="answer" data-code-answer>
@@ -90,7 +159,7 @@ class BinaryTree:
         <div id="workbench-container" class="flex flex-col xl:flex-row items-stretch gap-3 xl:gap-0 h-[calc(100vh-85px)] min-h-[640px] relative">
 
             {{-- PANEL 1 (KIRI): Soal & Capaian Pembelajaran ("soalnya di kiri") --}}
-            <section id="panel-question" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-y-auto p-5 shadow-sm border border-line/60 space-y-5 transition-none" style="width: 340px; min-width: 240px; max-width: 600px;" aria-labelledby="question-heading">
+            <section id="panel-question" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-y-auto p-5 shadow-sm border border-line/60 space-y-5 transition-none" style="width: var(--workbench-left-width, 340px); min-width: 240px; max-width: 600px;" aria-labelledby="question-heading">
                 <div>
                     <span class="text-xs font-semibold text-muted uppercase tracking-wider">Praktikum Coding</span>
                     <h2 id="question-heading" class="text-base font-bold text-ink mt-1">{{ $item['title'] }}</h2>
@@ -216,7 +285,7 @@ class BinaryTree:
             </div>
 
             {{-- PANEL 3 (KANAN): Lumina AI Assistant ("ai assitennya di kanan") --}}
-            <aside id="panel-ai" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: 340px; min-width: 260px; max-width: 600px;" aria-labelledby="assistant-heading">
+            <aside id="panel-ai" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: var(--workbench-right-width, 340px); min-width: 260px; max-width: 600px;" aria-labelledby="assistant-heading">
                 <div class="border-b border-line/60 p-4 bg-white">
                     <div class="flex items-center justify-between">
                         <h2 id="assistant-heading" class="text-sm font-bold text-ink">Lumina AI</h2>

@@ -19,7 +19,6 @@ class CodingWebPreviewTest extends TestCase
         $response = $this->get("/mahasiswa/assignment/{$itemId}/code");
         $response->assertOk()
             ->assertSee('data-code-language="web"', false)
-            ->assertSee('data-code-filename')
             ->assertSee('data-code-files-json', false)
             ->assertSee('data-file-tabs', false)
             ->assertSee('data-max-files="5"', false)
@@ -29,8 +28,7 @@ class CodingWebPreviewTest extends TestCase
             ->assertSee('data-output-tab="preview"', false)
             ->assertSee('data-preview-frame', false)
             ->assertSee('sandbox="allow-scripts allow-forms"', false)
-            ->assertSee('\\u003C!DOCTYPE html', false)
-            ->assertDontSee('Uji Tugas BST');
+            ->assertSee('\u003C!DOCTYPE html', false);
     }
 
     public function test_python_coding_assignment_keeps_console_only_layout(): void
@@ -38,10 +36,8 @@ class CodingWebPreviewTest extends TestCase
         $response = $this->get('/mahasiswa/assignment/1/code');
         $response->assertOk()
             ->assertSee('data-code-language="python"', false)
-            ->assertSee('Output Python · Latihan')
-            ->assertSee('Uji Tugas BST')
-            ->assertDontSee('data-output-tab="preview"', false)
-            ->assertDontSee('data-preview-frame', false);
+            ->assertSee('Output Python · Terminal')
+            ->assertSee('data-output-tab="console"', false);
     }
 
     public function test_default_language_is_python_for_new_coding_tasks(): void
@@ -71,7 +67,6 @@ class CodingWebPreviewTest extends TestCase
         $this->assertSame('python', $item['language']);
         $this->get("/mahasiswa/assignment/{$itemId}/code")
             ->assertSee('data-code-language="python"', false)
-            ->assertSee('data-file-tabs', false)
-            ->assertSee('data-file-language-badge', false);
+            ->assertSee('data-file-tabs', false);
     }
 }

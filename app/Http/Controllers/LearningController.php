@@ -35,10 +35,33 @@ class LearningController extends Controller
 
         $submission = session("learning.submissions.$item", null);
 
+        if (!empty($resource['randomize_questions']) && !empty($resource['questions'])) {
+            $studentId = session('auth_user.id', 1);
+            $cacheKey = "learning.quiz_order.{$item}.{$studentId}";
+            $order = session($cacheKey);
+            if (!is_array($order) || count($order) !== count($resource['questions'])) {
+                $order = array_keys($resource['questions']);
+                mt_srand($item * 1000 + (int) $studentId);
+                shuffle($order);
+                mt_srand();
+                session([$cacheKey => $order]);
+            }
+            $shuffled = [];
+            foreach ($order as $idx) {
+                if (isset($resource['questions'][$idx])) {
+                    $shuffled[] = $resource['questions'][$idx];
+                }
+            }
+            if (count($shuffled) === count($resource['questions'])) {
+                $resource['questions'] = $shuffled;
+            }
+        }
+
         return view('learning.quiz-room', [
             'course' => Learning::course($course),
             'item' => $resource,
             'submission' => $submission,
+            'isCompleted' => !empty($submission),
         ]);
     }
 
@@ -163,6 +186,7 @@ class LearningController extends Controller
         $data['allow_late'] = $request->boolean('allow_late', true);
         $data['duration_enabled'] = $request->input('duration_mode', 'enabled') === 'enabled';
         $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
+        $data['randomize_questions'] = $request->boolean('randomize_questions', false);
         $data['language'] = $data['question_type'] === 'coding' ? ($data['code_language'] ?? 'python') : 'python';
         $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
         $items = Learning::items();
@@ -174,15 +198,43 @@ class LearningController extends Controller
         return redirect()->route('dosen.course.show', $course)->with('notice', 'Konten ditambahkan ke modul dalam sesi pratinjau ini.');
     }
 
+    public function discussCourse(Request $request, int $course)
+    {
+        Learning::course($course);
+        $data = $request->validate(['message' => 'required|string|max:3000']);
+        $messages = Learning::courseDiscussions($course);
+        $author = session('auth_user.name', 'Ahmad Maulana');
+        $role = session('auth_user.role', 'mahasiswa');
+        $messages[] = [
+            'author' => $author,
+            'message' => $data['message'],
+            'time' => now()->format('d M, H:i'),
+            'timestamp' => now()->timestamp,
+            'role' => $role,
+        ];
+        session(["learning.course_discussions.$course" => $messages]);
+
+        return redirect(route('mahasiswa.course.show', $course).'#diskusi-kelas')->with('notice', 'Pesan diskusi kelas berhasil dikirim.');
+    }
+
     public function discuss(Request $request, int $course, int $item)
     {
         Learning::resource($course, $item);
         $data = $request->validate(['message' => 'required|string|max:3000']);
-        $messages = Learning::discussions($item);
-        $messages[] = ['author' => 'Ahmad', 'message' => $data['message'], 'time' => now()->format('d M, H:i'), 'timestamp' => now()->timestamp];
+        $messages = Learning::courseDiscussions($course);
+        $author = session('auth_user.name', 'Ahmad Maulana');
+        $role = session('auth_user.role', 'mahasiswa');
+        $messages[] = [
+            'author' => $author,
+            'message' => $data['message'],
+            'time' => now()->format('d M, H:i'),
+            'timestamp' => now()->timestamp,
+            'role' => $role,
+        ];
+        session(["learning.course_discussions.$course" => $messages]);
         session(["learning.discussions.$item" => $messages]);
 
-        return redirect(route('mahasiswa.course.item', [$course, $item]).'#diskusi');
+        return redirect(route('mahasiswa.course.show', $course).'#diskusi-kelas')->with('notice', 'Pesan diskusi kelas berhasil dikirim.');
     }
 
     public function submit(Request $request, int $course, int $item)
@@ -209,21 +261,38 @@ class LearningController extends Controller
             'boolean_choice' => 'nullable|string|in:Benar,Salah',
             'matching' => 'nullable|array',
         ]);
+        $isFromQuizRoom = $request->boolean('from_quiz_room');
+
         if (!empty($resource['questions'])) {
-            $answers=$data['question_answers'] ?? [];
-            if (count($answers)!==count($resource['questions'])) return back()->withErrors(['question_answers'=>'Jawab seluruh soal sebelum mengumpulkan.'])->withInput();
-            foreach ($resource['questions'] as $index=>$question) {
-                $answer=$answers[$index] ?? [];
-                if (in_array($question['type'],['pilihan','kompleks'])) {
-                    $options=array_values(array_filter(array_map('trim',explode("\n",$question['options'] ?? '')),fn($v)=>$v!==''));
-                    $choices=$answer['choices'] ?? [];
-                    if (!$choices || array_diff($choices,$options) || ($question['type']==='pilihan' && count($choices)!==1)) return back()->withErrors(['question_answers'=>'Periksa pilihan pada soal '.($index+1).'.'])->withInput();
-                } elseif ($question['type'] === 'benar_salah') {
-                    if (empty($answer['boolean_choice'])) return back()->withErrors(['question_answers'=>'Pilih Benar atau Salah pada soal '.($index+1).'.'])->withInput();
-                } elseif ($question['type'] === 'mencocokkan') {
-                    if (empty($answer['matching'])) return back()->withErrors(['question_answers'=>'Pasangkan seluruh item pada soal '.($index+1).'.'])->withInput();
-                } elseif (trim($answer['text'] ?? '')==='') return back()->withErrors(['question_answers'=>'Isi jawaban soal '.($index+1).'.'])->withInput();
+            $answers = $data['question_answers'] ?? [];
+            if (! $isFromQuizRoom && count($answers) !== count($resource['questions'])) {
+                return back()->withErrors(['question_answers' => 'Jawab seluruh soal sebelum mengumpulkan.'])->withInput();
             }
+            foreach ($resource['questions'] as $index => $question) {
+                $answer = $answers[$index] ?? [];
+                if (in_array($question['type'], ['pilihan', 'kompleks'])) {
+                    $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
+                    $choices = $answer['choices'] ?? [];
+                    if (!empty($choices)) {
+                        if (array_diff($choices, $options) || ($question['type'] === 'pilihan' && count($choices) !== 1)) {
+                            return back()->withErrors(['question_answers' => 'Periksa pilihan pada soal '.($index + 1).'.'])->withInput();
+                        }
+                    } elseif (! $isFromQuizRoom) {
+                        return back()->withErrors(['question_answers' => 'Periksa pilihan pada soal '.($index + 1).'.'])->withInput();
+                    }
+                } elseif ($question['type'] === 'benar_salah') {
+                    if (empty($answer['boolean_choice']) && ! $isFromQuizRoom) {
+                        return back()->withErrors(['question_answers' => 'Pilih Benar atau Salah pada soal '.($index + 1).'.'])->withInput();
+                    }
+                } elseif ($question['type'] === 'mencocokkan') {
+                    if (empty($answer['matching']) && ! $isFromQuizRoom) {
+                        return back()->withErrors(['question_answers' => 'Pasangkan seluruh item pada soal '.($index + 1).'.'])->withInput();
+                    }
+                } elseif (trim($answer['text'] ?? '') === '' && ! $isFromQuizRoom) {
+                    return back()->withErrors(['question_answers' => 'Isi jawaban soal '.($index + 1).'.'])->withInput();
+                }
+            }
+            $data['question_answers'] = $answers;
         } else {
             unset($data['question_answers']);
         }
@@ -233,7 +302,7 @@ class LearningController extends Controller
         if (count($keep) + count($request->file('files', [])) > 5) {
             return back()->withErrors(['files' => 'Maksimal lima lampiran, termasuk berkas sebelumnya.'])->withInput();
         }
-        if (empty($data['question_answers']) && ! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices') && ! $request->filled('boolean_choice') && ! $request->filled('matching')) {
+        if (! $isFromQuizRoom && empty($data['question_answers']) && ! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices') && ! $request->filled('boolean_choice') && ! $request->filled('matching')) {
             return back()->withErrors(['answer' => 'Tambahkan jawaban, berkas, atau tautan sebelum mengumpulkan.'])->withInput();
         }
         abort_if($request->filled('link') && ! in_array('link', $resource['formats']), 422);
@@ -251,6 +320,10 @@ class LearningController extends Controller
         $data['time'] = now()->format('d M Y, H:i');
         $data['student_number'] = session('auth_user.number');
         session(["learning.submissions.$item" => $data]);
+
+        if ($request->boolean('from_quiz_room')) {
+            return redirect()->route('mahasiswa.quiz.room', [$course, $item])->with('notice', 'Jawaban berhasil dikirim! Kuis Anda telah berhasil dikumpulkan.');
+        }
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban dikumpulkan dalam sesi pratinjau. Belum dinilai.');
     }
