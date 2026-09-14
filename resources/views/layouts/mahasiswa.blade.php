@@ -32,8 +32,8 @@
         @elseif(request()->is('dosen*'))
         <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi dosen">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang mengajar</p>
-            @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.grades' => 'Penilaian tugas', 'dosen.gradebook' => 'Rekap nilai & CPMK'] as $route => $label)
-                <a href="{{ route($route) }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs($route) || ($route === 'dosen.course.index' && request()->routeIs('dosen.course.*','dosen.item.*')) ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">{{ $label }}</a>
+            @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.penilaian.index' => 'Penilaian OBE', 'dosen.grades' => 'Penilaian tugas', 'dosen.gradebook' => 'Rekap nilai & CPMK'] as $route => $label)
+                <a href="{{ route($route) }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs($route) || ($route === 'dosen.course.index' && request()->routeIs('dosen.course.*','dosen.item.*')) || ($route === 'dosen.penilaian.index' && request()->routeIs('dosen.penilaian.*')) ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">{{ $label }}</a>
             @endforeach
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
@@ -125,8 +125,8 @@
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif
                                 </a>
-                                <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Dosen (Dr. Budi)</span>
+                                <a href="{{ route('dosen.login') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
+                                    <span>Dosen (masuk dengan akun)</span>
                                     @if($activeUser['role'] === 'dosen')
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif
