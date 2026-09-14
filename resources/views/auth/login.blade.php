@@ -39,7 +39,7 @@
             <h2 class="text-base font-bold text-ink">Masuk Akun Institusi</h2>
             <p class="mt-1 text-xs text-muted">Gunakan alamat email atau nomor induk yang terdaftar pada sistem.</p>
 
-            <form class="mt-5 space-y-4" method="post" action="{{ route('login.post') }}">
+            <form class="mt-5 space-y-4" method="post" action="{{ request()->routeIs('dosen.login') ? route('dosen.login.post') : route('login.post') }}">
                 @csrf
                 <div>
                     <label for="login_id" class="form-label text-xs">Email atau NIM / NIDN</label>
