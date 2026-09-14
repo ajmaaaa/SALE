@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureDosenAuth;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
+        $middleware->alias([
+            'dosen.auth' => EnsureDosenAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
