@@ -442,6 +442,44 @@ document.querySelectorAll('[data-repeat-group]').forEach(group=>{
     group.querySelector('[data-add-row]').addEventListener('click',()=>{const clone=rows.firstElementChild.cloneNode(true);clone.querySelectorAll('input').forEach(input=>input.value=input.type==='number'?'0':'');rows.append(clone);renumber();});
     rows.addEventListener('click',event=>{if(event.target.closest('[data-remove-row]') && rows.children.length>1){event.target.closest('[data-row]').remove();renumber();}});rows.addEventListener('input',renumber);
 });
+
+// CPMK contribution checklist (Halaman 5 — Form Assessment): ticking a
+// CPMK enables its weight input and includes it in the live total;
+// unticking disables the input (its value is not submitted) and drops
+// it from the total. Mirrors the [data-weight-total] pattern above.
+document.querySelectorAll('[data-cpmk-checklist]').forEach(list => {
+    const total = list.querySelector('[data-cpmk-total]');
+    const rows = () => [...list.querySelectorAll('[data-cpmk-row]')];
+
+    const recompute = () => {
+        if (!total) return;
+        const sum = rows()
+            .filter(row => row.querySelector('[data-cpmk-check]').checked)
+            .reduce((acc, row) => acc + Number(row.querySelector('[data-cpmk-weight]').value || 0), 0);
+        total.textContent = `Total kontribusi: ${sum}%`;
+        total.classList.toggle('text-danger', Math.abs(sum - 100) > 0.01);
+        total.classList.toggle('text-ink', Math.abs(sum - 100) <= 0.01);
+    };
+
+    rows().forEach(row => {
+        const checkbox = row.querySelector('[data-cpmk-check]');
+        const weightInput = row.querySelector('[data-cpmk-weight]');
+        const hiddenFlag = row.querySelector('[data-cpmk-hidden-flag]');
+
+        const sync = () => {
+            weightInput.readOnly = !checkbox.checked;
+            weightInput.classList.toggle('opacity-50', !checkbox.checked);
+            if (hiddenFlag) hiddenFlag.value = checkbox.checked ? '1' : '0';
+            if (!checkbox.checked) weightInput.value = '0';
+        };
+
+        checkbox.addEventListener('change', () => { sync(); recompute(); });
+        weightInput.addEventListener('input', recompute);
+        sync();
+    });
+
+    recompute();
+});
 const builder = document.querySelector('[data-question-builder]');
 if (builder) {
     const rows = builder.querySelector('[data-question-rows]');
