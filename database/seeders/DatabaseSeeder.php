@@ -11,6 +11,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Register explicit domain seeders here when persistent SALE data is introduced.
+        $this->call([
+            RoleSeeder::class,
+            DosenAccountSeeder::class,
+            AcademicDemoSeeder::class,
+            ObeExampleSeeder::class,
+            StudentScoreExampleSeeder::class,
+        ]);
+
+        // Register further domain seeders here as more persistent SALE
+        // data (rubrics, ...) is introduced.
     }
 }
