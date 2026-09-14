@@ -26,6 +26,15 @@ class AuthController extends Controller
         return view('auth.login', compact('personas'));
     }
 
+    public function showLogin()
+    {
+        if (view()->exists('dosen.login')) {
+            return view('dosen.login');
+        }
+
+        return $this->login();
+    }
+
     public function authenticate(Request $request)
     {
         $users = AdminPreview::users();
