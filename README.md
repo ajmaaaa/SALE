@@ -29,17 +29,65 @@ Proyek ini tidak menggunakan React, Vue, Alpine, Livewire, Inertia, Bootstrap, a
 
 ## Menjalankan Proyek
 
+Database default project adalah MySQL tanpa Docker. Instal PHP, Composer,
+Node.js, npm, dan MySQL 8 (atau MariaDB yang kompatibel), lalu pastikan service
+MySQL aktif. Jalankan:
+
 ```bash
 composer install
-npm ci
-cp .env.example .env
-php artisan key:generate
-touch database/database.sqlite
-php artisan migrate
+composer run setup
 composer run dev
 ```
 
-Aplikasi tersedia melalui URL yang ditampilkan oleh `php artisan serve`. Preview mahasiswa dimulai dari `/mahasiswa/dashboard`.
+`composer run setup` akan membuat `.env` dan `APP_KEY` bila belum tersedia,
+memeriksa extension `pdo_mysql`, membuat database `sale` bila belum tersedia,
+memasang dependency frontend, kemudian menjalankan migration beserta seeder.
+Tidak perlu membuat tabel atau mengimpor file SQL. Perintah setup tidak
+menggunakan `cp`, `touch`, atau perintah khusus Linux.
+
+`composer run dev` menjalankan server Laravel, queue worker, dan Vite secara
+bersamaan pada Windows maupun Linux. Laravel Pail tidak dimasukkan ke perintah
+ini karena membutuhkan extension `pcntl` yang tidak tersedia pada PHP native
+Windows. Log aplikasi tetap dapat dibuka dari `storage/logs/laravel.log`.
+
+Aplikasi tersedia melalui URL yang ditampilkan oleh `php artisan serve`. Preview
+mahasiswa dimulai dari `/mahasiswa/dashboard`. Secara default aplikasi mencari
+MySQL pada `127.0.0.1:3306` menggunakan konfigurasi dari `.env`.
+
+Konfigurasi contoh memakai user `root` tanpa password karena umum pada XAMPP
+lokal. Jika instalasi MySQL menggunakan password atau user lain, ubah
+`DB_USERNAME` dan `DB_PASSWORD` di `.env` sebelum menjalankan setup. User MySQL
+tersebut harus sudah memiliki akses ke database atau izin untuk membuat database.
+
+### Kerja Tim dan Database
+
+GitHub menyimpan migration dan seeder, bukan isi database lokal atau hasil ekspor
+MySQL. Saat struktur tabel berubah, buat migration baru dan commit file-nya:
+
+```bash
+php artisan make:migration nama_perubahan
+php artisan migrate
+```
+
+Data referensi atau data demo bersama ditambahkan melalui seeder di
+`database/seeders`. Setelah menarik perubahan dari GitHub, anggota tim cukup
+menjalankan:
+
+```bash
+composer install
+npm ci
+php artisan migrate --seed
+```
+
+Untuk menghapus seluruh data development dan mengisinya kembali dari seeder:
+
+```bash
+composer run db:reset
+```
+
+Perintah reset tersebut bersifat destruktif dan hanya boleh digunakan untuk
+database development. Kredensial pada `.env.example` juga khusus development;
+gunakan secret terpisah untuk staging dan production.
 
 ## Pemeriksaan Kualitas
 
