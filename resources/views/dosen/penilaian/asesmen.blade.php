@@ -52,7 +52,17 @@
                                     @endforelse
                                 </div>
                             </td>
-                            <td>{{ $assessment->uses_rubric ? 'Ya' : '—' }}</td>
+                            <td>
+                                @if($assessment->uses_rubric)
+                                    <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="status bg-emerald-50 text-emerald-700 text-xs hover:underline" title="Kelola Rubrik">
+                                        Aktif ({{ $assessment->rubric ? $assessment->rubric->criteria->count() : 0 }} kriteria)
+                                    </a>
+                                @else
+                                    <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="status bg-canvas text-muted text-xs hover:text-brand" title="Aktifkan Rubrik">
+                                        + Aktifkan
+                                    </a>
+                                @endif
+                            </td>
                             <td>
                                 @if($assessment->status === 'published')
                                     <span class="status bg-brand-soft text-brand">Published</span>
@@ -63,11 +73,13 @@
                                 @endif
                             </td>
                             <td class="text-right whitespace-nowrap">
+                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="quiet-link text-xs font-semibold text-emerald-600 mr-2">Nilai</a>
+                                <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="quiet-link text-xs font-medium text-brand mr-2">Rubrik</a>
                                 <a href="{{ route('dosen.penilaian.asesmen.edit', [$section->id, $assessment->id]) }}" class="quiet-link text-xs">Ubah</a>
                                 <form method="post" action="{{ route('dosen.penilaian.asesmen.destroy', [$section->id, $assessment->id]) }}" class="inline" onsubmit="return confirm('Hapus asesmen &quot;{{ $assessment->name }}&quot;? Tindakan ini tidak dapat dibatalkan.');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="quiet-link text-xs text-danger ml-3">Hapus</button>
+                                    <button type="submit" class="quiet-link text-xs text-danger ml-2">Hapus</button>
                                 </form>
                             </td>
                         </tr>
@@ -75,7 +87,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="text-xs text-muted">Pengaturan rubrik akan tersedia pada tahap berikutnya.</p>
+        <p class="text-xs text-muted">Klik "Rubrik" untuk melihat detail asesmen dan mengelola kriteria penilaian berbobot.</p>
     @endif
 </div>
 @endsection
