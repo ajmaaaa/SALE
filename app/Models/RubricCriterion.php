@@ -14,7 +14,17 @@ class RubricCriterion extends Model
         'description',
         'weight',
         'max_score',
+        'order',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'weight' => 'decimal:2',
+            'max_score' => 'decimal:2',
+            'order' => 'integer',
+        ];
+    }
 
     public function rubric(): BelongsTo
     {
