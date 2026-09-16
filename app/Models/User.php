@@ -51,6 +51,11 @@ class User extends Authenticatable
         return $this->hasMany(ClassSection::class, 'dosen_id');
     }
 
+    public function classSectionsAssisting(): HasMany
+    {
+        return $this->hasMany(ClassSection::class, 'dosen_pendamping_id');
+    }
+
     public function classSectionsEnrolled(): BelongsToMany
     {
         return $this->belongsToMany(ClassSection::class, 'class_section_student', 'mahasiswa_id', 'class_section_id')
