@@ -72,11 +72,11 @@
                             <div class="flex items-center gap-2">
                                 @if($item['type'] === 'coding')
                                     <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-secondary text-xs py-2 px-3 font-semibold">
-                                        Buka Code Editor ↗
+                                        Buka Code Editor
                                     </a>
                                 @endif
                                 <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
-                                    Kerjakan Kuis →
+                                    Kerjakan Kuis
                                 </a>
                             </div>
                         </div>
@@ -84,7 +84,7 @@
                         <div class="mt-5 pt-4 border-t border-line/60 flex items-center justify-between gap-4">
                             <span class="text-xs text-muted">Tugas pemrograman dikerjakan menggunakan editor kode interaktif.</span>
                             <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-secondary text-xs py-1.5 px-3 font-semibold shrink-0">
-                                Buka Code Editor ↗
+                                Buka Code Editor
                             </a>
                         </div>
                     @endif
@@ -109,12 +109,12 @@
                                         @endif
                                         <span class="break-all font-medium">{{ session('learning.files.'.$file.'.name', 'Berkas materi') }}</span>
                                     </span>
-                                    <span class="text-xs text-muted">Buka ↗</span>
+                                    <span class="text-xs text-muted">Buka</span>
                                 </a>
                             @endforeach
                             @if(!empty($item['link']))
                                 <a class="quiet-link block break-all py-2 text-xs" href="{{ $item['link'] }}" target="_blank" rel="noopener noreferrer">
-                                    {{ $item['link'] }} ↗
+                                    {{ $item['link'] }}
                                 </a>
                             @endif
                         </div>
@@ -342,7 +342,7 @@
                                             <div class="flex items-center justify-between">
                                                 <label class="form-label text-xs">Jawaban Pemrograman (Kode Solusi)</label>
                                                 <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="quiet-link text-xs font-semibold">
-                                                    Buka di Code Editor &amp; Lumina AI ↗
+                                                    Buka di Code Editor &amp; Lumina AI
                                                 </a>
                                             </div>
                                             <textarea rows="7" name="question_answers[{{ $qIdx }}][text]" class="field font-mono text-xs leading-relaxed" placeholder="// Tuliskan implementasi kode solusi Anda di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? ($q['options'] ?? '')) }}</textarea>
@@ -372,7 +372,7 @@
                                         @if($qIdx > 0)
                                             <button type="button" data-quiz-nav-btn="{{ $qIdx - 1 }}" class="button-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-1.5">
                                                 <svg class="h-3.5 w-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                                                <span>← Kembali (Soal {{ $qIdx }})</span>
+                                                <span>Kembali (Soal {{ $qIdx }})</span>
                                             </button>
                                         @else
                                             <span class="text-xs text-muted italic">Awal kuis</span>
@@ -383,7 +383,7 @@
                                         <span class="text-xs text-muted mr-1 hidden sm:inline">Soal {{ $qIdx + 1 }} dari {{ count($item['questions']) }}</span>
                                         @if($qIdx < count($item['questions']) - 1)
                                             <button type="button" data-quiz-nav-btn="{{ $qIdx + 1 }}" class="button-primary text-xs py-2 px-4 font-semibold flex items-center gap-1.5">
-                                                <span>Selanjutnya (Soal {{ $qIdx + 2 }}) →</span>
+                                                <span>Selanjutnya (Soal {{ $qIdx + 2 }})</span>
                                             </button>
                                         @elseif(!$isLecturer)
                                             <button type="submit" class="button-primary text-xs py-2 px-4 font-bold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shadow-2xs">
@@ -506,13 +506,13 @@
 
                         <div class="space-y-2 pt-2">
                             <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                Lihat &amp; Nilai Jawaban Mahasiswa →
+                                Lihat &amp; Nilai Jawaban Mahasiswa
                             </a>
                             <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
                                 + Tambah Konten / Soal Baru
                             </a>
                             <a href="{{ route('dosen.course.show', $course['id']) }}" class="quiet-link text-xs text-center block pt-1">
-                                ← Kembali ke Halaman Course
+                                Kembali ke Halaman Course
                             </a>
                         </div>
                     </aside>
@@ -568,7 +568,7 @@
                                     </button>
                                 @else
                                     <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block shadow-xs">
-                                        {{ $submission ? 'Kerjakan Ulang Kuis →' : 'Kerjakan Kuis →' }}
+                                        {{ $submission ? 'Kerjakan Ulang Kuis' : 'Kerjakan Kuis' }}
                                     </a>
                                 @endif
                             </div>
@@ -695,7 +695,7 @@
     </form>
 
     {{-- Standalone form for discussions to avoid nested forms --}}
-    <form id="discuss-form" method="post" action="{{ route('mahasiswa.course.discuss', [$course['id'], $item['id']]) }}" hidden>
+    <form id="discuss-form" method="post" action="{{ route(($isLecturer ? 'dosen' : 'mahasiswa').'.course.discuss', [$course['id'], $item['id']]) }}" hidden>
         @csrf
     </form>
 

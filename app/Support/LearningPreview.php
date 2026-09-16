@@ -17,7 +17,7 @@ class LearningPreview
     public static function items(): array
     {
         return session('learning.items', [
-            1 => array_merge(self::item(1, 1, 'Tree dan traversal', 'coding', 'Praktikum Binary Tree', 'Lengkapi metode insert() pada Binary Search Tree. Jelaskan penanganan cabang kiri, kanan, dan nilai duplikat.', '2026-09-10T23:59'), [
+            1 => array_merge(self::item(1, 1, 'Tree dan traversal', 'coding', 'Praktikum Binary Tree', 'Lengkapi metode insert() pada Binary Search Tree. Jelaskan penanganan cabang kiri, kanan, dan nilai duplikat.', '2026-09-10T23:59', 'A'), [
                 'points' => 100,
                 'duration_enabled' => true,
                 'duration_minutes' => 60,
@@ -53,9 +53,7 @@ class LearningPreview
                         'id' => 4,
                         'type' => 'mencocokkan',
                         'prompt' => 'Jodohkan diagram struktur Binary Tree berikut dengan representasi urutan kunjungan simpul yang tepat:',
-                        'options' => "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCAxNDAgNzAiPjxyZWN0IHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSIyMCIgcj0iMTIiIGZpbGw9IiMxMDJmNTAiLz48dGV4dCB4PSI3MCIgeT0iMjQiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjkiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ba2FyPC90ZXh0PjxsaW5lIHgxPSI2MCIgeTE9IjI4IiB4Mj0iNDAiIHkyPSI0NiIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48bGluZSB4MT0iODAiIHkxPSIyOCIgeDI9IjEwMCIgeTI9IjQ2IiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS13aWR0aD0iMiIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iNTIiIHI9IjEwIiBmaWxsPSIjZTJlOGYwIi8+PHRleHQgeD0iMzUiIHk9IjU1IiBmaWxsPSIjMzM0MTU1IiBmb250LXNpemU9IjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktpcmk8L3RleHQ+PGNpcmNsZSBjeD0iMTA1IiBjeT0iNTIiIHI9IjEwIiBmaWxsPSIjZTJlOGYwIi8+PHRleHQgeD0iMTA1IiB5PSI1NSIgZmlsbD0iIzMzNDE1NSIgZm9udC1zaXplPSI4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5LYW5hbjwvdGV4dD48L3N2Zz4= = Pre-order: Kunjungan Akar → Kiri → Kanan
-data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCAxNDAgNzAiPjxyZWN0IHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiMxMDJmNTAiLz48dGV4dCB4PSIzNSIgeT0iNTUiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjgiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5LaXJpPC90ZXh0PjxsaW5lIHgxPSI0MyIgeTE9IjQ1IiB4Mj0iNjMiIHkyPSIyNyIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjIwIiByPSIxMiIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjcwIiB5PSIyNCIgZmlsbD0iIzMzNDE1NSIgZm9udC1zaXplPSI5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ba2FyPC90ZXh0PjxsaW5lIHgxPSI3NyIgeTE9IjI3IiB4Mj0iOTciIHkyPSI0NSIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSIxMDUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSIxMDUiIHk9IjU1IiBmaWxsPSIjMzM0MTU1IiBmb250LXNpemU9IjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkthbmFuPC90ZXh0Pjwvc3ZnPg== = In-order: Kunjungan Kiri → Akar → Kanan
-data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCAxNDAgNzAiPjxyZWN0IHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSIzNSIgeT0iNTUiIGZpbGw9IiMzMzQxNTUiIGZvbnQtc2l6ZT0iOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+S2lyaTwvdGV4dD48Y2lyY2xlIGN4PSIxMDUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiMxMDJmNTAiLz48dGV4dCB4PSIxMDUiIHk9IjU1IiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSI4IiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+S2FuYW48L3RleHQ+PGxpbmUgeDE9IjQzIiB5MT0iNDUiIHgyPSI2MyIgeTI9IjI3IiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI5NyIgeTE9IjQ1IiB4Mj0iNzciIHkyPSIyNyIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjIwIiByPSIxMiIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjcwIiB5PSIyNCIgZmlsbD0iIzMzNDE1NSIgZm9udC1zaXplPSI5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ba2FyPC90ZXh0Pjwvc3ZnPg== = Post-order: Kunjungan Kiri → Kanan → Akar",
+                        'options' => "Option A = Pre-order: Kunjungan Akar -> Kiri -> Kanan\nOption B = In-order: Kunjungan Kiri -> Akar -> Kanan\nOption C = Post-order: Kunjungan Kiri -> Kanan -> Akar",
                         'points' => 20,
                         'cpmk' => 'CPMK-01',
                         'cpl' => 'CPL-01',
@@ -80,10 +78,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     ],
                 ],
             ]),
-            2 => self::item(2, 1, 'Pengenalan struktur data', 'materi', 'Pengantar struktur data', 'Struktur data membantu mengatur informasi agar operasi pencarian dan perubahan dapat dilakukan secara efisien. Bandingkan array dan linked list berdasarkan akses, penyisipan, serta penggunaan memori.'),
-            3 => self::item(3, 1, 'Tree dan traversal', 'materi', 'Memahami traversal pada Binary Tree', 'Inorder mengunjungi kiri, akar, lalu kanan. Preorder mengunjungi akar lebih dahulu; postorder mengunjungi akar terakhir. Gambarkan pohon dengan nilai 8, 3, 10, 1, 6 dan tentukan hasil setiap traversal.'),
-            4 => self::item(4, 2, 'Evaluasi usability', 'tugas', 'Laporan Evaluasi Usability', 'Evaluasi satu aplikasi menggunakan lima partisipan. Sertakan skenario pengujian, temuan, bukti gambar, dan rekomendasi perbaikan.', '2026-09-12T17:00'),
-            5 => array_merge(self::item(5, 3, 'Evaluasi model', 'kuis', 'Kuis Evaluasi Model', 'Sebuah model memprediksi semua pasien sehat pada dataset dengan 95% pasien sehat. Selesaikan serangkaian soal evaluasi model berikut untuk menguji pemahaman Anda.', '2026-09-14T20:00'), [
+            2 => self::item(2, 1, 'Pengenalan struktur data', 'materi', 'Pengantar struktur data', 'Struktur data membantu mengatur informasi agar operasi pencarian dan perubahan dapat dilakukan secara efisien. Bandingkan array dan linked list berdasarkan akses, penyisipan, serta penggunaan memori.', null, 'A'),
+            3 => self::item(3, 1, 'Tree dan traversal', 'materi', 'Memahami traversal pada Binary Tree (Kelas A)', 'Inorder mengunjungi kiri, akar, lalu kanan. Preorder mengunjungi akar lebih dahulu; postorder mengunjungi akar terakhir. Gambarkan pohon dengan nilai 8, 3, 10, 1, 6 dan tentukan hasil setiap traversal.', null, 'A'),
+            4 => self::item(4, 2, 'Evaluasi usability', 'tugas', 'Laporan Evaluasi Usability (Kelas A)', 'Evaluasi satu aplikasi menggunakan lima partisipan. Sertakan skenario pengujian, temuan, bukti gambar, dan rekomendasi perbaikan.', '2026-09-12T17:00', 'A'),
+            5 => array_merge(self::item(5, 3, 'Evaluasi model', 'kuis', 'Kuis Evaluasi Model (Kelas A)', 'Sebuah model memprediksi semua pasien sehat pada dataset dengan 95% pasien sehat. Selesaikan serangkaian soal evaluasi model berikut untuk menguji pemahaman Anda.', '2026-09-14T20:00', 'A'), [
                 'points' => 100,
                 'duration_enabled' => true,
                 'duration_minutes' => 45,
@@ -126,13 +124,21 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     ],
                 ],
             ]),
-            6 => self::item(6, 1, 'Informasi kelas', 'pengumuman', 'Perubahan ruang perkuliahan', 'Pertemuan Kamis dipindahkan ke Lab Komputasi 2 pada pukul 10.00.'),
+            6 => self::item(6, 1, 'Informasi kelas', 'pengumuman', 'Perubahan ruang perkuliahan Kelas A', 'Pertemuan Kamis dipindahkan ke Lab Komputasi 2 pada pukul 10.00.', null, 'A'),
+
+            // Section B mock items
+            7 => self::item(7, 1, 'Graf dan Implementasi', 'coding', 'Tugas Coding Graph Traversal (Kelas B)', 'Implementasikan algoritma BFS dan DFS pada Graph berarah. Buat fungsi shortPath() untuk menemukan jalur terpendek.', '2026-09-18T23:59', 'B'),
+            8 => self::item(8, 1, 'Graf dan Implementasi', 'materi', 'Modul Deep-Dive Algorithm Graph (Kelas B)', 'Penjelasan detail mengenai Adjacency Matrix vs Adjacency List beserta analisis ruang memori untuk Kelas B Paralel.', null, 'B'),
+            9 => self::item(9, 1, 'Informasi kelas', 'pengumuman', 'Pengumuman Kuliah Lapangan Kelas B', 'Mahasiswa Kelas B Paralel diwajibkan hadir pada sesi praktikum mandiri Sabtu mendatang.', null, 'B'),
+            10 => self::item(10, 2, 'Design System & Prototyping', 'tugas', 'Studi Kasus UI/UX Redesign App (Kelas B)', 'Buat prototype Figma resolusi tinggi untuk aplikasi e-commerce beserta pengujian usability pada 3 responden.', '2026-09-20T23:59', 'B'),
+            11 => self::item(11, 3, 'Deep Learning Frameworks', 'kuis', 'Kuis Deep Learning & Neural Network (Kelas B)', 'Evaluasi pemahaman arsitektur Convolutional Neural Network (CNN) dan fungsi aktivasi ReLU/Sigmoid.', '2026-09-22T20:00', 'B'),
+            12 => self::item(12, 4, 'Agile & Scrum Process', 'tugas', 'Sprint Planning & User Stories (Kelas B)', 'Menyusun backlog produk, menentukan story points, dan membuat burndown chart untuk proyek kelompok.', '2026-09-25T17:00', 'B'),
         ]);
     }
 
-    private static function item(int $id, int $course, string $module, string $type, string $title, string $body, ?string $due = null): array
+    private static function item(int $id, int $course, string $module, string $type, string $title, string $body, ?string $due = null, string $section = 'A'): array
     {
-        return compact('id', 'course', 'module', 'type', 'title', 'body', 'due') + [
+        return compact('id', 'course', 'module', 'type', 'title', 'body', 'due', 'section') + [
             'attachments' => [],
             'link' => null,
             'formats' => ['file', 'image', 'link', 'text'],

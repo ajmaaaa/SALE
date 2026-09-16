@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Support\AdminPreview;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    public function login()
+    public function login(Request $request)
     {
         $users = AdminPreview::users();
         $personas = [
@@ -23,48 +23,77 @@ class AuthController extends Controller
             ],
         ];
 
-        return view('auth.login', compact('personas'));
-    }
-
-    public function showLogin()
-    {
-        if (view()->exists('dosen.login')) {
-            return view('dosen.login');
+        $defaultRole = $request->query('role', request()->is('dosen*') ? 'dosen' : 'mahasiswa');
+        if (!in_array($defaultRole, ['mahasiswa', 'dosen', 'admin'])) {
+            $defaultRole = 'mahasiswa';
         }
 
-        return $this->login();
+        return view('auth.login', compact('personas', 'defaultRole'));
+    }
+
+    public function showLogin(Request $request)
+    {
+        return $this->login($request);
     }
 
     public function authenticate(Request $request)
     {
         $users = AdminPreview::users();
 
-        // Check if persona quick access is used
+        // 1. Check if persona quick access is used
         if ($request->filled('persona_id')) {
             $user = $users[$request->integer('persona_id')] ?? null;
             if ($user) {
-                session(['auth_user' => $user]);
-                return $this->redirectForRole($user['role'], "Masuk sebagai {$user['name']}.");
+                return $this->loginAsUser($user, "Masuk sebagai {$user['name']}.");
             }
         }
 
+        $selectedRole = $request->input('role', 'mahasiswa');
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
+
         if ($loginId === '') {
+            $defaultUser = collect($users)->firstWhere('role', $selectedRole);
+            if ($defaultUser) {
+                return $this->loginAsUser($defaultUser, "Masuk sebagai {$defaultUser['name']}.");
+            }
             return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
         }
 
+        // Search user in mock list or DB
         $user = collect($users)->first(function ($u) use ($loginId) {
             return strcasecmp($u['email'] ?? '', $loginId) === 0
                 || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0;
         });
 
         if (! $user) {
+            $dbUser = \App\Models\User::with('role')
+                ->where(function ($query) use ($loginId) {
+                    $query->where('email', $loginId)->orWhere('nim_nidn', $loginId);
+                })
+                ->first();
+
+            if ($dbUser) {
+                $roleName = $dbUser->hasRole(\App\Models\Role::DOSEN) ? 'dosen' : 'mahasiswa';
+                $user = [
+                    'id' => $dbUser->id,
+                    'name' => $dbUser->name,
+                    'email' => $dbUser->email,
+                    'number' => $dbUser->nim_nidn,
+                    'role' => $roleName,
+                    'status' => 'aktif',
+                ];
+            }
+        }
+
+        if (! $user) {
+            $user = collect($users)->firstWhere('role', $selectedRole);
+        }
+
+        if (! $user) {
             return back()->withErrors(['login_id' => 'Kredensial akun tidak terdaftar pada sistem institusi.'])->withInput();
         }
 
-        session(['auth_user' => $user]);
-
-        return $this->redirectForRole($user['role'], "Selamat datang kembali, {$user['name']}!");
+        return $this->loginAsUser($user, "Selamat datang kembali, {$user['name']}!");
     }
 
     public function switchRole(Request $request, string $role)
@@ -85,16 +114,36 @@ class AuthController extends Controller
             ];
         }
 
-        session(['auth_user' => $user]);
-
-        return $this->redirectForRole($role, "Beralih ke peran {$role} ({$user['name']}).");
+        return $this->loginAsUser($user, "Beralih ke peran " . ucfirst($role) . " ({$user['name']}).");
     }
 
     public function logout(Request $request)
     {
+        Auth::logout();
         session()->forget('auth_user');
+        session()->invalidate();
+        session()->regenerateToken();
 
         return redirect()->route('login')->with('notice', 'Anda telah berhasil keluar dari akun.');
+    }
+
+    private function loginAsUser(array $user, string $message)
+    {
+        session(['auth_user' => $user]);
+
+        if ($user['role'] === 'dosen') {
+            $dbUser = \App\Models\User::where('email', $user['email'])
+                ->orWhere('nim_nidn', $user['number'])
+                ->first();
+
+            if ($dbUser) {
+                Auth::login($dbUser);
+            }
+        } else {
+            Auth::logout();
+        }
+
+        return $this->redirectForRole($user['role'], $message);
     }
 
     private function redirectForRole(string $role, string $message)

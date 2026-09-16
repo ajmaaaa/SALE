@@ -24,6 +24,10 @@ class EnsureDosenAuth
                         ->orWhere('nim_nidn', $sessionUser['number'] ?? '');
                 })
                 ->first();
+
+            if ($user) {
+                \Illuminate\Support\Facades\Auth::login($user);
+            }
         }
 
         if (! $user) {

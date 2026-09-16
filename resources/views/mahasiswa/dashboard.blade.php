@@ -24,7 +24,7 @@
                 <p class="text-xs sm:text-sm text-slate-200 leading-relaxed">Pelajari kembali preorder, inorder, dan postorder, lalu terapkan pemahaman Anda pada lembar praktikum interaktif.</p>
             </div>
             <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-white px-5 text-xs font-bold text-[#102f50] hover:bg-slate-100 transition shadow-xs">
-                Buka Materi Rekomendasi →
+                Buka Materi Rekomendasi
             </a>
         </div>
     </section>

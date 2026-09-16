@@ -18,9 +18,23 @@ class LearningController extends Controller
         return view('learning.courses', compact('courses'));
     }
 
-    public function course(int $course)
+    public function course(Request $request, int $course)
     {
-        return view('learning.course', ['course' => Learning::course($course), 'items' => array_filter(Learning::items(), fn ($item) => $item['course'] === $course)]);
+        $activeSection = strtoupper((string) $request->query('section', 'A'));
+        if (!in_array($activeSection, ['A', 'B', 'C'])) {
+            $activeSection = 'A';
+        }
+
+        $items = array_filter(Learning::items(), function ($item) use ($course, $activeSection) {
+            $itemSection = $item['section'] ?? 'A';
+            return $item['course'] === $course && ($itemSection === $activeSection || $itemSection === 'ALL');
+        });
+
+        return view('learning.course', [
+            'course' => Learning::course($course),
+            'items' => $items,
+            'activeSection' => $activeSection,
+        ]);
     }
 
     public function item(int $course, int $item)
@@ -177,10 +191,12 @@ class LearningController extends Controller
         Learning::resource($course, $item);
         $data = $request->validate(['message' => 'required|string|max:3000']);
         $messages = Learning::discussions($item);
-        $messages[] = ['author' => 'Ahmad', 'message' => $data['message'], 'time' => now()->format('d M, H:i'), 'timestamp' => now()->timestamp];
+        $author = session('auth_user.name', 'Pengguna');
+        $messages[] = ['author' => $author, 'message' => $data['message'], 'time' => now()->format('d M, H:i'), 'timestamp' => now()->timestamp];
         session(["learning.discussions.$item" => $messages]);
 
-        return redirect(route('mahasiswa.course.item', [$course, $item]).'#diskusi');
+        $routePrefix = request()->is('dosen*') ? 'dosen' : 'mahasiswa';
+        return redirect(route($routePrefix.'.course.item', [$course, $item]).'#diskusi');
     }
 
     public function submit(Request $request, int $course, int $item)

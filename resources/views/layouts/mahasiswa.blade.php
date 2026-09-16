@@ -30,12 +30,31 @@
             @endforeach
         </nav>
         @elseif(request()->is('dosen*'))
-        <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi dosen">
-            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang mengajar</p>
-            @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.penilaian.index' => 'Penilaian OBE', 'dosen.grades' => 'Penilaian tugas', 'dosen.gradebook' => 'Rekap nilai & CPMK'] as $route => $label)
-                <a href="{{ route($route) }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs($route) || ($route === 'dosen.course.index' && request()->routeIs('dosen.course.*','dosen.item.*')) || ($route === 'dosen.penilaian.index' && request()->routeIs('dosen.penilaian.*')) ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">{{ $label }}</a>
-            @endforeach
-            <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
+        @php
+            $isCourseActive = request()->routeIs('dosen.course.*') || request()->routeIs('dosen.item.*');
+            $isGradesActive = request()->routeIs('dosen.grades*') || request()->routeIs('dosen.academic*') || request()->routeIs('dosen.penilaian.*');
+            $isGradebookActive = request()->routeIs('dosen.gradebook*') || request()->routeIs('dosen.scores.*');
+        @endphp
+        <nav class="flex-1 px-3 py-5" aria-label="Navigasi dosen">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Mengajar</p>
+            <div class="space-y-1">
+                <a href="{{ route('dosen.dashboard') }}" @if(request()->routeIs('dosen.dashboard')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
+                    Dashboard
+                </a>
+                <a href="{{ route('dosen.course.index') }}" @if($isCourseActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isCourseActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                    Course Saya
+                </a>
+                <a href="{{ route('dosen.grades') }}" @if($isGradesActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isGradesActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Penilaian Saya
+                </a>
+                <a href="{{ route('dosen.gradebook') }}" @if($isGradebookActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isGradebookActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
+                    Rekap Nilai
+                </a>
+            </div>
         </nav>
         @else
         <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
@@ -125,8 +144,8 @@
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif
                                 </a>
-                                <a href="{{ route('dosen.login') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Dosen (masuk dengan akun)</span>
+                                <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
+                                    <span>Dosen (Dr. Budi Santoso)</span>
                                     @if($activeUser['role'] === 'dosen')
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif

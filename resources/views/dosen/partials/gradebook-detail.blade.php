@@ -1,10 +1,31 @@
-<section class="surface p-5 space-y-4">
-    <div><h2 class="section-heading">Telusuri penilaian</h2><p class="mt-1 text-xs text-muted">Pilih jenis penilaian, lalu buka tugas atau ujian untuk melihat kontribusi soal ke CPMK.</p></div>
-    <form method="get" action="{{ route('dosen.gradebook') }}" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+<section class="surface p-6 rounded-2xl border border-line/70 shadow-xs space-y-4">
+    <div class="border-b border-line/50 pb-3">
+        <h2 class="text-base font-bold text-ink">Telusuri Penilaian</h2>
+        <p class="mt-0.5 text-xs text-muted">Pilih jenis penilaian dan tugas/ujian untuk melihat kontribusi soal ke ketercapaian CPMK.</p>
+    </div>
+    <form method="get" action="{{ route('dosen.gradebook') }}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] items-end">
         <input type="hidden" name="course" value="{{ $course['id'] }}">
-        <label><span class="form-label text-xs">Jenis penilaian</span><select name="component" class="field" onchange="this.form.elements.assessment.value='0'; this.form.submit()"><option value="">Semua komponen (rekap kelas)</option>@foreach($config['components'] as $component)<option value="{{ $component['code'] }}" @selected($componentFilter === $component['code'])>{{ $component['name'] }} ({{ $component['weight'] }}%)</option>@endforeach</select></label>
-        <label><span class="form-label text-xs">Tugas / ujian</span><select name="assessment" class="field"><option value="0">Semua penilaian pada jenis ini</option>@foreach($assessments as $assessment)<option value="{{ $assessment['id'] }}" @selected($assessmentFilter === $assessment['id'])>{{ $assessment['title'] }}</option>@endforeach</select></label>
-        <button class="button-primary">Tampilkan</button>
+        <div class="space-y-1.5">
+            <label for="filter-component" class="form-label text-xs font-semibold text-muted mb-0">Jenis Penilaian</label>
+            <select id="filter-component" name="component" class="field text-xs py-2 font-medium bg-white shadow-2xs" onchange="this.form.elements.assessment.value='0'; this.form.submit()">
+                <option value="">Semua komponen (rekap kelas)</option>
+                @foreach($config['components'] as $component)
+                    <option value="{{ $component['code'] }}" @selected($componentFilter === $component['code'])>{{ $component['name'] }} ({{ $component['weight'] }}%)</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="space-y-1.5">
+            <label for="filter-assessment" class="form-label text-xs font-semibold text-muted mb-0">Tugas / Ujian</label>
+            <select id="filter-assessment" name="assessment" class="field text-xs py-2 font-medium bg-white shadow-2xs">
+                <option value="0">Semua penilaian pada jenis ini</option>
+                @foreach($assessments as $assessment)
+                    <option value="{{ $assessment['id'] }}" @selected($assessmentFilter === $assessment['id'])>{{ $assessment['title'] }}</option>
+                @endforeach
+            </select>
+        </div>
+        <button class="button-primary text-xs py-2.5 px-6 font-bold shadow-2xs h-[42px] shrink-0 w-full sm:w-auto">
+            Tampilkan
+        </button>
     </form>
 </section>
 

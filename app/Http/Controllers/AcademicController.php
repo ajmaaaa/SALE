@@ -20,7 +20,7 @@ class AcademicController extends Controller
         Learning::course($course);
         $data=$request->validate([
             'cpl'=>'required|array|min:1|max:30','cpl.*.code'=>'required|alpha_dash|max:30|distinct','cpl.*.description'=>'required|string|max:1000',
-            'cpmk'=>'required|array|min:1|max:50','cpmk.*.code'=>'required|alpha_dash|max:30|distinct','cpmk.*.cpl'=>['required',Rule::in(array_column($request->input('cpl',[]),'code'))],'cpmk.*.description'=>'required|string|max:1000',
+            'cpmk'=>'required|array|min:1|max:50','cpmk.*.code'=>'required|alpha_dash|max:30|distinct','cpmk.*.cpl'=>['required',Rule::in(array_column($request->input('cpl',[]),'code'))],'cpmk.*.description'=>'required|string|max:1000','cpmk.*.rubric'=>'nullable|string|max:1000',
             'components'=>'required|array|min:1|max:20','components.*.code'=>'required|alpha_dash|max:30|distinct','components.*.name'=>'required|string|max:80','components.*.weight'=>'required|numeric|min:0|max:100',
             'cpmk.*.threshold'=>'sometimes|required|numeric|min:0|max:100',
         ]);

@@ -27,6 +27,9 @@
     @endif
 
     {{-- Course Header --}}
+    @php
+        $sec = $activeSection ?? 'A';
+    @endphp
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
             <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted font-medium">
@@ -36,7 +39,7 @@
                 <span>·</span>
                 <span>Semester Ganjil 2026/2027</span>
                 <span>·</span>
-                <span>Wajib</span>
+                <span class="rounded bg-brand/10 px-2 py-0.5 font-bold text-brand">Kelas {{ $sec }}</span>
             </div>
             <h1 class="page-heading mt-2">{{ $course['title'] }}</h1>
             <p class="page-description mt-1">{{ $course['description'] }}</p>
@@ -45,23 +48,41 @@
         @if($role === 'dosen')
             <div class="flex flex-wrap gap-2.5 shrink-0">
                 <a href="{{ route('dosen.academic', $course['id']) }}" class="button-secondary">
-                    Atur CPL &amp; CPMK
+                    Pengaturan CPMK &amp; CPL
                 </a>
-                <a href="{{ route('dosen.gradebook', ['course' => $course['id']]) }}" class="button-secondary">
-                    Rekap Nilai
+                <a href="{{ route('dosen.grades', ['room' => 1, 'course' => $course['id'], 'type' => 'uts']) }}" class="button-secondary">
+                    Input Nilai Tugas &amp; CPMK (Kelas {{ $sec }})
                 </a>
-                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary">
+                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary">
                     + Tambah Konten
                 </a>
             </div>
         @else
             <div class="flex items-center gap-3 shrink-0">
                 <a href="{{ route('mahasiswa.nilai') }}" class="button-secondary text-xs">
-                    Lihat Nilai Saya →
+                    Lihat Nilai Saya
                 </a>
             </div>
         @endif
     </header>
+
+    {{-- Class Selection Switcher Bar --}}
+    <div class="surface flex flex-wrap items-center justify-between gap-4 p-4">
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-muted uppercase tracking-wider">Pilih Kelas:</span>
+            <div class="flex items-center gap-1.5">
+                @foreach(['A' => 'Kelas A (Reguler)', 'B' => 'Kelas B (Paralel)', 'C' => 'Kelas C (Eksekutif)'] as $sCode => $sLabel)
+                    <a href="{{ route($role.'.course.show', ['course' => $course['id'], 'section' => $sCode]) }}"
+                       class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition {{ $sec === $sCode ? 'bg-brand text-white shadow-sm' : 'bg-canvas text-ink hover:bg-slate-200/80' }}">
+                        {{ $sLabel }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+        <p class="text-xs text-muted">
+            Menampilkan materi, tugas, dan pengumuman khusus <span class="font-semibold text-ink">Kelas {{ $sec }}</span>.
+        </p>
+    </div>
 
     {{-- Main Grid --}}
     <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -83,7 +104,7 @@
                         @if(!empty($course['video']))
                             <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#172633] shadow hover:bg-slate-100 transition">
                                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                Putar Video Pengantar ↗
+                                Putar Video Pengantar
                             </a>
                         @else
                             <button type="button" class="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#172633] shadow hover:bg-slate-100 transition">
@@ -122,7 +143,7 @@
                                     @php
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
                                     @endphp
-                                    <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
+                                    <a href="{{ route($role.'.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
                                         {{-- Icon: simple, clean, no background box --}}
                                         <span class="shrink-0 text-muted group-hover:text-ink transition">
                                             @if($item['type'] === 'coding')
@@ -197,7 +218,7 @@
                 <div class="mt-3 divide-y divide-line/50">
                     @forelse($announcements as $announcement)
                         <article class="py-3 first:pt-0 last:pb-0">
-                            <a href="{{ route('mahasiswa.course.item', [$course['id'], $announcement['id']]) }}" class="group block">
+                            <a href="{{ route($role.'.course.item', [$course['id'], $announcement['id']]) }}" class="group block">
                                 <h3 class="text-sm font-semibold text-ink group-hover:text-brand">{{ $announcement['title'] }}</h3>
                                 <p class="mt-1 text-xs leading-5 text-muted">{{ \Illuminate\Support\Str::limit($announcement['body'], 120) }}</p>
                             </a>

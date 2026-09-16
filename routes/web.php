@@ -58,6 +58,8 @@ Route::prefix('dosen')->name('dosen.')->middleware('dosen.auth')->group(function
     Route::get('/course/create', [LearningController::class, 'createCourse'])->name('course.create');
     Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
+    Route::get('/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('course.item');
+    Route::post('/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('course.discuss');
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
     Route::view('/penilaian', 'dosen.grades')->name('grades');
