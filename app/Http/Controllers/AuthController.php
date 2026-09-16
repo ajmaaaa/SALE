@@ -16,10 +16,16 @@ class AuthController extends Controller
                 'id' => 1, 'name' => 'Ahmad Maulana', 'email' => 'ahmad@example.test', 'number' => '231011401234', 'role' => 'mahasiswa'
             ],
             'dosen' => collect($users)->firstWhere('role', 'dosen') ?? [
-                'id' => 2, 'name' => 'Dr. Budi Santoso, M.Kom.', 'email' => 'budi@example.test', 'number' => 'DSN001', 'role' => 'dosen'
+                'id' => 2, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'budi@example.test', 'number' => '198501012010121001', 'role' => 'dosen'
+            ],
+            'kaprodi' => collect($users)->firstWhere('role', 'kaprodi') ?? [
+                'id' => 5, 'name' => 'Dr. H. Kaprodi, M.T.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi'
+            ],
+            'admin_prodi' => collect($users)->firstWhere('role', 'admin_prodi') ?? [
+                'id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi'
             ],
             'admin' => collect($users)->firstWhere('role', 'admin') ?? [
-                'id' => 3, 'name' => 'Admin Akademik', 'email' => 'admin@example.test', 'number' => 'ADM001', 'role' => 'admin'
+                'id' => 3, 'name' => 'Admin Sistem Akademik', 'email' => 'admin@example.test', 'number' => 'ADM001', 'role' => 'admin'
             ],
         ];
 
@@ -44,13 +50,13 @@ class AuthController extends Controller
         if ($request->filled('persona_id')) {
             $user = $users[$request->integer('persona_id')] ?? null;
             if ($user) {
-                return $this->loginAsUser($user, "Masuk sebagai {$user['name']}.");
+                session(['auth_user' => $user]);
+                return $this->redirectForRole($user['role'], "Masuk sebagai {$user['name']}.");
             }
         }
 
         $selectedRole = $request->input('role', 'mahasiswa');
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
-
         if ($loginId === '') {
             $defaultUser = collect($users)->firstWhere('role', $selectedRole);
             if ($defaultUser) {
@@ -59,10 +65,10 @@ class AuthController extends Controller
             return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
         }
 
-        // Search user in mock list or DB
         $user = collect($users)->first(function ($u) use ($loginId) {
             return strcasecmp($u['email'] ?? '', $loginId) === 0
-                || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0;
+                || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0
+                || ($u['role'] === 'mahasiswa' && in_array($normalizedLogin, ['ahmad.maulana@student.test', 'ahmad@example.test', '231011401234']));
         });
 
         if (! $user) {
@@ -93,36 +99,95 @@ class AuthController extends Controller
             return back()->withErrors(['login_id' => 'Kredensial akun tidak terdaftar pada sistem institusi.'])->withInput();
         }
 
-        return $this->loginAsUser($user, "Selamat datang kembali, {$user['name']}!");
+        if ($password !== '' && $password !== 'password') {
+            return back()->withErrors(['password' => 'Kata sandi tidak sesuai.'])->withInput($request->only('login_id'));
+        }
+
+        session(['auth_user' => $user]);
+
+        return $this->redirectForRole($user['role'], "Selamat datang kembali, {$user['name']}!");
     }
 
     public function switchRole(Request $request, string $role)
     {
-        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin']), 404);
+        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi']), 404);
+
+        // Look up authentic database User first so Auth::user() is populated
+        $dbUser = \App\Models\User::with('role')
+            ->whereHas('role', fn ($q) => $q->where('name', $role))
+            ->first();
+
+        if ($dbUser) {
+            \Illuminate\Support\Facades\Auth::login($dbUser);
+            $user = [
+                'id' => $dbUser->id,
+                'name' => $dbUser->name,
+                'email' => $dbUser->email,
+                'number' => $dbUser->nim_nidn,
+                'role' => $role,
+                'status' => 'aktif',
+            ];
+            session(['auth_user' => $user]);
+            return $this->redirectForRole($role, "Beralih ke peran {$dbUser->name}.");
+        }
 
         $users = AdminPreview::users();
         $user = collect($users)->firstWhere('role', $role);
 
         if (! $user) {
-            $user = [
-                'id' => $role === 'admin' ? 3 : ($role === 'dosen' ? 2 : 1),
-                'name' => $role === 'admin' ? 'Admin Akademik' : ($role === 'dosen' ? 'Dr. Budi Santoso, M.Kom.' : 'Ahmad Maulana'),
-                'email' => "{$role}@example.test",
-                'number' => $role === 'admin' ? 'ADM001' : ($role === 'dosen' ? 'DSN001' : '231011401234'),
-                'role' => $role,
-                'status' => 'aktif',
-            ];
+            $user = match ($role) {
+                'kaprodi' => [
+                    'id' => 5,
+                    'name' => 'Dr. H. Kaprodi, M.T.',
+                    'email' => 'kaprodi@example.test',
+                    'number' => '197501012000031001',
+                    'role' => 'kaprodi',
+                    'status' => 'aktif',
+                ],
+                'admin_prodi' => [
+                    'id' => 4,
+                    'name' => 'Admin Prodi TI',
+                    'email' => 'adminprodi@example.test',
+                    'number' => 'AP001',
+                    'role' => 'admin_prodi',
+                    'status' => 'aktif',
+                ],
+                'admin' => [
+                    'id' => 3,
+                    'name' => 'Admin Sistem Akademik',
+                    'email' => 'admin@example.test',
+                    'number' => 'ADM001',
+                    'role' => 'admin',
+                    'status' => 'aktif',
+                ],
+                'dosen' => [
+                    'id' => 2,
+                    'name' => 'Budi Santoso, M.Kom.',
+                    'email' => 'budi@example.test',
+                    'number' => '198501012010121001',
+                    'role' => 'dosen',
+                    'status' => 'aktif',
+                ],
+                default => [
+                    'id' => 1,
+                    'name' => 'Ahmad Maulana',
+                    'email' => 'ahmad.maulana@student.test',
+                    'number' => '231011401234',
+                    'role' => 'mahasiswa',
+                    'status' => 'aktif',
+                ],
+            };
         }
 
-        return $this->loginAsUser($user, "Beralih ke peran " . ucfirst($role) . " ({$user['name']}).");
+        session(['auth_user' => $user]);
+
+        return $this->redirectForRole($role, "Beralih ke peran {$role} ({$user['name']}).");
     }
 
     public function logout(Request $request)
     {
         Auth::logout();
         session()->forget('auth_user');
-        session()->invalidate();
-        session()->regenerateToken();
 
         return redirect()->route('login')->with('notice', 'Anda telah berhasil keluar dari akun.');
     }
@@ -149,7 +214,9 @@ class AuthController extends Controller
     private function redirectForRole(string $role, string $message)
     {
         return match ($role) {
-            'dosen' => redirect()->route('dosen.dashboard')->with('notice', $message),
+            'kaprodi' => redirect()->route('kaprodi.monitoring.cpmk')->with('notice', $message),
+            'admin_prodi' => redirect()->route('admin-prodi.dashboard')->with('notice', $message),
+            'dosen' => redirect()->route('dosen.penilaian.index')->with('notice', $message),
             'admin' => redirect()->route('admin.page', 'dashboard')->with('notice', $message),
             default => redirect()->route('mahasiswa.dashboard')->with('notice', $message),
         };
