@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAdminProdiAuth;
 use App\Http\Middleware\EnsureDosenAuth;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([
             'dosen.auth' => EnsureDosenAuth::class,
+            'admin_prodi.auth' => EnsureAdminProdiAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
