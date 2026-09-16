@@ -89,60 +89,44 @@
                 </div>
             </form>
 
-            {{-- Divider --}}
-            <div class="relative my-6 text-center">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-line/60"></div></div>
-                <span class="relative bg-white px-3 text-[11px] font-semibold text-muted uppercase tracking-wider">Atau Akses Cepat</span>
-            </div>
-
-            {{-- Quick Persona Login Buttons --}}
-            <div class="space-y-2.5">
-                <form method="post" action="{{ route('login.post') }}">
-                    @csrf
-                    <input type="hidden" name="persona_id" value="1">
-                    <button type="submit" id="quick-mahasiswa" class="w-full rounded-xl border border-line/80 bg-canvas/70 px-4 py-2.5 text-left text-xs font-medium hover:bg-brand-soft hover:border-brand/40 hover:text-brand transition flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 font-bold text-brand text-xs">M</span>
-                            <div>
-                                <p class="font-bold text-ink text-xs">Ahmad Maulana</p>
-                                <p class="text-[11px] text-muted">231011401234 · Mahasiswa</p>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-brand">Masuk</span>
+            <div class="mt-6 pt-5 border-t border-line/60">
+                <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-xs font-semibold text-ink uppercase tracking-wider">Akun Demo & Simulasi</span>
+                    <span class="text-[11px] text-muted">Password: <code class="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-ink font-semibold">password</code></span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button type="button" onclick="fillCredential('ahmad.maulana@student.test')" class="text-left px-2.5 py-2 rounded-lg border border-line/70 hover:border-brand hover:bg-brand/5 transition">
+                        <div class="font-semibold text-ink truncate">Ahmad (Mhs)</div>
+                        <div class="text-[11px] text-muted truncate">231011401234</div>
                     </button>
-                </form>
-
-                <form method="post" action="{{ route('login.post') }}">
-                    @csrf
-                    <input type="hidden" name="persona_id" value="2">
-                    <button type="submit" id="quick-dosen" class="w-full rounded-xl border border-line/80 bg-canvas/70 px-4 py-2.5 text-left text-xs font-medium hover:bg-brand-soft hover:border-brand/40 hover:text-brand transition flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-xs">D</span>
-                            <div>
-                                <p class="font-bold text-ink text-xs">Dr. Budi Santoso, M.Kom.</p>
-                                <p class="text-[11px] text-muted">DSN001 · Dosen Pengampu</p>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-brand">Masuk</span>
+                    <button type="button" onclick="fillCredential('budi@example.test')" class="text-left px-2.5 py-2 rounded-lg border border-line/70 hover:border-brand hover:bg-brand/5 transition">
+                        <div class="font-semibold text-ink truncate">Budi (Dosen)</div>
+                        <div class="text-[11px] text-muted truncate">198501012010121001</div>
                     </button>
-                </form>
-
-                <form method="post" action="{{ route('login.post') }}">
-                    @csrf
-                    <input type="hidden" name="persona_id" value="3">
-                    <button type="submit" id="quick-admin" class="w-full rounded-xl border border-line/80 bg-canvas/70 px-4 py-2.5 text-left text-xs font-medium hover:bg-brand-soft hover:border-brand/40 hover:text-brand transition flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 font-bold text-purple-800 text-xs">A</span>
-                            <div>
-                                <p class="font-bold text-ink text-xs">Admin Akademik</p>
-                                <p class="text-[11px] text-muted">ADM001 · Administrator</p>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-brand">Masuk</span>
+                    <button type="button" onclick="fillCredential('adminprodi@example.test')" class="text-left px-2.5 py-2 rounded-lg border border-line/70 hover:border-brand hover:bg-brand/5 transition">
+                        <div class="font-semibold text-ink truncate">Admin Prodi</div>
+                        <div class="text-[11px] text-muted truncate">AP001</div>
                     </button>
-                </form>
+                    <button type="button" onclick="fillCredential('kaprodi@example.test')" class="text-left px-2.5 py-2 rounded-lg border border-line/70 hover:border-brand hover:bg-brand/5 transition">
+                        <div class="font-semibold text-ink truncate">Kaprodi</div>
+                        <div class="text-[11px] text-muted truncate">197501012000031001</div>
+                    </button>
+                </div>
+                <div class="mt-2 text-center">
+                    <a href="{{ url('/switch-role/mahasiswa') }}" class="text-[11px] text-brand hover:underline">
+                        Masuk Langsung (Bypass Login) sebagai Mahasiswa &rarr;
+                    </a>
+                </div>
             </div>
         </div>
+
+        <script>
+            function fillCredential(loginId) {
+                document.getElementById('login_id').value = loginId;
+                document.getElementById('password').value = 'password';
+                document.getElementById('login_id').focus();
+            }
+        </script>
     </main>
 
     <footer class="border-t border-line/50 bg-white px-6 py-4 text-center text-xs text-muted">
