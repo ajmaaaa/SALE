@@ -63,10 +63,34 @@
                     <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Penilaian Belum Dinilai</p>
                     <p class="mt-0.5 text-2xl font-extrabold text-ink">{{ $pendingCount }} <span class="text-xs font-normal text-muted">Kelas Belum Dinilai</span></p>
                 </div>
+<<<<<<< HEAD
             </div>
             <a href="{{ route('dosen.grades') }}" class="button-secondary text-xs px-3.5 py-2 font-semibold shrink-0">
                 Lihat Penilaian
             </a>
+=======
+            </aside>
+
+            {{-- Column 3: Diskusi terbaru (Exact same structure & style as mahasiswa discussions) --}}
+            <section aria-labelledby="discussion-heading">
+                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
+                    <div>
+                        <h2 id="discussion-heading" class="section-heading">Diskusi terbaru</h2>
+                        <p class="mt-1 text-sm leading-5 text-muted">Percakapan dari course aktif.</p>
+                    </div>
+                </div>
+
+                <div class="rounded-xl bg-white shadow-sm divide-y divide-line/60 overflow-hidden">
+                    @foreach(\App\Support\LearningPreview::recentDiscussions() as $discussion)
+                        <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block p-4 text-xs transition duration-200 hover:bg-[#f3f6f9]">
+                            <p class="text-[11px] font-semibold text-muted">{{ $discussion['course_title'] }}</p>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed text-ink line-clamp-2">{{ $discussion['message'] }}</p>
+                            <p class="mt-1.5 text-[11px] text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+>>>>>>> 1587fa5 (Perbarui resources/views/dosen/dashboard.blade.php)
         </div>
     </div>
 
