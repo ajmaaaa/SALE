@@ -15,26 +15,191 @@ class LearningController extends Controller
         $q = mb_strtolower((string) $request->query('q', ''));
         $courses = array_filter(Learning::courses(), fn ($course) => str_contains(mb_strtolower($course['title'].' '.$course['code'].' '.$course['lecturer']), $q));
 
-        return view('learning.courses', compact('courses'));
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user'))) {
+            $sessionUser = session('auth_user');
+            $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        $enrolledSections = collect();
+        if ($user && $user->hasRole(\App\Models\Role::MAHASISWA)) {
+            $enrolledSections = $user->classSectionsEnrolled()
+                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
+                ->withCount(['students', 'assessments'])
+                ->when($q !== '', function ($query) use ($q) {
+                    $query->whereHas('mataKuliah', fn ($m) => $m->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"));
+                })
+                ->get();
+        }
+
+        $isDosen = request()->is('dosen*') || ($user && $user->hasRole(\App\Models\Role::DOSEN));
+
+        $dosenSections = collect();
+        if ($isDosen) {
+            $dosenSections = \App\Models\ClassSection::query()
+                ->when($user && $user->hasRole(\App\Models\Role::DOSEN), function ($query) use ($user) {
+                    $query->where(function ($q) use ($user) {
+                        $q->where('dosen_id', $user->id)
+                            ->orWhere('dosen_pendamping_id', $user->id);
+                    });
+                })
+                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
+                ->withCount(['students', 'assessments'])
+                ->get();
+        }
+
+        $courseCards = [];
+
+        foreach ($courses as $c) {
+            $matchedSec = $dosenSections->first(function ($sec) use ($c) {
+                return str_contains($sec->display_code, $c['code'])
+                    || ($sec->mataKuliah->code && str_contains($sec->mataKuliah->code, $c['code']))
+                    || strtolower($sec->mataKuliah->name) === strtolower($c['title']);
+            }) ?? $enrolledSections->first(function ($sec) use ($c) {
+                return str_contains($sec->display_code, $c['code'])
+                    || ($sec->mataKuliah->code && str_contains($sec->mataKuliah->code, $c['code']))
+                    || strtolower($sec->mataKuliah->name) === strtolower($c['title']);
+            });
+
+            if (! $matchedSec && $isDosen) {
+                $matchedSec = \App\Models\ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
+                    ->withCount(['students', 'assessments'])
+                    ->whereHas('mataKuliah', fn ($m) => $m->where('code', 'like', "%{$c['code']}%")->orWhere('name', 'like', "%{$c['title']}%"))
+                    ->first();
+            }
+
+            if (! $matchedSec && $isDosen) {
+                $defaultSem = \App\Models\Semester::where('is_active', true)->first() ?? \App\Models\Semester::first();
+                $defaultProdi = \App\Models\Prodi::first();
+                $mk = \App\Models\MataKuliah::firstOrCreate(
+                    ['code' => $c['code']],
+                    ['name' => $c['title'], 'sks' => 3, 'prodi_id' => $defaultProdi?->id ?? 1]
+                );
+                $matchedSec = \App\Models\ClassSection::firstOrCreate(
+                    ['mata_kuliah_id' => $mk->id, 'section_code' => 'A'],
+                    [
+                        'semester_id' => $defaultSem?->id ?? 1,
+                        'dosen_id' => $user->id ?? 1,
+                        'capacity' => 45,
+                        'enrollment_code' => \App\Models\ClassSection::generateUniqueEnrollmentCode(),
+                    ]
+                );
+                $matchedSec->load(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping']);
+                $matchedSec->loadCount(['students', 'assessments']);
+            }
+
+            $contents = collect(Learning::items())->where('course', $c['id']);
+            $next = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
+
+            $dosenKetua = $matchedSec ? ($matchedSec->dosen?->name ?? $c['lecturer']) : $c['lecturer'];
+            $dosenWakil = $matchedSec ? ($matchedSec->dosenPendamping?->name ?? null) : null;
+            $studentsCount = $matchedSec ? $matchedSec->students_count : 5;
+            $assessmentsCount = $matchedSec ? $matchedSec->assessments_count : $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->count();
+
+            if ($matchedSec && empty($matchedSec->enrollment_code)) {
+                $matchedSec->enrollment_code = \App\Models\ClassSection::generateUniqueEnrollmentCode();
+                $matchedSec->save();
+            }
+
+            $enrollmentCode = $matchedSec ? $matchedSec->enrollment_code : null;
+            $enrollmentUrl = $matchedSec ? $matchedSec->enrollment_url : null;
+            $qrUrl = $matchedSec ? route('kelas.qr', $matchedSec->id) : null;
+
+            $courseCards[] = [
+                'id' => $c['id'],
+                'url' => route((request()->is('dosen*') ? 'dosen' : 'mahasiswa').'.course.show', $c['id']),
+                'code' => $matchedSec ? $matchedSec->display_code : $c['code'],
+                'sks' => $matchedSec ? ($matchedSec->mataKuliah->sks . ' SKS') : '3 SKS',
+                'title' => $c['title'],
+                'lecturer' => $dosenKetua,
+                'dosen_ketua' => $dosenKetua,
+                'dosen_wakil' => $dosenWakil,
+                'cover' => $c['cover'] ?? null,
+                'type' => $next ? Learning::labels()[$next['type']] : 'Materi kelas',
+                'work' => $next['title'] ?? 'Belum ada tugas aktif',
+                'due' => !empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : '',
+                'students_count' => $studentsCount,
+                'assessments_count' => $assessmentsCount,
+                'enrollment_code' => $enrollmentCode,
+                'enrollment_url' => $enrollmentUrl,
+                'qr_url' => $qrUrl,
+                'svg_index' => $c['id'],
+            ];
+        }
+
+        foreach ($enrolledSections as $sec) {
+            $alreadyIncluded = collect($courseCards)->contains(function ($card) use ($sec) {
+                return $card['title'] === $sec->mataKuliah->name || $card['code'] === $sec->display_code;
+            });
+
+            if (! $alreadyIncluded) {
+                $courseCards[] = [
+                    'id' => $sec->id,
+                    'url' => route((request()->is('dosen*') ? 'dosen' : 'mahasiswa').'.course.show', $sec->id),
+                    'code' => $sec->display_code,
+                    'sks' => $sec->mataKuliah->sks . ' SKS',
+                    'title' => $sec->mataKuliah->name,
+                    'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                    'dosen_ketua' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                    'dosen_wakil' => $sec->dosenPendamping?->name ?? null,
+                    'cover' => null,
+                    'type' => 'Kelas Aktif',
+                    'work' => 'Perkuliahan semester ' . ($sec->semester->name ?? 'aktif'),
+                    'due' => '',
+                    'students_count' => $sec->students_count,
+                    'assessments_count' => $sec->assessments_count,
+                    'enrollment_code' => $sec->enrollment_code,
+                    'enrollment_url' => $sec->enrollment_url,
+                    'qr_url' => route('kelas.qr', $sec->id),
+                    'svg_index' => ($sec->id % 4) + 1,
+                ];
+            }
+        }
+
+        if ($isDosen) {
+            foreach ($dosenSections as $sec) {
+                $alreadyIncluded = collect($courseCards)->contains(function ($card) use ($sec) {
+                    return $card['code'] === $sec->display_code;
+                });
+
+                if (! $alreadyIncluded) {
+                    if (empty($sec->enrollment_code)) {
+                        $sec->enrollment_code = \App\Models\ClassSection::generateUniqueEnrollmentCode();
+                        $sec->save();
+                    }
+
+                    $courseCards[] = [
+                        'id' => $sec->id,
+                        'url' => route('dosen.course.show', $sec->id),
+                        'code' => $sec->display_code,
+                        'sks' => $sec->mataKuliah->sks . ' SKS',
+                        'title' => $sec->mataKuliah->name,
+                        'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                        'dosen_ketua' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                        'dosen_wakil' => $sec->dosenPendamping?->name ?? null,
+                        'cover' => null,
+                        'type' => 'Kelas Aktif',
+                        'work' => 'Perkuliahan semester ' . ($sec->semester->name ?? 'aktif'),
+                        'due' => '',
+                        'students_count' => $sec->students_count,
+                        'assessments_count' => $sec->assessments_count,
+                        'enrollment_code' => $sec->enrollment_code,
+                        'enrollment_url' => $sec->enrollment_url,
+                        'qr_url' => route('kelas.qr', $sec->id),
+                        'svg_index' => ($sec->id % 4) + 1,
+                    ];
+                }
+            }
+        }
+
+        return view('learning.courses', compact('courseCards', 'courses', 'enrolledSections'));
     }
 
     public function course(Request $request, int $course)
     {
-        $activeSection = strtoupper((string) $request->query('section', 'A'));
-        if (!in_array($activeSection, ['A', 'B', 'C'])) {
-            $activeSection = 'A';
-        }
-
-        $items = array_filter(Learning::items(), function ($item) use ($course, $activeSection) {
-            $itemSection = $item['section'] ?? 'A';
-            return $item['course'] === $course && ($itemSection === $activeSection || $itemSection === 'ALL');
-        });
-
-        return view('learning.course', [
-            'course' => Learning::course($course),
-            'items' => $items,
-            'activeSection' => $activeSection,
-        ]);
+        return view('learning.course', ['course' => Learning::course($course), 'items' => array_filter(Learning::items(), fn ($item) => $item['course'] === $course)]);
     }
 
     public function item(int $course, int $item)
@@ -67,11 +232,6 @@ class LearningController extends Controller
         uasort($items, fn ($a, $b) => strcmp($a['due'] ?? '9999', $b['due'] ?? '9999'));
 
         return view('learning.assignments', ['items' => $items, 'courses' => Learning::courses()]);
-    }
-
-    public function discussions()
-    {
-        return view('learning.discussions', ['items' => Learning::items(), 'courses' => Learning::courses()]);
     }
 
     public function createCourse()
