@@ -29,18 +29,68 @@ class ObeCalculationService
 {
     /**
      * Get a single student's score for one assessment, or null if not
-     * yet graded. Thin wrapper kept here so callers never query
-     * student_assessment_scores directly and risk treating a missing
-     * row as 0.
+     * yet graded. If the assessment uses a rubric and rubric scores exist,
+     * it calculates the score from the rubric criteria.
      */
     public function assessmentScore(int $assessmentId, int $studentId): ?float
     {
+        $assessment = \App\Models\Assessment::with('rubric.criteria')->find($assessmentId);
+        if ($assessment && $assessment->uses_rubric && $assessment->rubric) {
+            $rubricScore = $this->rubricScore($assessment->rubric, $studentId);
+            if ($rubricScore !== null) {
+                return $rubricScore;
+            }
+        }
+
         $score = StudentAssessmentScore::query()
             ->where('assessment_id', $assessmentId)
             ->where('mahasiswa_id', $studentId)
             ->value('score');
 
         return $score === null ? null : (float) $score;
+    }
+
+    /**
+     * Compute assessment score from rubric criteria for one student.
+     * Nilai Assessment = Σ (Skor Criterion × Bobot Criterion).
+     * Re-normalized across graded criteria. Returns null if no criteria are graded yet.
+     */
+    public function rubricScore(\App\Models\Rubric $rubric, int $studentId): ?float
+    {
+        $criteria = $rubric->relationLoaded('criteria') ? $rubric->criteria : $rubric->criteria()->get();
+
+        if ($criteria->isEmpty()) {
+            return null;
+        }
+
+        $criterionIds = $criteria->pluck('id');
+        $scores = \App\Models\StudentRubricScore::whereIn('rubric_criterion_id', $criterionIds)
+            ->where('mahasiswa_id', $studentId)
+            ->pluck('score', 'rubric_criterion_id');
+
+        $weightedSum = 0.0;
+        $weightGraded = 0.0;
+
+        foreach ($criteria as $criterion) {
+            $rawScore = $scores->get($criterion->id);
+            if ($rawScore === null) {
+                continue;
+            }
+
+            $score = (float) $rawScore;
+            $maxScore = (float) ($criterion->max_score ?: 100);
+            $normalizedScore = $maxScore > 0 ? ($score / $maxScore) * 100 : $score;
+            $weight = (float) $criterion->weight;
+
+            $weightedSum += $normalizedScore * ($weight / 100);
+            $weightGraded += $weight;
+        }
+
+        if ($weightGraded <= 0) {
+            return null;
+        }
+
+        return round($weightedSum / ($weightGraded / 100), 2);
     }
 
     /**
