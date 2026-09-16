@@ -20,6 +20,6 @@ class Rubric extends Model
 
     public function criteria(): HasMany
     {
-        return $this->hasMany(RubricCriterion::class);
+        return $this->hasMany(RubricCriterion::class)->orderBy('order')->orderBy('id');
     }
 }
