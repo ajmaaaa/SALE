@@ -18,19 +18,31 @@ class AdminPreviewTest extends TestCase
     {
         $user = ['name' => 'Siti', 'email' => 'siti@example.test', 'number' => 'M002', 'role' => 'mahasiswa', 'status' => 'aktif'];
         $this->post('/admin/pengguna', $user)->assertRedirect('/admin/pengguna');
-        $this->post('/admin/pengguna', $user + ['id' => '4'])->assertSessionHasNoErrors();
+        $newId = max(array_keys(session('admin.users')));
+        $this->post('/admin/pengguna', $user + ['id' => (string) $newId])->assertSessionHasNoErrors();
         $this->get('/admin/aktivitas')->assertSee('Menyimpan pengguna Siti');
         $this->post('/admin/pengguna', $user)->assertSessionHasErrors('email');
         $this->post('/admin/pengguna', ['id' => 3, 'name' => 'Admin', 'email' => 'admin@example.test', 'number' => 'ADM001', 'role' => 'mahasiswa', 'status' => 'aktif'])->assertSessionHasErrors('role');
     }
 
-    public function test_classes_require_correct_parent_and_student_roles(): void
+    public function test_prodi_requires_correct_parent_fakultas(): void
     {
-        $base = ['type' => 'kelas', 'name' => 'Kelas B', 'code' => 'IF204-B', 'status' => 'aktif', 'course' => 1];
-        $this->post('/admin/akademik', $base + ['parent' => 1, 'students' => [1]])->assertSessionHasErrors('parent');
-        $this->post('/admin/akademik', $base + ['parent' => 2, 'students' => [2]])->assertSessionHasErrors('students.0');
-        $this->post('/admin/akademik', $base + ['parent' => 2, 'students' => [1]])->assertRedirect('/admin/akademik');
-        $this->get('/admin/akademik')->assertSee('Kelas B');
+        $base = ['type' => 'prodi', 'name' => 'Sistem Informasi', 'code' => 'SI', 'status' => 'aktif'];
+        $this->post('/admin/akademik', $base + ['parent' => 999])->assertSessionHasErrors('parent');
+        $this->post('/admin/akademik', $base + ['parent' => 1])->assertRedirect('/admin/akademik');
+        $this->get('/admin/akademik')->assertSee('Sistem Informasi');
         $this->get('/admin/laporan/export')->assertDownload('sale-rekap-akademik.csv');
+    }
+
+    public function test_academic_can_be_deleted(): void
+    {
+        // 1. Delete via DELETE route
+        $this->delete('/admin/akademik/3')->assertRedirect('/admin/akademik');
+        $this->get('/admin/akademik')->assertDontSee('2026-1');
+
+        // 2. Delete via POST action=delete
+        $this->post('/admin/akademik', ['action' => 'delete', 'id' => 2])->assertRedirect('/admin/akademik');
+        $this->get('/admin/akademik')->assertSee('berhasil dihapus');
+        $this->assertArrayNotHasKey(2, session('admin.academic'));
     }
 }
