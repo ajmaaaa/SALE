@@ -360,12 +360,17 @@ const academicType = document.querySelector('[data-academic-type]');
 if (academicType) {
     const syncAcademic = () => {
         const type = academicType.value;
-        document.querySelector('[data-academic-parent]').hidden = !['prodi','kelas'].includes(type);
-        document.querySelector('[data-academic-course]').hidden = type !== 'kelas';
-        document.querySelector('[data-academic-students]').hidden = type !== 'kelas';
+        const parentBlock = document.querySelector('[data-academic-parent]');
+        if (parentBlock) parentBlock.hidden = type !== 'prodi';
+        const courseBlock = document.querySelector('[data-academic-course]');
+        if (courseBlock) courseBlock.hidden = type !== 'kelas';
+        const studentsBlock = document.querySelector('[data-academic-students]');
+        if (studentsBlock) studentsBlock.hidden = type !== 'kelas';
         const parent = document.querySelector('#parent');
-        [...parent.options].forEach(option => { option.hidden = !!option.value && option.dataset.parentType !== (type === 'kelas' ? 'prodi' : 'fakultas'); });
-        if (parent.selectedOptions[0]?.hidden) parent.value = '';
+        if (parent) {
+            [...parent.options].forEach(option => { option.hidden = !!option.value && option.dataset.parentType !== 'fakultas'; });
+            if (parent.selectedOptions[0]?.hidden) parent.value = '';
+        }
     };
     academicType.addEventListener('change',syncAcademic);
     syncAcademic();
