@@ -131,11 +131,8 @@ class LearningWorkflowTest extends TestCase
             ],
         ])->assertRedirect("/mahasiswa/course/1/item/{$itemId}");
 
-        // 4. Discussion index navigation
-        $discResponse = $this->get('/mahasiswa/discussion');
-        $discResponse->assertOk();
-        $discResponse->assertDontSee('Buka Diskusi →');
-        $discResponse->assertDontSee('<th>Aksi</th>', false);
+        // 4. Discussion index navigation redirects to dashboard
+        $this->get('/mahasiswa/discussion')->assertRedirect('/mahasiswa/dashboard');
     }
 
     public function test_late_submission_policy_is_enforced(): void
@@ -196,9 +193,7 @@ class LearningWorkflowTest extends TestCase
             ->assertDontSee('bg-rose-100', false);
 
         $discResponse = $this->get('/mahasiswa/discussion');
-        $discResponse->assertOk()
-            ->assertSee('bg-blue-600', false)
-            ->assertDontSee('bg-brand-soft text-brand', false);
+        $discResponse->assertRedirect('/mahasiswa/dashboard');
     }
 
     public function test_lecturer_view_and_quiz_action(): void
