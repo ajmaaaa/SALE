@@ -13,9 +13,29 @@ class ClassSection extends Model
         'mata_kuliah_id',
         'semester_id',
         'dosen_id',
+        'dosen_pendamping_id',
         'section_code',
         'capacity',
+        'enrollment_code',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (ClassSection $section) {
+            if (empty($section->enrollment_code)) {
+                $section->enrollment_code = static::generateUniqueEnrollmentCode();
+            }
+        });
+    }
+
+    public static function generateUniqueEnrollmentCode(): string
+    {
+        do {
+            $code = strtoupper(\Illuminate\Support\Str::random(8));
+        } while (static::where('enrollment_code', $code)->exists());
+
+        return $code;
+    }
 
     public function mataKuliah(): BelongsTo
     {
@@ -30,6 +50,11 @@ class ClassSection extends Model
     public function dosen(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dosen_id');
+    }
+
+    public function dosenPendamping(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dosen_pendamping_id');
     }
 
     public function students(): BelongsToMany
@@ -49,5 +74,10 @@ class ClassSection extends Model
     public function getDisplayCodeAttribute(): string
     {
         return $this->mataKuliah->code.'-'.$this->section_code;
+    }
+
+    public function getEnrollmentUrlAttribute(): string
+    {
+        return url('/join-kelas/'.($this->enrollment_code ?? ''));
     }
 }
