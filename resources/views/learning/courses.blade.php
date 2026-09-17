@@ -120,11 +120,9 @@
                         {{-- Ganti 'X modul Y pekerjaan' menjadi Jumlah Mahasiswa dan Jumlah Asesmen --}}
                         <div class="pt-3 flex items-center justify-between text-xs font-medium text-muted border-t border-line/60">
                             <span class="flex items-center gap-1.5">
-                                <span>👥</span>
                                 <span>{{ $course['students_count'] }} Mahasiswa</span>
                             </span>
                             <span class="flex items-center gap-1.5">
-                                <span>📝</span>
                                 <span>{{ $course['assessments_count'] }} Asesmen</span>
                             </span>
                         </div>

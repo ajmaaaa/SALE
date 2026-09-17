@@ -622,7 +622,7 @@ class ObeRumusVerificationTest extends TestCase
             ->assertSee('2. Input Nilai')
             ->assertSee('3. Rekap CPMK')
             ->assertSee('4. Rekap CPL')
-            ->assertSee('5. Export')
+            ->assertDontSee('5. Export')
             ->assertDontSee('Detail CPMK')
             ->assertDontSee('Pemetaan CPL')
             ->assertDontSee('>Pengaturan<', false);

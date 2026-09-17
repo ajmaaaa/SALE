@@ -4,7 +4,6 @@
         'dosen.penilaian.asesmen' => '2. Input Nilai',
         'dosen.penilaian.rekap'   => '3. Rekap CPMK',
         'dosen.penilaian.cpl'     => '4. Rekap CPL',
-        'dosen.penilaian.export'  => '5. Export',
     ];
 @endphp
 
