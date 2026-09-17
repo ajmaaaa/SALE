@@ -25,7 +25,7 @@ class AdminPreviewController extends Controller
 
     public function user(Request $request)
     {
-        $data = $request->validate(['id' => 'nullable|integer', 'name' => 'required|string|max:100', 'email' => 'required|email|max:150', 'number' => 'required|string|max:30', 'role' => ['required', Rule::in(['mahasiswa', 'dosen', 'admin'])], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
+        $data = $request->validate(['id' => 'nullable|integer', 'name' => 'required|string|max:100', 'email' => 'required|email|max:150', 'number' => 'required|string|max:30', 'role' => ['required', Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
         $users = AdminPreview::users();
         $id = (int) ($data['id'] ?? (max(array_keys($users)) + 1));
         abort_if(isset($data['id']) && ! isset($users[$id]), 404);
@@ -76,7 +76,7 @@ class AdminPreviewController extends Controller
             $number = $cols[0];
             $name = $cols[1];
             $email = $cols[2];
-            $role = isset($cols[3]) && in_array(strtolower($cols[3]), ['mahasiswa', 'dosen', 'admin']) ? strtolower($cols[3]) : 'mahasiswa';
+            $role = isset($cols[3]) && in_array(strtolower($cols[3]), ['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi']) ? strtolower($cols[3]) : 'mahasiswa';
             $status = isset($cols[4]) && in_array(strtolower($cols[4]), ['aktif', 'nonaktif']) ? strtolower($cols[4]) : 'aktif';
 
             $exists = false;
@@ -116,14 +116,42 @@ class AdminPreviewController extends Controller
         return redirect('/admin/pengguna')->with('notice', "Berhasil mengimpor {$added} pengguna secara massal.");
     }
 
+    public function deleteUser(Request $request, int $id)
+    {
+        $users = AdminPreview::users();
+        abort_unless(isset($users[$id]), 404);
+        $user = $users[$id];
+
+        if (($user['role'] ?? '') === 'admin' && count(array_filter($users, fn ($u) => $u['role'] === 'admin' && $u['status'] === 'aktif' && $u['id'] !== $id)) === 0) {
+            return back()->withErrors(['role' => 'Minimal satu administrator harus tetap aktif. Tidak dapat menghapus admin ini.']);
+        }
+
+        unset($users[$id]);
+        session(['admin.users' => $users]);
+        AdminPreview::log('Menghapus pengguna '.$user['name'].' ('.$user['role'].').');
+
+        return redirect('/admin/pengguna')->with('notice', 'Pengguna '.$user['name'].' berhasil dihapus.');
+    }
+
     public function academic(Request $request)
     {
         $data = $request->validate(['id' => 'nullable|integer', 'type' => ['required', Rule::in(['fakultas', 'prodi', 'semester', 'kelas'])], 'code' => 'required|string|max:30', 'name' => 'required|string|max:150', 'parent' => 'nullable|integer', 'course' => ['nullable', 'integer', Rule::in(array_keys(LearningPreview::courses()))], 'students' => 'nullable|array', 'students.*' => ['integer', Rule::in(array_keys(array_filter(AdminPreview::users(), fn ($u) => $u['role'] === 'mahasiswa' && $u['status'] === 'aktif')))], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
         $records = AdminPreview::academic();
-        $id = (int) ($data['id'] ?? (max(array_keys($records)) + 1));
+        $id = (int) ($data['id'] ?? (max(array_keys($records) ?: [0]) + 1));
         $editing = isset($data['id']);
         abort_if($editing && ! isset($records[$id]), 404);
         $data['id'] = $id;
+
+        if ($data['type'] === 'fakultas') {
+            $existingFakultas = array_filter($records, fn ($r) => $r['type'] === 'fakultas');
+            if (! $editing && count($existingFakultas) >= 1) {
+                return back()->withErrors(['type' => 'Institusi saat ini hanya dapat memiliki 1 fakultas. Silakan edit fakultas yang sudah ada.'])->withInput();
+            }
+            if ($editing && isset($records[$id]) && $records[$id]['type'] !== 'fakultas' && count($existingFakultas) >= 1) {
+                return back()->withErrors(['type' => 'Institusi saat ini hanya dapat memiliki 1 fakultas. Silakan edit fakultas yang sudah ada.'])->withInput();
+            }
+        }
+
         foreach ($records as $record) {
             if ($record['id'] !== $id && strcasecmp($record['code'], $data['code']) === 0) {
                 return back()->withErrors(['code' => 'Kode akademik sudah digunakan.'])->withInput();
@@ -149,13 +177,47 @@ class AdminPreviewController extends Controller
         return redirect('/admin/akademik')->with('notice', 'Data akademik disimpan dalam pratinjau.');
     }
 
+    public function deleteAcademic(Request $request, int $id)
+    {
+        $records = AdminPreview::academic();
+        abort_unless(isset($records[$id]), 404);
+        $record = $records[$id];
+
+        $hasChildren = array_filter($records, fn ($r) => ($r['parent'] ?? null) === $id);
+        if (! empty($hasChildren)) {
+            return back()->withErrors(['parent' => 'Data '.$record['name'].' tidak dapat dihapus karena masih menaungi program studi di bawahnya. Hapus data program studi terlebih dahulu.']);
+        }
+
+        unset($records[$id]);
+        session(['admin.academic' => $records]);
+        AdminPreview::log('Menghapus '.$record['type'].' '.$record['name'].'.');
+
+        return redirect('/admin/akademik')->with('notice', 'Data '.$record['type'].' '.$record['name'].' berhasil dihapus.');
+    }
+
+    public function resetAcademic()
+    {
+        session()->forget('admin.academic');
+        AdminPreview::log('Mereset data akademik ke data awal default.');
+
+        return redirect('/admin/akademik')->with('notice', 'Data akademik berhasil direset ke pengaturan default.');
+    }
+
     public function settings(Request $request)
     {
-        $data = $request->validate(['institution' => 'required|string|max:150', 'semester' => 'required|string|max:80', 'support' => 'required|email|max:150']);
-        session(['admin.settings' => $data]);
+        $data = $request->validate([
+            'institution' => 'required|string|max:150',
+            'institution_code' => 'nullable|string|max:20',
+            'semester' => 'required|string|max:80',
+            'support' => 'required|email|max:150',
+            'ai_token_quota' => 'nullable|integer|min:10000',
+            'ai_model' => 'nullable|string|max:50',
+            'maintenance_mode' => 'nullable|string|in:0,1',
+        ]);
+        session(['admin.settings' => array_merge(session('admin.settings', []), $data)]);
         AdminPreview::log('Memperbarui pengaturan institusi.');
 
-        return back()->with('notice', 'Pengaturan pratinjau disimpan.');
+        return back()->with('notice', 'Pengaturan sistem berhasil disimpan.');
     }
 
     public function export()

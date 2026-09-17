@@ -21,6 +21,51 @@
         </div>
     </header>
 
+    {{-- Summary Stat Cards: Total Mahasiswa, Total Dosen, Administrator, Pengguna Aktif --}}
+    @php
+        $mahasiswaCount = count(array_filter($users, fn($u) => $u['role'] === 'mahasiswa'));
+        $dosenCount = count(array_filter($users, fn($u) => $u['role'] === 'dosen'));
+        $adminCount = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
+        $aktifCount = count(array_filter($users, fn($u) => $u['status'] === 'aktif'));
+    @endphp
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="surface p-5 border border-line/60">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-muted">TOTAL MAHASISWA</p>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ $mahasiswaCount }}</p>
+            <p class="mt-1 text-xs text-muted">Peserta akademik terdaftar</p>
+        </div>
+
+        <div class="surface p-5 border border-line/60">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-muted">TOTAL DOSEN</p>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ $dosenCount }}</p>
+            <p class="mt-1 text-xs text-muted">Tenaga pendidik &amp; pengampu</p>
+        </div>
+
+        <div class="surface p-5 border border-line/60">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-muted">ADMINISTRATOR &amp; PRODI</p>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ count(array_filter($users, fn($u) => in_array($u['role'], ['admin', 'admin_prodi', 'kaprodi']))) }}</p>
+            <p class="mt-1 text-xs text-muted">Pengelola sistem &amp; kaprodi</p>
+        </div>
+
+        <div class="surface p-5 border border-line/60">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-muted">AKUN AKTIF</p>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ $aktifCount }}</p>
+            <p class="mt-1 text-xs text-muted">Dapat login ke ekosistem</p>
+        </div>
+    </div>
+
     {{-- Bulk Import Section (Collapsible) --}}
     <section id="bulk-import-section" hidden class="surface p-6">
         <div class="flex items-center justify-between pb-3 border-b border-line/60">
@@ -81,7 +126,7 @@
                 <div>
                     <label class="form-label" for="role">Peran Akses</label>
                     <select class="field" id="role" name="role">
-                        @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin' => 'Administrator'] as $key => $label)
+                        @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'] as $key => $label)
                             <option value="{{ $key }}" @selected(old('role', $record['role'] ?? '') === $key)>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -110,7 +155,7 @@
         <label class="sr-only" for="role-filter">Filter peran</label>
         <select class="field sm:w-44" id="role-filter" name="role">
             <option value="">Semua peran</option>
-            @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin' => 'Administrator'] as $key => $label)
+            @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'] as $key => $label)
                 <option value="{{ $key }}" @selected(request('role') === $key)>{{ $label }}</option>
             @endforeach
         </select>
@@ -143,15 +188,24 @@
                             {{ $user['email'] }}
                         </td>
                         <td>
-                            {{ ucfirst($user['role']) }}
+                            {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'][$user['role']] ?? ucfirst($user['role']) }}
                         </td>
                         <td>
                             {{ ucfirst($user['status']) }}
                         </td>
                         <td class="text-right">
-                            <a class="quiet-link text-xs" href="{{ route('admin.page', 'pengguna') }}?edit={{ $user['id'] }}">
-                                Edit<span class="sr-only"> {{ $user['name'] }}</span>
-                            </a>
+                            <div class="inline-flex items-center gap-2">
+                                <a class="quiet-link text-xs" href="{{ route('admin.page', 'pengguna') }}?edit={{ $user['id'] }}">
+                                    Edit<span class="sr-only"> {{ $user['name'] }}</span>
+                                </a>
+                                <span class="text-line">|</span>
+                                <form method="post" action="{{ route('admin.users.destroy', $user['id']) }}" class="inline" onsubmit="return confirm('Hapus pengguna &quot;{{ $user['name'] }}&quot;?');">
+                                    @csrf
+                                    <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 hover:underline">
+                                        Hapus
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty

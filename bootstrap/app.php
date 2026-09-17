@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
+        $middleware->alias([
+            'dosen.auth' => \App\Http\Middleware\EnsureDosenAuth::class,
+            'admin_prodi.auth' => \App\Http\Middleware\EnsureAdminProdiAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

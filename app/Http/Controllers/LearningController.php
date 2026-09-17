@@ -15,6 +15,52 @@ class LearningController extends Controller
         $q = mb_strtolower((string) $request->query('q', ''));
         $courses = array_filter(Learning::courses(), fn ($course) => str_contains(mb_strtolower($course['title'].' '.$course['code'].' '.$course['lecturer']), $q));
 
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user'))) {
+            $sessionUser = session('auth_user');
+            $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        if ($user && $user->hasRole(\App\Models\Role::MAHASISWA)) {
+            $enrolledSections = $user->classSectionsEnrolled()
+                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
+                ->withCount(['students', 'assessments'])
+                ->when($q !== '', function ($query) use ($q) {
+                    $query->whereHas('mataKuliah', fn ($m) => $m->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"));
+                })
+                ->get();
+
+            foreach ($enrolledSections as $sec) {
+                $alreadyIncluded = collect($courses)->contains(function ($card) use ($sec) {
+                    return ($card['title'] ?? '') === $sec->mataKuliah->name || ($card['code'] ?? '') === $sec->display_code;
+                });
+
+                if (! $alreadyIncluded) {
+                    $courses[] = [
+                        'id' => $sec->id,
+                        'code' => $sec->display_code,
+                        'sks' => $sec->mataKuliah->sks . ' SKS',
+                        'title' => $sec->mataKuliah->name,
+                        'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                        'dosen_ketua' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                        'dosen_wakil' => $sec->dosenPendamping?->name ?? null,
+                        'cover' => null,
+                        'type' => 'Kelas Aktif',
+                        'work' => 'Perkuliahan semester ' . ($sec->semester->name ?? 'aktif'),
+                        'due' => '',
+                        'students_count' => $sec->students_count,
+                        'assessments_count' => $sec->assessments_count,
+                        'enrollment_code' => $sec->enrollment_code,
+                        'enrollment_url' => $sec->enrollment_url,
+                        'qr_url' => route('kelas.qr', $sec->id),
+                        'svg_index' => ($sec->id % 4) + 1,
+                    ];
+                }
+            }
+        }
+
         return view('learning.courses', compact('courses'));
     }
 

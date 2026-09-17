@@ -4,15 +4,37 @@
 @section('header', 'Dashboard')
 
 @section('content')
+@php
+    $allCourses = isset($courses) ? collect($courses) : collect(\App\Support\LearningPreview::courses());
+    $totalCourses = $allCourses->count();
+    $allItems = collect(\App\Support\LearningPreview::items());
+    $pendingTasks = $allItems
+        ->whereIn('type', ['tugas', 'coding', 'kuis'])
+        ->filter(fn($i) => !session('learning.submissions.' . $i['id']))
+        ->count();
+@endphp
 <div class="space-y-8">
-    <header class="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <p class="mb-2 text-sm font-semibold text-brand">{{ now()->translatedFormat('l, d F Y') }}</p>
-            <h1 class="page-heading">Selamat datang, Ahmad.</h1>
-            <p class="page-description">Lanjutkan perkuliahan dari materi terakhir atau periksa pekerjaan yang segera berakhir.</p>
-        </div>
-        <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="button-primary shrink-0">Lanjutkan belajar</a>
+    <header class="pb-1">
+        <h1 class="page-heading">Dashboard</h1>
+        <p class="page-description">Ringkasan perkuliahan dan aktivitas akademik Anda semester ini.</p>
     </header>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+        <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
+            <div>
+                <p class="text-sm text-muted">Mata Kuliah Aktif</p>
+                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">course</span></p>
+            </div>
+            <a href="{{ route('mahasiswa.course.index') }}" class="button-secondary text-xs shrink-0">Lihat Course</a>
+        </div>
+        <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
+            <div>
+                <p class="text-sm text-muted">Tugas Belum Dikerjakan</p>
+                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $pendingTasks }} <span class="text-sm font-normal text-muted">tugas</span></p>
+            </div>
+            <a href="{{ route('mahasiswa.assignment.index') }}" class="button-secondary text-xs shrink-0">Lihat Tugas</a>
+        </div>
+    </div>
 
     <section class="rounded-xl bg-[#102f50] p-6 sm:p-7 text-white shadow-2xs border border-[#1b3f68]" aria-labelledby="recommendation-heading">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -33,10 +55,10 @@
         <div class="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
             {{-- Column 1 (KIRI): Course semester ini (4 kartu petak-petak 2x2) --}}
             <section aria-labelledby="course-heading" class="min-w-0 md:col-span-2 xl:col-span-1">
-                <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                <div class="mb-4 flex min-h-[48px] items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <h2 id="course-heading" class="section-heading text-base sm:text-lg truncate">Course semester ini</h2>
-                        <p class="mt-0.5 text-xs text-muted truncate">Kelas aktif program studi</p>
+                        <h2 id="course-heading" class="section-heading text-base sm:text-lg truncate">Course</h2>
+                        <p class="mt-0.5 text-xs text-muted">Kelas aktif yang telah ditetapkan oleh program studi pada semester ini.</p>
                     </div>
                     <a href="{{ route('mahasiswa.course.index') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
                         <span>Lihat semua</span>
@@ -45,17 +67,17 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    @foreach(collect(\App\Support\LearningPreview::courses())->take(4) as $course)
+                    @foreach($allCourses->take(4) as $course)
                         @include('learning.partials.course-card', ['course' => $course, 'role' => 'mahasiswa', 'isFirst' => $loop->first])
                     @endforeach
                 </div>
             </section>
 
-            {{-- Column 2 (TENGAH): Tenggat terdekat --}}
+            {{-- Column 2 (TENGAH): Tenggat Terdekat --}}
             <aside aria-labelledby="deadline-heading" class="min-w-0">
                 <div class="mb-4 flex h-12 items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <h2 id="deadline-heading" class="section-heading text-base sm:text-lg truncate">Tenggat terdekat</h2>
+                        <h2 id="deadline-heading" class="section-heading text-base sm:text-lg truncate">Tenggat Terdekat</h2>
                         <p class="mt-0.5 text-xs text-muted truncate">Tugas segera berakhir</p>
                     </div>
                     <a href="{{ route('mahasiswa.assignment.index') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
@@ -96,7 +118,7 @@
             <section aria-labelledby="discussion-heading" class="min-w-0">
                 <div class="mb-4 flex h-12 items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <h2 id="discussion-heading" class="section-heading text-base sm:text-lg truncate">Diskusi terbaru</h2>
+                        <h2 id="discussion-heading" class="section-heading text-base sm:text-lg truncate">Diskusi Terbaru</h2>
                         <p class="mt-0.5 text-xs text-muted truncate">Percakapan aktif kelas</p>
                     </div>
                     <a href="{{ route('mahasiswa.discussion.index') }}" class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark pt-0.5">
@@ -110,7 +132,7 @@
                         <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block p-4 text-xs transition duration-200 hover:bg-canvas">
                             <p class="text-[11px] font-medium text-muted">{{ $discussion['course_title'] }}</p>
                             <p class="mt-1 text-xs font-semibold leading-relaxed text-ink line-clamp-2">{{ $discussion['message'] }}</p>
-                            <p class="mt-1.5 text-[11px] text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                            <p class="mt-1.5 text-xs text-muted flex items-center gap-2"><span>{{ $discussion['author'] }}</span><span class="h-2.5 w-px bg-line"></span><span>{{ $discussion['time'] }}</span></p>
                         </a>
                     @endforeach
                 </div>

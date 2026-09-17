@@ -70,10 +70,6 @@
                         <span class="text-xs font-semibold text-emerald-600">
                             Sudah dikumpulkan
                         </span>
-                    @elseif($isPast)
-                        <span class="text-xs font-medium text-slate-500">
-                            Terlambat
-                        </span>
                     @else
                         <span class="text-xs font-semibold text-rose-600">
                             Belum dikumpulkan

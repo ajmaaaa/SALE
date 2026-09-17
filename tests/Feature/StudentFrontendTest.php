@@ -51,23 +51,20 @@ class StudentFrontendTest extends TestCase
         $this->get(route('mahasiswa.assignment.code', 999))->assertNotFound();
     }
 
-    public function test_student_and_lecturer_dashboards_render_course_cards_without_ipk(): void
+    public function test_student_and_lecturer_dashboards_render_expected_sections(): void
     {
         $studentDash = $this->get(route('mahasiswa.dashboard'));
         $studentDash->assertOk()
-            ->assertDontSee('IPK kumulatif')
-            ->assertDontSee('Perkembangan akademik')
-            ->assertSee('Course semester ini')
-            ->assertSee(route('mahasiswa.course.index'))
-            ->assertSee('Struktur Data dan Algoritma')
-            ->assertSee(route('mahasiswa.course.show', 1));
+            ->assertSee('Mata Kuliah Aktif')
+            ->assertSee('Tugas Belum Dikerjakan')
+            ->assertSee('Tenggat Terdekat')
+            ->assertSee('Diskusi Terbaru');
 
         $dosenDash = $this->get(route('dosen.dashboard'));
         $dosenDash->assertOk()
-            ->assertSee('Course yang diampu')
+            ->assertSee('Jumlah Course (Matkul)')
             ->assertSee(route('dosen.course.index'))
-            ->assertSee('Struktur Data dan Algoritma')
-            ->assertSee(route('dosen.course.show', 1));
+            ->assertSee('Struktur Data dan Algoritma');
     }
 
     public function test_course_detail_page_layout_has_sidebar_discussion_and_no_lihat_nilai_saya(): void

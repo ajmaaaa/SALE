@@ -6,9 +6,11 @@
 @section('content')
 @php
     $role = request()->is('dosen*') ? 'dosen' : 'mahasiswa';
-    $cpmkList = \App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? [];
-    $modules = collect($items)->where('type', '!=', 'pengumuman')->groupBy('module');
-    $announcements = collect($items)->where('type', 'pengumuman');
+    $materiItems = collect($items)->where('type', 'materi');
+    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
+    $uncompletedTasksCount = $tugasItems->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))->count();
+    $allUsers = \App\Support\AdminPreview::users();
+    $enrolledStudents = array_filter($allUsers, fn($u) => $u['role'] === 'mahasiswa');
 @endphp
 
 <div class="space-y-7">
@@ -29,38 +31,61 @@
     {{-- Course Header --}}
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted font-medium">
+            <div class="flex flex-wrap items-center gap-2 text-xs text-muted font-medium">
                 <span class="font-semibold text-ink">{{ $course['code'] }}</span>
-                <span>·</span>
+                <span class="h-3 w-px bg-line"></span>
                 <span>3 SKS</span>
-                <span>·</span>
+                <span class="h-3 w-px bg-line"></span>
                 <span>Semester Ganjil 2026/2027</span>
-                <span>·</span>
+                <span class="h-3 w-px bg-line"></span>
                 <span>Wajib</span>
             </div>
             <h1 class="page-heading mt-2">{{ $course['title'] }}</h1>
-            <p class="page-description mt-1">{{ $course['description'] }}</p>
+            <p class="mt-1 text-sm text-muted">
+                Dosen Pengampu: <span class="font-medium text-ink">{{ $course['lecturer'] }}</span>
+            </p>
         </div>
 
-        @if($role === 'dosen')
-            <div class="flex flex-wrap gap-2.5 shrink-0">
-                <a href="{{ route('dosen.academic', $course['id']) }}" class="button-secondary">
-                    Atur CPL &amp; CPMK
-                </a>
-                <a href="{{ route('dosen.gradebook', ['course' => $course['id']]) }}" class="button-secondary">
-                    Rekap Nilai
-                </a>
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+
+            {{-- Tombol Jumlah Mahasiswa Tergabung (Klik untuk lihat daftar mahasiswa) --}}
+            <button type="button" onclick="document.getElementById('enrolled-students-modal').showModal()" class="button-secondary flex items-center gap-1.5 text-xs">
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span>{{ count($enrolledStudents) }} Mahasiswa</span>
+            </button>
+
+            @if($role === 'dosen')
                 <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary">
                     + Tambah Konten
                 </a>
-            </div>
-        @endif
+            @endif
+        </div>
     </header>
 
-    {{-- 2-Column Responsive Layout: Content di Kiri & Sidebar/Forum Diskusi di Kanan --}}
-    <div class="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-        
-        {{-- KOLOM KIRI: Video Pengantar Perkuliahan & Daftar Modul/Tugas --}}
+    <style>
+        @media (min-width: 1024px) {
+            .course-layout-grid {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1fr) 360px !important;
+                align-items: start !important;
+                gap: 1.75rem !important;
+            }
+        }
+        @media (min-width: 1280px) {
+            .course-layout-grid {
+                grid-template-columns: minmax(0, 1fr) 380px !important;
+            }
+        }
+    </style>
+
+    {{-- 2-Column Layout: Konten di Kiri & Forum Diskusi Kelas di Samping (Kanan) --}}
+    <div class="course-layout-grid grid items-start gap-7">
+        {{-- KOLOM KIRI: Video Pengantar & Modul Terpisah (Materi & Tugas) --}}
         <div class="min-w-0 space-y-7">
             {{-- 16:9 Video Player Card --}}
             <section aria-labelledby="video-heading">
@@ -74,7 +99,7 @@
                         <h2 id="video-heading" class="text-base sm:text-lg font-bold text-white">
                             {{ $course['title'] }}: Pengantar &amp; Konsep Utama
                         </h2>
-                        <p class="mt-1 text-xs text-[#c9d3d9]">Video pengantar perkuliahan · 24 menit</p>
+                        <p class="mt-1 text-xs text-[#c9d3d9]">Video pengantar perkuliahan — 24 menit</p>
                         @if(!empty($course['video']))
                             <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -90,26 +115,65 @@
                 </div>
             </section>
 
-            {{-- Modules List --}}
-            <section aria-labelledby="module-heading">
-                <div class="mb-3.5 flex items-end justify-between gap-4">
-                    <div>
-                        <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
-                        <p class="mt-1 text-xs text-muted">Buka konten untuk melihat lampiran, instruksi, dan diskusinya.</p>
-                    </div>
-                    @if($role === 'dosen')
-                        <a href="{{ route('dosen.academic', $course['id']) }}" class="quiet-link shrink-0 text-xs">
-                            Atur Bobot &amp; CPMK
-                        </a>
-                    @endif
+            {{-- TABS NAV: MATERI & TUGAS --}}
+            <div class="space-y-4">
+                <nav class="flex border-b border-line/60 gap-6" aria-label="Tab konten kelas">
+                    <button type="button" id="tab-btn-materi" onclick="switchCourseTab('materi')" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
+                        <span>Materi</span>
+                        <span class="rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{{ $materiItems->count() }}</span>
+                    </button>
+                    <button type="button" id="tab-btn-tugas" onclick="switchCourseTab('tugas')" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
+                        <span>Tugas</span>
+                        @if($uncompletedTasksCount > 0)
+                            <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">{{ $uncompletedTasksCount }}</span>
+                        @else
+                            <span class="rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{{ $tugasItems->count() }}</span>
+                        @endif
+                    </button>
+                </nav>
+
+                {{-- PANEL MATERI --}}
+                <div id="course-panel-materi" class="space-y-4">
+                    @forelse($materiItems->groupBy('module') as $moduleName => $contents)
+                        <section class="surface overflow-hidden">
+                            <div class="border-b border-line/50 px-5 py-3 flex items-center justify-between bg-canvas/30">
+                                <h3 class="font-semibold text-ink text-sm">{{ $moduleName }}</h3>
+                                <span class="text-xs text-muted">{{ count($contents) }} materi</span>
+                            </div>
+
+                            <div class="divide-y divide-line/40">
+                                @foreach($contents as $item)
+                                    <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
+                                        <span class="shrink-0 text-brand">
+                                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
+                                            <p class="mt-0.5 text-xs text-muted flex items-center gap-2">
+                                                <span>Materi belajar</span>
+                                                <span class="h-2.5 w-px bg-line"></span>
+                                                <span>{{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
+                                            </p>
+                                        </div>
+                                        <span class="text-xs font-semibold text-brand">
+                                            Buka Materi →
+                                        </span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </section>
+                    @empty
+                        <div class="surface p-6 text-center text-sm text-muted">Belum ada materi perkuliahan yang diunggah.</div>
+                    @endforelse
                 </div>
 
-                <div class="space-y-4">
-                    @forelse($modules as $moduleName => $contents)
+                {{-- PANEL TUGAS --}}
+                <div id="course-panel-tugas" class="space-y-4" style="display: none;">
+                    @forelse($tugasItems->groupBy('module') as $moduleName => $contents)
                         <section class="surface overflow-hidden">
-                            <div class="border-b border-line/50 px-5 py-3.5 flex items-center justify-between">
-                                <h3 class="font-semibold text-ink text-sm sm:text-base">{{ $moduleName }}</h3>
-                                <span class="text-xs text-muted">{{ count($contents) }} materi &amp; tugas</span>
+                            <div class="border-b border-line/50 px-5 py-3 flex items-center justify-between bg-canvas/30">
+                                <h3 class="font-semibold text-ink text-sm">{{ $moduleName }}</h3>
+                                <span class="text-xs text-muted">{{ count($contents) }} tugas</span>
                             </div>
 
                             <div class="divide-y divide-line/40">
@@ -118,36 +182,34 @@
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
                                     @endphp
                                     <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
-                                        {{-- Icon: simple, clean, no background box --}}
-                                        <span class="shrink-0 text-muted group-hover:text-ink transition">
-                                            @if($item['type'] === 'coding')
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                                            @elseif($item['type'] === 'kuis')
+                                        <span class="shrink-0 {{ $hasSubmission ? 'text-emerald-600' : 'text-brand' }}">
+                                            @if($item['type'] === 'kuis')
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .8-1.8 1.2-1.8 2.5M12 17h.01"/></svg>
-                                            @elseif($item['type'] === 'materi')
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3zM14 3v5h5"/></svg>
+                                            @elseif($item['type'] === 'coding')
+                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
                                             @else
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                                             @endif
                                         </span>
 
-                                        {{-- Content info --}}
                                         <div class="min-w-0 flex-1">
                                             <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
-                                            <p class="mt-0.5 text-xs text-muted">
+                                            <div class="mt-0.5 text-xs text-muted flex flex-wrap items-center gap-2">
                                                 <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
-                                                @if(!empty($item['cpmk']))
-                                                    <span>· {{ $item['cpmk'] }}</span>
-                                                @endif
-                                                <span>· {{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Materi belajar' }}</span>
-                                                <span>· {{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
-                                            </p>
+                                                <span class="h-2.5 w-px bg-line"></span>
+                                                <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
+                                                <span class="h-2.5 w-px bg-line"></span>
+                                                <span>{{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
+                                            </div>
                                         </div>
 
-                                        {{-- Submission status if any --}}
                                         @if($hasSubmission)
-                                            <span class="text-xs font-medium text-muted shrink-0">
-                                                Dikumpulkan
+                                            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 shrink-0">
+                                                Selesai
+                                            </span>
+                                        @else
+                                            <span class="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 shrink-0">
+                                                Kerjakan →
                                             </span>
                                         @endif
                                     </a>
@@ -155,71 +217,35 @@
                             </div>
                         </section>
                     @empty
-                        <div class="surface p-8 text-center">
-                            <h3 class="font-semibold text-ink">Belum ada modul aktif</h3>
-                            <p class="mt-1 text-xs text-muted">
-                                {{ $role === 'dosen' ? 'Tambahkan materi, tugas, atau kuis untuk kelas ini.' : 'Dosen belum membagikan materi untuk kelas ini.' }}
-                            </p>
-                            @if($role === 'dosen')
-                                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary mt-4 inline-flex">
-                                    + Tambah Konten
-                                </a>
-                            @endif
-                        </div>
+                        <div class="surface p-6 text-center text-sm text-muted">Belum ada tugas perkuliahan.</div>
                     @endforelse
                 </div>
-            </section>
+            </div>
+
+            <script>
+                function switchCourseTab(tab) {
+                    const btnMateri = document.getElementById('tab-btn-materi');
+                    const btnTugas = document.getElementById('tab-btn-tugas');
+                    const panelMateri = document.getElementById('course-panel-materi');
+                    const panelTugas = document.getElementById('course-panel-tugas');
+
+                    if (tab === 'materi') {
+                        btnMateri.className = 'pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition';
+                        btnTugas.className = 'pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition';
+                        panelMateri.style.display = 'block';
+                        panelTugas.style.display = 'none';
+                    } else {
+                        btnMateri.className = 'pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition';
+                        btnTugas.className = 'pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition';
+                        panelMateri.style.display = 'none';
+                        panelTugas.style.display = 'block';
+                    }
+                }
+            </script>
         </div>
 
-        {{-- KOLOM KANAN (SIDEBAR DISAMPING): Dosen Pengampu, Pengumuman, CPMK, & Forum Diskusi (Chat Paling Bawah) --}}
+        {{-- KOLOM KANAN (SIDEBAR DISAMPING): Forum Diskusi Kelas Saja --}}
         <aside class="space-y-6">
-            {{-- 1. Dosen Pengampu Info Card --}}
-            <section class="surface p-5 rounded-xl border border-line/60" aria-labelledby="lecturer-heading">
-                <span class="text-xs font-semibold text-muted uppercase tracking-wider block">Dosen Pengampu</span>
-                <h3 id="lecturer-heading" class="mt-1.5 text-sm font-bold text-ink">{{ $course['lecturer'] }}</h3>
-                <p class="mt-0.5 text-xs text-muted">Fakultas Ilmu Komputer</p>
-                <p class="mt-2 text-xs leading-relaxed text-muted">Diskusikan materi perkuliahan atau tugas melalui forum diskusi kelas di bawah.</p>
-            </section>
-
-            {{-- 2. Pengumuman Kelas jika ada --}}
-            @if(count($announcements) > 0)
-                <section class="surface p-5 rounded-xl border border-line/60" aria-labelledby="announcement-heading">
-                    <div class="flex items-center justify-between border-b border-line/40 pb-2.5 mb-3">
-                        <h2 id="announcement-heading" class="text-xs font-bold uppercase tracking-wider text-ink">Pengumuman Kelas</h2>
-                        <span class="text-xs text-muted font-semibold">{{ count($announcements) }}</span>
-                    </div>
-                    <div class="divide-y divide-line/40">
-                        @foreach($announcements as $announcement)
-                            <article class="py-2.5 first:pt-0 last:pb-0">
-                                <a href="{{ route('mahasiswa.course.item', [$course['id'], $announcement['id']]) }}" class="group block">
-                                    <h3 class="text-xs font-bold text-ink group-hover:text-brand transition">{{ $announcement['title'] }}</h3>
-                                    <p class="mt-1 text-xs leading-relaxed text-muted">{{ \Illuminate\Support\Str::limit($announcement['body'], 120) }}</p>
-                                </a>
-                            </article>
-                        @endforeach
-                    </div>
-                </section>
-            @endif
-
-            {{-- 3. CPMK Outcomes (Collapsible Accordion) --}}
-            @if(count($cpmkList) > 0)
-                <details class="surface p-4 sm:p-5 rounded-xl border border-line/60">
-                    <summary class="cursor-pointer text-xs font-semibold text-ink">Capaian Pembelajaran (CPMK)</summary>
-                    <div class="mt-3 divide-y divide-line/40 text-xs">
-                        @foreach($cpmkList as $cpmk)
-                            <div class="py-2.5 first:pt-0 last:pb-0">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-semibold text-ink">{{ $cpmk['code'] }}</span>
-                                    <span class="text-[11px] text-muted">{{ $cpmk['cpl'] ?? 'CPL' }}</span>
-                                </div>
-                                <p class="mt-1 text-muted leading-relaxed">{{ $cpmk['description'] }}</p>
-                            </div>
-                        @endforeach
-                    </div>
-                </details>
-            @endif
-
-            {{-- 4. Forum Diskusi Kelas (Chat Paling Bawah di Sidebar) --}}
             <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 space-y-4">
                 <div class="flex items-center justify-between border-b border-line/50 pb-3">
                     <div>
@@ -232,7 +258,7 @@
                 </div>
 
                 {{-- Messages List --}}
-                <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                <div class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
                     @forelse(\App\Support\LearningPreview::courseDiscussions($course['id']) as $msg)
                         <article class="rounded-xl border border-line/50 bg-canvas/60 p-3.5 space-y-1.5">
                             <div class="flex items-center justify-between">
@@ -276,4 +302,36 @@
         </aside>
     </div>
 </div>
+
+{{-- Modal Daftar Mahasiswa Tergabung (Clean & Authentic Academic Design) --}}
+<dialog id="enrolled-students-modal" class="backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-lg overflow-hidden m-auto">
+    <div class="p-4 sm:p-5 border-b border-line/60 flex items-center justify-between">
+        <div>
+            <h3 class="font-bold text-ink text-base">Mahasiswa Tergabung</h3>
+            <p class="text-xs text-muted mt-0.5">{{ count($enrolledStudents) }} mahasiswa terdaftar pada kelas ini</p>
+        </div>
+        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="text-muted hover:text-ink text-sm p-1">
+            <span class="sr-only">Tutup</span>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+    <div class="p-4 sm:p-5 max-h-[60vh] overflow-y-auto divide-y divide-line/40">
+        @forelse($enrolledStudents as $student)
+            <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-ink truncate">{{ $student['name'] }}</p>
+                    <p class="text-xs text-muted truncate"><span class="font-mono">{{ $student['number'] }}</span> <span class="h-2.5 w-px bg-line inline-block mx-1.5 align-middle"></span> <span>{{ $student['email'] }}</span></p>
+                </div>
+                <span class="text-xs text-muted font-medium shrink-0">Terdaftar</span>
+            </div>
+        @empty
+            <p class="text-center text-sm text-muted py-4">Belum ada mahasiswa yang terdaftar di kelas ini.</p>
+        @endforelse
+    </div>
+    <div class="p-4 border-t border-line/50 text-right">
+        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs">
+            Tutup
+        </button>
+    </div>
+</dialog>
 @endsection
