@@ -70,23 +70,6 @@
         @endif
     </header>
 
-    {{-- Class Selection Switcher Bar --}}
-    <div class="surface flex flex-wrap items-center justify-between gap-4 p-4">
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-muted uppercase tracking-wider">Pilih Kelas:</span>
-            <div class="flex items-center gap-1.5">
-                @foreach(['A' => 'Kelas A (Reguler)', 'B' => 'Kelas B (Paralel)', 'C' => 'Kelas C (Eksekutif)'] as $sCode => $sLabel)
-                    <a href="{{ route($role.'.course.show', ['course' => $course['id'], 'section' => $sCode]) }}"
-                       class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition {{ $sec === $sCode ? 'bg-brand text-white shadow-sm' : 'bg-canvas text-ink hover:bg-slate-200/80' }}">
-                        {{ $sLabel }}
-                    </a>
-                @endforeach
-            </div>
-        </div>
-        <p class="text-xs text-muted">
-            Menampilkan materi, tugas, dan pengumuman khusus <span class="font-semibold text-ink">Kelas {{ $sec }}</span>.
-        </p>
-    </div>
 
     {{-- Main Grid --}}
     <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
