@@ -8,56 +8,120 @@ use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\User;
 use App\Services\ObeCalculationService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PenilaianController extends Controller
 {
     public function __construct(private ObeCalculationService $obe) {}
 
     /**
-     * Halaman 2 — Dashboard Penilaian Kelas.
+     * Halaman 2 — Dashboard Penilaian Kelas (Langkah 1: Matriks Bobot).
      */
-    public function dashboard(ClassSection $section)
+    public function dashboard(ClassSection $section): RedirectResponse
     {
         $this->authorizeOwnership($section);
 
-        return redirect()->route('dosen.penilaian.rekap', $section);
+        return redirect()->route('dosen.penilaian.matriks', $section);
     }
 
     /**
-     * Tab: Rekap Keseluruhan.
+     * Tab: Rekap CPMK (Langkah 3: Satu kartu mandiri per CPMK).
      */
     public function rekap(ClassSection $section): View
     {
         $this->authorizeOwnership($section);
 
-        $cpls = $this->cplsFor($section);
+        $cpmks = $this->cpmksFor($section);
         $students = $section->students()->orderBy('name')->get();
+        $studentIds = $students->pluck('id');
+        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $assessmentIds = $assessments->pluck('id');
 
-        $rows = $students->map(function ($student) use ($section, $cpls) {
-            $cplScores = $this->obe->cplScoresFor($cpls, $student->id);
-            $final = $this->obe->finalScore($section, $student->id);
+        // Pre-fetch raw scores untuk efisiensi
+        $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)->get()
+            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->mahasiswa_id);
 
-            return [
-                'student' => $student,
-                'cpl_scores' => $cplScores,
-                'final_score' => $final['score'],
-                'coverage' => $final['coverage'],
-                'grade' => $this->gradeLetter($final['score']),
+        $rawCpmkScores = \App\Models\StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)->get()
+            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->cpmk_id . '_' . $row->mahasiswa_id);
+
+        $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
+        $totalCpmkWeight = (float) $cpmkWeights->sum();
+
+        // Siapkan kartu mandiri untuk setiap CPMK
+        $cpmkCards = [];
+        foreach ($cpmks as $cpmk) {
+            $weight = (float) ($cpmkWeights[$cpmk->id] ?? 0);
+
+            // Komponen asesmen pembentuk CPMK ini
+            $components = [];
+            foreach ($assessments as $asmt) {
+                $w = $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk);
+                if ($w > 0) {
+                    $components[] = [
+                        'assessment' => $asmt,
+                        'weight' => $w,
+                        'weight_formatted' => rtrim(rtrim(number_format($w, 1), '0'), '.'),
+                        'max_score' => $this->obe->assessmentCpmkMaxScore($asmt, $cpmk),
+                    ];
+                }
+            }
+
+            // Agregat kelas untuk CPMK ini
+            $agg = $this->obe->cpmkClassAggregate($cpmk, $studentIds, $section->id);
+
+            // Data mahasiswa beserta skor per komponen penyusun dan skor akhir CPMK
+            $cardStudents = [];
+            foreach ($students as $student) {
+                $scores = [];
+                foreach ($components as $comp) {
+                    $asmtId = $comp['assessment']->id;
+                    $cpmkScoreKey = $asmtId . '_' . $cpmk->id . '_' . $student->id;
+                    $asmtScoreKey = $asmtId . '_' . $student->id;
+
+                    $cpmkSpecific = $rawCpmkScores->get($cpmkScoreKey)?->first();
+                    if ($cpmkSpecific !== null && $cpmkSpecific->score !== null) {
+                        $scores[$asmtId] = (float) $cpmkSpecific->score;
+                    } else {
+                        $asmtRow = $rawAssessmentScores->get($asmtScoreKey)?->first();
+                        $scores[$asmtId] = $asmtRow?->score !== null ? (float) $asmtRow->score : null;
+                    }
+                }
+
+                $cpmkScore = $this->obe->cpmkScore($cpmk, $student->id, $section->id);
+
+                $cardStudents[] = [
+                    'student' => $student,
+                    'scores' => $scores,
+                    'cpmk_score' => $cpmkScore,
+                ];
+            }
+
+            $cpmkCards[] = [
+                'cpmk' => $cpmk,
+                'weight' => $weight,
+                'weight_formatted' => rtrim(rtrim(number_format($weight, 1), '0'), '.'),
+                'components' => $components,
+                'aggregate' => $agg,
+                'students' => $cardStudents,
             ];
-        });
+        }
 
         return view('dosen.rekap', [
-            'section' => $this->withHeaderCounts($section, $cpls),
-            'cpls' => $cpls,
-            'rows' => $rows,
+            'section' => $this->withHeaderCounts($section, null, $cpmks),
+            'cpmks' => $cpmks,
+            'cpmkWeights' => $cpmkWeights,
+            'totalCpmkWeight' => $totalCpmkWeight,
+            'cpmkCards' => $cpmkCards,
+            'obe' => $this->obe,
         ]);
     }
 
     /**
-     * Tab: Matriks Penilaian.
+     * Tab: Matriks Penilaian (Langkah 1: Matriks Versi C Interaktif).
      */
     public function matriks(ClassSection $section): View
     {
@@ -65,16 +129,71 @@ class PenilaianController extends Controller
 
         $cpmks = $this->cpmksFor($section);
         $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
 
         return view('dosen.matriks', [
             'section' => $this->withHeaderCounts($section, null, $cpmks),
             'cpmks' => $cpmks,
+            'cpmkWeights' => $cpmkWeights,
             'assessments' => $assessments,
+            'obe' => $this->obe,
         ]);
     }
 
     /**
-     * Tab: Daftar Asesmen.
+     * Simpan Matriks Penilaian Versi C:
+     * Menyimpan bobot setiap sel CPMK x Asesmen, dan menyinkronkan
+     * total kolom ke assessments.final_weight secara otomatis.
+     */
+    public function saveMatriks(Request $request, ClassSection $section): RedirectResponse
+    {
+        $this->authorizeOwnership($section);
+
+        $matrix = $request->input('matrix', []);
+        $assessments = $section->assessments()->get();
+        $cpmks = $this->cpmksFor($section);
+        $cpmkIds = $cpmks->pluck('id');
+
+        $grandTotal = 0.0;
+
+        DB::transaction(function () use ($matrix, $assessments, $cpmkIds, &$grandTotal) {
+            foreach ($assessments as $assessment) {
+                $colSum = 0.0;
+                $syncData = [];
+
+                if (isset($matrix[$assessment->id]) && is_array($matrix[$assessment->id])) {
+                    foreach ($matrix[$assessment->id] as $cpmkId => $val) {
+                        $cpmkId = (int) $cpmkId;
+                        if (! $cpmkIds->contains($cpmkId)) {
+                            continue;
+                        }
+
+                        $weight = ($val !== null && $val !== '') ? (float) $val : 0.0;
+                        if ($weight > 0) {
+                            $colSum += $weight;
+                            $syncData[$cpmkId] = ['weight' => $weight];
+                        }
+                    }
+                }
+
+                $assessment->update(['final_weight' => round($colSum, 2)]);
+                $assessment->cpmks()->sync($syncData);
+                $grandTotal += $colSum;
+            }
+        });
+
+        $grandTotalFormatted = rtrim(rtrim(number_format($grandTotal, 2), '0'), '.');
+        if (abs($grandTotal - 100) < 0.1) {
+            return redirect()->route('dosen.penilaian.matriks', $section->id)
+                ->with('notice', "Matriks penilaian valid (Total Bobot: {$grandTotalFormatted}%). Matriks telah terkunci dan Anda dapat melanjutkan ke Input Nilai.");
+        }
+
+        return redirect()->route('dosen.penilaian.matriks', $section->id)
+            ->with('notice', "Matriks bobot berhasil disimpan (Total saat ini: {$grandTotalFormatted}% / 100%). Pastikan grand total mencapai tepat 100%.");
+    }
+
+    /**
+     * Tab: Daftar Asesmen (Langkah 2: Input Nilai per Asesmen).
      */
     public function asesmen(ClassSection $section): View
     {
@@ -85,37 +204,20 @@ class PenilaianController extends Controller
         return view('dosen.penilaian.asesmen', [
             'section' => $this->withHeaderCounts($section),
             'assessments' => $assessments,
+            'obe' => $this->obe,
         ]);
     }
 
     /**
-     * Tab: Rekap CPMK.
+     * Tab: Rekap CPMK (Langkah 3 alias / rute cpmk lama).
      */
-    public function cpmk(ClassSection $section): View
+    public function cpmk(ClassSection $section)
     {
-        $this->authorizeOwnership($section);
-
-        $cpmks = $this->cpmksFor($section);
-        $students = $section->students()->orderBy('name')->get();
-
-        $rows = $students->map(function ($student) use ($cpmks) {
-            $scores = $this->obe->cpmkScoresFor($cpmks, $student->id);
-
-            return [
-                'student' => $student,
-                'scores' => $scores,
-            ];
-        });
-
-        return view('dosen.cpmk', [
-            'section' => $this->withHeaderCounts($section, null, $cpmks),
-            'cpmks' => $cpmks,
-            'rows' => $rows,
-        ]);
+        return $this->rekap($section);
     }
 
     /**
-     * Tab: Rekap CPL.
+     * Tab: Rekap CPL (Langkah 4: Satu kartu mandiri per CPL).
      */
     public function cpl(ClassSection $section): View
     {
@@ -123,254 +225,62 @@ class PenilaianController extends Controller
 
         $cpls = $this->cplsFor($section);
         $students = $section->students()->orderBy('name')->get();
+        $studentIds = $students->pluck('id');
 
-        $rows = $students->map(function ($student) use ($cpls) {
-            $scores = $this->obe->cplScoresFor($cpls, $student->id);
+        $cplCards = [];
+        foreach ($cpls as $cpl) {
+            $contributingCpmks = $cpl->cpmks; // relasi CPL -> CPMK dengan pivot weight
+            $cpmkItems = [];
+            foreach ($contributingCpmks as $cpmk) {
+                $cWeight = (float) $cpmk->pivot->weight;
+                $cAgg = $this->obe->cpmkClassAggregate($cpmk, $studentIds, $section->id);
+                $cpmkItems[] = [
+                    'cpmk' => $cpmk,
+                    'weight' => $cWeight,
+                    'weight_formatted' => rtrim(rtrim(number_format($cWeight, 2), '0'), '.'),
+                    'class_average' => $cAgg['average'],
+                ];
+            }
 
-            return [
-                'student' => $student,
-                'scores' => $scores,
+            $agg = $this->obe->cplClassAggregate($cpl, $studentIds, $section->id);
+
+            $cardStudents = [];
+            foreach ($students as $student) {
+                $cpmkScores = [];
+                foreach ($contributingCpmks as $cpmk) {
+                    $cpmkScores[$cpmk->id] = $this->obe->cpmkScore($cpmk, $student->id, $section->id);
+                }
+                $cplScore = $this->obe->cplScore($cpl, $student->id, $section->id);
+
+                $cardStudents[] = [
+                    'student' => $student,
+                    'cpmk_scores' => $cpmkScores,
+                    'cpl_score' => $cplScore,
+                ];
+            }
+
+            $cplCards[] = [
+                'cpl' => $cpl,
+                'contributing_cpmks' => $cpmkItems,
+                'aggregate' => $agg,
+                'students' => $cardStudents,
             ];
-        });
+        }
 
         return view('dosen.cpl', [
             'section' => $this->withHeaderCounts($section, $cpls),
             'cpls' => $cpls,
-            'rows' => $rows,
+            'cplCards' => $cplCards,
+            'obe' => $this->obe,
         ]);
     }
 
     /**
-     * Tab: Pengaturan Penilaian.
+     * Tab: Pengaturan Penilaian (Dialihkan ke Matriks Penilaian).
      */
-    public function pengaturan(ClassSection $section): View
+    public function pengaturan(ClassSection $section): RedirectResponse
     {
-        $this->authorizeOwnership($section);
-
-        $cpls = $this->cplsFor($section);
-        $cpmks = $this->cpmksFor($section);
-        $totalFinalWeight = $section->assessments()->sum('final_weight');
-
-        return view('dosen.pengaturan', [
-            'section' => $this->withHeaderCounts($section, $cpls, $cpmks),
-            'cpls' => $cpls,
-            'cpmks' => $cpmks,
-            'totalFinalWeight' => (float) $totalFinalWeight,
-        ]);
-    }
-
-    /**
-     * Ekspor Rekap Nilai Keseluruhan ke CSV/Excel (Step 21).
-     */
-    public function exportRekap(ClassSection $section): StreamedResponse
-    {
-        $this->authorizeOwnership($section);
-
-        $cpls = $this->cplsFor($section);
-        $students = $section->students()->orderBy('nim_nidn')->orderBy('name')->get();
-
-        $headers = ['No', 'NIM', 'Nama Mahasiswa'];
-        foreach ($cpls as $cpl) {
-            $headers[] = $cpl->code;
-        }
-        $headers[] = 'Nilai Akhir';
-        $headers[] = 'Grade';
-        $headers[] = 'Status';
-        $headers[] = 'Coverage (%)';
-
-        $safeCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $section->section_code);
-        $fileName = "rekap-nilai-{$section->mataKuliah->code}-{$safeCode}.csv";
-
-        return response()->streamDownload(function () use ($headers, $students, $cpls, $section) {
-            $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF");
-            fputcsv($file, $headers);
-
-            foreach ($students as $i => $student) {
-                $cplScores = $this->obe->cplScoresFor($cpls, $student->id);
-                $final = $this->obe->finalScore($section, $student->id);
-
-                $status = 'Belum dinilai';
-                if ($final['coverage'] < 100) {
-                    $status = 'Provisional (' . $final['coverage'] . '%)';
-                } elseif ($final['score'] !== null) {
-                    $status = 'Final';
-                }
-
-                $row = [
-                    $i + 1,
-                    $student->nim_nidn ?? '',
-                    $student->name,
-                ];
-
-                foreach ($cpls as $cpl) {
-                    $cScore = $cplScores[$cpl->id];
-                    $row[] = $cScore !== null ? number_format($cScore, 2) : '';
-                }
-
-                $row[] = $final['score'] !== null ? number_format($final['score'], 2) : '';
-                $row[] = $this->gradeLetter($final['score']) ?? '';
-                $row[] = $status;
-                $row[] = $final['coverage'];
-
-                $safeRow = array_map(function ($value) {
-                    $str = (string) $value;
-                    return preg_match('/^[=+@\-\t\r\n]/', $str) ? "'" . $str : $str;
-                }, $row);
-
-                fputcsv($file, $safeRow);
-            }
-
-            fclose($file);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-        ]);
-    }
-
-    /**
-     * Ekspor Rekap CPMK ke CSV/Excel (Step 21).
-     */
-    public function exportCpmk(ClassSection $section): StreamedResponse
-    {
-        $this->authorizeOwnership($section);
-
-        $cpmks = $this->cpmksFor($section);
-        $students = $section->students()->orderBy('nim_nidn')->orderBy('name')->get();
-
-        $headers = ['No', 'NIM', 'Nama Mahasiswa'];
-        foreach ($cpmks as $cpmk) {
-            $headers[] = $cpmk->code . ' (Amb: ' . (float)$cpmk->threshold . ')';
-        }
-
-        $safeCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $section->section_code);
-        $fileName = "rekap-cpmk-{$section->mataKuliah->code}-{$safeCode}.csv";
-
-        return response()->streamDownload(function () use ($headers, $students, $cpmks) {
-            $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF");
-            fputcsv($file, $headers);
-
-            foreach ($students as $i => $student) {
-                $scores = $this->obe->cpmkScoresFor($cpmks, $student->id);
-
-                $row = [
-                    $i + 1,
-                    $student->nim_nidn ?? '',
-                    $student->name,
-                ];
-
-                foreach ($cpmks as $cpmk) {
-                    $score = $scores[$cpmk->id];
-                    $row[] = $score !== null ? number_format($score, 2) : '';
-                }
-
-                $safeRow = array_map(function ($value) {
-                    $str = (string) $value;
-                    return preg_match('/^[=+@\-\t\r\n]/', $str) ? "'" . $str : $str;
-                }, $row);
-
-                fputcsv($file, $safeRow);
-            }
-
-            fclose($file);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-        ]);
-    }
-
-    /**
-     * Ekspor Rekap CPL ke CSV/Excel (Step 21).
-     */
-    public function exportCpl(ClassSection $section): StreamedResponse
-    {
-        $this->authorizeOwnership($section);
-
-        $cpls = $this->cplsFor($section);
-        $students = $section->students()->orderBy('nim_nidn')->orderBy('name')->get();
-
-        $headers = ['No', 'NIM', 'Nama Mahasiswa'];
-        foreach ($cpls as $cpl) {
-            $headers[] = $cpl->code;
-        }
-        $headers[] = 'Status Capaian';
-
-        $safeCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $section->section_code);
-        $fileName = "rekap-cpl-{$section->mataKuliah->code}-{$safeCode}.csv";
-
-        return response()->streamDownload(function () use ($headers, $students, $cpls) {
-            $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF");
-            fputcsv($file, $headers);
-
-            foreach ($students as $i => $student) {
-                $scores = $this->obe->cplScoresFor($cpls, $student->id);
-                $anyNull = collect($scores)->contains(null);
-                $allAchieved = ! $anyNull && collect($scores)->every(fn ($s) => $s >= 65);
-
-                $status = 'Belum lengkap';
-                if (! $anyNull) {
-                    $status = $allAchieved ? 'Tercapai' : 'Belum Tercapai';
-                }
-
-                $row = [
-                    $i + 1,
-                    $student->nim_nidn ?? '',
-                    $student->name,
-                ];
-
-                foreach ($cpls as $cpl) {
-                    $score = $scores[$cpl->id];
-                    $row[] = $score !== null ? number_format($score, 2) : '';
-                }
-
-                $row[] = $status;
-
-                $safeRow = array_map(function ($value) {
-                    $str = (string) $value;
-                    return preg_match('/^[=+@\-\t\r\n]/', $str) ? "'" . $str : $str;
-                }, $row);
-
-                fputcsv($file, $safeRow);
-            }
-
-            fclose($file);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-        ]);
-    }
-
-    /**
-     * Cetak / Print View Rekap Nilai PDF-Ready (Step 22).
-     */
-    public function printRekap(ClassSection $section): View
-    {
-        $this->authorizeOwnership($section);
-
-        $cpls = $this->cplsFor($section);
-        $students = $section->students()->orderBy('nim_nidn')->orderBy('name')->get();
-
-        $rows = $students->map(function ($student) use ($section, $cpls) {
-            $cplScores = $this->obe->cplScoresFor($cpls, $student->id);
-            $final = $this->obe->finalScore($section, $student->id);
-
-            return [
-                'student' => $student,
-                'cpl_scores' => $cplScores,
-                'final_score' => $final['score'],
-                'coverage' => $final['coverage'],
-                'grade' => $this->gradeLetter($final['score']),
-            ];
-        });
-
-        return view('dosen.penilaian.cetak-rekap', [
-            'section' => $this->withHeaderCounts($section, $cpls),
-            'cpls' => $cpls,
-            'rows' => $rows,
-            'title' => 'Laporan Rekap Nilai & Capaian CPL',
-        ]);
+        return redirect()->route('dosen.penilaian.matriks', $section->id);
     }
 
     private function cpmksFor(ClassSection $section)
@@ -429,6 +339,6 @@ class PenilaianController extends Controller
             $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
     }
 }

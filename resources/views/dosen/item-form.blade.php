@@ -2,7 +2,7 @@
 @section('header', 'Tambah konten course')
 @section('content')
 <div class="mx-auto max-w-3xl">
-    <a class="quiet-link" href="{{ route('dosen.course.show', $course['id']) }}">{{ $course['title'] }}</a>
+    <a class="quiet-link" href="{{ route('dosen.course.show', $course['id']) }}">← {{ $course['title'] }}</a>
     <h1 class="page-heading mt-5">Tambah konten</h1>
     <p class="page-description">Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.</p>
 

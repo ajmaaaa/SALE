@@ -14,58 +14,42 @@
 @endphp
 
 {{-- Header --}}
-<header class="space-y-1.5 pb-2">
-    <nav class="flex items-center gap-2 text-xs font-medium text-muted mb-1.5">
-        <a href="{{ route('dosen.dashboard') }}" class="hover:text-brand transition">Dashboard</a>
-        <span class="text-line/80">/</span>
-        <span class="text-ink font-semibold">Penilaian Kelas</span>
-    </nav>
-    <h1 class="page-heading text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Kelas yang Saya Ajar</h1>
-    <p class="page-description mt-1 text-xs sm:text-sm text-muted leading-relaxed max-w-2xl">Kelola penilaian dan capaian CPMK dari kelas yang sedang Anda ampu.</p>
+<header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <nav class="flex items-center gap-2 text-xs text-muted mb-1">
+            <a href="{{ route('dosen.dashboard') }}" class="hover:text-brand">Dashboard</a>
+            <span>/</span>
+            <span class="text-ink font-semibold">Penilaian Kelas</span>
+        </nav>
+        <h1 class="page-heading">Kelas yang Saya Ajar</h1>
+        <p class="page-description">Kelola penilaian dan capaian CPMK dari kelas yang sedang Anda ampu.</p>
+    </div>
+    <div class="flex flex-wrap gap-2.5 shrink-0">
+        <a class="button-secondary" href="{{ route('dosen.gradebook') }}">Rekap Nilai Kelas</a>
+    </div>
 </header>
 
-{{-- Filter & Overview Controls --}}
-<div class="surface p-5 rounded-2xl border border-line/70 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-    <form class="flex flex-wrap items-center gap-3 flex-1" onsubmit="event.preventDefault()">
-        {{-- Search Field with Icon --}}
-        <div class="relative flex-1 min-w-[240px] max-w-md">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="class-search" onkeyup="filterClasses()" aria-label="Cari kelas" placeholder="Cari kode atau nama mata kuliah..." class="field pl-9 text-xs py-2 font-medium w-full shadow-2xs">
-        </div>
-
-        {{-- Status Filter Dropdown --}}
-        <div class="w-full sm:w-52">
-            <select id="status-filter" onchange="filterClasses()" aria-label="Filter status penilaian" class="field text-xs py-2 font-medium text-ink bg-white shadow-2xs">
-                <option value="all">Semua Status Penilaian</option>
-                <option value="belum_selesai">Penilaian Belum Selesai</option>
-                <option value="selesai">Penilaian Selesai</option>
-            </select>
-        </div>
+{{-- Filter Controls --}}
+<div class="surface p-4 flex flex-wrap items-center justify-between gap-4">
+    <form class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]" onsubmit="event.preventDefault()">
+        <label for="class-search" class="text-xs font-semibold text-muted shrink-0">Cari Kelas:</label>
+        <input type="text" id="class-search" onkeyup="filterClasses()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-semibold max-w-xs">
+        <label for="status-filter" class="text-xs font-semibold text-muted shrink-0">Status:</label>
+        <select id="status-filter" onchange="filterClasses()" class="field text-xs font-semibold w-48">
+            <option value="all">Semua Status Penilaian</option>
+            <option value="belum_selesai">Penilaian Belum Selesai</option>
+            <option value="selesai">Penilaian Selesai</option>
+        </select>
     </form>
-
-    {{-- Overview Stats Badges --}}
-    <div class="flex items-center gap-2.5 text-xs shrink-0 flex-wrap">
-        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
-            <span class="text-muted font-medium">Total Kelas:</span>
-            <span class="font-bold text-ink">6 Aktif</span>
-        </div>
-        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
-            <span class="text-muted font-medium">Beban Mengajar:</span>
-            <span class="font-bold text-ink">18 SKS</span>
-        </div>
-        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
-            <span class="text-muted font-medium">Mahasiswa:</span>
-            <span class="font-bold text-ink">184 Total</span>
-        </div>
+    <div class="flex items-center gap-4 text-xs text-muted">
+        <span>Total Kelas: <strong class="text-ink">6 Aktif</strong></span>
+        <span>Beban Mengajar: <strong class="text-brand">18 SKS</strong></span>
+        <span>Mahasiswa: <strong class="text-ink">184 Total</strong></span>
     </div>
 </div>
 
 {{-- Class Table --}}
-<div class="surface rounded-2xl border border-line/70 shadow-xs overflow-hidden">
-    <div class="overflow-x-auto">
+<div class="surface overflow-x-auto">
     <table class="admin-table w-full" id="classes-table">
         <thead>
             <tr>

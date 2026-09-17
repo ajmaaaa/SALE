@@ -7,10 +7,6 @@ use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
-use App\Models\Role;
-use App\Models\Rubric;
-use App\Models\RubricCriterion;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,24 +61,6 @@ class AssessmentController extends Controller
     }
 
     /**
-     * Halaman Detail Asesmen & Rubrik Penilaian.
-     */
-    public function show(ClassSection $section, Assessment $assessment): View
-    {
-        $this->authorizeOwnership($section);
-        $this->authorizeAssessmentBelongsToSection($section, $assessment);
-
-        $assessment->load(['cpmks', 'rubric.criteria']);
-
-        return view('dosen.penilaian.assessment-detail', [
-            'section' => $this->withHeaderCounts($section),
-            'assessment' => $assessment,
-            'rubric' => $assessment->rubric,
-            'criteria' => $assessment->rubric ? $assessment->rubric->criteria : collect(),
-        ]);
-    }
-
-    /**
      * Halaman 5 — Form Assessment (edit), same view as create.
      */
     public function edit(ClassSection $section, Assessment $assessment): View
@@ -132,6 +110,35 @@ class AssessmentController extends Controller
     }
 
     /**
+     * Tambah instrumen komponen asesmen secara cepat langsung dari halaman Matriks Penilaian.
+     */
+    public function quickStore(Request $request, ClassSection $section): RedirectResponse
+    {
+        $this->authorizeOwnership($section);
+
+        $request->validate([
+            'code' => [
+                'required', 'string', 'max:30', 'alpha_dash',
+                Rule::unique('assessments', 'code')->where('class_section_id', $section->id),
+            ],
+            'name' => ['required', 'string', 'max:120'],
+            'type' => ['required', 'string', 'max:30'],
+        ]);
+
+        Assessment::create([
+            'class_section_id' => $section->id,
+            'code' => strtoupper($request->input('code')),
+            'name' => $request->input('name'),
+            'type' => strtolower($request->input('type')),
+            'final_weight' => 0.0,
+            'status' => Assessment::STATUS_PUBLISHED,
+        ]);
+
+        return redirect()->route('dosen.penilaian.matriks', $section->id)
+            ->with('notice', "Komponen asesmen \"{$request->input('name')}\" berhasil ditambahkan ke matriks.");
+    }
+
+    /**
      * Deletes an assessment. Confirmation happens client-side
      * (window.confirm, matching the rest of SALE) before this request
      * is even sent — see the button in dosen.penilaian.asesmen.
@@ -155,113 +162,7 @@ class AssessmentController extends Controller
         $name = $assessment->name;
         $assessment->delete();
 
-        return redirect()->route('dosen.penilaian.asesmen', $section->id)
-            ->with('notice', "Asesmen \"{$name}\" telah dihapus.");
-    }
-
-    /**
-     * Simpan / Perbarui Rubrik Penilaian beserta Kriteria.
-     */
-    public function updateRubric(Request $request, ClassSection $section, Assessment $assessment): RedirectResponse
-    {
-        $this->authorizeOwnership($section);
-        $this->authorizeAssessmentBelongsToSection($section, $assessment);
-
-        // Jika user hanya mengaktifkan rubrik (empty state)
-        if ($request->boolean('enable_only')) {
-            DB::transaction(function () use ($assessment) {
-                $assessment->rubric()->firstOrCreate([], [
-                    'name' => "Rubrik Penilaian {$assessment->name}",
-                ]);
-                $assessment->update(['uses_rubric' => true]);
-            });
-
-            return redirect()->route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id])
-                ->with('notice', 'Rubrik penilaian berhasil diaktifkan. Silakan tambahkan kriteria.');
-        }
-
-        // Jika user menonaktifkan rubrik
-        if ($request->has('disable_rubric') || ! $request->boolean('uses_rubric')) {
-            $assessment->update(['uses_rubric' => false]);
-
-            return redirect()->route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id])
-                ->with('notice', 'Rubrik penilaian telah dinonaktifkan.');
-        }
-
-        // Validasi input kriteria
-        $request->validate([
-            'rubric_name' => ['nullable', 'string', 'max:120'],
-            'criteria' => ['required', 'array', 'min:1'],
-            'criteria.*.name' => ['required', 'string', 'max:120'],
-            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
-            'criteria.*.weight' => ['required', 'numeric', 'gt:0', 'max:100'],
-            'criteria.*.max_score' => ['nullable', 'numeric', 'gt:0', 'max:1000'],
-            'criteria.*.order' => ['nullable', 'integer'],
-        ], [
-            'criteria.required' => 'Rubrik harus memiliki minimal 1 kriteria penilaian.',
-            'criteria.min' => 'Rubrik harus memiliki minimal 1 kriteria penilaian.',
-            'criteria.*.name.required' => 'Nama kriteria wajib diisi.',
-            'criteria.*.weight.required' => 'Bobot kriteria wajib diisi.',
-            'criteria.*.weight.gt' => 'Bobot kriteria harus lebih besar dari 0.',
-        ]);
-
-        $rawCriteria = $request->input('criteria', []);
-
-        // Cek duplikasi nama kriteria
-        $names = collect($rawCriteria)->pluck('name')->map(fn ($n) => trim(strtolower($n)));
-        if ($names->duplicates()->isNotEmpty()) {
-            return back()->withErrors(['criteria' => 'Nama kriteria tidak boleh duplikat dalam satu rubrik.'])->withInput();
-        }
-
-        // Cek total bobot kriteria harus tepat 100%
-        $totalWeight = collect($rawCriteria)->sum(fn ($c) => (float) ($c['weight'] ?? 0));
-        if (abs($totalWeight - 100) > 0.01) {
-            $totalLabel = rtrim(rtrim(number_format($totalWeight, 2), '0'), '.');
-
-            return back()->withErrors(['criteria' => "Total bobot kriteria wajib 100% (saat ini {$totalLabel}%)."])->withInput();
-        }
-
-        DB::transaction(function () use ($assessment, $request, $rawCriteria) {
-            $rubric = $assessment->rubric()->firstOrCreate([], [
-                'name' => $request->filled('rubric_name') ? $request->input('rubric_name') : "Rubrik Penilaian {$assessment->name}",
-            ]);
-
-            if ($request->filled('rubric_name')) {
-                $rubric->update(['name' => $request->input('rubric_name')]);
-            }
-
-            // Sync kriteria
-            $rubric->criteria()->delete();
-
-            foreach ($rawCriteria as $index => $cData) {
-                $rubric->criteria()->create([
-                    'name' => trim($cData['name']),
-                    'description' => $cData['description'] ?? null,
-                    'weight' => (float) $cData['weight'],
-                    'max_score' => ! empty($cData['max_score']) ? (float) $cData['max_score'] : 100,
-                    'order' => isset($cData['order']) && $cData['order'] !== '' ? (int) $cData['order'] : ($index + 1),
-                ]);
-            }
-
-            $assessment->update(['uses_rubric' => true]);
-        });
-
-        return redirect()->route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id])
-            ->with('notice', 'Rubrik penilaian dan kriteria berhasil disimpan.');
-    }
-
-    /**
-     * Nonaktifkan rubrik.
-     */
-    public function destroyRubric(ClassSection $section, Assessment $assessment): RedirectResponse
-    {
-        $this->authorizeOwnership($section);
-        $this->authorizeAssessmentBelongsToSection($section, $assessment);
-
-        $assessment->update(['uses_rubric' => false]);
-
-        return redirect()->route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id])
-            ->with('notice', 'Rubrik penilaian telah dinonaktifkan.');
+        return back()->with('notice', "Asesmen \"{$name}\" telah dihapus.");
     }
 
     /**
@@ -368,17 +269,7 @@ class AssessmentController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        $currentUserId = Auth::guard('web')->id();
-
-        if (! $currentUserId && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $user = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
-        }
-
-        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless($section->dosen_id === Auth::guard('web')->id(), 403);
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void

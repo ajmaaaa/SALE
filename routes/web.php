@@ -4,8 +4,10 @@ use App\Http\Controllers\AcademicController;
 use App\Http\Controllers\AdminPreviewController;
 use App\Http\Controllers\Dosen\AssessmentController;
 use App\Http\Controllers\Dosen\ClassSectionController;
-use App\Http\Controllers\Dosen\NilaiController;
+use App\Http\Controllers\Dosen\ExportController;
+use App\Http\Controllers\Dosen\InputNilaiController;
 use App\Http\Controllers\Dosen\PenilaianController;
+use App\Http\Controllers\Dosen\RubricController;
 use App\Http\Controllers\DosenAuthController;
 use App\Http\Controllers\Kaprodi\KaprodiMonitoringController;
 use App\Http\Controllers\LearningController;
@@ -84,32 +86,42 @@ Route::prefix('dosen')->name('dosen.')->middleware('dosen.auth')->group(function
     // session-based AcademicController routes above, which are being
     // phased out incrementally rather than removed outright).
     Route::get('/penilaian-kelas', [ClassSectionController::class, 'index'])->name('penilaian.index');
+    Route::get('/rekap-nilai', [ClassSectionController::class, 'rekapIndex'])->name('rekap.index');
     Route::prefix('penilaian-kelas/{section}')->name('penilaian.')->group(function () {
         Route::get('/', [PenilaianController::class, 'dashboard'])->name('dashboard');
         Route::get('/rekap', [PenilaianController::class, 'rekap'])->name('rekap');
-        Route::get('/rekap/export', [PenilaianController::class, 'exportRekap'])->name('rekap.export');
-        Route::get('/rekap/cetak', [PenilaianController::class, 'printRekap'])->name('rekap.print');
-        Route::get('/cpmk/export', [PenilaianController::class, 'exportCpmk'])->name('cpmk.export');
-        Route::get('/cpl/export', [PenilaianController::class, 'exportCpl'])->name('cpl.export');
         Route::get('/matriks', [PenilaianController::class, 'matriks'])->name('matriks');
+        Route::post('/matriks', [PenilaianController::class, 'saveMatriks'])->name('matriks.save');
         Route::get('/asesmen', [PenilaianController::class, 'asesmen'])->name('asesmen');
         Route::get('/asesmen/tambah', [AssessmentController::class, 'create'])->name('asesmen.create');
         Route::post('/asesmen', [AssessmentController::class, 'store'])->name('asesmen.store');
-        Route::get('/asesmen/{assessment}', [AssessmentController::class, 'show'])->whereNumber('assessment')->name('asesmen.show');
+        Route::post('/asesmen/quick', [AssessmentController::class, 'quickStore'])->name('asesmen.quick');
         Route::get('/asesmen/{assessment}/ubah', [AssessmentController::class, 'edit'])->whereNumber('assessment')->name('asesmen.edit');
         Route::put('/asesmen/{assessment}', [AssessmentController::class, 'update'])->whereNumber('assessment')->name('asesmen.update');
         Route::delete('/asesmen/{assessment}', [AssessmentController::class, 'destroy'])->whereNumber('assessment')->name('asesmen.destroy');
-        Route::put('/asesmen/{assessment}/rubrik', [AssessmentController::class, 'updateRubric'])->whereNumber('assessment')->name('asesmen.rubrik.update');
-        Route::delete('/asesmen/{assessment}/rubrik', [AssessmentController::class, 'destroyRubric'])->whereNumber('assessment')->name('asesmen.rubrik.destroy');
-        Route::get('/asesmen/{assessment}/nilai', [NilaiController::class, 'index'])->whereNumber('assessment')->name('asesmen.nilai');
-        Route::post('/asesmen/{assessment}/nilai', [NilaiController::class, 'store'])->whereNumber('assessment')->name('asesmen.nilai.store');
-        Route::get('/asesmen/{assessment}/template', [NilaiController::class, 'downloadTemplate'])->whereNumber('assessment')->name('asesmen.template');
-        Route::post('/asesmen/{assessment}/import/upload', [NilaiController::class, 'uploadImport'])->whereNumber('assessment')->name('asesmen.import.upload');
-        Route::post('/asesmen/{assessment}/import/confirm', [NilaiController::class, 'confirmImport'])->whereNumber('assessment')->name('asesmen.import.confirm');
-        Route::get('/asesmen/{assessment}/import/cancel', [NilaiController::class, 'cancelImport'])->whereNumber('assessment')->name('asesmen.import.cancel');
         Route::get('/cpmk', [PenilaianController::class, 'cpmk'])->name('cpmk');
         Route::get('/cpl', [PenilaianController::class, 'cpl'])->name('cpl');
         Route::get('/pengaturan', [PenilaianController::class, 'pengaturan'])->name('pengaturan');
+
+        // Input Nilai (per assessment)
+        Route::get('/asesmen/{assessment}/nilai', [InputNilaiController::class, 'show'])->whereNumber('assessment')->name('asesmen.nilai');
+        Route::post('/asesmen/{assessment}/nilai', [InputNilaiController::class, 'store'])->whereNumber('assessment')->name('asesmen.nilai.store');
+        Route::get('/asesmen/{assessment}/nilai/template', [InputNilaiController::class, 'downloadTemplate'])->whereNumber('assessment')->name('asesmen.nilai.template');
+        Route::get('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'import'])->whereNumber('assessment')->name('asesmen.nilai.import');
+        Route::post('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'processImport'])->whereNumber('assessment')->name('asesmen.nilai.import.process');
+
+        // Rubric
+        Route::get('/asesmen/{assessment}/rubrik', [RubricController::class, 'edit'])->whereNumber('assessment')->name('asesmen.rubrik');
+        Route::post('/asesmen/{assessment}/rubrik', [RubricController::class, 'save'])->whereNumber('assessment')->name('asesmen.rubrik.save');
+        Route::get('/asesmen/{assessment}/rubrik/nilai', [RubricController::class, 'scores'])->whereNumber('assessment')->name('asesmen.rubrik.nilai');
+        Route::post('/asesmen/{assessment}/rubrik/nilai', [RubricController::class, 'storeScores'])->whereNumber('assessment')->name('asesmen.rubrik.nilai.store');
+
+        // Export
+        Route::get('/export', [ExportController::class, 'index'])->name('export');
+        Route::get('/export/keseluruhan', [ExportController::class, 'rekapKeseluruhan'])->name('export.keseluruhan');
+        Route::get('/export/cpmk', [ExportController::class, 'rekapCpmk'])->name('export.cpmk');
+        Route::get('/export/cpl', [ExportController::class, 'rekapCpl'])->name('export.cpl');
+        Route::get('/export/nilai-asesmen', [ExportController::class, 'rekapNilaiAssessment'])->name('export.nilai');
     });
 });
 

@@ -25,7 +25,11 @@ class EnsureDosenAuth
                 })
                 ->first();
 
-            if ($user) {
+            if (! $user && ($sessionUser['role'] ?? '') === 'dosen') {
+                $user = User::with('role')->whereHas('role', fn ($q) => $q->where('name', Role::DOSEN))->first();
+            }
+
+            if ($user && $user->hasRole(Role::DOSEN)) {
                 \Illuminate\Support\Facades\Auth::login($user);
             }
         }

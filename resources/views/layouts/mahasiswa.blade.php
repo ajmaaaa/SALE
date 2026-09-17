@@ -70,11 +70,79 @@
             @endif
         </nav>
         @elseif(request()->is('dosen*'))
-        <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi dosen">
-            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang mengajar</p>
-            @foreach(['dosen.dashboard' => 'Dashboard', 'dosen.course.index' => 'Course saya', 'dosen.penilaian.index' => 'Penilaian Tugas & OBE', 'dosen.gradebook' => 'Rekap nilai & CPMK'] as $route => $label)
-                <a href="{{ route($route) }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs($route) || ($route === 'dosen.course.index' && request()->routeIs('dosen.course.*','dosen.item.*')) || ($route === 'dosen.penilaian.index' && (request()->routeIs('dosen.penilaian.*') || request()->routeIs('dosen.grades'))) ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">{{ $label }}</a>
-            @endforeach
+        @php
+            $currentSection = request()->route('section');
+            $currentSectionId = is_object($currentSection) ? $currentSection->id : ($currentSection ?? session('last_active_section_id'));
+            $isPenilaianActive = request()->routeIs('dosen.penilaian.index', 'dosen.penilaian.matriks', 'dosen.penilaian.asesmen*');
+            $isRekapActive = request()->routeIs('dosen.rekap.*', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk', 'dosen.penilaian.cpl', 'dosen.penilaian.export*');
+            $isCpmkActive = request()->routeIs('dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
+            $isCplActive = request()->routeIs('dosen.penilaian.cpl');
+        @endphp
+        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi dosen">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang mengajar</p>
+            <div class="space-y-1">
+                <!-- Dashboard -->
+                <a href="{{ route('dosen.dashboard') }}" 
+                   @if(request()->routeIs('dosen.dashboard')) aria-current="page" @endif 
+                   class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
+                    Dashboard
+                </a>
+
+                <!-- Course Saya -->
+                <a href="{{ route('dosen.course.index') }}" 
+                   @if(request()->routeIs('dosen.course.*', 'dosen.item.*')) aria-current="page" @endif 
+                   class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.course.*', 'dosen.item.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                    Course saya
+                </a>
+
+                <!-- Penilaian OBE -->
+                <div class="pt-1">
+                    <a href="{{ route('dosen.penilaian.index') }}" 
+                       @if(request()->routeIs('dosen.penilaian.index')) aria-current="page" @endif 
+                       class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isPenilaianActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                        <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
+                        Penilaian OBE
+                    </a>
+                    @if($currentSectionId)
+                    <div class="ml-4 pl-3 border-l border-line/70 space-y-0.5 pt-1.5 pb-1">
+                        <a href="{{ route('dosen.penilaian.matriks', $currentSectionId) }}" 
+                           class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium {{ request()->routeIs('dosen.penilaian.matriks') ? 'bg-brand-soft text-brand font-semibold' : 'text-muted hover:text-ink hover:bg-brand-soft/50' }}">
+                            <span class="h-1.5 w-1.5 rounded-full {{ request()->routeIs('dosen.penilaian.matriks') ? 'bg-brand' : 'bg-muted/40' }}"></span>
+                            1. Matriks Penilaian
+                        </a>
+                        <a href="{{ route('dosen.penilaian.asesmen', $currentSectionId) }}" 
+                           class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium {{ request()->routeIs('dosen.penilaian.asesmen*') ? 'bg-brand-soft text-brand font-semibold' : 'text-muted hover:text-ink hover:bg-brand-soft/50' }}">
+                            <span class="h-1.5 w-1.5 rounded-full {{ request()->routeIs('dosen.penilaian.asesmen*') ? 'bg-brand' : 'bg-muted/40' }}"></span>
+                            2. Input Nilai
+                        </a>
+                    </div>
+                    @endif
+                </div>
+
+                <!-- Rekap Nilai -->
+                <div class="pt-1">
+                    <a href="{{ $currentSectionId ? route('dosen.penilaian.rekap', $currentSectionId) : route('dosen.rekap.index') }}" 
+                       @if(request()->routeIs('dosen.rekap.index')) aria-current="page" @endif 
+                       class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isRekapActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                        <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
+                        Rekap Nilai
+                    </a>
+                    <div class="ml-4 pl-3 border-l border-line/70 space-y-0.5 pt-1.5 pb-1">
+                        <a href="{{ $currentSectionId ? route('dosen.penilaian.rekap', $currentSectionId) : route('dosen.rekap.index') }}" 
+                           class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium {{ $isCpmkActive ? 'bg-brand-soft text-brand font-semibold' : 'text-muted hover:text-ink hover:bg-brand-soft/50' }}">
+                            <span class="h-1.5 w-1.5 rounded-full {{ $isCpmkActive ? 'bg-brand' : 'bg-muted/40' }}"></span>
+                            Rekap CPMK
+                        </a>
+                        <a href="{{ $currentSectionId ? route('dosen.penilaian.cpl', $currentSectionId) : route('dosen.rekap.index') }}" 
+                           class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium {{ $isCplActive ? 'bg-brand-soft text-brand font-semibold' : 'text-muted hover:text-ink hover:bg-brand-soft/50' }}">
+                            <span class="h-1.5 w-1.5 rounded-full {{ $isCplActive ? 'bg-brand' : 'bg-muted/40' }}"></span>
+                            Rekap CPL
+                        </a>
+                    </div>
+                </div>
+            </div>
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
         @elseif(request()->is('kaprodi*'))

@@ -9,17 +9,20 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="section-heading">Asesmen</h2>
-            <p class="mt-1 text-sm text-muted">Kelola daftar asesmen beserta pemetaan CPMK yang diukurnya.</p>
+            <h2 class="section-heading">2. Input Nilai per Komponen Asesmen</h2>
+            <p class="mt-1 text-sm text-muted">Pilih instrumen penilaian untuk menginput nilai mahasiswa per CPMK yang diukur.</p>
         </div>
-        <a href="{{ route('dosen.penilaian.asesmen.create', $section->id) }}" class="button-primary text-xs">+ Tambah Asesmen</a>
     </div>
 
     @if($assessments->isEmpty())
         <div class="surface p-10 text-center">
-            <h2 class="section-heading">Belum ada asesmen</h2>
-            <p class="mt-2 text-sm text-muted max-w-md mx-auto">Asesmen untuk kelas ini akan muncul di sini setelah dibuat.</p>
-            <a href="{{ route('dosen.penilaian.asesmen.create', $section->id) }}" class="button-primary text-xs mt-4 inline-flex">Tambah Asesmen</a>
+            <h2 class="section-heading">Belum Ada Komponen Asesmen</h2>
+            <p class="mt-2 text-sm text-muted max-w-md mx-auto">
+                Komponen penilaian disusun dari RPS pada matriks penilaian kelas. Silakan periksa atau atur bobot komponen terlebih dahulu.
+            </p>
+            <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="button-primary text-xs mt-4 inline-flex">
+                Buka Langkah 1: Matriks Penilaian
+            </a>
         </div>
     @else
         <div class="surface overflow-x-auto">
@@ -31,7 +34,6 @@
                         <th>Jenis</th>
                         <th>Bobot Nilai Akhir</th>
                         <th>CPMK yang Diukur</th>
-                        <th>Rubrik</th>
                         <th>Status</th>
                         <th class="text-right">Aksi</th>
                     </tr>
@@ -45,23 +47,16 @@
                             <td>{{ rtrim(rtrim(number_format($assessment->final_weight, 1), '0'), '.') }}%</td>
                             <td>
                                 <div class="flex flex-wrap gap-1">
+                                    @php $obeService = $obe ?? app(\App\Services\ObeCalculationService::class); @endphp
                                     @forelse($assessment->cpmks as $cpmk)
-                                        <span class="status bg-brand-soft text-brand">{{ $cpmk->code }} ({{ rtrim(rtrim(number_format($cpmk->pivot->weight, 1), '0'), '.') }}%)</span>
+                                        @php $effWeight = $obeService->assessmentCpmkEffectiveWeight($assessment, $cpmk); @endphp
+                                        <span class="status bg-brand-soft text-brand font-medium">
+                                            {{ $cpmk->code }} (Bobot: {{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%)
+                                        </span>
                                     @empty
                                         <span class="text-xs text-muted">Belum dipetakan</span>
                                     @endforelse
                                 </div>
-                            </td>
-                            <td>
-                                @if($assessment->uses_rubric)
-                                    <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="status bg-emerald-50 text-emerald-700 text-xs hover:underline" title="Kelola Rubrik">
-                                        Aktif ({{ $assessment->rubric ? $assessment->rubric->criteria->count() : 0 }} kriteria)
-                                    </a>
-                                @else
-                                    <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="status bg-canvas text-muted text-xs hover:text-brand" title="Aktifkan Rubrik">
-                                        + Aktifkan
-                                    </a>
-                                @endif
                             </td>
                             <td>
                                 @if($assessment->status === 'published')
@@ -73,21 +68,16 @@
                                 @endif
                             </td>
                             <td class="text-right whitespace-nowrap">
-                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="quiet-link text-xs font-semibold text-emerald-600 mr-2">Nilai</a>
-                                <a href="{{ route('dosen.penilaian.asesmen.show', [$section->id, $assessment->id]) }}" class="quiet-link text-xs font-medium text-brand mr-2">Rubrik</a>
-                                <a href="{{ route('dosen.penilaian.asesmen.edit', [$section->id, $assessment->id]) }}" class="quiet-link text-xs">Ubah</a>
-                                <form method="post" action="{{ route('dosen.penilaian.asesmen.destroy', [$section->id, $assessment->id]) }}" class="inline" onsubmit="return confirm('Hapus asesmen &quot;{{ $assessment->name }}&quot;? Tindakan ini tidak dapat dibatalkan.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="quiet-link text-xs text-danger ml-2">Hapus</button>
-                                </form>
+                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="inline-flex items-center rounded bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark transition shadow-sm">
+                                    Input Nilai
+                                </a>
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
-        <p class="text-xs text-muted">Klik "Rubrik" untuk melihat detail asesmen dan mengelola kriteria penilaian berbobot.</p>
+        <p class="text-xs text-muted">Klik <strong>"Input Nilai"</strong> untuk mengisi nilai mahasiswa per CPMK yang diukur. Pengaturan pembobotan dilakukan pada <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="text-brand hover:underline font-medium">Langkah 1: Matriks Penilaian</a>.</p>
     @endif
 </div>
 @endsection

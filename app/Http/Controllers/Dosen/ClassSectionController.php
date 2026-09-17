@@ -22,6 +22,19 @@ class ClassSectionController extends Controller
      */
     public function index(Request $request): View
     {
+        return $this->renderView($request, 'penilaian');
+    }
+
+    /**
+     * Halaman Rekap Nilai OBE — Daftar Kelas Saya.
+     */
+    public function rekapIndex(Request $request): View
+    {
+        return $this->renderView($request, 'rekap');
+    }
+
+    private function renderView(Request $request, string $mode = 'penilaian'): View
+    {
         $dosen = Auth::guard('web')->user();
 
         if (! $dosen && is_array(session('auth_user'))) {
@@ -34,11 +47,8 @@ class ClassSectionController extends Controller
         abort_unless($dosen?->hasRole(\App\Models\Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
 
         $sections = ClassSection::query()
-            ->where(function ($query) use ($dosen) {
-                $query->where('dosen_id', $dosen->id)
-                    ->orWhere('dosen_pendamping_id', $dosen->id);
-            })
-            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
+            ->where('dosen_id', $dosen->id)
+            ->with(['mataKuliah', 'semester'])
             ->withCount('students')
             ->withCount('assessments')
             ->orderByDesc('semester_id')
@@ -69,6 +79,9 @@ class ClassSectionController extends Controller
             ? 'dosen.class-section.index'
             : 'dosen.penilaian-kelas.index';
 
-        return view($viewName, ['sections' => $sections]);
+        return view($viewName, [
+            'sections' => $sections,
+            'mode' => $mode,
+        ]);
     }
 }
