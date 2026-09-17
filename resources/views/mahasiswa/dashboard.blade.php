@@ -17,34 +17,9 @@
             grid-template-columns: 1fr;
         }
     }
-    .course-item-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.875rem;
-        padding: 0.875rem 1.25rem;
-        text-decoration: none;
-        transition: background-color 0.15s ease;
-    }
-    .course-item-row:hover {
-        background-color: #f8fafc;
-    }
-    .course-number-badge {
-        width: 32px;
-        height: 32px;
-        border-radius: 9999px;
-        background-color: #e0edff;
-        color: #2563eb;
-        font-weight: 700;
-        font-size: 0.8125rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
     .deadline-row {
         display: grid;
-        grid-template-columns: 68px minmax(0, 1fr);
+        grid-template-columns: 74px minmax(0, 1fr);
         gap: 0.875rem;
         padding: 1rem 1.25rem;
         text-decoration: none;
@@ -82,66 +57,54 @@
 
     {{-- Main 2-Column Grid: Left (Mata Kuliah Saya - Format Simple List) | Right (Deadlines & Discussions) --}}
     <div class="dashboard-two-col">
-        {{-- Sisi Sebelah Kiri: Mata Kuliah Saya (Persis SS Gambar INF11191) --}}
-        <section class="rounded-xl border border-line bg-white shadow-2xs overflow-hidden" aria-labelledby="mata-kuliah-heading">
-            <div class="p-5 pb-4 border-b border-line">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 id="mata-kuliah-heading" class="text-base sm:text-lg font-bold text-ink">Mata Kuliah Saya</h2>
-                        <p class="text-xs text-muted mt-0.5">Pilih mata kuliah untuk melihat kelas dan mengelola penilaian</p>
-                    </div>
-                    @if($enrolledSections->isNotEmpty())
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-soft text-brand">
-                            {{ $enrolledSections->count() }}
-                        </span>
-                    @endif
+        {{-- Sisi Sebelah Kiri: Mata Kuliah Saya (Gaya disamakan persis dengan Tenggat Terdekat) --}}
+        <section aria-labelledby="mata-kuliah-heading">
+            <div class="mb-3 flex items-start justify-between gap-2">
+                <div>
+                    <h2 id="mata-kuliah-heading" class="text-base sm:text-lg font-bold text-ink tracking-tight">Mata Kuliah Saya</h2>
+                    <p class="mt-0.5 text-xs sm:text-sm text-muted">Pilih mata kuliah untuk melihat kelas dan tugas.</p>
                 </div>
+                <a href="{{ route('mahasiswa.course.index') }}" class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#102f50] hover:text-brand transition p-1" title="Lihat semua mata kuliah">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
             </div>
 
-            @if($enrolledSections->isNotEmpty())
-                <div class="divide-y divide-line/60">
-                    @foreach($enrolledSections as $sec)
-                        @php
-                            $previewCourse = collect(\App\Support\LearningPreview::courses())->first(function($c) use ($sec) {
-                                $code = $sec->mataKuliah->code ?? '';
-                                $disp = $sec->display_code ?? '';
-                                return str_contains($disp, $c['code']) || ($code && str_contains($code, $c['code'])) || strtolower($c['title']) === strtolower($sec->mataKuliah->name);
-                            });
-                            $courseUrl = $previewCourse ? route('mahasiswa.course.show', $previewCourse['id']) : route('mahasiswa.course.show', $sec->id);
-                        @endphp
-                        <a href="{{ $courseUrl }}" class="course-item-row group" title="Buka Course {{ $sec->mataKuliah->name }}">
-                            <div class="flex items-center gap-3.5 min-w-0">
-                                <div class="course-number-badge">
-                                    {{ $loop->iteration }}
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="font-semibold text-xs sm:text-sm text-ink group-hover:text-brand transition truncate">
-                                        {{ $sec->display_code }} - {{ $sec->mataKuliah->name }}
-                                    </p>
-                                    <p class="text-[11px] sm:text-xs text-muted mt-0.5">
-                                        {{ $sec->semester->name ?? '2026/2027 (Ganjil)' }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="shrink-0 pl-2">
-                                <svg class="h-4 w-4 text-slate-400 group-hover:text-brand group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            @else
-                <div class="p-8 text-center space-y-2">
-                    <div class="h-10 w-10 rounded-full bg-brand-soft text-brand flex items-center justify-center mx-auto text-lg">
-                        📚
+            <div class="rounded-xl bg-white border border-line/70 shadow-2xs divide-y divide-line/60 overflow-hidden">
+                @forelse($enrolledSections as $sec)
+                    @php
+                        $previewCourse = collect(\App\Support\LearningPreview::courses())->first(function($c) use ($sec) {
+                            $code = $sec->mataKuliah->code ?? '';
+                            $disp = $sec->display_code ?? '';
+                            return str_contains($disp, $c['code']) || ($code && str_contains($code, $c['code'])) || strtolower($c['title']) === strtolower($sec->mataKuliah->name);
+                        });
+                        $courseUrl = $previewCourse ? route('mahasiswa.course.show', $previewCourse['id']) : route('mahasiswa.course.show', $sec->id);
+                    @endphp
+                    <a href="{{ $courseUrl }}" class="deadline-row group" title="Buka Course {{ $sec->mataKuliah->name }}">
+                        <div>
+                            <span class="block text-xs font-bold text-ink">{{ $sec->display_code ?? ($sec->mataKuliah->code ?? 'MK') }}</span>
+                            <span class="mt-0.5 block text-[11px] text-muted">{{ $sec->mataKuliah->sks ? $sec->mataKuliah->sks . ' SKS' : '3 SKS' }}</span>
+                        </div>
+                        <div class="min-w-0">
+                            <span class="block text-xs sm:text-sm font-semibold leading-snug text-ink group-hover:text-brand transition truncate">
+                                {{ $sec->mataKuliah->name }}
+                            </span>
+                            <span class="mt-0.5 block text-[11px] text-muted truncate">
+                                {{ $sec->dosen->name ?? 'Dosen Pengampu' }} &middot; {{ $sec->semester->name ?? 'Semester Ganjil 2026/2027' }}
+                            </span>
+                        </div>
+                    </a>
+                @empty
+                    <div class="p-8 text-center space-y-2">
+                        <div class="h-10 w-10 rounded-full bg-brand-soft text-brand flex items-center justify-center mx-auto text-lg">
+                            📚
+                        </div>
+                        <h3 class="font-semibold text-xs sm:text-sm text-ink">Belum Ada Mata Kuliah yang Diikuti</h3>
+                        <p class="text-xs text-muted max-w-xs mx-auto">
+                            Masukkan kode kelas dari dosen pada kolom di atas untuk bergabung ke perkuliahan.
+                        </p>
                     </div>
-                    <h3 class="font-semibold text-xs sm:text-sm text-ink">Belum Ada Mata Kuliah yang Diikuti</h3>
-                    <p class="text-xs text-muted max-w-xs mx-auto">
-                        Masukkan kode kelas dari dosen pada kolom di atas untuk bergabung ke perkuliahan.
-                    </p>
-                </div>
-            @endif
+                @endforelse
+            </div>
         </section>
 
         {{-- Sisi Tengah dan Kanan: Tenggat Terdekat & Diskusi Terbaru (Persis SS Gambar ke-3) --}}
