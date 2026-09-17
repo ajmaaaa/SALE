@@ -7,7 +7,6 @@
         <h1 class="page-heading">Laporan &amp; rekapitulasi</h1>
         <p class="page-description">Rekap data akademik yang tersedia pada pratinjau.</p>
     </div>
-    <a class="button-primary" href="{{ route('admin.export') }}">Unduh rekap CSV</a>
 </header>
 
 @php
@@ -23,60 +22,33 @@
                 <th>Kelompok data</th>
                 <th>Jumlah</th>
                 <th>Aktif</th>
-                <th class="text-right">Aksi</th>
             </tr>
         </thead>
         <tbody>
-            {{-- 1. Baris Fakultas: Diklik langsung menuju halaman rincian fakultas --}}
+            {{-- 1. Baris Fakultas: Diklik biasa langsung membuka halaman rincian fakultas --}}
             <tr onclick="window.location.href='{{ route('admin.laporan.fakultas') }}'"
                 tabindex="0"
                 role="button"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.location.href='{{ route('admin.laporan.fakultas') }}';}"
                 class="hover:bg-canvas/60 cursor-pointer transition select-none group border-b border-line/40">
-                <td>
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('admin.laporan.fakultas') }}" class="font-semibold text-ink group-hover:text-brand transition">
-                            Fakultas
-                        </a>
-                        <span class="text-[11px] text-muted bg-slate-100 group-hover:bg-brand-soft/60 px-2 py-0.5 rounded transition">
-                            FIK, FT, FEB · Klik rincian
-                        </span>
-                    </div>
+                <td class="font-semibold text-ink group-hover:text-brand transition">
+                    Fakultas
                 </td>
                 <td class="font-medium text-ink">{{ $totalFaculties }}</td>
                 <td class="font-medium text-emerald-700">{{ $totalFaculties }}</td>
-                <td class="text-right">
-                    <a href="{{ route('admin.laporan.fakultas') }}" class="button-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 group-hover:border-brand group-hover:text-brand transition">
-                        <span>Buka Rincian</span>
-                        <svg class="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </a>
-                </td>
             </tr>
 
-            {{-- 2. Baris Program Studi: Diklik langsung menuju halaman rincian program studi --}}
+            {{-- 2. Baris Program Studi: Diklik biasa langsung membuka halaman rincian program studi --}}
             <tr onclick="window.location.href='{{ route('admin.laporan.prodi') }}'"
                 tabindex="0"
                 role="button"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.location.href='{{ route('admin.laporan.prodi') }}';}"
                 class="hover:bg-canvas/60 cursor-pointer transition select-none group border-b border-line/40">
-                <td>
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('admin.laporan.prodi') }}" class="font-semibold text-ink group-hover:text-brand transition">
-                            Program studi
-                        </a>
-                        <span class="text-[11px] text-muted bg-slate-100 group-hover:bg-brand-soft/60 px-2 py-0.5 rounded transition">
-                            12 Prodi (4 per fakultas) · Klik rincian
-                        </span>
-                    </div>
+                <td class="font-semibold text-ink group-hover:text-brand transition">
+                    Program studi
                 </td>
                 <td class="font-medium text-ink">{{ $totalProdis }}</td>
                 <td class="font-medium text-emerald-700">{{ $totalProdis }}</td>
-                <td class="text-right">
-                    <a href="{{ route('admin.laporan.prodi') }}" class="button-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 group-hover:border-brand group-hover:text-brand transition">
-                        <span>Buka Rincian</span>
-                        <svg class="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </a>
-                </td>
             </tr>
         </tbody>
     </table>

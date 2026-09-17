@@ -61,6 +61,8 @@ class AdminPreviewTest extends TestCase
         $response->assertOk();
         $response->assertSee(route('admin.laporan.fakultas'));
         $response->assertSee(route('admin.laporan.prodi'));
+        $response->assertDontSee('Unduh rekap CSV');
+        $response->assertDontSee('Buka Rincian');
         $content = $response->getContent();
         $this->assertDoesNotMatchRegularExpression('/<tbody>.*?Semester.*?<\/tbody>/s', $content);
 
