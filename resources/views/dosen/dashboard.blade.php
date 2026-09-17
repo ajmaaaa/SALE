@@ -33,17 +33,9 @@
     <div class="grid gap-6 sm:grid-cols-2">
         {{-- Card 1: Jumlah Course --}}
         <div class="surface p-6 rounded-2xl flex items-center justify-between gap-5 border border-line/70 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand shrink-0">
-                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/>
-                        <path d="M4 5.5v16M8 7h8"/>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Course (Matkul)</p>
-                    <p class="mt-0.5 text-2xl font-extrabold text-ink">{{ $totalCourses }} <span class="text-xs font-normal text-muted">Matkul Aktif</span></p>
-                </div>
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Course (Matkul)</p>
+                <p class="mt-1 text-2xl font-extrabold text-ink">{{ $totalCourses }} <span class="text-xs font-normal text-muted">Matkul Aktif</span></p>
             </div>
             <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs px-3.5 py-2 font-semibold shrink-0">
                 Kelola Matkul
@@ -52,17 +44,9 @@
 
         {{-- Card 2: Jumlah Penilaian Belum Dinilai --}}
         <div class="surface p-6 rounded-2xl flex items-center justify-between gap-5 border border-line/70 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 shrink-0">
-                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Penilaian Belum Dinilai</p>
-                    <p class="mt-0.5 text-2xl font-extrabold text-ink">{{ $pendingCount }} <span class="text-xs font-normal text-muted">Kelas Belum Dinilai</span></p>
-                </div>
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Penilaian Belum Dinilai</p>
+                <p class="mt-1 text-2xl font-extrabold text-ink">{{ $pendingCount }} <span class="text-xs font-normal text-muted">Kelas Belum Dinilai</span></p>
             </div>
             <a href="{{ route('dosen.grades') }}" class="button-secondary text-xs px-3.5 py-2 font-semibold shrink-0">
                 Lihat Penilaian
