@@ -23,64 +23,6 @@ class AdminPreviewController extends Controller
         return view('admin.'.$section, compact('users', 'academic', 'visibleUsers', 'visibleAcademic', 'record'));
     }
 
-    public function laporanFakultas(Request $request)
-    {
-        $users = AdminPreview::users();
-        $academic = AdminPreview::academic();
-        $fakultasRecords = array_values(array_filter($academic, fn ($a) => ($a['type'] ?? '') === 'fakultas'));
-        $prodiRecords = array_values(array_filter($academic, fn ($a) => ($a['type'] ?? '') === 'prodi'));
-
-        $facultyProdis = [
-            [
-                'code' => 'IF',
-                'name' => 'S1 Teknik Informatika',
-                'jenjang' => 'S1',
-                'kaprodi' => 'Dr. H. Kaprodi, M.T.',
-                'wakil' => 'Dr. Budi Santoso, M.Kom.',
-                'mahasiswa' => 85,
-                'status' => 'Aktif',
-            ],
-            [
-                'code' => 'SI',
-                'name' => 'S1 Sistem Informasi',
-                'jenjang' => 'S1',
-                'kaprodi' => 'Dr. Ahmad Fauzi, M.Kom.',
-                'wakil' => 'Nurul Hidayah, M.T.',
-                'mahasiswa' => 60,
-                'status' => 'Aktif',
-            ],
-            [
-                'code' => 'TI',
-                'name' => 'S1 Teknologi Informasi',
-                'jenjang' => 'S1',
-                'kaprodi' => 'Dr. Eng. Rina Marlina, M.Kom.',
-                'wakil' => 'Hendra Pratama, M.Cs.',
-                'mahasiswa' => 45,
-                'status' => 'Aktif',
-            ],
-        ];
-
-        return view('admin.laporan-fakultas', compact('users', 'academic', 'fakultasRecords', 'prodiRecords', 'facultyProdis'));
-    }
-
-    public function laporanProdi(Request $request)
-    {
-        $users = AdminPreview::users();
-        $academic = AdminPreview::academic();
-        $fakultasRecords = array_values(array_filter($academic, fn ($a) => ($a['type'] ?? '') === 'fakultas'));
-        $prodiRecords = array_values(array_filter($academic, fn ($a) => ($a['type'] ?? '') === 'prodi'));
-
-        $mataKuliahList = [
-            ['code' => 'IF101', 'name' => 'Algoritma dan Pemrograman', 'sks' => 3, 'semester' => 'Semester Ganjil 2026/2027', 'kelas' => 'IF-A'],
-            ['code' => 'IF102', 'name' => 'Struktur Data & Analisis Algoritma', 'sks' => 3, 'semester' => 'Semester Ganjil 2026/2027', 'kelas' => 'IF-A'],
-            ['code' => 'IF201', 'name' => 'Basis Data Relasional & NoSQL', 'sks' => 3, 'semester' => 'Semester Ganjil 2026/2027', 'kelas' => 'IF-B'],
-            ['code' => 'IF202', 'name' => 'Pemrograman Berorientasi Objek (OOP)', 'sks' => 3, 'semester' => 'Semester Ganjil 2026/2027', 'kelas' => 'IF-A'],
-            ['code' => 'IF301', 'name' => 'Kecerdasan Buatan & Machine Learning', 'sks' => 3, 'semester' => 'Semester Ganjil 2026/2027', 'kelas' => 'IF-A'],
-        ];
-
-        return view('admin.laporan-prodi', compact('users', 'academic', 'fakultasRecords', 'prodiRecords', 'mataKuliahList'));
-    }
-
     public function user(Request $request)
     {
         $data = $request->validate([
