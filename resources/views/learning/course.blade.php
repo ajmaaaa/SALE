@@ -7,8 +7,13 @@
 @php
     $role = request()->is('dosen*') ? 'dosen' : 'mahasiswa';
     $cpmkList = \App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? [];
-    $modules = collect($items)->where('type', '!=', 'pengumuman')->groupBy('module');
+    $allCourseItems = collect($items)->where('type', '!=', 'pengumuman');
+    $modules = $allCourseItems->groupBy('module');
     $announcements = collect($items)->where('type', 'pengumuman');
+
+    $totalMateri = $allCourseItems->where('type', 'materi')->count();
+    $totalTugas = $allCourseItems->where('type', '!=', 'materi')->count();
+    $totalSemua = $allCourseItems->count();
 @endphp
 
 <div class="space-y-7">
@@ -116,34 +121,91 @@
                 </div>
             </section>
 
-            {{-- Modules List --}}
-            <section aria-labelledby="module-heading">
-                <div class="mb-4 flex items-end justify-between gap-4">
+            {{-- Modules List with Clean Navbar Tabs (Desain seperti Penilaian Dosen) --}}
+            <section aria-labelledby="module-heading" class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                     <div>
                         <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
                         <p class="mt-1 text-xs text-muted">Buka konten untuk melihat lampiran, instruksi, dan diskusinya.</p>
                     </div>
                     @if($role === 'dosen')
-                        <a href="{{ route('dosen.academic', $course['id']) }}" class="quiet-link shrink-0 text-xs">
-                            Atur Bobot &amp; CPMK
-                        </a>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <a href="{{ route('dosen.academic', $course['id']) }}" class="quiet-link text-xs">
+                                Atur Bobot &amp; CPMK
+                            </a>
+                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary text-xs">
+                                + Tambah Konten
+                            </a>
+                        </div>
                     @endif
                 </div>
 
-                <div class="space-y-4">
+                {{-- Navbar Tab (Gaya Penilaian Dosen: Materi di kiri, Tugas di kanan) --}}
+                <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto overflow-y-hidden border-b border-line/80 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Tab konten kelas" id="courseNavTabs">
+                    <button type="button"
+                            id="tabBtnMateri"
+                            onclick="setCourseTab('materi')"
+                            class="course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-brand text-brand">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        <span>Materi</span>
+                        <span id="badgeCountMateri" class="rounded-full px-2 py-0.5 text-xs font-semibold bg-brand-soft text-brand">
+                            {{ $totalMateri }}
+                        </span>
+                    </button>
+
+                    <button type="button"
+                            id="tabBtnTugas"
+                            onclick="setCourseTab('tugas')"
+                            class="course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-transparent text-muted hover:text-ink">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                        <span>Tugas &amp; Pekerjaan Kelas</span>
+                        <span id="badgeCountTugas" class="rounded-full px-2 py-0.5 text-xs font-medium bg-canvas text-muted">
+                            {{ $totalTugas }}
+                        </span>
+                    </button>
+
+                    <button type="button"
+                            id="tabBtnSemua"
+                            onclick="setCourseTab('semua')"
+                            class="course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-transparent text-muted hover:text-ink">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                        <span>Semua Konten</span>
+                        <span id="badgeCountSemua" class="rounded-full px-2 py-0.5 text-xs font-medium bg-canvas text-muted">
+                            {{ $totalSemua }}
+                        </span>
+                    </button>
+                </nav>
+
+                <div class="space-y-4" id="courseModulesContainer">
                     @forelse($modules as $moduleName => $contents)
-                        <section class="surface overflow-hidden">
+                        @php
+                            $modMateriCount = collect($contents)->where('type', 'materi')->count();
+                            $modTugasCount = collect($contents)->where('type', '!=', 'materi')->count();
+                            $modTotalCount = count($contents);
+                        @endphp
+                        <section class="surface overflow-hidden course-module-card"
+                                 data-materi-count="{{ $modMateriCount }}"
+                                 data-tugas-count="{{ $modTugasCount }}"
+                                 data-total-count="{{ $modTotalCount }}">
                             <div class="border-b border-line/50 px-5 py-3.5 flex items-center justify-between">
                                 <h3 class="font-semibold text-ink text-sm sm:text-base">{{ $moduleName }}</h3>
-                                <span class="text-xs text-muted">{{ count($contents) }} materi &amp; tugas</span>
+                                <span class="text-xs text-muted module-counter-label"
+                                      data-label-materi="{{ $modMateriCount }} materi"
+                                      data-label-tugas="{{ $modTugasCount }} tugas &amp; kuis"
+                                      data-label-semua="{{ $modTotalCount }} materi &amp; tugas">
+                                    {{ $modMateriCount }} materi
+                                </span>
                             </div>
 
                             <div class="divide-y divide-line/40">
                                 @foreach($contents as $item)
                                     @php
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
+                                        $isMateri = $item['type'] === 'materi';
                                     @endphp
-                                    <a href="{{ route($role.'.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
+                                    <a href="{{ route($role.'.course.item', [$course['id'], $item['id']]) }}"
+                                       class="course-item-row group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition"
+                                       data-item-type="{{ $isMateri ? 'materi' : 'tugas' }}">
                                         {{-- Icon: simple, clean, no background box --}}
                                         <span class="shrink-0 text-muted group-hover:text-ink transition">
                                             @if($item['type'] === 'coding')
@@ -193,6 +255,17 @@
                             @endif
                         </div>
                     @endforelse
+
+                    {{-- Dynamic Empty State for Active Tab when no items match --}}
+                    <div id="courseEmptyState" class="hidden surface p-8 text-center">
+                        <h3 class="font-semibold text-ink" id="courseEmptyTitle">Belum ada materi</h3>
+                        <p class="mt-1 text-xs text-muted" id="courseEmptySubtitle">Dosen belum membagikan modul materi untuk kelas ini.</p>
+                        @if($role === 'dosen')
+                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary mt-4 inline-flex">
+                                + Tambah Konten
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </section>
         </div>
@@ -249,4 +322,102 @@
         </aside>
     </div>
 </div>
+
+<script>
+    function setCourseTab(tab) {
+        const validTabs = ['materi', 'tugas', 'semua'];
+        if (!validTabs.includes(tab)) tab = 'materi';
+
+        // 1. Update button styling & active states
+        validTabs.forEach(t => {
+            const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+            const badge = document.getElementById('badgeCount' + t.charAt(0).toUpperCase() + t.slice(1));
+            if (!btn || !badge) return;
+
+            if (t === tab) {
+                btn.className = 'course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-brand text-brand';
+                badge.className = 'rounded-full px-2 py-0.5 text-xs font-semibold bg-brand-soft text-brand';
+            } else {
+                btn.className = 'course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-transparent text-muted hover:text-ink';
+                badge.className = 'rounded-full px-2 py-0.5 text-xs font-medium bg-canvas text-muted';
+            }
+        });
+
+        // 2. Filter Module Cards and their Items
+        let visibleModulesCount = 0;
+        const moduleCards = document.querySelectorAll('.course-module-card');
+        const emptyState = document.getElementById('courseEmptyState');
+
+        moduleCards.forEach(card => {
+            const materiCount = parseInt(card.dataset.materiCount || '0', 10);
+            const tugasCount = parseInt(card.dataset.tugasCount || '0', 10);
+            const totalCount = parseInt(card.dataset.totalCount || '0', 10);
+            const counterLabel = card.querySelector('.module-counter-label');
+            const items = card.querySelectorAll('.course-item-row');
+
+            let showCard = false;
+
+            if (tab === 'materi') {
+                showCard = materiCount > 0;
+                if (counterLabel) counterLabel.textContent = counterLabel.getAttribute('data-label-materi');
+                items.forEach(item => {
+                    item.style.display = item.dataset.itemType === 'materi' ? '' : 'none';
+                });
+            } else if (tab === 'tugas') {
+                showCard = tugasCount > 0;
+                if (counterLabel) counterLabel.textContent = counterLabel.getAttribute('data-label-tugas');
+                items.forEach(item => {
+                    item.style.display = item.dataset.itemType === 'tugas' ? '' : 'none';
+                });
+            } else {
+                showCard = totalCount > 0;
+                if (counterLabel) counterLabel.textContent = counterLabel.getAttribute('data-label-semua');
+                items.forEach(item => {
+                    item.style.display = '';
+                });
+            }
+
+            if (showCard) {
+                card.style.display = '';
+                visibleModulesCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // 3. Handle Empty State if no modules match
+        if (emptyState) {
+            if (visibleModulesCount === 0) {
+                emptyState.classList.remove('hidden');
+                const titleEl = document.getElementById('courseEmptyTitle');
+                const descEl = document.getElementById('courseEmptySubtitle');
+                if (tab === 'materi') {
+                    if (titleEl) titleEl.textContent = 'Belum ada materi perkuliahan';
+                    if (descEl) descEl.textContent = 'Dosen belum membagikan modul materi untuk kelas ini.';
+                } else if (tab === 'tugas') {
+                    if (titleEl) titleEl.textContent = 'Belum ada tugas atau kuis aktif';
+                    if (descEl) descEl.textContent = 'Belum ada tugas, kuis, atau pekerjaan kelas yang ditugaskan.';
+                } else {
+                    if (titleEl) titleEl.textContent = 'Belum ada konten aktif';
+                    if (descEl) descEl.textContent = 'Belum ada materi atau tugas untuk kelas ini.';
+                }
+            } else {
+                emptyState.classList.add('hidden');
+            }
+        }
+
+        // 4. Update hash in URL without jumping
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '#' + tab);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = (urlParams.get('tab') || '').toLowerCase();
+        const initialTab = ['materi', 'tugas', 'semua'].includes(hash) ? hash : (['materi', 'tugas', 'semua'].includes(tabParam) ? tabParam : 'materi');
+        setCourseTab(initialTab);
+    });
+</script>
 @endsection
