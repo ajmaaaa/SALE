@@ -23,6 +23,45 @@ class AdminPreviewController extends Controller
         return view('admin.'.$section, compact('users', 'academic', 'visibleUsers', 'visibleAcademic', 'record'));
     }
 
+    public function laporanFakultas(Request $request)
+    {
+        $faculties = AdminPreview::facultyProdiData();
+        $selectedFacultyCode = $request->query('fakultas', 'FIK');
+        if (! isset($faculties[$selectedFacultyCode])) {
+            $selectedFacultyCode = 'FIK';
+        }
+        $faculty = $faculties[$selectedFacultyCode];
+
+        $selectedProdiCode = $request->query('prodi', array_key_first($faculty['prodis']));
+        if (! isset($faculty['prodis'][$selectedProdiCode])) {
+            $selectedProdiCode = array_key_first($faculty['prodis']);
+        }
+        $prodi = $faculty['prodis'][$selectedProdiCode];
+
+        return view('admin.laporan-fakultas', compact('faculties', 'faculty', 'prodi', 'selectedFacultyCode', 'selectedProdiCode'));
+    }
+
+    public function laporanProdi(Request $request)
+    {
+        $faculties = AdminPreview::facultyProdiData();
+
+        $allProdis = [];
+        foreach ($faculties as $fCode => $f) {
+            foreach ($f['prodis'] as $pCode => $p) {
+                $allProdis[$pCode] = $p;
+            }
+        }
+
+        $selectedProdiCode = $request->query('prodi', 'IF');
+        if (! isset($allProdis[$selectedProdiCode])) {
+            $selectedProdiCode = 'IF';
+        }
+        $prodi = $allProdis[$selectedProdiCode];
+        $faculty = $faculties[$prodi['faculty_code']];
+
+        return view('admin.laporan-prodi', compact('faculties', 'allProdis', 'prodi', 'faculty', 'selectedProdiCode'));
+    }
+
     public function user(Request $request)
     {
         $data = $request->validate([

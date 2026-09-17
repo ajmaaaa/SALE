@@ -18,20 +18,98 @@
     </header>
 
     {{-- Quick Stat Cards --}}
+    @php
+        $facultyData = \App\Support\AdminPreview::facultyProdiData();
+        $totalFaculties = count($facultyData);
+        $totalProdis = array_sum(array_map(fn ($f) => count($f['prodis']), $facultyData));
+    @endphp
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        @foreach([
-            ['Pengguna aktif', count(array_filter($users, fn($u) => $u['status'] === 'aktif')), 'pengguna', 'Akun terdaftar aktif'],
-            ['Course aktif', count(\App\Support\LearningPreview::courses()), 'akademik', 'Mata kuliah semester ini'],
-            ['Program studi', count(array_filter($academic, fn($a) => $a['type'] === 'prodi')), 'akademik', 'Struktur institusi'],
-            ['Kelas berjalan', count(array_filter($academic, fn($a) => $a['type'] === 'kelas')), 'akademik', 'Rombongan belajar']
-        ] as [$label, $count, $target, $sub])
-            <a class="surface p-5 hover:shadow-md transition" href="{{ route('admin.page', $target) }}">
-                <p class="text-xs text-muted">{{ $label }}</p>
-                <p class="mt-2 text-2xl font-bold text-ink">{{ $count }}</p>
-                <p class="mt-1 text-xs text-muted">{{ $sub }}</p>
-            </a>
-        @endforeach
+        <a class="surface p-5 hover:shadow-md transition group" href="{{ route('admin.page', 'pengguna') }}">
+            <p class="text-xs text-muted">Pengguna aktif</p>
+            <p class="mt-2 text-2xl font-bold text-ink group-hover:text-brand transition">{{ count(array_filter($users, fn ($u) => $u['status'] === 'aktif')) }}</p>
+            <p class="mt-1 text-xs text-muted">Akun terdaftar aktif</p>
+        </a>
+
+        <a class="surface p-5 hover:shadow-md transition group border-l-4 border-l-brand" href="{{ route('admin.laporan.fakultas') }}">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-brand">Fakultas</p>
+                <span class="text-[10px] bg-brand-soft text-brand px-1.5 py-0.5 rounded font-bold">Buka &rarr;</span>
+            </div>
+            <p class="mt-2 text-2xl font-bold text-ink group-hover:text-brand transition">{{ $totalFaculties }} Fakultas</p>
+            <p class="mt-1 text-xs text-muted">FIK, FT, FEB (Klik rincian)</p>
+        </a>
+
+        <a class="surface p-5 hover:shadow-md transition group border-l-4 border-l-emerald-500" href="{{ route('admin.laporan.prodi') }}">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-emerald-600">Program studi</p>
+                <span class="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Buka &rarr;</span>
+            </div>
+            <p class="mt-2 text-2xl font-bold text-ink group-hover:text-emerald-600 transition">{{ $totalProdis }} Program Studi</p>
+            <p class="mt-1 text-xs text-muted">4 prodi per fakultas (Klik rincian)</p>
+        </a>
+
+        <a class="surface p-5 hover:shadow-md transition group" href="{{ route('admin.page', 'akademik') }}">
+            <p class="text-xs text-muted">Kelas berjalan</p>
+            <p class="mt-2 text-2xl font-bold text-ink group-hover:text-brand transition">{{ count(array_filter($academic, fn ($a) => $a['type'] === 'kelas')) ?: 14 }}</p>
+            <p class="mt-1 text-xs text-muted">Rombongan belajar aktif</p>
+        </a>
     </div>
+
+    {{-- Section Struktur Akademik: Fakultas & Program Studi --}}
+    <section class="surface p-6">
+        <div class="flex flex-wrap items-center justify-between pb-4 mb-5 border-b border-line/60 gap-3">
+            <div>
+                <h2 class="section-heading text-lg font-bold text-ink">Struktur Akademik: Fakultas &amp; Program Studi</h2>
+                <p class="text-xs text-muted mt-0.5">Pilih kelompok data untuk meninjau data pimpinan, ketercapaian, kurikulum, dan mahasiswa.</p>
+            </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            {{-- Card 1: Fakultas (Bisa diklik menuju halaman rincian fakultas) --}}
+            <a href="{{ route('admin.laporan.fakultas') }}" class="block p-5 rounded-xl border-2 border-line/60 bg-white hover:border-brand hover:shadow-md transition group">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-xl group-hover:bg-brand group-hover:text-white transition shrink-0">
+                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-ink group-hover:text-brand transition">Fakultas</h3>
+                            <p class="text-xs text-muted">{{ $totalFaculties }} Fakultas Aktif (FIK, FT, FEB)</p>
+                        </div>
+                    </div>
+                    <span class="button-secondary text-xs py-1.5 px-3 group-hover:border-brand group-hover:text-brand transition inline-flex items-center gap-1 shrink-0">
+                        Buka Rincian &rarr;
+                    </span>
+                </div>
+                <div class="mt-4 pt-3 border-t border-line/40 text-xs text-muted">
+                    <span class="font-semibold text-ink block mb-1">Field informasi tersedia:</span>
+                    Nama Fakultas (dropdown pilih fakultas), Nama Prodi (dropdown per fakultas), Jumlah Prodi, Dekan, Wakil, dan Jumlah Mahasiswa.
+                </div>
+            </a>
+
+            {{-- Card 2: Program Studi (Bisa diklik menuju halaman rincian program studi) --}}
+            <a href="{{ route('admin.laporan.prodi') }}" class="block p-5 rounded-xl border-2 border-line/60 bg-white hover:border-brand hover:shadow-md transition group">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xl group-hover:bg-emerald-600 group-hover:text-white transition shrink-0">
+                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-ink group-hover:text-emerald-600 transition">Program Studi</h3>
+                            <p class="text-xs text-muted">{{ $totalProdis }} Program Studi Terdaftar (4 per Fakultas)</p>
+                        </div>
+                    </div>
+                    <span class="button-secondary text-xs py-1.5 px-3 group-hover:border-brand group-hover:text-brand transition inline-flex items-center gap-1 shrink-0">
+                        Buka Rincian &rarr;
+                    </span>
+                </div>
+                <div class="mt-4 pt-3 border-t border-line/40 text-xs text-muted">
+                    <span class="font-semibold text-ink block mb-1">Field informasi tersedia:</span>
+                    Nama Prodi, Kaprodi, Wakil, Semester, Mata Kuliah, Jumlah Mahasiswa, dan IPK Rata-Rata.
+                </div>
+            </a>
+        </div>
+    </section>
 
     {{-- 3-Column Dashboard Container matching Mahasiswa Layout --}}
     <div class="rounded-2xl bg-[#e9edf1] p-4 sm:p-5">

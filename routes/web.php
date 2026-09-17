@@ -127,6 +127,8 @@ Route::prefix('dosen')->name('dosen.')->middleware('dosen.auth')->group(function
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/laporan/export', [AdminPreviewController::class, 'export'])->name('export');
+    Route::get('/laporan/fakultas', [AdminPreviewController::class, 'laporanFakultas'])->name('laporan.fakultas');
+    Route::get('/laporan/prodi', [AdminPreviewController::class, 'laporanProdi'])->name('laporan.prodi');
     Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
     Route::post('/pengguna/bulk', [AdminPreviewController::class, 'bulkUsers'])->name('users.bulk');
     Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
