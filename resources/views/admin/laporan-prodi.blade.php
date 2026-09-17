@@ -44,12 +44,16 @@
                         {{ $faculty['name'] }} · Kode: {{ $prodi['code'] }}
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                     <button type="button" 
                             id="prodi-select-button"
                             onclick="toggleProdiSelectDropdown()"
-                            class="button-secondary text-xs py-2 px-3 font-semibold">
-                        Ganti Prodi
+                            class="h-8 w-8 rounded-lg border border-line bg-white hover:bg-slate-50 hover:border-brand/40 text-muted hover:text-brand transition flex items-center justify-center shadow-xs cursor-pointer"
+                            title="Pilih Program Studi"
+                            aria-label="Pilih Program Studi">
+                        <svg id="prodi-select-icon" class="h-4 w-4 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
                     </button>
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
@@ -193,13 +197,16 @@
 
     function toggleProdiSelectDropdown() {
         const menu = document.getElementById('prodi-select-menu');
+        const icon = document.getElementById('prodi-select-icon');
         if (!menu) return;
 
         const isHidden = menu.hasAttribute('hidden');
         if (isHidden) {
             menu.removeAttribute('hidden');
+            if (icon) icon.classList.add('rotate-180');
         } else {
             menu.setAttribute('hidden', '');
+            if (icon) icon.classList.remove('rotate-180');
         }
     }
 
@@ -250,8 +257,10 @@
     document.addEventListener('click', function(e) {
         const container = document.getElementById('prodi-select-container');
         const menu = document.getElementById('prodi-select-menu');
+        const icon = document.getElementById('prodi-select-icon');
         if (container && menu && !container.contains(e.target)) {
             menu.setAttribute('hidden', '');
+            if (icon) icon.classList.remove('rotate-180');
         }
     });
 </script>
