@@ -27,6 +27,55 @@
             ['data_status' => 'belum_selesai'],
         ];
         $pendingCount = count(array_filter($classesList, fn($c) => $c['data_status'] === 'belum_selesai'));
+
+        // Siapkan data course lengkap persis seperti pada halaman Course
+        $displayCourses = [];
+        foreach ($allCourses as $c) {
+            $matchedSec = \App\Models\ClassSection::with(['mataKuliah', 'dosen', 'dosenPendamping'])
+                ->withCount(['students', 'assessments'])
+                ->where('mata_kuliah_id', $c['id'])
+                ->first();
+
+            if (! $matchedSec) {
+                $matchedSec = \App\Models\ClassSection::with(['mataKuliah', 'dosen', 'dosenPendamping'])
+                    ->withCount(['students', 'assessments'])
+                    ->first();
+            }
+
+            $contents = collect(\App\Support\LearningPreview::items())->where('course', $c['id']);
+            $next = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
+
+            $dosenKetua = $matchedSec ? ($matchedSec->dosen?->name ?? $c['lecturer']) : $c['lecturer'];
+            $dosenWakil = $matchedSec ? ($matchedSec->dosenPendamping?->name ?? null) : null;
+            $studentsCount = $matchedSec ? $matchedSec->students_count : 5;
+            $assessmentsCount = $matchedSec ? $matchedSec->assessments_count : $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->count();
+
+            if ($matchedSec && empty($matchedSec->enrollment_code)) {
+                $matchedSec->enrollment_code = \App\Models\ClassSection::generateUniqueEnrollmentCode();
+                $matchedSec->save();
+            }
+
+            $displayCourses[] = [
+                'id' => $c['id'],
+                'url' => route('dosen.course.show', ['course' => $c['id'], 'section' => 'A']),
+                'code' => $matchedSec ? $matchedSec->display_code : $c['code'],
+                'sks' => $matchedSec ? ($matchedSec->mataKuliah->sks . ' SKS') : '3 SKS',
+                'title' => $c['title'],
+                'lecturer' => $dosenKetua,
+                'dosen_ketua' => $dosenKetua,
+                'dosen_wakil' => $dosenWakil,
+                'cover' => $c['cover'] ?? null,
+                'type' => $next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas',
+                'work' => $next['title'] ?? 'Belum ada tugas aktif',
+                'due' => !empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : '',
+                'students_count' => $studentsCount,
+                'assessments_count' => $assessmentsCount,
+                'enrollment_code' => $matchedSec ? $matchedSec->enrollment_code : 'SALE' . $c['id'] . 'A',
+                'enrollment_url' => $matchedSec ? $matchedSec->enrollment_url : url('/gabung-kelas?code=SALE' . $c['id'] . 'A'),
+                'qr_url' => $matchedSec ? route('kelas.qr', $matchedSec->id) : null,
+                'svg_index' => $c['id'],
+            ];
+        }
     @endphp
 
     {{-- Stat Overview Section: High Contrast, Repetition, Proximity --}}
@@ -63,113 +112,171 @@
                     <p class="text-xs font-bold uppercase tracking-wider text-muted">Jumlah Penilaian Belum Dinilai</p>
                     <p class="mt-0.5 text-2xl font-extrabold text-ink">{{ $pendingCount }} <span class="text-xs font-normal text-muted">Kelas Belum Dinilai</span></p>
                 </div>
-<<<<<<< HEAD
             </div>
             <a href="{{ route('dosen.grades') }}" class="button-secondary text-xs px-3.5 py-2 font-semibold shrink-0">
                 Lihat Penilaian
             </a>
-=======
-            </aside>
-
-            {{-- Column 3: Diskusi terbaru (Exact same structure & style as mahasiswa discussions) --}}
-            <section aria-labelledby="discussion-heading">
-                <div class="mb-4 flex min-h-[56px] items-start justify-between gap-2">
-                    <div>
-                        <h2 id="discussion-heading" class="section-heading">Diskusi terbaru</h2>
-                        <p class="mt-1 text-sm leading-5 text-muted">Percakapan dari course aktif.</p>
-                    </div>
-                </div>
-
-                <div class="rounded-xl bg-white shadow-sm divide-y divide-line/60 overflow-hidden">
-                    @foreach(\App\Support\LearningPreview::recentDiscussions() as $discussion)
-                        <a href="{{ route('mahasiswa.course.item', [$discussion['course'], $discussion['item']]) }}#diskusi" class="block p-4 text-xs transition duration-200 hover:bg-[#f3f6f9]">
-                            <p class="text-[11px] font-semibold text-muted">{{ $discussion['course_title'] }}</p>
-                            <p class="mt-1 text-xs font-semibold leading-relaxed text-ink line-clamp-2">{{ $discussion['message'] }}</p>
-                            <p class="mt-1.5 text-[11px] text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
-                        </a>
-                    @endforeach
-                </div>
-            </section>
->>>>>>> 1587fa5 (Perbarui resources/views/dosen/dashboard.blade.php)
         </div>
     </div>
 
-    {{-- Course List Section: Strong Alignment & Card Repetition --}}
-    <section class="surface p-6 rounded-2xl border border-line/70 shadow-sm space-y-5">
-        <div class="flex items-center justify-between border-b border-line/50 pb-4">
+    {{-- Course List Section: Desain & Grid Persis seperti di Halaman Course --}}
+    <section class="space-y-4" aria-label="Daftar course">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-bold text-ink">Daftar Matkul Diampu</h2>
-                <p class="mt-0.5 text-xs text-muted">Seluruh kuis, tugas, dan rekap nilai berada di dalam matkul masing-masing.</p>
+                <p class="text-xs text-muted">Seluruh kuis, tugas, dan rekap nilai berada di dalam matkul masing-masing.</p>
             </div>
+            <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs px-3.5 py-2 font-semibold flex items-center gap-1">
+                <span>Lihat Semua Course</span>
+                <span>&rarr;</span>
+            </a>
         </div>
 
-        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            @foreach($allCourses as $course)
-                @php
-                    $currentSec = 'A';
-                    $contents = collect(\App\Support\LearningPreview::items())
-                        ->where('course', $course['id'])
-                        ->filter(fn($i) => ($i['section'] ?? 'A') === $currentSec || ($i['section'] ?? 'A') === 'ALL');
-
-                    $next = $contents->whereIn('type',['tugas','coding','kuis'])->sortBy('due')->first();
-                    $courseData = $course + [
-                        'sks'=>'3 SKS', 
-                        'modules'=>$contents->where('type','!=','pengumuman')->pluck('module')->unique()->count().' modul', 
-                        'tasks'=>$contents->whereIn('type',['tugas','coding','kuis'])->count().' pekerjaan', 
-                        'type'=>$next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas', 
-                        'work'=>$next['title'] ?? 'Belum ada tugas aktif', 
-                        'due'=>!empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : ''
-                    ];
-                @endphp
-
-                <div class="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md border border-line/60">
-                    @if(!empty($courseData['cover']))
-                        <a href="{{ route('dosen.course.show', ['course' => $courseData['id'], 'section' => $currentSec]) }}" class="block">
-                            <img src="{{ route('preview.file',$courseData['cover']) }}" alt="Sampul {{ $courseData['title'] }}" class="h-36 w-full object-cover">
-                            <div class="px-5 pt-4">
-                                <p class="text-xs font-semibold text-brand">{{ $courseData['code'] }}</p>
-                                <h2 class="mt-2 text-lg font-semibold text-ink group-hover:text-brand transition">{{ $courseData['title'] }}</h2>
-                                <p class="mt-1 text-xs text-muted">{{ $courseData['lecturer'] }}</p>
+        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            @foreach($displayCourses as $course)
+                <a href="{{ $course['url'] }}" class="group flex min-h-64 flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md border border-line/70">
+                    @if(!empty($course['cover']))
+                        <img src="{{ route('preview.file', $course['cover']) }}" alt="Sampul {{ $course['title'] }}" class="h-36 w-full object-cover">
+                        <div class="px-5 pt-4">
+                            <p class="text-xs font-semibold text-brand">{{ $course['code'] }} · {{ $course['sks'] }}</p>
+                            <h3 class="mt-1 text-lg font-semibold leading-snug text-ink">{{ $course['title'] }}</h3>
+                            <div class="mt-2 space-y-0.5 text-xs text-muted">
+                                <p><span class="font-medium text-ink">Dosen Ketua:</span> {{ $course['dosen_ketua'] ?? $course['lecturer'] }}</p>
+                                @if(!empty($course['dosen_wakil']))
+                                    <p><span class="font-medium text-ink">Dosen Wakil:</span> {{ $course['dosen_wakil'] }}</p>
+                                @endif
                             </div>
-                        </a>
+                        </div>
                     @else
-                        <a href="{{ route('dosen.course.show', ['course' => $courseData['id'], 'section' => $currentSec]) }}" class="relative min-h-32 overflow-hidden bg-brand-dark px-5 py-5 text-white block">
-                            @if($courseData['id'] === 1)
+                        <div class="relative min-h-36 overflow-hidden bg-[#102f50] px-5 py-5 text-white flex flex-col justify-between">
+                            @php $svgIdx = $course['svg_index'] ?? 1; @endphp
+                            @if($svgIdx === 1)
                                 <svg class="absolute -right-3 -top-3 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="60" cy="22" r="10"/><circle cx="31" cy="64" r="10"/><circle cx="89" cy="64" r="10"/><circle cx="17" cy="101" r="8"/><circle cx="47" cy="101" r="8"/><circle cx="75" cy="101" r="8"/><circle cx="104" cy="101" r="8"/><path d="M54 30 36 55M66 30l18 25M27 74l-7 19M35 74l9 19M85 74l-8 19M93 74l8 19"/></svg>
-                            @elseif($courseData['id'] === 2)
+                            @elseif($svgIdx === 2)
                                 <svg class="absolute -right-3 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="13" y="17" width="94" height="74" rx="7"/><path d="M13 35h94M27 26h1M36 26h1M45 26h1M76 51 54 74l14 3 5 15 10-4-6-14 14-4z"/></svg>
-                            @elseif($courseData['id'] === 3)
+                            @elseif($svgIdx === 3)
                                 <svg class="absolute -right-3 -top-3 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="60" cy="60" r="13"/><circle cx="22" cy="28" r="8"/><circle cx="98" cy="26" r="8"/><circle cx="18" cy="93" r="8"/><circle cx="101" cy="94" r="8"/><path d="m29 34 21 18M91 32 70 52M26 88l24-19M94 88 70 69"/></svg>
                             @else
                                 <svg class="absolute -right-2 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="15" y="20" width="34" height="22" rx="4"/><rect x="70" y="20" width="34" height="22" rx="4"/><rect x="43" y="79" width="34" height="22" rx="4"/><path d="M49 31h21M32 42v24h28v13M87 42v24H60"/></svg>
                             @endif
                             <div class="relative z-10">
-                                <div class="flex items-center gap-3 text-xs font-semibold">
-                                    <span>{{ $courseData['code'] }}</span>
-                                    <span>·</span>
-                                    <span>{{ $courseData['sks'] }}</span>
+                                <div class="flex items-center gap-3 text-xs font-semibold text-white/90">
+                                    <span class="bg-white/20 px-2 py-0.5 rounded font-mono">{{ $course['code'] }}</span>
+                                    <span>{{ $course['sks'] }}</span>
                                 </div>
-                                <h3 class="mt-3 text-lg font-semibold leading-6 text-white group-hover:underline line-clamp-2">{{ $courseData['title'] }}</h3>
-                                <p class="mt-1 text-xs text-white/80 line-clamp-1">{{ $courseData['lecturer'] }}</p>
+                                <h3 class="mt-2.5 text-lg font-bold leading-snug text-white">{{ $course['title'] }}</h3>
+                                
+                                <div class="mt-2.5 space-y-0.5 text-xs text-white/90">
+                                    <div><span class="text-white/70">Dosen Ketua:</span> <span class="font-semibold text-white">{{ $course['dosen_ketua'] ?? $course['lecturer'] }}</span></div>
+                                    @if(!empty($course['dosen_wakil']))
+                                        <div><span class="text-white/70">Dosen Wakil:</span> <span class="font-semibold text-white">{{ $course['dosen_wakil'] }}</span></div>
+                                    @endif
+                                </div>
                             </div>
-                        </a>
-                    @endif
-
-                    <a href="{{ route('dosen.course.show', ['course' => $courseData['id'], 'section' => $currentSec]) }}" class="flex flex-1 flex-col px-5 py-4">
-                        <p class="text-xs font-semibold text-brand">{{ $courseData['type'] }}</p>
-                        <p class="mt-1 text-sm font-medium text-ink line-clamp-2">{{ $courseData['work'] }}</p>
-                        @if(!empty($courseData['due']))
-                            <p class="mt-2 text-xs font-medium text-danger">{{ $courseData['due'] }}</p>
-                        @endif
-                        <div class="mt-auto flex gap-4 pt-4 text-xs font-medium text-muted">
-                            <span>{{ $courseData['modules'] }}</span>
-                            <span>{{ $courseData['tasks'] }}</span>
                         </div>
-                    </a>
-                </div>
+                    @endif
+                    <div class="flex flex-1 flex-col px-5 py-4 justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-brand">{{ $course['type'] }}</p>
+                            <p class="mt-1 text-sm font-medium text-ink">{{ $course['work'] }}</p>
+                            @if(!empty($course['due']))
+                                <p class="mt-2 text-xs font-medium text-danger">{{ $course['due'] }}</p>
+                            @endif
+                        </div>
+
+                        <div class="mt-4">
+                            @if(!empty($course['enrollment_code']))
+                                <div class="pt-3 pb-3 flex items-center justify-between text-xs border-t border-line/60" onclick="event.preventDefault(); event.stopPropagation();">
+                                    <div>
+                                        <span class="text-[10px] text-muted uppercase font-bold block">Kode Masuk:</span>
+                                        <code class="font-mono font-bold text-ink text-xs tracking-wide">{{ $course['enrollment_code'] }}</code>
+                                    </div>
+                                    <button type="button" 
+                                            onclick="event.preventDefault(); event.stopPropagation(); openQrModal('{{ $course['code'] }}', '{{ addslashes($course['title']) }}', '{{ $course['enrollment_code'] }}', '{{ $course['enrollment_url'] }}', '{{ $course['qr_url'] ?? '' }}')"
+                                            class="button-secondary text-[11px] py-1 px-2.5 flex items-center gap-1 shrink-0 font-semibold hover:bg-slate-50 transition shadow-2xs">
+                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
+                                        Bagikan QR
+                                    </button>
+                                </div>
+                            @endif
+
+                            <div class="pt-3 flex items-center justify-between text-xs font-medium text-muted border-t border-line/60">
+                                <span class="flex items-center gap-1.5">
+                                    <span>👥</span>
+                                    <span>{{ $course['students_count'] }} Mahasiswa</span>
+                                </span>
+                                <span class="flex items-center gap-1.5">
+                                    <span>📝</span>
+                                    <span>{{ $course['assessments_count'] }} Asesmen</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
             @endforeach
         </div>
-
     </section>
 </div>
+
+<!-- Modal Barcode / QR Code untuk Dosen -->
+<div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl text-center space-y-4" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between pb-3 border-b border-line">
+            <h2 class="text-base font-bold text-ink">Bagikan Barcode / QR Code Kelas</h2>
+            <button type="button" onclick="closeQrModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+        </div>
+        <div class="space-y-2">
+            <h3 id="modalCourseTitle" class="text-base font-bold text-ink"></h3>
+            <p class="text-xs text-muted">Mahasiswa dapat memindai barcode di bawah ini atau memasukkan kode masuk untuk bergabung ke dalam kelas.</p>
+        </div>
+        <div class="flex justify-center p-4 bg-white rounded-xl border border-line shadow-inner max-w-xs mx-auto">
+            <img id="modalQrImage" src="" alt="QR Code" class="w-48 h-48 object-contain">
+        </div>
+        <div class="space-y-1 bg-slate-50 p-3 rounded-lg border border-line">
+            <span class="text-xs text-muted">Kode Masuk Kelas:</span>
+            <p id="modalEnrollmentCode" class="text-2xl font-mono font-bold tracking-widest text-brand"></p>
+        </div>
+        <div class="flex gap-2">
+            <button type="button" onclick="copyEnrollmentCode()" class="button-secondary flex-1 text-xs py-2 font-semibold">Salin Kode</button>
+            <button type="button" onclick="copyEnrollmentUrl()" class="button-primary flex-1 text-xs py-2 font-semibold">Salin Link Masuk</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEnrollmentUrl = '';
+    let currentEnrollmentCode = '';
+
+    function openQrModal(code, title, enrollmentCode, enrollmentUrl, qrUrl) {
+        document.getElementById('modalCourseTitle').textContent = code + ' - ' + title;
+        document.getElementById('modalEnrollmentCode').textContent = enrollmentCode;
+        document.getElementById('modalQrImage').src = qrUrl || ('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(enrollmentUrl));
+        currentEnrollmentCode = enrollmentCode;
+        currentEnrollmentUrl = enrollmentUrl;
+        
+        const modal = document.getElementById('dosenQrModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeQrModal() {
+        const modal = document.getElementById('dosenQrModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function copyEnrollmentCode() {
+        if (!currentEnrollmentCode) return;
+        navigator.clipboard.writeText(currentEnrollmentCode).then(() => {
+            alert('Kode masuk kelas berhasil disalin: ' + currentEnrollmentCode);
+        });
+    }
+
+    function copyEnrollmentUrl() {
+        if (!currentEnrollmentUrl) return;
+        navigator.clipboard.writeText(currentEnrollmentUrl).then(() => {
+            alert('Link pendaftaran kelas berhasil disalin!');
+        });
+    }
+</script>
 @endsection
