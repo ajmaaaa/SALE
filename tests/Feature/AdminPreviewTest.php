@@ -45,4 +45,31 @@ class AdminPreviewTest extends TestCase
         $this->get('/admin/akademik')->assertSee('berhasil dihapus');
         $this->assertArrayNotHasKey(2, session('admin.academic'));
     }
+
+    public function test_admin_laporan_displays_clickable_fakultas_prodi_details_and_removes_semester(): void
+    {
+        $response = $this->get('/admin/laporan');
+        $response->assertOk();
+
+        // 1. Fakultas clickable with detail fields
+        $response->assertSee('toggleAcademicDetail(\'fakultas\')', false);
+        $response->assertSee('id="detail-fakultas"', false);
+        $response->assertSee('Nama Fakultas');
+        $response->assertSee('Jumlah Prodi');
+        $response->assertSee('Dekan');
+        $response->assertSee('Wakil');
+        $response->assertSee('Jumlah Mahasiswa');
+
+        // 2. Prodi clickable with detail fields
+        $response->assertSee('toggleAcademicDetail(\'prodi\')', false);
+        $response->assertSee('id="detail-prodi"', false);
+        $response->assertSee('Nama Prodi');
+        $response->assertSee('Kaprodi');
+        $response->assertSee('Wakil');
+        $response->assertSee('IPK Rata-Rata');
+
+        // 3. Semester row removed from table
+        $content = $response->getContent();
+        $this->assertDoesNotMatchRegularExpression('/<tbody>.*?Semester.*?<\/tbody>/s', $content);
+    }
 }
