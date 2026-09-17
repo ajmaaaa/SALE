@@ -16,92 +16,76 @@
             <h1 class="page-heading">Rincian Data Program Studi</h1>
             <p class="page-description">Informasi kurikulum, pimpinan prodi, mata kuliah, dan ketercapaian akademik.</p>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="{{ route('admin.page', 'dashboard') }}" class="button-secondary inline-flex items-center gap-2">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Kembali ke Dashboard
+        <div>
+            {{-- Button Export Sesuai Permintaan --}}
+            <a href="{{ route('admin.export') }}" class="button-primary inline-flex items-center gap-2">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                </svg>
+                Export
             </a>
-            <a href="{{ route('admin.laporan.fakultas') }}" class="button-secondary">Data Fakultas</a>
         </div>
     </div>
 
-    {{-- Main Program Studi Detail Card --}}
-    <section class="surface p-6">
-        <div class="flex flex-wrap items-center justify-between pb-4 mb-6 border-b border-line/60 gap-3">
-            <div class="flex items-center gap-3">
-                <div id="prodi-avatar" class="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xl">
-                    {{ $prodi['code'] }}
-                </div>
+    {{-- Main Program Studi Detail Section --}}
+    <section class="surface p-6 space-y-5">
+        {{-- Card Pemilih Nama Program Studi (Dropdown Bersih Tanpa Panah) --}}
+        <div class="p-4 bg-white rounded-xl border border-line shadow-xs relative" id="prodi-select-container">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h2 id="prodi-title" class="text-lg font-bold text-ink">{{ $prodi['name'] }}</h2>
-                    <p id="prodi-subtitle" class="text-xs text-muted">{{ $faculty['name'] }} · Akreditasi Unggul</p>
+                    <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Nama Program Studi</span>
+                    <h2 id="field-nama-prodi" class="text-lg font-bold text-ink mt-0.5">
+                        {{ $prodi['name'] }}
+                    </h2>
+                    <p id="field-prodi-faculty-label" class="text-xs text-muted mt-0.5">
+                        {{ $faculty['name'] }} · Kode: {{ $prodi['code'] }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" 
+                            id="prodi-select-button"
+                            onclick="toggleProdiSelectDropdown()"
+                            class="button-secondary text-xs py-2 px-3 font-semibold">
+                        Ganti Prodi
+                    </button>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        Aktif
+                    </span>
                 </div>
             </div>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                Status: Aktif
-            </span>
+
+            {{-- Dropdown Menampilkan Seluruh 12 Prodi dari 3 Fakultas --}}
+            <div id="prodi-select-menu" hidden class="absolute left-0 right-0 top-full mt-2 z-30 bg-white rounded-xl border border-line shadow-xl p-2 max-h-80 overflow-y-auto space-y-2">
+                @foreach($faculties as $fCode => $f)
+                    <div class="px-2 pt-1 pb-0.5 text-[11px] font-bold text-muted uppercase tracking-wider bg-slate-50 rounded">
+                        {{ $f['name'] }} ({{ $f['code'] }})
+                    </div>
+                    <div class="space-y-1">
+                        @foreach($f['prodis'] as $pCode => $p)
+                            <button type="button" 
+                                    onclick="changeActiveProdi('{{ $pCode }}')"
+                                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-emerald-50 transition flex items-center justify-between text-xs group">
+                                <div>
+                                    <span class="font-bold text-ink group-hover:text-emerald-700 block text-sm">{{ $p['name'] }}</span>
+                                    <span class="text-muted block text-[11px]">Kaprodi: {{ $p['kaprodi'] }} · {{ $p['students_count'] }} Mahasiswa</span>
+                                </div>
+                                <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    Pilih
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endforeach
+            </div>
         </div>
 
-        {{-- 7 Field Utama Sesuai Permintaan:
-             1. Nama Prodi (Dilengkapi dropdown untuk memilih dari seluruh 12 prodi)
-             2. Kaprodi
-             3. Wakil
-             4. Semester
-             5. Mata Kuliah
-             6. Jumlah Mahasiswa
-             7. IPK Rata-Rata --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {{-- 1. Nama Prodi (Interaktif: Klik membuka dropdown memilih seluruh prodi) --}}
-            <div class="p-4 bg-white rounded-xl border-2 border-emerald-500/50 shadow-xs relative md:col-span-2 lg:col-span-2" id="prodi-select-container">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">Nama Prodi</span>
-                    <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Klik Pilih Prodi &dtrif;</span>
-                </div>
-                <button type="button" 
-                        id="prodi-select-button"
-                        onclick="toggleProdiSelectDropdown()"
-                        class="w-full text-left flex items-center justify-between p-2.5 rounded-lg bg-slate-50 hover:bg-emerald-50/70 border border-line/60 transition group">
-                    <div>
-                        <span id="field-nama-prodi" class="text-base font-bold text-ink group-hover:text-emerald-700 transition block">
-                            {{ $prodi['name'] }}
-                        </span>
-                        <span id="field-prodi-faculty-label" class="text-xs text-muted block">
-                            {{ $faculty['name'] }} · Kode: {{ $prodi['code'] }}
-                        </span>
-                    </div>
-                    <svg id="prodi-select-arrow" class="h-5 w-5 text-emerald-600 transition-transform duration-200 shrink-0 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </button>
-
-                {{-- Dropdown Menampilkan Seluruh 12 Prodi dari 3 Fakultas --}}
-                <div id="prodi-select-menu" hidden class="absolute left-0 right-0 top-full mt-2 z-30 bg-white rounded-xl border border-line shadow-xl p-2 max-h-80 overflow-y-auto space-y-2">
-                    @foreach($faculties as $fCode => $f)
-                        <div class="px-2 pt-1 pb-0.5 text-[11px] font-bold text-muted uppercase tracking-wider bg-slate-50 rounded">
-                            {{ $f['name'] }} ({{ $f['code'] }})
-                        </div>
-                        <div class="space-y-1">
-                            @foreach($f['prodis'] as $pCode => $p)
-                                <button type="button" 
-                                        onclick="changeActiveProdi('{{ $pCode }}')"
-                                        class="w-full text-left px-3 py-2 rounded-lg hover:bg-emerald-50 transition flex items-center justify-between text-xs group">
-                                    <div>
-                                        <span class="font-bold text-ink group-hover:text-emerald-700 block">{{ $p['name'] }}</span>
-                                        <span class="text-muted block text-[11px]">Kaprodi: {{ $p['kaprodi'] }} · {{ $p['students_count'] }} Mahasiswa</span>
-                                    </div>
-                                    <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                        Pilih &rarr;
-                                    </span>
-                                </button>
-                            @endforeach
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-            {{-- 2. Kaprodi --}}
+        {{-- 6 Field Rincian Program Studi (Rapi, Simetris & Seimbang dalam 3 Kolom) --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {{-- 1. Kaprodi --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Kaprodi</span>
                 <span id="field-kaprodi" class="text-base font-bold text-ink mt-1.5 block">
@@ -110,7 +94,7 @@
                 <p class="text-xs text-muted mt-1">Ketua Program Studi</p>
             </div>
 
-            {{-- 3. Wakil --}}
+            {{-- 2. Wakil --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Wakil</span>
                 <span id="field-wakil" class="text-base font-bold text-ink mt-1.5 block">
@@ -119,7 +103,7 @@
                 <p class="text-xs text-muted mt-1">Wakil Ketua Program Studi</p>
             </div>
 
-            {{-- 4. Semester --}}
+            {{-- 3. Semester --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Semester</span>
                 <span id="field-semester" class="text-base font-bold text-ink mt-1.5 block">
@@ -128,7 +112,7 @@
                 <p class="text-xs text-muted mt-1">Tahun Akademik Berjalan</p>
             </div>
 
-            {{-- 5. Mata Kuliah --}}
+            {{-- 4. Mata Kuliah --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Mata Kuliah</span>
                 <span id="field-mata-kuliah" class="text-base font-bold text-brand mt-1.5 block">
@@ -137,7 +121,7 @@
                 <p class="text-xs text-muted mt-1">Kurikulum berbasis OBE</p>
             </div>
 
-            {{-- 6. Jumlah Mahasiswa --}}
+            {{-- 5. Jumlah Mahasiswa --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">Jumlah Mahasiswa</span>
                 <span id="field-jumlah-mahasiswa" class="text-base font-bold text-brand mt-1.5 block">
@@ -146,11 +130,11 @@
                 <p class="text-xs text-muted mt-1">Mahasiswa aktif terdaftar semester ini</p>
             </div>
 
-            {{-- 7. IPK Rata-Rata --}}
+            {{-- 6. IPK Rata-Rata --}}
             <div class="p-4 bg-slate-50/70 rounded-xl border border-line/50">
                 <span class="text-[11px] font-bold text-muted uppercase tracking-wider block">IPK Rata-Rata</span>
-                <div class="flex items-baseline gap-2 mt-1">
-                    <span id="field-ipk-rata-rata" class="text-2xl font-black text-emerald-600">
+                <div class="flex items-baseline gap-2 mt-1.5">
+                    <span id="field-ipk-rata-rata" class="text-xl font-black text-emerald-600">
                         {{ $prodi['avg_ipk'] }}
                     </span>
                     <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-800">
@@ -209,16 +193,13 @@
 
     function toggleProdiSelectDropdown() {
         const menu = document.getElementById('prodi-select-menu');
-        const arrow = document.getElementById('prodi-select-arrow');
         if (!menu) return;
 
         const isHidden = menu.hasAttribute('hidden');
         if (isHidden) {
             menu.removeAttribute('hidden');
-            if (arrow) arrow.classList.add('rotate-180');
         } else {
             menu.setAttribute('hidden', '');
-            if (arrow) arrow.classList.remove('rotate-180');
         }
     }
 
@@ -228,14 +209,11 @@
         const p = allProdisData[prodiCode];
         const fac = facultiesData[p.faculty_code];
 
-        // 1. Update Header & Avatar
-        document.getElementById('prodi-avatar').textContent = p.code;
-        document.getElementById('prodi-title').textContent = p.name;
-        document.getElementById('prodi-subtitle').textContent = (fac ? fac.name : '') + ' · Akreditasi Unggul';
-
-        // 2. Update 7 Field Utama
+        // 1. Update Header Program Studi
         document.getElementById('field-nama-prodi').textContent = p.name;
         document.getElementById('field-prodi-faculty-label').textContent = (fac ? fac.name : '') + ' · Kode: ' + p.code;
+
+        // 2. Update 6 Field Utama
         document.getElementById('field-kaprodi').textContent = p.kaprodi;
         document.getElementById('field-wakil').textContent = p.wakil;
         document.getElementById('field-semester').textContent = p.semester;
@@ -274,8 +252,6 @@
         const menu = document.getElementById('prodi-select-menu');
         if (container && menu && !container.contains(e.target)) {
             menu.setAttribute('hidden', '');
-            const arrow = document.getElementById('prodi-select-arrow');
-            if (arrow) arrow.classList.remove('rotate-180');
         }
     });
 </script>

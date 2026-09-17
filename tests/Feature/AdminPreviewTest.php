@@ -69,8 +69,10 @@ class AdminPreviewTest extends TestCase
         // 3. Dedicated Fakultas page (/admin/laporan/fakultas) with 3 faculties & dropdowns
         $fakultasResp = $this->get('/admin/laporan/fakultas');
         $fakultasResp->assertOk();
+        $fakultasResp->assertSee('Export');
+        $fakultasResp->assertDontSee('Kembali ke Dashboard');
+        $fakultasResp->assertDontSee('Tabel Laporan');
         $fakultasResp->assertSee('Nama Fakultas');
-        $fakultasResp->assertSee('Nama Prodi');
         $fakultasResp->assertSee('Jumlah Prodi');
         $fakultasResp->assertSee('Dekan');
         $fakultasResp->assertSee('Wakil');
@@ -79,12 +81,15 @@ class AdminPreviewTest extends TestCase
         $fakultasResp->assertSee('Fakultas Teknik');
         $fakultasResp->assertSee('Fakultas Ekonomi & Bisnis');
         $fakultasResp->assertSee('id="fakultas-dropdown-menu"', false);
-        $fakultasResp->assertSee('id="prodi-dropdown-menu"', false);
+        $fakultasResp->assertSee('Rincian Prodi');
+        $fakultasResp->assertDontSee('Rincian Prodi &rarr;', false);
+        $fakultasResp->assertDontSee('Rincian Prodi ->', false);
 
         // 4. Dedicated Prodi page (/admin/laporan/prodi) with 12 prodis & all required fields
         $prodiResp = $this->get('/admin/laporan/prodi');
         $prodiResp->assertOk();
-        $prodiResp->assertSee('Nama Prodi');
+        $prodiResp->assertSee('Export');
+        $prodiResp->assertSee('Nama Program Studi');
         $prodiResp->assertSee('Kaprodi');
         $prodiResp->assertSee('Wakil');
         $prodiResp->assertSee('Semester');
@@ -95,5 +100,6 @@ class AdminPreviewTest extends TestCase
         $prodiResp->assertSee('S1 Teknik Informatika');
         $prodiResp->assertSee('S1 Teknik Elektro');
         $prodiResp->assertSee('S1 Manajemen');
+        $prodiResp->assertDontSee('Pilih &rarr;', false);
     }
 }
