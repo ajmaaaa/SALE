@@ -13,7 +13,6 @@
 
     $totalMateri = $allCourseItems->where('type', 'materi')->count();
     $totalTugas = $allCourseItems->where('type', '!=', 'materi')->count();
-    $totalSemua = $allCourseItems->count();
 @endphp
 
 <div class="space-y-7">
@@ -161,17 +160,6 @@
                         <span>Tugas &amp; Pekerjaan Kelas</span>
                         <span id="badgeCountTugas" class="rounded-full px-2 py-0.5 text-xs font-medium bg-canvas text-muted">
                             {{ $totalTugas }}
-                        </span>
-                    </button>
-
-                    <button type="button"
-                            id="tabBtnSemua"
-                            onclick="setCourseTab('semua')"
-                            class="course-nav-tab px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-2 border-transparent text-muted hover:text-ink">
-                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-                        <span>Semua Konten</span>
-                        <span id="badgeCountSemua" class="rounded-full px-2 py-0.5 text-xs font-medium bg-canvas text-muted">
-                            {{ $totalSemua }}
                         </span>
                     </button>
                 </nav>
@@ -325,7 +313,7 @@
 
 <script>
     function setCourseTab(tab) {
-        const validTabs = ['materi', 'tugas', 'semua'];
+        const validTabs = ['materi', 'tugas'];
         if (!validTabs.includes(tab)) tab = 'materi';
 
         // 1. Update button styling & active states
@@ -351,7 +339,6 @@
         moduleCards.forEach(card => {
             const materiCount = parseInt(card.dataset.materiCount || '0', 10);
             const tugasCount = parseInt(card.dataset.tugasCount || '0', 10);
-            const totalCount = parseInt(card.dataset.totalCount || '0', 10);
             const counterLabel = card.querySelector('.module-counter-label');
             const items = card.querySelectorAll('.course-item-row');
 
@@ -363,17 +350,11 @@
                 items.forEach(item => {
                     item.style.display = item.dataset.itemType === 'materi' ? '' : 'none';
                 });
-            } else if (tab === 'tugas') {
+            } else {
                 showCard = tugasCount > 0;
                 if (counterLabel) counterLabel.textContent = counterLabel.getAttribute('data-label-tugas');
                 items.forEach(item => {
                     item.style.display = item.dataset.itemType === 'tugas' ? '' : 'none';
-                });
-            } else {
-                showCard = totalCount > 0;
-                if (counterLabel) counterLabel.textContent = counterLabel.getAttribute('data-label-semua');
-                items.forEach(item => {
-                    item.style.display = '';
                 });
             }
 
@@ -394,12 +375,9 @@
                 if (tab === 'materi') {
                     if (titleEl) titleEl.textContent = 'Belum ada materi perkuliahan';
                     if (descEl) descEl.textContent = 'Dosen belum membagikan modul materi untuk kelas ini.';
-                } else if (tab === 'tugas') {
+                } else {
                     if (titleEl) titleEl.textContent = 'Belum ada tugas atau kuis aktif';
                     if (descEl) descEl.textContent = 'Belum ada tugas, kuis, atau pekerjaan kelas yang ditugaskan.';
-                } else {
-                    if (titleEl) titleEl.textContent = 'Belum ada konten aktif';
-                    if (descEl) descEl.textContent = 'Belum ada materi atau tugas untuk kelas ini.';
                 }
             } else {
                 emptyState.classList.add('hidden');
@@ -416,7 +394,7 @@
         const hash = (window.location.hash || '').replace('#', '').toLowerCase();
         const urlParams = new URLSearchParams(window.location.search);
         const tabParam = (urlParams.get('tab') || '').toLowerCase();
-        const initialTab = ['materi', 'tugas', 'semua'].includes(hash) ? hash : (['materi', 'tugas', 'semua'].includes(tabParam) ? tabParam : 'materi');
+        const initialTab = ['materi', 'tugas'].includes(hash) ? hash : (['materi', 'tugas'].includes(tabParam) ? tabParam : 'materi');
         setCourseTab(initialTab);
     });
 </script>
