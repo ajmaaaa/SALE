@@ -57,6 +57,9 @@ class AuthController extends Controller
 
         $selectedRole = $request->input('role', 'mahasiswa');
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
+        $password = (string) $request->input('password', '');
+        $normalizedLogin = strtolower($loginId);
+
         if ($loginId === '') {
             $defaultUser = collect($users)->firstWhere('role', $selectedRole);
             if ($defaultUser) {
@@ -65,7 +68,7 @@ class AuthController extends Controller
             return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
         }
 
-        $user = collect($users)->first(function ($u) use ($loginId) {
+        $user = collect($users)->first(function ($u) use ($loginId, $normalizedLogin) {
             return strcasecmp($u['email'] ?? '', $loginId) === 0
                 || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0
                 || ($u['role'] === 'mahasiswa' && in_array($normalizedLogin, ['ahmad.maulana@student.test', 'ahmad@example.test', '231011401234']));
@@ -79,7 +82,7 @@ class AuthController extends Controller
                 ->first();
 
             if ($dbUser) {
-                $roleName = $dbUser->hasRole(\App\Models\Role::DOSEN) ? 'dosen' : 'mahasiswa';
+                $roleName = $dbUser->role?->name ?? ($dbUser->hasRole(\App\Models\Role::DOSEN) ? 'dosen' : 'mahasiswa');
                 $user = [
                     'id' => $dbUser->id,
                     'name' => $dbUser->name,
@@ -103,9 +106,7 @@ class AuthController extends Controller
             return back()->withErrors(['password' => 'Kata sandi tidak sesuai.'])->withInput($request->only('login_id'));
         }
 
-        session(['auth_user' => $user]);
-
-        return $this->redirectForRole($user['role'], "Selamat datang kembali, {$user['name']}!");
+        return $this->loginAsUser($user, "Selamat datang kembali, {$user['name']}!");
     }
 
     public function switchRole(Request $request, string $role)
@@ -196,16 +197,25 @@ class AuthController extends Controller
     {
         session(['auth_user' => $user]);
 
-        if ($user['role'] === 'dosen') {
-            $dbUser = \App\Models\User::where('email', $user['email'])
-                ->orWhere('nim_nidn', $user['number'])
-                ->first();
+        $dbUser = \App\Models\User::with('role')
+            ->where(function ($q) use ($user) {
+                if (! empty($user['email'])) {
+                    $q->where('email', $user['email']);
+                }
+                if (! empty($user['number'])) {
+                    $q->orWhere('nim_nidn', $user['number']);
+                }
+            })
+            ->first();
 
-            if ($dbUser) {
-                Auth::login($dbUser);
-            }
-        } else {
-            Auth::logout();
+        if (! $dbUser && ! empty($user['role'])) {
+            $dbUser = \App\Models\User::with('role')
+                ->whereHas('role', fn ($q) => $q->where('name', $user['role']))
+                ->first();
+        }
+
+        if ($dbUser) {
+            Auth::login($dbUser);
         }
 
         return $this->redirectForRole($user['role'], $message);
