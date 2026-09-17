@@ -51,13 +51,7 @@
 
         @if($role === 'dosen')
             <div class="flex flex-wrap gap-2.5 shrink-0">
-                <a href="{{ route('dosen.academic', $course['id']) }}" class="button-secondary">
-                    Pengaturan CPMK &amp; CPL
-                </a>
-                <a href="{{ route('dosen.grades', ['room' => 1, 'course' => $course['id'], 'type' => 'uts']) }}" class="button-secondary">
-                    Input Nilai Tugas &amp; CPMK (Kelas {{ $sec }})
-                </a>
-                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary">
+                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary">
                     + Tambah Konten
                 </a>
             </div>
@@ -105,21 +99,9 @@
 
             {{-- Modules List with Clean Navbar Tabs (Desain seperti Penilaian Dosen) --}}
             <section aria-labelledby="module-heading" class="space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                    <div>
-                        <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
-                        <p class="mt-1 text-xs text-muted">Buka konten untuk melihat lampiran, instruksi, dan diskusinya.</p>
-                    </div>
-                    @if($role === 'dosen')
-                        <div class="flex items-center gap-2 shrink-0">
-                            <a href="{{ route('dosen.academic', $course['id']) }}" class="quiet-link text-xs">
-                                Atur Bobot &amp; CPMK
-                            </a>
-                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary text-xs">
-                                + Tambah Konten
-                            </a>
-                        </div>
-                    @endif
+                <div>
+                    <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
+                    <p class="mt-1 text-xs text-muted">Buka konten untuk melihat lampiran, instruksi, dan diskusinya.</p>
                 </div>
 
                 {{-- Navbar Tab (Gaya Penilaian Dosen: Materi di kiri, Tugas di kanan) --}}
