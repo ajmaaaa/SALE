@@ -28,6 +28,7 @@ class LearningPreview
                         'prompt' => 'Pada struktur Binary Search Tree (BST), jika suatu simpul memiliki nilai kunci 15, manakah pernyataan yang paling benar mengenai posisi simpul dengan nilai kunci 12 dan 18?',
                         'options' => "Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan\nSimpul 12 dan 18 keduanya harus berada di subtree kiri\nSimpul 12 dan 18 keduanya harus berada di subtree kanan\nPosisi simpul 12 dan 18 ditentukan secara acak tanpa aturan",
                         'points' => 15,
+                        'correct' => 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan',
                         'cpmk' => 'CPMK-01',
                         'cpl' => 'CPL-01',
                     ],
@@ -37,6 +38,7 @@ class LearningPreview
                         'prompt' => 'Pilihlah semua karakteristik dan properti yang berlaku pada Binary Search Tree (BST) yang seimbang (balanced):',
                         'options' => "Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)\nKompleksitas pencarian rata-rata pada balanced BST adalah O(log n)\nSetiap simpul selalu memiliki tepat dua simpul anak (left dan right child)\nOperasi insertion tidak mengubah struktur simpul leluhur (ancestor)",
                         'points' => 15,
+                        'correct' => ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'],
                         'cpmk' => 'CPMK-01',
                         'cpl' => 'CPL-01',
                     ],
@@ -46,6 +48,7 @@ class LearningPreview
                         'prompt' => 'Jika sebuah Binary Search Tree dibangun dari deretan angka yang sudah terurut sempurna [1, 2, 3, 4, 5, 6], maka pohon akan mengalami degenerasi (skewed) dengan tinggi pohon O(n) sehingga performa pencarian menurun setara linked list.',
                         'options' => '',
                         'points' => 15,
+                        'correct' => 'Benar',
                         'cpmk' => 'CPMK-01',
                         'cpl' => 'CPL-01',
                     ],
@@ -57,6 +60,7 @@ class LearningPreview
 data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCAxNDAgNzAiPjxyZWN0IHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiMxMDJmNTAiLz48dGV4dCB4PSIzNSIgeT0iNTUiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjgiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5LaXJpPC90ZXh0PjxsaW5lIHgxPSI0MyIgeTE9IjQ1IiB4Mj0iNjMiIHkyPSIyNyIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjIwIiByPSIxMiIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjcwIiB5PSIyNCIgZmlsbD0iIzMzNDE1NSIgZm9udC1zaXplPSI5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ba2FyPC90ZXh0PjxsaW5lIHgxPSI3NyIgeTE9IjI3IiB4Mj0iOTciIHkyPSI0NSIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSIxMDUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSIxMDUiIHk9IjU1IiBmaWxsPSIjMzM0MTU1IiBmb250LXNpemU9IjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkthbmFuPC90ZXh0Pjwvc3ZnPg== = In-order: Kunjungan Kiri → Akar → Kanan
 data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCAxNDAgNzAiPjxyZWN0IHdpZHRoPSIxNDAiIGhlaWdodD0iNzAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSIzNSIgeT0iNTUiIGZpbGw9IiMzMzQxNTUiIGZvbnQtc2l6ZT0iOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+S2lyaTwvdGV4dD48Y2lyY2xlIGN4PSIxMDUiIGN5PSI1MiIgcj0iMTAiIGZpbGw9IiMxMDJmNTAiLz48dGV4dCB4PSIxMDUiIHk9IjU1IiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSI4IiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+S2FuYW48L3RleHQ+PGxpbmUgeDE9IjQzIiB5MT0iNDUiIHgyPSI2MyIgeTI9IjI3IiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI5NyIgeTE9IjQ1IiB4Mj0iNzciIHkyPSIyNyIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI3MCIgY3k9IjIwIiByPSIxMiIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjcwIiB5PSIyNCIgZmlsbD0iIzMzNDE1NSIgZm9udC1zaXplPSI5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Ba2FyPC90ZXh0Pjwvc3ZnPg== = Post-order: Kunjungan Kiri → Kanan → Akar",
                         'points' => 20,
+                        'correct' => ['Pre-order: Kunjungan Akar → Kiri → Kanan', 'In-order: Kunjungan Kiri → Akar → Kanan', 'Post-order: Kunjungan Kiri → Kanan → Akar'],
                         'cpmk' => 'CPMK-01',
                         'cpl' => 'CPL-01',
                     ],
@@ -94,6 +98,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                         'prompt' => 'Metrik evaluasi mana yang paling tepat digunakan ketika dataset memiliki ketidakseimbangan kelas (imbalance class) ekstrem?',
                         'options' => "Akurasi (Accuracy)\nF1-Score dan ROC-AUC\nMean Squared Error (MSE)\nPerplexity Skor",
                         'points' => 25,
+                        'correct' => 'F1-Score dan ROC-AUC',
                         'cpmk' => 'CPMK 1',
                         'cpl' => 'CPL 2',
                     ],
@@ -103,6 +108,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                         'prompt' => 'Akurasi sebesar 95% selalu menjamin bahwa model pembelajaran mesin bekerja optimal dalam memprediksi kelas minoritas.',
                         'options' => '',
                         'points' => 20,
+                        'correct' => 'Salah',
                         'cpmk' => 'CPMK 1',
                         'cpl' => 'CPL 2',
                     ],
@@ -112,6 +118,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                         'prompt' => 'Jodohkan istilah metrik evaluasi klasifikasi di sebelah kiri dengan formula / karakteristik yang tepat di sebelah kanan:',
                         'options' => "Precision = True Positive / (True Positive + False Positive)\nRecall = True Positive / (True Positive + False Negative)\nF1-Score = Rata-rata harmonis antara Precision dan Recall\nSpesifisitas = True Negative / (True Negative + False Positive)",
                         'points' => 30,
+                        'correct' => ['Precision = True Positive / (True Positive + False Positive)', 'Recall = True Positive / (True Positive + False Negative)', 'F1-Score = Rata-rata harmonis antara Precision dan Recall', 'Spesifisitas = True Negative / (True Negative + False Positive)'],
                         'cpmk' => 'CPMK 2',
                         'cpl' => 'CPL 3',
                     ],
@@ -150,6 +157,32 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         abort_unless(isset(self::courses()[$id]), 404);
 
         return self::courses()[$id];
+    }
+
+    public static function enrolledStudents(int $course): array
+    {
+        self::course($course);
+        $ids = session("learning.enrollments.$course", [1]);
+
+        return array_values(array_filter(
+            AdminPreview::users(),
+            fn ($user) => $user['role'] === 'mahasiswa'
+                && $user['status'] === 'aktif'
+                && in_array((int) $user['id'], array_map('intval', $ids), true)
+        ));
+    }
+
+    public static function courseClassLabel(int $course): string
+    {
+        self::course($course);
+        $class = collect(AdminPreview::academic())
+            ->first(fn ($record) => $record['type'] === 'kelas' && (int) ($record['course'] ?? 0) === $course);
+
+        if ($class && preg_match('/(?:-|\s)([A-Za-z])$/', $class['code'], $match)) {
+            return 'Kelas '.strtoupper($match[1]);
+        }
+
+        return 'Kelas A';
     }
 
     public static function resource(int $course, int $item): array

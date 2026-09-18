@@ -131,6 +131,9 @@ class AcademicController extends Controller
 
     public function student()
     {
-        return view('learning.grades',['courses'=>Learning::courses()]);
+        $studentId = (int) session('auth_user.id', 1);
+        $courses = Learning::courses();
+
+        return view('learning.grades', compact('courses', 'studentId'));
     }
 }

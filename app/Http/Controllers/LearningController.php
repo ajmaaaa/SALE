@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\LearningPreview as Learning;
+use App\Support\AdminPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -83,6 +84,79 @@ class LearningController extends Controller
         return view('learning.discussions', ['items' => Learning::items(), 'courses' => Learning::courses()]);
     }
 
+    public function notifications()
+    {
+        $notifications = [];
+        $now = now();
+        $items = Learning::items();
+
+        foreach ($items as $id => $item) {
+            $course = Learning::course($item['course']);
+            $submitted = session("learning.submissions.$id");
+            $isWork = in_array($item['type'], ['tugas', 'coding', 'kuis'], true);
+
+            if ($isWork && ! $submitted && ! empty($item['due'])) {
+                $due = \Carbon\Carbon::parse($item['due']);
+                $isLate = $due->isPast();
+                $isNear = ! $isLate && $due->diffInDays($now) <= 3;
+                if ($isLate || $isNear) {
+                    $notifications[] = [
+                        'type' => 'deadline',
+                        'label' => $isLate ? 'Tenggat terlewat' : 'Tenggat mendekat',
+                        'title' => ($isLate ? 'Segera periksa ' : 'Segera kumpulkan ').$item['title'],
+                        'description' => $isLate ? 'Tugas atau kuis ini melewati tenggat dan belum dikumpulkan.' : 'Tenggat pengumpulan tinggal '.$due->diffForHumans($now, true).'.',
+                        'meta' => $course['code'].' · '.$due->translatedFormat('d M Y, H:i'),
+                        'url' => route('mahasiswa.course.item', [$item['course'], $id]),
+                        'priority' => $isLate ? 1 : 2,
+                        'time' => $due->timestamp,
+                    ];
+                }
+            }
+
+            if ($item['type'] === 'materi') {
+                $notifications[] = [
+                    'type' => 'material', 'label' => 'Materi baru', 'title' => $item['title'],
+                    'description' => 'Dosen menambahkan materi pembelajaran baru ke course.',
+                    'meta' => $course['code'].' · '.$item['module'], 'url' => route('mahasiswa.course.item', [$item['course'], $id]),
+                    'priority' => 3, 'time' => 0,
+                ];
+            }
+
+            if ($item['type'] === 'pengumuman') {
+                $notifications[] = [
+                    'type' => 'announcement', 'label' => 'Pengumuman course', 'title' => $item['title'],
+                    'description' => \Illuminate\Support\Str::limit($item['body'], 140),
+                    'meta' => $course['code'].' · '.$course['lecturer'], 'url' => route('mahasiswa.course.item', [$item['course'], $id]),
+                    'priority' => 3, 'time' => 0,
+                ];
+            }
+        }
+
+        foreach (Learning::recentDiscussions() as $discussion) {
+            $notifications[] = [
+                'type' => 'discussion', 'label' => 'Diskusi terbaru', 'title' => $discussion['course_title'],
+                'description' => $discussion['message'], 'meta' => $discussion['author'].' · '.$discussion['time'],
+                'url' => route('mahasiswa.course.show', $discussion['course']).'#diskusi-kelas', 'priority' => 4,
+                'time' => $discussion['timestamp'] ?? 0,
+            ];
+        }
+
+        foreach (session('learning.submissions', []) as $id => $submission) {
+            $item = $items[$id] ?? null;
+            if (! $item) continue;
+            $notifications[] = [
+                'type' => 'submission', 'label' => 'Jawaban tersimpan', 'title' => $item['title'].' dikumpulkan',
+                'description' => 'Jawaban Anda sudah tersimpan dan menunggu penilaian.',
+                'meta' => $submission['time'] ?? 'Baru saja', 'url' => route('mahasiswa.course.item', [$item['course'], $id]),
+                'priority' => 5, 'time' => 0,
+            ];
+        }
+
+        usort($notifications, fn ($a, $b) => [$a['priority'], -$a['time']] <=> [$b['priority'], -$b['time']]);
+
+        return view('learning.notifications', compact('notifications'));
+    }
+
     public function createCourse()
     {
         return view('dosen.course-form');
@@ -109,6 +183,53 @@ class LearningController extends Controller
     public function createItem(int $course)
     {
         return view('dosen.item-form', ['course' => Learning::course($course)]);
+    }
+
+    public function students(int $course)
+    {
+        $courseData = Learning::course($course);
+        $students = AdminPreview::users();
+        $enrolled = array_map(fn ($student) => $student['id'], Learning::enrolledStudents($course));
+
+        return view('dosen.students', [
+            'course' => $courseData,
+            'students' => array_filter($students, fn ($student) => $student['role'] === 'mahasiswa' && $student['status'] === 'aktif'),
+            'enrolled' => $enrolled,
+        ]);
+    }
+
+    public function saveStudents(Request $request, int $course)
+    {
+        Learning::course($course);
+        $validStudents = array_keys(array_filter(AdminPreview::users(), fn ($student) => $student['role'] === 'mahasiswa' && $student['status'] === 'aktif'));
+        $data = $request->validate(['students' => 'nullable|array', 'students.*' => ['integer', Rule::in($validStudents)]]);
+        session(["learning.enrollments.$course" => array_map('intval', $data['students'] ?? [])]);
+
+        return back()->with('notice', 'Peserta course berhasil diperbarui.');
+    }
+
+    public function addStudent(Request $request, int $course)
+    {
+        Learning::course($course);
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'number' => 'required|string|max:30',
+            'email' => 'required|email|max:150',
+        ]);
+        $users = AdminPreview::users();
+        foreach ($users as $user) {
+            if (strcasecmp($user['email'], $data['email']) === 0 || $user['number'] === $data['number']) {
+                return back()->withErrors(['email' => 'Email atau NIM mahasiswa sudah digunakan.'])->withInput();
+            }
+        }
+
+        $id = max(array_keys($users) ?: [0]) + 1;
+        $users[$id] = $data + ['id' => $id, 'role' => 'mahasiswa', 'status' => 'aktif'];
+        session(['admin.users' => $users]);
+        $enrolled = array_map('intval', array_map(fn ($student) => $student['id'], Learning::enrolledStudents($course)));
+        session(["learning.enrollments.$course" => array_values(array_unique([...$enrolled, $id]))]);
+
+        return back()->with('notice', 'Mahasiswa baru ditambahkan dan langsung didaftarkan ke course.');
     }
 
     public function storeItem(Request $request, int $course)

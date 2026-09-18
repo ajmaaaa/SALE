@@ -1,7 +1,7 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Transkrip Nilai & KHS | SALE')
-@section('header', 'Transkrip Nilai')
+@section('title', 'Rekapan Nilai | SALE')
+@section('header', 'Rekapan Nilai')
 
 @section('content')
 @php
@@ -38,8 +38,8 @@
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
             <p class="mb-1 text-xs font-semibold text-muted uppercase tracking-wider">Hasil Evaluasi Belajar</p>
-            <h1 class="page-heading">Transkrip Nilai &amp; Hasil Studi</h1>
-            <p class="page-description">Kartu Hasil Studi (KHS) mahasiswa berdasarkan evaluasi capaian perkuliahan.</p>
+            <h1 class="page-heading">Rekapan Nilai</h1>
+            <p class="page-description">Lihat nilai setiap mata kuliah dan buka rinciannya saat diperlukan.</p>
         </div>
 
         {{-- Semester & Tahun Penyesuaian --}}
@@ -75,11 +75,11 @@
         </div>
     </div>
 
-    {{-- KHS Table (Klik baris langsung untuk melihat detail nilai & CPMK) --}}
+    {{-- Nilai utama dan rincian capaian dibuka dari setiap mata kuliah. --}}
     <div class="surface overflow-hidden">
         <div class="border-b border-line/60 px-5 py-3.5 flex items-center justify-between">
             <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah Semester</h2>
-            <span class="text-xs text-muted">Klik baris untuk melihat Rincian Komponen Nilai &amp; CPMK</span>
+            <span class="text-xs text-muted">Klik mata kuliah untuk melihat rincian nilai</span>
         </div>
 
         <div class="overflow-x-auto">
@@ -113,7 +113,7 @@
                                 else { $letter = 'E'; }
                             }
                         @endphp
-                        {{-- Row is clickable directly to reveal Rincian Komponen Nilai & Capaian CPMK --}}
+                        {{-- Klik baris untuk membuka komponen nilai dan capaian pembelajaran. --}}
                         <tr onclick="document.getElementById('detail-{{ $course['id'] }}').toggleAttribute('hidden'); document.getElementById('arrow-{{ $course['id'] }}').classList.toggle('rotate-180');"
                             class="hover:bg-canvas/60 cursor-pointer transition select-none group">
                             <td class="py-3.5 px-4 min-w-[240px]">
@@ -144,7 +144,7 @@
                             </td>
                         </tr>
 
-                        {{-- Expanded Details: Rincian Komponen Nilai & Capaian CPMK --}}
+                        {{-- Expanded Details: Rincian nilai, CPMK, dan CPL terkait. --}}
                         <tr id="detail-{{ $course['id'] }}" hidden class="bg-slate-50/50">
                             <td colspan="5" class="px-6 py-4 border-b border-line/50">
                                 <div class="space-y-4 max-w-4xl">

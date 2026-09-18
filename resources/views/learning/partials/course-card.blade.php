@@ -7,6 +7,8 @@
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
     $due = $course['due'] ?? (!empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : '');
+    $studentCount = count(\App\Support\LearningPreview::enrolledStudents($course['id']));
+    $classLabel = \App\Support\LearningPreview::courseClassLabel($course['id']);
     $role = $role ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa');
     $targetUrl = route($role . '.course.show', $course['id']);
 @endphp
@@ -17,7 +19,11 @@
         <div class="px-5 pt-4">
             <p class="text-xs font-semibold text-brand">{{ $course['code'] }}</p>
             <h2 class="mt-2 text-lg font-semibold leading-tight text-ink group-hover:text-brand transition">{{ $course['title'] }}</h2>
-            <p class="mt-1 text-xs text-muted">{{ $course['lecturer'] }}</p>
+            <p class="mt-1 text-xs text-muted">{{ $course['lecturer'] }} · {{ $classLabel }}</p>
+            <p class="mt-1 inline-flex items-center gap-1 text-[11px] text-muted" title="Jumlah mahasiswa yang mengambil course" aria-label="{{ $studentCount }} mahasiswa mengambil course">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+                <span>{{ $studentCount }}</span>
+            </p>
         </div>
     @else
         <div class="relative min-h-32 overflow-hidden bg-brand-dark px-5 py-5 text-white">
@@ -36,7 +42,11 @@
                     <span>{{ $sks }}</span>
                 </div>
                 <h2 class="mt-3 text-base sm:text-lg font-semibold leading-snug text-white group-hover:text-slate-100 transition">{{ $course['title'] }}</h2>
-                <p class="mt-1 text-xs text-white/90">{{ $course['lecturer'] }}</p>
+                <p class="mt-1 text-xs text-white/90">{{ $course['lecturer'] }} · {{ $classLabel }}</p>
+                <p class="mt-1 inline-flex items-center gap-1 text-[11px] text-white/75" title="Jumlah mahasiswa yang mengambil course" aria-label="{{ $studentCount }} mahasiswa mengambil course">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+                    <span>{{ $studentCount }}</span>
+                </p>
             </div>
         </div>
     @endif

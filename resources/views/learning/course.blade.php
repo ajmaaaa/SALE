@@ -9,6 +9,8 @@
     $cpmkList = \App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? [];
     $modules = collect($items)->where('type', '!=', 'pengumuman')->groupBy('module');
     $announcements = collect($items)->where('type', 'pengumuman');
+    $workItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
+    $studentResult = $role === 'mahasiswa' ? \App\Support\AcademicPreview::result($course['id'], session('auth_user.id', 1)) : null;
 @endphp
 
 <div class="space-y-7">
@@ -47,6 +49,9 @@
                 <a href="{{ route('dosen.academic', $course['id']) }}" class="button-secondary">
                     Atur CPL &amp; CPMK
                 </a>
+                <a href="{{ route('dosen.course.students', $course['id']) }}" class="button-secondary">
+                    Kelola Mahasiswa
+                </a>
                 <a href="{{ route('dosen.gradebook', ['course' => $course['id']]) }}" class="button-secondary">
                     Rekap Nilai
                 </a>
@@ -78,7 +83,7 @@
                         @if(!empty($course['video']))
                             <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                Putar Video Pengantar ↗
+                                Putar Video Pengantar
                             </a>
                         @else
                             <button type="button" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
@@ -91,7 +96,7 @@
             </section>
 
             {{-- Modules List --}}
-            <section aria-labelledby="module-heading">
+            <section id="materi" aria-labelledby="module-heading">
                 <div class="mb-3.5 flex items-end justify-between gap-4">
                     <div>
                         <h2 id="module-heading" class="section-heading">Materi &amp; pekerjaan kelas</h2>
@@ -173,6 +178,26 @@
 
         {{-- KOLOM KANAN (SIDEBAR DISAMPING): Dosen Pengampu, Pengumuman, CPMK, & Forum Diskusi (Chat Paling Bawah) --}}
         <aside class="space-y-6">
+            @if($role === 'mahasiswa')
+                <section id="pekerjaan" class="surface p-5 rounded-xl border border-line/60" aria-labelledby="work-heading">
+                    <div class="flex items-center justify-between border-b border-line/40 pb-3">
+                        <div><h2 id="work-heading" class="text-sm font-bold text-ink">Pemberitahuan tugas &amp; kuis</h2><p class="mt-1 text-xs text-muted">Pekerjaan yang tersedia di course ini.</p></div>
+                        <span class="status bg-brand-soft text-brand">{{ $workItems->count() }}</span>
+                    </div>
+                    <div class="mt-3 divide-y divide-line/40">
+                        @forelse($workItems as $work)
+                            @php $submitted = session('learning.submissions.'.$work['id']); @endphp
+                            <a href="{{ route('mahasiswa.course.item', [$course['id'], $work['id']]) }}" class="block py-3 first:pt-0 last:pb-0 hover:text-brand">
+                                <div class="flex items-start justify-between gap-3"><span class="text-xs font-semibold text-ink">{{ $work['title'] }}</span><span class="text-[11px] {{ $submitted ? 'text-emerald-700' : 'text-danger' }}">{{ $submitted ? 'Terkumpul' : 'Belum dikumpulkan' }}</span></div>
+                                <p class="mt-1 text-[11px] text-muted">{{ \App\Support\LearningPreview::labels()[$work['type']] }} · {{ $work['due'] ? \Carbon\Carbon::parse($work['due'])->translatedFormat('d M Y, H:i') : 'Tanpa tenggat' }}</p>
+                            </a>
+                        @empty
+                            <p class="pt-3 text-xs text-muted">Belum ada tugas atau kuis pada course ini.</p>
+                        @endforelse
+                    </div>
+                </section>
+            @endif
+
             {{-- 1. Dosen Pengampu Info Card --}}
             <section class="surface p-5 rounded-xl border border-line/60" aria-labelledby="lecturer-heading">
                 <span class="text-xs font-semibold text-muted uppercase tracking-wider block">Dosen Pengampu</span>
@@ -203,14 +228,18 @@
 
             {{-- 3. CPMK Outcomes (Collapsible Accordion) --}}
             @if(count($cpmkList) > 0)
-                <details class="surface p-4 sm:p-5 rounded-xl border border-line/60">
+                <details id="cpmk" class="surface p-4 sm:p-5 rounded-xl border border-line/60">
                     <summary class="cursor-pointer text-xs font-semibold text-ink">Capaian Pembelajaran (CPMK)</summary>
+                    @if($studentResult)
+                        <p class="mt-3 rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand">Nilai akhir course: <strong>{{ $studentResult['average'] !== null ? number_format($studentResult['average'], 1, ',', '.') : 'Belum lengkap' }}</strong></p>
+                    @endif
                     <div class="mt-3 divide-y divide-line/40 text-xs">
                         @foreach($cpmkList as $cpmk)
+                            @php $attainment = $studentResult ? collect(\App\Support\AcademicPreview::breakdown($course['id'])['cpmk'])->firstWhere('code', $cpmk['code']) : null; @endphp
                             <div class="py-2.5 first:pt-0 last:pb-0">
                                 <div class="flex items-center justify-between">
                                     <span class="font-semibold text-ink">{{ $cpmk['code'] }}</span>
-                                    <span class="text-[11px] text-muted">{{ $cpmk['cpl'] ?? 'CPL' }}</span>
+                                    <span class="text-[11px] text-muted">{{ $attainment && $attainment['score'] !== null ? number_format($attainment['score'], 1, ',', '.') : 'Belum dinilai' }}</span>
                                 </div>
                                 <p class="mt-1 text-muted leading-relaxed">{{ $cpmk['description'] }}</p>
                             </div>

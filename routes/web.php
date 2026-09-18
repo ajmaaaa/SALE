@@ -36,7 +36,7 @@ Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::c
 Route::post('/mahasiswa/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('mahasiswa.course.discuss.class');
 Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('mahasiswa.course.discuss');
 Route::post('/mahasiswa/course/{course}/item/{item}/submission', [LearningController::class, 'submit'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submit');
-Route::view('/mahasiswa/notifikasi', 'learning.notifications')->name('mahasiswa.notifications');
+Route::get('/mahasiswa/notifikasi', [LearningController::class, 'notifications'])->name('mahasiswa.notifications');
 Route::get('/preview/files/{file}', [LearningController::class, 'file'])->whereUuid('file')->name('preview.file');
 
 Route::prefix('dosen')->name('dosen.')->group(function () {
@@ -45,6 +45,9 @@ Route::prefix('dosen')->name('dosen.')->group(function () {
     Route::get('/course/create', [LearningController::class, 'createCourse'])->name('course.create');
     Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
+    Route::get('/course/{course}/students', [LearningController::class, 'students'])->whereNumber('course')->name('course.students');
+    Route::post('/course/{course}/students', [LearningController::class, 'saveStudents'])->whereNumber('course')->name('course.students.save');
+    Route::post('/course/{course}/students/create', [LearningController::class, 'addStudent'])->whereNumber('course')->name('course.students.create');
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
     Route::view('/penilaian', 'dosen.grades')->name('grades');

@@ -74,7 +74,7 @@
     <section class="surface p-6 rounded-2xl border border-line/70 shadow-sm space-y-5">
         <div class="flex items-center justify-between border-b border-line/50 pb-4">
             <div>
-                <h2 class="text-lg font-bold text-ink">Daftar Matkul Diampu</h2>
+                <h2 class="text-lg font-bold text-ink">Course yang diampu</h2>
                 <p class="mt-0.5 text-xs text-muted">Seluruh kuis, tugas, dan rekap nilai berada di dalam matkul masing-masing.</p>
             </div>
         </div>

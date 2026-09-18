@@ -23,6 +23,47 @@
         .connection-line {
             transition: stroke 0.2s ease;
         }
+        .quiz-topbar {
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 1px 0 rgba(148, 163, 184, 0.22), 0 8px 24px rgba(15, 23, 42, 0.05);
+        }
+        .quiz-panel {
+            border-color: #dbe3ea;
+            border-radius: 14px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+        .quiz-question-panel {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 42%);
+        }
+        .quiz-answer-panel {
+            background: #ffffff;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+        }
+        .quiz-option {
+            border-color: #dbe3ea;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.025);
+        }
+        .quiz-option:has(input:checked) {
+            border-color: #1d4ed8;
+            background: #eff6ff;
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        .quiz-option:hover {
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }
+        .quiz-kicker {
+            letter-spacing: 0.12em;
+        }
+        @media (max-width: 1023px) {
+            .quiz-topbar {
+                height: auto !important;
+                min-height: 64px;
+                flex-wrap: wrap;
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+        }
         dialog[open] {
             position: fixed !important;
             inset: 0 !important;
@@ -76,8 +117,8 @@
             </header>
 
             {{-- Center Content Box --}}
-            <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
-                <div class="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl p-8 sm:p-10 text-center space-y-6">
+            <main class="flex-1 flex items-start justify-center p-4 sm:p-6">
+                <div class="w-full max-w-5xl bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8 text-center space-y-6">
                     
                     {{-- SIMBOL CENTANG BERSIH (Neutral Solid Icon Circle) --}}
                     <div class="mx-auto h-16 w-16 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-sm">
@@ -121,6 +162,66 @@
                         </div>
                     </div>
 
+                    {{-- Hasil jawaban dan penjelasan AI hanya tampil setelah kuis terkumpul. --}}
+                    <section class="border-t border-slate-200 pt-6 text-left" aria-labelledby="ai-review-heading">
+                        <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-brand">Review setelah pengumpulan</p>
+                                <h2 id="ai-review-heading" class="mt-1 text-lg font-bold text-slate-900">Jawaban Anda &amp; penjelasan AI</h2>
+                            </div>
+                            <span class="text-xs text-slate-500">Umpan balik tersedia setelah kuis dikunci.</span>
+                        </div>
+
+                        <div class="space-y-3">
+                            @foreach($questions as $reviewIdx => $reviewQuestion)
+                                @php
+                                    $reviewAnswer = $submission['question_answers'][$reviewIdx] ?? [];
+                                    $reviewType = $reviewQuestion['type'] ?? 'uraian';
+                                    $reviewExpected = $reviewQuestion['correct'] ?? null;
+                                    $reviewValues = $reviewType === 'mencocokkan'
+                                        ? array_values($reviewAnswer['matching'] ?? [])
+                                        : ($reviewType === 'kompleks' ? array_values($reviewAnswer['choices'] ?? []) : array_values(array_filter([$reviewAnswer['choices'][0] ?? $reviewAnswer['boolean_choice'] ?? $reviewAnswer['text'] ?? ''], fn ($value) => trim((string) $value) !== '')));
+                                    $reviewCorrect = null;
+                                    if ($reviewExpected !== null && $reviewType === 'mencocokkan') $reviewCorrect = $reviewValues === array_values($reviewExpected);
+                                    elseif ($reviewExpected !== null && $reviewType === 'kompleks') { $actual = $reviewValues; $expectedValues = array_values($reviewExpected); sort($actual); sort($expectedValues); $reviewCorrect = $actual === $expectedValues; }
+                                    elseif ($reviewExpected !== null) $reviewCorrect = ($reviewValues[0] ?? null) === $reviewExpected;
+                                    $reviewAnswerText = $reviewType === 'mencocokkan'
+                                        ? collect($reviewValues)->map(fn ($value, $index) => 'Pasangan '.($index + 1).': '.$value)->implode(' · ')
+                                        : implode(', ', $reviewValues);
+                                    $reviewAnswerText = $reviewAnswerText !== '' ? $reviewAnswerText : 'Belum ada jawaban';
+                                    $reviewExplanation = $reviewCorrect === true
+                                        ? 'Jawaban ini sesuai dengan konsep yang diuji. Gunakan alasan yang sama saat menerapkan konsep pada soal atau kasus lain.'
+                                        : ($reviewCorrect === false
+                                            ? 'Jawaban ini belum sesuai dengan konsep yang diuji. Bandingkan kembali jawaban Anda dengan penjelasan soal dan identifikasi bagian konsep yang berbeda.'
+                                            : 'Jawaban ini membutuhkan penilaian lebih lanjut. Gunakan pertanyaan, materi, dan CPMK sebagai panduan untuk meninjau kualitas jawaban Anda.');
+                                @endphp
+                                <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h3 class="text-sm font-bold text-slate-900">Soal {{ $reviewIdx + 1 }}</h3>
+                                        @if($reviewCorrect === true)
+                                            <span class="text-xs font-semibold text-slate-600">Benar</span>
+                                        @elseif($reviewCorrect === false)
+                                            <span class="text-xs font-semibold text-slate-600">Perlu ditinjau</span>
+                                        @else
+                                            <span class="text-xs font-semibold text-slate-600">Review dosen</span>
+                                        @endif
+                                    </div>
+                                    <p class="mt-2 text-sm font-medium leading-relaxed text-slate-800">{{ $reviewQuestion['prompt'] }}</p>
+                                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                                        <div class="rounded-lg bg-slate-50 p-3">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Jawaban Anda</p>
+                                            <p class="mt-1 text-xs leading-relaxed text-slate-800">{{ $reviewAnswerText }}</p>
+                                        </div>
+                                        <div class="rounded-lg border border-brand/20 bg-brand-soft p-3">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wider text-brand">Lumina AI</p>
+                                            <p class="mt-1 text-xs leading-relaxed text-slate-800">{{ $reviewExplanation }}</p>
+                                        </div>
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+                    </section>
+
                     {{-- Tombol Tindakan Purna-Ujian --}}
                     <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                         <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="button-primary w-full sm:w-auto py-2.5 px-6 font-bold shadow-xs">
@@ -142,7 +243,7 @@
         {{-- ================================================================= --}}
 
         {{-- TOP STICKY APP BAR --}}
-        <header class="h-14 shrink-0 bg-white border-b border-slate-200 z-30 px-4 sm:px-6 flex items-center justify-between gap-4">
+        <header class="quiz-topbar h-16 shrink-0 border-b border-slate-200 z-30 px-4 sm:px-6 flex items-center justify-between gap-4">
             
             {{-- Left: Exit Link & Exam Info --}}
             <div class="flex items-center gap-3 min-w-0">
@@ -155,7 +256,7 @@
                         <span class="text-slate-300">·</span>
                         <span class="text-xs text-slate-500 truncate hidden sm:inline">{{ $course['title'] }}</span>
                     </div>
-                    <h1 class="truncate text-sm font-bold text-slate-900 leading-tight">{{ $item['title'] }}</h1>
+                    <h1 class="truncate text-[15px] font-bold text-slate-900 leading-tight">{{ $item['title'] }}</h1>
                 </div>
             </div>
 
@@ -163,7 +264,7 @@
             <div class="flex items-center gap-2.5">
                 {{-- Countdown Timer --}}
                 @if($durationMinutes)
-                    <div id="timer-badge" class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono font-bold text-slate-700">
+                    <div id="timer-badge" class="flex items-center gap-1.5 bg-brand-soft border border-brand/20 px-3 py-2 rounded-lg text-xs font-mono font-bold text-brand-dark">
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         <span id="quiz-countdown" data-duration="{{ $durationMinutes * 60 }}">--:--</span>
                     </div>
@@ -175,7 +276,7 @@
                 @endif
 
                 {{-- TOMBOL DAFTAR SOAL (Grid Popover Trigger) --}}
-                <button type="button" id="btn-open-grid-modal" class="button-secondary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800 shadow-2xs cursor-pointer" title="Buka Daftar Nomor Soal">
+                <button type="button" id="btn-open-grid-modal" class="button-secondary text-xs py-2 px-3.5 font-bold flex items-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800 shadow-2xs cursor-pointer" title="Buka Daftar Nomor Soal">
                     <svg class="h-3.5 w-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                     <span>Daftar Soal (<span id="header-cur-step">1</span>/{{ $totalQuestions }})</span>
                 </button>
@@ -183,17 +284,17 @@
 
             {{-- Right: Stepper Navigasi Soal di Kanan Atas (Sebelumnya, Selanjutnya / Kumpulkan di Soal Terakhir) --}}
             <div class="flex items-center gap-2">
-                <button type="button" id="btn-top-prev" class="button-secondary text-xs py-1.5 px-3 font-semibold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" title="Soal Sebelumnya">
+                <button type="button" id="btn-top-prev" class="button-secondary text-xs py-2 px-3 font-semibold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" title="Soal Sebelumnya">
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
                     <span>Sebelumnya</span>
                 </button>
 
-                <button type="button" id="btn-top-next" class="button-primary text-xs py-1.5 px-3.5 font-semibold flex items-center gap-1.5 cursor-pointer" title="Soal Selanjutnya">
+                <button type="button" id="btn-top-next" class="button-primary text-xs py-2 px-4 font-semibold flex items-center gap-1.5 cursor-pointer" title="Soal Selanjutnya">
                     <span>Selanjutnya</span>
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
 
-                <button type="button" id="btn-top-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold flex items-center gap-1.5 shadow-xs hidden cursor-pointer" title="Kumpulkan Kuis">
+                <button type="button" id="btn-top-finish" class="button-primary text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-xs hidden cursor-pointer" title="Kumpulkan Kuis">
                     <span>Kumpulkan Kuis</span>
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                 </button>
@@ -201,23 +302,23 @@
         </header>
 
         {{-- MAIN EXAM SPLIT WORKBENCH (FULL SCREEN TANPA SIDEBAR) --}}
-        <main class="flex-1 overflow-hidden p-3 sm:p-4">
+        <main class="flex-1 overflow-hidden bg-slate-100/70 p-3 sm:p-5">
             <form id="exam-form" method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" class="h-full">
                 @csrf
                 <input type="hidden" name="from_quiz_room" value="1">
 
                 @foreach($questions as $qIdx => $q)
-                    <div data-exam-card="{{ $qIdx }}" class="h-full grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)] gap-3.5 {{ $qIdx === 0 ? '' : 'hidden' }}">
+                    <div data-exam-card="{{ $qIdx }}" class="relative h-full grid grid-cols-1 lg:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.35fr)] xl:grid-cols-[420px_minmax(0,1fr)] gap-4 {{ $qIdx === 0 ? '' : 'hidden' }}">
                         
                         {{-- PANEL KIRI: SOAL & INSTRUKSI --}}
-                        <section class="h-full flex flex-col rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
+                        <section class="quiz-panel quiz-question-panel h-full flex flex-col overflow-hidden">
                             {{-- Header Panel Kiri --}}
-                            <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <div class="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between bg-white/70">
                                 <div class="flex items-center gap-2">
                                     <span class="h-6 w-6 rounded bg-slate-900 text-white text-xs font-bold flex items-center justify-center">
                                         {{ $qIdx + 1 }}
                                     </span>
-                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-600">
+                                    <span class="quiz-kicker text-[10px] font-bold uppercase text-slate-600">
                                         @if($q['type'] === 'coding')
                                             Pemrograman
                                         @elseif($q['type'] === 'mencocokkan')
@@ -234,17 +335,17 @@
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-slate-500">
-                                    <span class="font-semibold text-slate-700">{{ $q['points'] }} Poin</span>
+                                    <span class="rounded-full bg-brand-soft px-2.5 py-1 font-bold text-brand-dark">{{ $q['points'] }} poin</span>
                                     <span>·</span>
                                     <span class="text-slate-500">{{ $q['cpmk'] }}</span>
                                 </div>
                             </div>
 
                             {{-- Body Panel Kiri (Scrollable) --}}
-                            <div class="p-5 flex-1 overflow-y-auto [scrollbar-gutter:stable] space-y-4">
+                            <div class="p-6 flex-1 overflow-y-auto [scrollbar-gutter:stable] space-y-5">
                                 <div>
-                                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Instruksi / Pertanyaan</h2>
-                                    <div class="text-sm font-normal text-slate-800 leading-relaxed whitespace-pre-line">{{ $q['prompt'] }}</div>
+                                    <h2 class="quiz-kicker text-[10px] font-bold text-brand uppercase mb-3">Instruksi / Pertanyaan</h2>
+                                    <div class="text-[15px] font-medium text-slate-800 leading-7 whitespace-pre-line">{{ $q['prompt'] }}</div>
                                 </div>
 
                                 @if(!empty($q['image']))
@@ -260,7 +361,7 @@
                             </div>
 
                             {{-- Footer Panel Kiri --}}
-                            <div class="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
+                            <div class="px-5 py-3 border-t border-slate-200/80 bg-white/70 flex items-center justify-between text-xs text-slate-400">
                                 <span>Soal {{ $qIdx + 1 }} dari {{ $totalQuestions }}</span>
                                 <span class="text-muted font-medium flex items-center gap-1">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
@@ -270,7 +371,7 @@
                         </section>
 
                         {{-- PANEL KANAN: AREA LEMBAR KERJA / TEMPAT MENJAWAB --}}
-                        <section class="h-full flex flex-col rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
+                        <section class="quiz-panel quiz-answer-panel h-full flex flex-col overflow-hidden">
                             
                             {{-- TIPE 1: CODING (Integrated Workbench - Mirip Assignment Code Sebelumnya Tanpa AI) --}}
                             @if($q['type'] === 'coding')
@@ -384,7 +485,7 @@
                                 <div class="h-full flex flex-col">
                                     {{-- Canvas Header Status --}}
                                     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-xs bg-slate-50/50">
-                                        <span class="text-slate-600 font-medium">Klik premis di kiri lalu klik pasangan jawaban di kanan untuk menghubungkan.</span>
+                                        <span class="text-slate-600 font-medium">Klik premis atau jawaban terlebih dahulu, lalu klik pasangannya untuk menghubungkan.</span>
                                         <div class="flex items-center gap-3">
                                             <span class="text-slate-500 font-semibold"><span id="match-counter-{{ $qIdx }}">0 dari {{ count($pairs) }}</span> terhubung</span>
                                             <button type="button" data-reset-lines="{{ $qIdx }}" class="text-xs text-muted hover:text-ink underline font-medium cursor-pointer">Reset Semua Garis</button>
@@ -478,12 +579,12 @@
                                     $isMultiple = $q['type'] === 'kompleks';
                                 @endphp
                                 <div class="h-full flex flex-col">
-                                    <div class="px-5 py-3 border-b border-slate-100 text-xs text-slate-500 bg-slate-50/50">
+                                    <div class="px-6 py-4 border-b border-slate-200/80 text-xs text-slate-500 bg-slate-50/60">
                                         {{ $isMultiple ? 'Pilih semua opsi yang benar di bawah ini:' : 'Pilih satu opsi jawaban yang paling tepat:' }}
                                     </div>
                                     <div class="p-6 flex-1 overflow-y-auto [scrollbar-gutter:stable] space-y-3">
                                         @foreach($options as $optIdx => $opt)
-                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
+                                            <label class="quiz-option flex items-center gap-3.5 p-4 rounded-xl border bg-white cursor-pointer transition">
                                                 <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}"
                                                     name="question_answers[{{ $qIdx }}][choices][]"
                                                     value="{{ $opt }}"
@@ -498,16 +599,16 @@
                             {{-- TIPE 4: BENAR / SALAH --}}
                             @elseif($q['type'] === 'benar_salah')
                                 <div class="h-full flex flex-col">
-                                    <div class="px-5 py-3 border-b border-slate-100 text-xs text-slate-500 bg-slate-50/50">
+                                    <div class="px-6 py-4 border-b border-slate-200/80 text-xs text-slate-500 bg-slate-50/60">
                                         Tentukan kebenaran dari pernyataan pada panel kiri:
                                     </div>
                                     <div class="p-6 flex-1 flex flex-col justify-start max-w-md mx-auto w-full space-y-3 pt-6">
-                                        <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
+                                        <label class="quiz-option flex items-center gap-3.5 p-4 rounded-xl border bg-white cursor-pointer transition">
                                             <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Benar" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
                                                 @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Benar')>
                                             <span class="text-sm font-bold text-slate-900">Benar</span>
                                         </label>
-                                        <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
+                                        <label class="quiz-option flex items-center gap-3.5 p-4 rounded-xl border bg-white cursor-pointer transition">
                                             <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Salah" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
                                                 @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Salah')>
                                             <span class="text-sm font-bold text-slate-900">Salah</span>
@@ -518,7 +619,7 @@
                             {{-- TIPE 5: ESSAY / URAIAN --}}
                             @else
                                 <div class="h-full flex flex-col">
-                                    <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/50">
+                                    <div class="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between text-xs text-slate-500 bg-slate-50/60">
                                         <span>Tuliskan uraian solusi atau argumen akademik Anda:</span>
                                         <span id="essay-word-count-{{ $qIdx }}" class="font-mono text-slate-400">0 kata</span>
                                     </div>
@@ -890,10 +991,11 @@
                     const leftDots = container.querySelectorAll('[data-dot-side="left"]');
                     const rightDots = container.querySelectorAll('[data-dot-side="right"]');
                     const counterEl = document.getElementById(`match-counter-${qIdx}`);
-                    const resetBtn = container.querySelector(`[data-reset-lines="${qIdx}"]`);
+                    const resetBtn = container.parentElement?.querySelector(`[data-reset-lines="${qIdx}"]`);
 
                     const connections = {};
                     let selectedPremiseIdx = null;
+                    let selectedAnswerIdx = null;
 
                     // Pulihkan sambungan yang tersimpan sebelumnya
                     leftDots.forEach(ld => {
@@ -997,57 +1099,90 @@
 
                     matchingQuestions[qIdx] = { redraw: redrawLines };
 
-                    // 1-Click Select Premis di Kolom Kiri
-                    leftCards.forEach(lc => {
-                        lc.addEventListener('click', (e) => {
-                            if (e.target.closest('[data-disconnect-left]')) return;
+                    const clearSelection = () => {
+                        selectedPremiseIdx = null;
+                        selectedAnswerIdx = null;
+                        leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
+                        rightCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
+                        leftDots.forEach(d => d.classList.remove('selected'));
+                        rightDots.forEach(d => d.classList.remove('selected'));
+                    };
 
-                            const pIdx = Number(lc.dataset.matchLeftCard);
+                    const connectSelectedItems = (pIdx, rIdx) => {
+                        const rc = container.querySelector(`[data-match-right-card="${rIdx}"]`);
+                        const lDot = container.querySelector(`[data-dot-side="left"][data-dot-idx="${pIdx}"]`);
+                        if (!rc || !lDot) return;
 
-                            if (selectedPremiseIdx === pIdx) {
-                                // Deselect jika ditekan kembali
-                                selectedPremiseIdx = null;
-                                leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                                leftDots.forEach(d => d.classList.remove('selected'));
+                        const targetVal = rc.dataset.targetVal;
+                        connections[pIdx] = {
+                            targetIdx: rIdx,
+                            targetVal,
+                            color: lDot.dataset.color || '#1d4ed8'
+                        };
+                        const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${pIdx}`);
+                        if (hiddenInp) hiddenInp.value = targetVal;
+
+                        clearSelection();
+                        redrawLines();
+                    };
+
+                    // Delegasi klik memastikan seluruh isi kartu dan dot dapat dipilih.
+                    container.addEventListener('click', (e) => {
+                        if (e.target.closest('[data-disconnect-left]')) return;
+
+                        const leftCard = e.target.closest('[data-match-left-card]');
+                        const rightCard = e.target.closest('[data-match-right-card]');
+
+                        if (leftCard) {
+                            const pIdx = Number(leftCard.dataset.matchLeftCard);
+                            if (selectedPremiseIdx === pIdx && selectedAnswerIdx === null) {
+                                clearSelection();
+                                return;
+                            }
+                            if (selectedAnswerIdx !== null) {
+                                connectSelectedItems(pIdx, selectedAnswerIdx);
                                 return;
                             }
 
                             selectedPremiseIdx = pIdx;
-                            leftCards.forEach(c => {
-                                const isTarget = Number(c.dataset.matchLeftCard) === pIdx;
-                                c.classList.toggle('ring-2', isTarget);
-                                c.classList.toggle('ring-brand', isTarget);
-                                c.classList.toggle('border-brand', isTarget);
+                            selectedAnswerIdx = null;
+                            leftCards.forEach(card => {
+                                const isTarget = Number(card.dataset.matchLeftCard) === pIdx;
+                                card.classList.toggle('ring-2', isTarget);
+                                card.classList.toggle('ring-brand', isTarget);
+                                card.classList.toggle('border-brand', isTarget);
                             });
-                            leftDots.forEach(d => {
-                                d.classList.toggle('selected', Number(d.dataset.dotIdx) === pIdx);
-                            });
-                        });
-                    });
+                            rightCards.forEach(card => card.classList.remove('ring-2', 'ring-brand', 'border-brand'));
+                            leftDots.forEach(dot => dot.classList.toggle('selected', Number(dot.dataset.dotIdx) === pIdx));
+                            rightDots.forEach(dot => dot.classList.remove('selected'));
+                            return;
+                        }
 
-                    // 1-Click Pasangkan dengan Jawaban di Kolom Kanan
-                    rightCards.forEach(rc => {
-                        rc.addEventListener('click', () => {
-                            if (selectedPremiseIdx === null) return;
-                            const lIdx = selectedPremiseIdx;
-                            const rDot = rc.querySelector('[data-dot-side="right"]');
-                            if (!rDot) return;
-                            const rIdx = Number(rDot.dataset.dotIdx);
-                            const targetVal = rc.dataset.targetVal;
-                            const lDot = container.querySelector(`[data-dot-side="left"][data-dot-idx="${lIdx}"]`);
-                            const color = lDot?.dataset.color || '#1d4ed8';
+                        if (rightCard) {
+                            const rightDot = rightCard.querySelector('[data-dot-side="right"]');
+                            if (!rightDot) return;
+                            const rIdx = Number(rightDot.dataset.dotIdx);
+                            if (selectedPremiseIdx !== null) {
+                                connectSelectedItems(selectedPremiseIdx, rIdx);
+                                return;
+                            }
+                            if (selectedAnswerIdx === rIdx) {
+                                clearSelection();
+                                return;
+                            }
 
-                            // Pasangkan atau pindahkan sambungan
-                            connections[lIdx] = { targetIdx: rIdx, targetVal, color };
-                            const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
-                            if (hiddenInp) hiddenInp.value = targetVal;
-
-                            // Reset seleksi
+                            selectedAnswerIdx = rIdx;
                             selectedPremiseIdx = null;
-                            leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                            leftDots.forEach(d => d.classList.remove('selected'));
-                            redrawLines();
-                        });
+                            leftCards.forEach(card => card.classList.remove('ring-2', 'ring-brand', 'border-brand'));
+                            leftDots.forEach(dot => dot.classList.remove('selected'));
+                            rightCards.forEach(card => {
+                                const isTarget = Number(card.dataset.matchRightCard) === rIdx;
+                                card.classList.toggle('ring-2', isTarget);
+                                card.classList.toggle('ring-brand', isTarget);
+                                card.classList.toggle('border-brand', isTarget);
+                            });
+                            rightDots.forEach(dot => dot.classList.toggle('selected', Number(dot.dataset.dotIdx) === rIdx));
+                        }
                     });
 
                     // Putuskan / Batalkan Sambungan Satuan (Inline Action)
@@ -1060,9 +1195,7 @@
                             if (hiddenInp) hiddenInp.value = '';
 
                             if (selectedPremiseIdx === lIdx) {
-                                selectedPremiseIdx = null;
-                                leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                                leftDots.forEach(d => d.classList.remove('selected'));
+                                clearSelection();
                             }
                             redrawLines();
                         });
@@ -1076,9 +1209,7 @@
                             const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
                             if (hiddenInp) hiddenInp.value = '';
                         });
-                        selectedPremiseIdx = null;
-                        leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                        leftDots.forEach(d => d.classList.remove('selected'));
+                        clearSelection();
                         redrawLines();
                     });
 

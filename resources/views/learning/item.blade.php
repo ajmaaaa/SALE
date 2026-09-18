@@ -78,7 +78,7 @@
                                     </div>
                                     <div class="pt-2 flex flex-wrap items-center gap-3 border-t border-line">
                                         <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2 px-3.5 font-bold">
-                                            Lihat Tanda Terima Kuis →
+                                            Lihat Tanda Terima Kuis
                                         </a>
                                         <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="quiet-link text-xs">
                                             ← Kembali ke Halaman Course
@@ -119,7 +119,7 @@
                                                 </button>
                                             @else
                                                 <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-bold shadow-xs">
-                                                    Mulai Kerjakan Kuis →
+                                                    Mulai Kerjakan Kuis
                                                 </a>
                                             @endif
                                         </div>
@@ -152,12 +152,12 @@
                                         @endif
                                         <span class="break-all font-medium">{{ session('learning.files.'.$file.'.name', 'Berkas materi') }}</span>
                                     </span>
-                                    <span class="text-xs text-muted">Buka ↗</span>
+                                    <span class="text-xs text-muted">Buka</span>
                                 </a>
                             @endforeach
                             @if(!empty($item['link']))
                                 <a class="quiet-link block break-all py-2 text-xs" href="{{ $item['link'] }}" target="_blank" rel="noopener noreferrer">
-                                    {{ $item['link'] }} ↗
+                                    {{ $item['link'] }}
                                 </a>
                             @endif
                         </div>
