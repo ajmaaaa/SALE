@@ -62,6 +62,11 @@ class ClassSectionController extends Controller
         // Grading progress per section: how many (assessment × enrolled
         // student) score slots have actually been graded.
         $sections->each(function (ClassSection $section) {
+            if (empty($section->enrollment_code)) {
+                $section->enrollment_code = ClassSection::generateUniqueEnrollmentCode();
+                $section->save();
+            }
+
             $expectedSlots = $section->assessments_count * $section->students_count;
 
             if ($expectedSlots === 0) {
