@@ -12,6 +12,10 @@ class EnsureDosenAuth
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('users')) {
+            return $next($request);
+        }
+
         // Use the real authenticated user when available, with a verified
         // session fallback for the prototype's role switcher.
         $user = auth()->user();

@@ -12,6 +12,10 @@ class EnsureAdminProdiAuth
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('users')) {
+            return $next($request);
+        }
+
         $user = auth()->user();
 
         if (! $user && is_array(session('auth_user'))) {
