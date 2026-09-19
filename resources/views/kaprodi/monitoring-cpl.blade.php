@@ -5,19 +5,9 @@
 
 @section('content')
 <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h2 class="section-heading text-xl font-bold text-ink">Monitoring Capaian CPL Program Studi</h2>
-            <p class="mt-1 text-xs text-muted">Pemantauan ketercapaian Capaian Pembelajaran Lulusan (CPL) untuk akreditasi dan standar evaluasi kurikulum OBE.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <a href="{{ route('kaprodi.monitoring.cpmk') }}" class="button-secondary text-xs inline-flex items-center gap-1.5">
-                <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-                Kembali ke Monitoring CPMK
-            </a>
-        </div>
+    <div>
+        <h2 class="section-heading text-xl font-bold text-ink">Monitoring Capaian CPL Program Studi</h2>
+        <p class="mt-1 text-xs text-muted">Pemantauan ketercapaian Capaian Pembelajaran Lulusan (CPL) untuk akreditasi dan standar evaluasi kurikulum OBE.</p>
     </div>
 
     @if($cplStats->isEmpty())
