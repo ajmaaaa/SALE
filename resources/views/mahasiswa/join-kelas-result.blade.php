@@ -76,13 +76,31 @@
             </div>
         </div>
 
-        <div class="flex justify-center gap-3 pt-2">
-            <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
-                Ke Dashboard Utama
-            </a>
-            <a href="{{ route('mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
-                Buka Course Saya
-            </a>
+        @php
+            $isDosenUser = ($is_dosen ?? false) 
+                || (auth()->user()?->hasRole(\App\Models\Role::DOSEN)) 
+                || (is_array(session('auth_user')) && (session('auth_user.role') ?? '') === 'dosen');
+        @endphp
+
+        <div class="flex flex-wrap justify-center gap-3 pt-2">
+            @if($isDosenUser)
+                <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs px-5 py-2.5 font-semibold">
+                    Daftar Kelas Saya
+                </a>
+                <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="button-primary text-xs px-5 py-2.5 font-semibold">
+                    Kelola Penilaian Kelas
+                </a>
+                <a href="{{ route('dosen.course.show', $section->id) }}" class="button-secondary text-xs px-5 py-2.5 font-semibold">
+                    Buka Ruang Kuliah
+                </a>
+            @else
+                <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
+                    Ke Dashboard Utama
+                </a>
+                <a href="{{ route('mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
+                    Buka Course Saya
+                </a>
+            @endif
         </div>
     </div>
 </div>
