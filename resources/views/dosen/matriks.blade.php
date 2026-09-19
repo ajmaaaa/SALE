@@ -1,6 +1,6 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Matriks Penilaian OBE (Versi C) | ' . $section->display_code . ' | SALE')
+@section('title', 'Matriks Penilaian OBE | ' . $section->display_code . ' | SALE')
 @section('header', 'Matriks Penilaian OBE')
 
 @section('content')
@@ -9,7 +9,7 @@
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h2 class="section-heading">1. Rancangan Matriks Penilaian (Versi C)</h2>
+            <h2 class="section-heading">1. Rancangan Matriks Penilaian</h2>
             <p class="text-sm text-muted">
                 Tentukan alokasi bobot kontribusi setiap instrumen asesmen terhadap masing-masing CPMK. Grand total seluruh sel wajib berjumlah tepat <strong>100%</strong>.
             </p>
@@ -51,7 +51,7 @@
         </div>
     @else
         {{-- ============================================================ --}}
-        {{-- MATRIKS PENILAIAN VERSI C INTERAKTIF (SINGLE SOURCE OF TRUTH) --}}
+        {{-- MATRIKS PENILAIAN INTERAKTIF (SINGLE SOURCE OF TRUTH) --}}
         {{-- ============================================================ --}}
         <form id="form-matriks-obe" method="POST" action="{{ route('dosen.penilaian.matriks.save', $section->id) }}">
             @csrf
@@ -138,8 +138,16 @@
                                     <span id="col-total-{{ $assessment->id }}">{{ rtrim(rtrim(number_format($colTotals[$assessment->id], 1), '0'), '.') }}</span>%
                                 </td>
                             @endforeach
-                            <td class="text-center font-mono font-extrabold text-sm border-l-2 border-brand/20 text-brand bg-brand-soft/40">
-                                <span id="grand-total">{{ rtrim(rtrim(number_format($totalCpmkWeights, 1), '0'), '.') }}</span>%
+                            @php
+                                $roundedGrandTotal = round($totalCpmkWeights, 2);
+                                $isExact100 = abs($roundedGrandTotal - 100.0) < 0.01;
+                                $isOver100 = $roundedGrandTotal > 100.0 && !$isExact100;
+                                $diff = round(abs($roundedGrandTotal - 100.0), 2);
+                                $diffFormatted = rtrim(rtrim(number_format($diff, 2), '0'), '.');
+                                $grandTotalFormatted = rtrim(rtrim(number_format($roundedGrandTotal, 2), '0'), '.');
+                            @endphp
+                            <td id="grand-total-cell" class="text-center font-mono font-extrabold text-sm border-l-2 {{ $isExact100 ? 'border-emerald-500/30 text-emerald-700 bg-emerald-50/40' : ($isOver100 ? 'border-rose-500/30 text-rose-700 bg-rose-50/40' : 'border-amber-500/30 text-amber-700 bg-amber-50/40') }}">
+                                <span id="grand-total">{{ $grandTotalFormatted }}</span>%
                             </td>
                         </tr>
                     </tfoot>
@@ -147,22 +155,34 @@
             </div>
 
             {{-- Floating status bar --}}
-            <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface shadow-sm">
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-semibold text-ink">Status Grand Total Matriks:</span>
-                    <span id="status-badge" class="px-2.5 py-1 rounded-full text-xs font-bold {{ abs($totalCpmkWeights - 100) < 0.1 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
-                        {{ abs($totalCpmkWeights - 100) < 0.1 ? 'Valid (Tepat 100%)' : 'Belum 100% (Target: 100%)' }}
+            <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface shadow-xs">
+                <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
+                    <span class="font-semibold text-ink">Status Grand Total Matriks:</span>
+                    <span id="status-badge" class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $isExact100 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : ($isOver100 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-800 border border-amber-200') }}">
+                        {{ $isExact100 ? 'Valid (Tepat 100%)' : ($isOver100 ? 'Melebihi 100% (' . $grandTotalFormatted . '%)' : 'Belum 100% (' . $grandTotalFormatted . '%)') }}
                     </span>
-                    <span id="difference-indicator" class="text-xs font-mono text-muted">
-                        {{ abs($totalCpmkWeights - 100) < 0.1 ? '' : 'Selisih: ' . (100 - $totalCpmkWeights) . '%' }}
+                    <span id="difference-indicator" class="font-mono text-xs {{ $isExact100 ? 'text-emerald-700 font-medium' : ($isOver100 ? 'text-rose-600 font-semibold' : 'text-amber-700 font-semibold') }}">
+                        {{ $isExact100 ? '✓ Siap input nilai' : ($isOver100 ? 'Kelebihan: +' . $diffFormatted . '%' : 'Kekurangan: -' . $diffFormatted . '%') }}
                     </span>
                 </div>
 
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-secondary text-xs">
-                        Lanjut ke Input Nilai
-                    </a>
-                    <button type="submit" class="button-primary text-xs">
+                <div class="flex items-center gap-2.5">
+                    <div id="lanjut-nilai-wrapper">
+                        @if($isExact100)
+                            <a id="btn-lanjut-nilai" href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-secondary text-xs inline-flex items-center gap-1.5 shadow-2xs">
+                                <span>Lanjut ke Input Nilai</span>
+                                <svg class="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                        @else
+                            <button id="btn-lanjut-nilai" type="button" disabled
+                                    title="{{ $isOver100 ? 'Bobot matriks saat ini melebihi 100% (kelebihan +' . $diffFormatted . '%). Sesuaikan dan simpan matriks agar tepat 100% sebelum dapat menginput nilai.' : 'Bobot matriks belum mencapai 100% (kurang -' . $diffFormatted . '%). Lengkapi dan simpan matriks agar tepat 100% sebelum dapat menginput nilai.' }}"
+                                    class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas/60 px-4 py-2 text-xs font-medium text-muted/60 cursor-not-allowed select-none transition-colors">
+                                <svg class="h-3.5 w-3.5 text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                <span>Lanjut ke Input Nilai</span>
+                            </button>
+                        @endif
+                    </div>
+                    <button type="submit" class="button-primary text-xs shadow-2xs">
                         Simpan Matriks Penilaian
                     </button>
                 </div>
@@ -174,7 +194,7 @@
     <div class="rounded-xl border border-line bg-surface p-4 text-xs text-muted space-y-1.5">
         <div class="font-semibold text-ink flex items-center gap-1.5">
             <svg class="h-4 w-4 text-brand" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-            <span>Prinsip Matriks Penilaian OBE (Versi C):</span>
+            <span>Prinsip Matriks Penilaian OBE:</span>
         </div>
         <p>
             1. <strong>Grand Total 100%:</strong> Seluruh sel matriks dijumlahkan wajib menghasilkan tepat 100% untuk satu mata kuliah.
@@ -247,8 +267,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const cells = table.querySelectorAll('.matrix-cell');
     const grandTotalEl = document.getElementById('grand-total');
+    const grandTotalCell = document.getElementById('grand-total-cell');
     const statusBadge = document.getElementById('status-badge');
     const diffIndicator = document.getElementById('difference-indicator');
+    const lanjutWrapper = document.getElementById('lanjut-nilai-wrapper');
+    const asesmenUrl = "{{ route('dosen.penilaian.asesmen', $section->id) }}";
+
+    // Track original values to detect if user has modified cells without saving
+    const originalValues = new Map();
+    cells.forEach(input => {
+        originalValues.set(input, input.value);
+    });
+
+    function hasUnsavedChanges() {
+        for (const [input, origVal] of originalValues.entries()) {
+            if (input.value !== origVal) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function setBtnLanjutState(isEnabled, message) {
+        if (!lanjutWrapper) return;
+
+        if (isEnabled) {
+            lanjutWrapper.innerHTML = `
+                <a id="btn-lanjut-nilai" href="${asesmenUrl}" class="button-secondary text-xs inline-flex items-center gap-1.5 shadow-2xs">
+                    <span>Lanjut ke Input Nilai</span>
+                    <svg class="h-3.5 w-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            `;
+        } else {
+            lanjutWrapper.innerHTML = `
+                <button id="btn-lanjut-nilai" type="button" disabled
+                        title="${message}"
+                        class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas/60 px-4 py-2 text-xs font-medium text-muted/60 cursor-not-allowed select-none transition-colors">
+                    <svg class="h-3.5 w-3.5 text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <span>Lanjut ke Input Nilai</span>
+                </button>
+            `;
+        }
+    }
 
     function recalculateMatrix() {
         const colTotals = {};
@@ -267,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update column headers and footers
         for (const [asmtId, total] of Object.entries(colTotals)) {
-            const formatted = Math.round(total * 10) / 10;
+            const formatted = (Math.round(total * 10) / 10).toString();
             const headerEl = document.getElementById(`header-col-${asmtId}`);
             const footerEl = document.getElementById(`col-total-${asmtId}`);
             if (headerEl) headerEl.textContent = formatted;
@@ -276,30 +336,96 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update row totals (CPMK)
         for (const [cpmkId, total] of Object.entries(rowTotals)) {
-            const formatted = Math.round(total * 10) / 10;
+            const formatted = (Math.round(total * 10) / 10).toString();
             const rowEl = document.getElementById(`row-total-${cpmkId}`);
             if (rowEl) rowEl.textContent = formatted;
         }
 
-        // Update Grand Total
-        const roundedGrand = Math.round(grandTotal * 10) / 10;
-        if (grandTotalEl) grandTotalEl.textContent = roundedGrand;
+        // Update Grand Total with clean rounding (no floating artifacts)
+        const roundedGrand = Math.round(grandTotal * 100) / 100;
+        const grandFormatted = (Math.round(roundedGrand * 10) / 10).toString();
+        if (grandTotalEl) grandTotalEl.textContent = grandFormatted;
 
-        const diff = Math.round((100 - grandTotal) * 10) / 10;
-        if (Math.abs(grandTotal - 100) < 0.1) {
-            statusBadge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-            statusBadge.textContent = 'Valid (Tepat 100%)';
-            if (diffIndicator) diffIndicator.textContent = '';
+        const diff = Math.round(Math.abs(roundedGrand - 100) * 100) / 100;
+        const diffFormatted = (Math.round(diff * 10) / 10).toString();
+
+        const isExact = Math.abs(roundedGrand - 100) < 0.01;
+        const isOver = roundedGrand > 100 && !isExact;
+        const changed = hasUnsavedChanges();
+
+        if (isExact) {
+            if (statusBadge) {
+                statusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                statusBadge.textContent = 'Valid (Tepat 100%)';
+            }
+            if (diffIndicator) {
+                diffIndicator.className = 'font-mono text-xs text-emerald-700 font-medium';
+                diffIndicator.textContent = changed ? '✓ Pas 100% (Simpan untuk mengunci)' : '✓ Siap input nilai';
+            }
+            if (grandTotalCell) {
+                grandTotalCell.className = 'text-center font-mono font-extrabold text-sm border-l-2 border-emerald-500/30 text-emerald-700 bg-emerald-50/40';
+            }
+
+            if (changed) {
+                setBtnLanjutState(false, 'Perubahan matriks belum disimpan. Klik "Simpan Matriks Penilaian" terlebih dahulu.');
+            } else {
+                setBtnLanjutState(true, '');
+            }
+        } else if (isOver) {
+            if (statusBadge) {
+                statusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200';
+                statusBadge.textContent = `Melebihi 100% (${grandFormatted}%)`;
+            }
+            if (diffIndicator) {
+                diffIndicator.className = 'font-mono text-xs text-rose-600 font-semibold';
+                diffIndicator.textContent = `Kelebihan: +${diffFormatted}%`;
+            }
+            if (grandTotalCell) {
+                grandTotalCell.className = 'text-center font-mono font-extrabold text-sm border-l-2 border-rose-500/30 text-rose-700 bg-rose-50/40';
+            }
+            setBtnLanjutState(false, `Bobot matriks saat ini melebihi 100% (kelebihan +${diffFormatted}%). Sesuaikan dan simpan matriks agar tepat 100% sebelum dapat menginput nilai.`);
         } else {
-            statusBadge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200';
-            statusBadge.textContent = 'Belum 100% (Target: 100%)';
-            if (diffIndicator) diffIndicator.textContent = `Selisih: ${diff > 0 ? '+' : ''}${diff}%`;
+            if (statusBadge) {
+                statusBadge.className = 'inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200';
+                statusBadge.textContent = `Belum 100% (${grandFormatted}%)`;
+            }
+            if (diffIndicator) {
+                diffIndicator.className = 'font-mono text-xs text-amber-700 font-semibold';
+                diffIndicator.textContent = `Kekurangan: -${diffFormatted}%`;
+            }
+            if (grandTotalCell) {
+                grandTotalCell.className = 'text-center font-mono font-extrabold text-sm border-l-2 border-amber-500/30 text-amber-700 bg-amber-50/40';
+            }
+            setBtnLanjutState(false, `Bobot matriks belum mencapai 100% (kurang -${diffFormatted}%). Lengkapi dan simpan matriks agar tepat 100% sebelum dapat menginput nilai.`);
         }
     }
 
     cells.forEach(input => {
         input.addEventListener('input', recalculateMatrix);
     });
+
+    const matrixForm = document.getElementById('form-matriks-obe');
+    if (matrixForm) {
+        matrixForm.addEventListener('submit', function(e) {
+            let total = 0;
+            cells.forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            total = Math.round(total * 100) / 100;
+            const diff = Math.round(Math.abs(total - 100) * 100) / 100;
+            const formattedTotal = (Math.round(total * 10) / 10).toString();
+            const formattedDiff = (Math.round(diff * 10) / 10).toString();
+
+            if (Math.abs(total - 100) > 0.01) {
+                e.preventDefault();
+                if (total > 100) {
+                    alert(`Total bobot matriks penilaian melebihi batas 100% (saat ini ${formattedTotal}%, kelebihan +${formattedDiff}%).\n\nSilakan kurangi bobot sel matriks agar pas tepat 100% sebelum menyimpan.`);
+                } else {
+                    alert(`Total bobot matriks penilaian belum mencapai 100% (saat ini ${formattedTotal}%, kurang -${formattedDiff}%).\n\nSilakan lengkapi bobot sel matriks agar pas tepat 100% sebelum menyimpan.`);
+                }
+            }
+        });
+    }
 });
 
 function hapusAsesmen(id, name) {

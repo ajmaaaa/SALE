@@ -64,7 +64,7 @@
                 @endphp
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Rata-rata Capaian Kelas</p>
                 <p class="mt-2 text-2xl font-bold {{ $avgAll >= 65 ? 'text-brand' : 'text-amber-600' }}">
-                    {{ $avgAll !== null ? number_format($avgAll, 1) : '—' }}
+                    {{ $avgAll !== null ? number_format($avgAll, 2) : '—' }}
                 </p>
                 <p class="mt-1 text-xs text-muted">Rata-rata dari seluruh skor CPMK</p>
             </div>
@@ -99,7 +99,7 @@
                                 <span class="text-muted">/ {{ $item['total_students'] }}</span>
                             </td>
                             <td class="text-center text-xs font-semibold">
-                                {{ $item['average_score'] !== null ? number_format($item['average_score'], 1) : '—' }}
+                                {{ $item['average_score'] !== null ? number_format($item['average_score'], 2) : '—' }}
                             </td>
                             <td class="text-center text-xs">
                                 <div class="inline-flex items-center gap-2">

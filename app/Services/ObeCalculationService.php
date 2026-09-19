@@ -134,7 +134,18 @@ class ObeCalculationService
      * rather than counted as 0. Returns null if none of the measuring
      * assessments have a score yet.
      */
-    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): ?float
+    /**
+     * Hitung nilai CPMK untuk satu mahasiswa beserta metadata progres penilaian (coverage).
+     *
+     * @return array{
+     *     score: ?float,
+     *     coverage: float,
+     *     weight_graded: float,
+     *     weight_total: float,
+     *     is_complete: bool
+     * }
+     */
+    public function cpmkScoreDetails(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): array
     {
         if ($classSectionId !== null) {
             $measuringAssessments = $cpmk->assessments()->where('class_section_id', $classSectionId)->get();
@@ -152,9 +163,17 @@ class ObeCalculationService
         }
 
         $weightedSum = 0.0;
-        $weightTotal = 0.0;
+        $weightGraded = 0.0;
+        $weightTotalPossible = 0.0;
 
         foreach ($measuringAssessments as $assessment) {
+            $effectiveWeight = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
+            if ($effectiveWeight <= 0) {
+                continue;
+            }
+
+            $weightTotalPossible += $effectiveWeight;
+
             // Check if there is a specific score for this CPMK on this assessment
             $cpmkScoreRow = \App\Models\StudentAssessmentCpmkScore::query()
                 ->where('assessment_id', $assessment->id)
@@ -170,26 +189,43 @@ class ObeCalculationService
                 $score = $this->assessmentScore($assessment->id, $studentId);
             }
 
-            if ($score === null) {
-                continue;
+            if ($score !== null) {
+                $weightedSum += (float) $score * $effectiveWeight;
+                $weightGraded += $effectiveWeight;
             }
-
-            $weight = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
-            $weightedSum += (float) $score * $weight;
-            $weightTotal += $weight;
         }
 
-        if ($weightTotal <= 0) {
-            return null;
-        }
+        $coverage = $weightTotalPossible > 0 ? round(($weightGraded / $weightTotalPossible) * 100.0, 1) : 0.0;
+        $score = $weightGraded > 0 ? round($weightedSum / $weightGraded, 2) : null;
 
-        return round($weightedSum / $weightTotal, 2);
+        return [
+            'score' => $score,
+            'coverage' => $coverage,
+            'weight_graded' => round($weightGraded, 2),
+            'weight_total' => round($weightTotalPossible, 2),
+            'is_complete' => $coverage >= 99.9,
+        ];
     }
 
     /**
-     * Hitung bobot kontribusi efektif asesmen terhadap CPMK pada Matriks OBE (Tabel C).
-     * Jika asesmen memiliki final_weight (bobot terhadap nilai akhir MK),
-     * maka bobot efektif dihitung proporsional sehingga total kontribusi seluruh CPMK = final_weight.
+     * CPMK score for one student = weighted average of all assessment scores
+     * that measure this CPMK. Missing assessment scores are excluded from
+     * the sum and the total weight is re-normalized, so that a student's
+     * CPMK score reflects their current performance even if not all
+     * assessments have a score yet.
+     */
+    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): ?float
+    {
+        return $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId)['score'];
+    }
+
+    /**
+     * Hitung bobot kontribusi efektif asesmen terhadap CPMK pada Matriks OBE.
+     * Menggunakan formula matematis proporsional tunggal:
+     *   effWeight = finalWeight * (pivotWeight / totalPivot)
+     *
+     * Berfungsi konsisten baik untuk input dari Form Asesmen (pivot = 0-100% lokal),
+     * Matriks Penilaian OBE (pivot = bobot langsung), maupun asesmen 1 CPMK.
      */
     public function assessmentCpmkEffectiveWeight(Assessment $assessment, Cpmk $cpmk): float
     {
@@ -202,27 +238,15 @@ class ObeCalculationService
         $finalWeight = (float) $assessment->final_weight;
 
         if ($finalWeight <= 0) {
-            return $pivotWeight;
+            return 0.0;
         }
 
         $totalPivot = (float) $assessment->cpmks->sum(fn ($c) => (float) $c->pivot->weight);
-
-        // Jika bobot pivot sudah sesuai dengan final_weight (misal diinput langsung angka bobot akhir)
-        if (abs($totalPivot - $finalWeight) < 0.1) {
-            return $pivotWeight;
+        if ($totalPivot <= 0) {
+            return 0.0;
         }
 
-        // Jika pivot 100% pada asesmen ini (mengukur 1 CPMK penuh)
-        if ($pivotWeight >= 99.9) {
-            return $finalWeight;
-        }
-
-        // Jika asesmen mengukur beberapa CPMK dengan total persentase bobot pivot ~100%
-        if ($totalPivot >= 99.0) {
-            return round(($finalWeight * $pivotWeight) / 100.0, 2);
-        }
-
-        return $pivotWeight;
+        return round(($finalWeight * $pivotWeight) / $totalPivot, 2);
     }
 
     /**
@@ -257,6 +281,56 @@ class ObeCalculationService
     }
 
     /**
+     * Hitung capaian CPL untuk satu mahasiswa beserta metadata coverage.
+     *
+     * @return array{
+     *     score: ?float,
+     *     coverage: float,
+     *     cpmks_graded: int,
+     *     cpmks_total: int,
+     *     weight_graded: float,
+     *     weight_total: float,
+     *     is_complete: bool
+     * }
+     */
+    public function cplScoreDetails(Cpl $cpl, int $studentId, ?int $classSectionId = null): array
+    {
+        $contributingCpmks = $cpl->cpmks; // has pivot 'weight'
+
+        $weightedSum = 0.0;
+        $weightGraded = 0.0;
+        $weightTotalPossible = 0.0;
+        $cpmksGradedCount = 0;
+
+        foreach ($contributingCpmks as $cpmk) {
+            $pivotWeight = (float) $cpmk->pivot->weight;
+            $weightTotalPossible += $pivotWeight;
+
+            $cpmkDetails = $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId);
+            $score = $cpmkDetails['score'];
+
+            if ($score !== null) {
+                $weightedSum += $score * $pivotWeight;
+                $weightGraded += $pivotWeight;
+                $cpmksGradedCount++;
+            }
+        }
+
+        $coverage = $weightTotalPossible > 0 ? round(($weightGraded / $weightTotalPossible) * 100.0, 1) : 0.0;
+        $score = $weightGraded > 0 ? round($weightedSum / $weightGraded, 2) : null;
+
+        return [
+            'score' => $score,
+            'coverage' => $coverage,
+            'cpmks_graded' => $cpmksGradedCount,
+            'cpmks_total' => $contributingCpmks->count(),
+            'weight_graded' => round($weightGraded, 2),
+            'weight_total' => round($weightTotalPossible, 2),
+            'is_complete' => $coverage >= 99.9,
+        ];
+    }
+
+    /**
      * CPL score for one student = weighted average of the CPMK scores
      * that build up this CPL, using each CPMK's contribution weight to
      * this CPL (cpl_cpmk.weight). Same "exclude and re-normalize" rule
@@ -264,28 +338,7 @@ class ObeCalculationService
      */
     public function cplScore(Cpl $cpl, int $studentId, ?int $classSectionId = null): ?float
     {
-        $contributingCpmks = $cpl->cpmks; // has pivot 'weight'
-
-        $weightedSum = 0.0;
-        $weightTotal = 0.0;
-
-        foreach ($contributingCpmks as $cpmk) {
-            $score = $this->cpmkScore($cpmk, $studentId, $classSectionId);
-
-            if ($score === null) {
-                continue;
-            }
-
-            $weight = (float) $cpmk->pivot->weight;
-            $weightedSum += $score * $weight;
-            $weightTotal += $weight;
-        }
-
-        if ($weightTotal <= 0) {
-            return null;
-        }
-
-        return round($weightedSum / $weightTotal, 2);
+        return $this->cplScoreDetails($cpl, $studentId, $classSectionId)['score'];
     }
 
     /**

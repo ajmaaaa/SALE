@@ -47,7 +47,7 @@
                 @endphp
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Indeks Rata-rata CPL Prodi</p>
                 <p class="mt-2 text-2xl font-bold {{ $overallAvg >= 65 ? 'text-brand' : 'text-amber-600' }}">
-                    {{ $overallAvg !== null ? number_format($overallAvg, 1) : '—' }}
+                    {{ $overallAvg !== null ? number_format($overallAvg, 2) : '—' }}
                 </p>
                 <p class="mt-1 text-xs text-muted">Berdasarkan data asesmen aktif</p>
             </div>
@@ -80,7 +80,7 @@
                                 <span class="text-muted"> entri</span>
                             </td>
                             <td class="text-center text-xs font-semibold">
-                                {{ $stat['average'] !== null ? number_format($stat['average'], 1) : '—' }}
+                                {{ $stat['average'] !== null ? number_format($stat['average'], 2) : '—' }}
                             </td>
                             <td class="text-center text-xs">
                                 <div class="inline-flex items-center gap-2">

@@ -34,6 +34,9 @@ class KurikulumController extends Controller
             ->get();
 
         $tab = $request->query('tab', 'cpl');
+        if (! in_array($tab, ['cpl', 'cpmk'])) {
+            $tab = 'cpl';
+        }
 
         return view('admin-prodi.kurikulum.index', compact(
             'prodis',
@@ -219,9 +222,11 @@ class KurikulumController extends Controller
                 $cplMappings = $matrix[$cpmk->id] ?? [];
                 $syncData = [];
 
-                foreach ($cplMappings as $cplId => $weight) {
-                    if ($weight !== null && $weight !== '' && is_numeric($weight) && (float) $weight > 0) {
-                        $syncData[(int) $cplId] = ['weight' => (float) $weight];
+                foreach ($cplMappings as $cplId => $val) {
+                    if ($val !== null && $val !== '' && $val !== false && $val !== 0 && $val !== '0') {
+                        // Jika bernilai checkbox aktif (1) gunakan bobot proporsional 100.0, jika numerik spesifik (> 1) gunakan nilainya
+                        $weight = is_numeric($val) && (float) $val > 1 ? (float) $val : 100.0;
+                        $syncData[(int) $cplId] = ['weight' => $weight];
                     }
                 }
 

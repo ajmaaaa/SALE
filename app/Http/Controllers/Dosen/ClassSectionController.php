@@ -47,8 +47,11 @@ class ClassSectionController extends Controller
         abort_unless($dosen?->hasRole(\App\Models\Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
 
         $sections = ClassSection::query()
-            ->where('dosen_id', $dosen->id)
-            ->with(['mataKuliah', 'semester'])
+            ->where(function ($query) use ($dosen) {
+                $query->where('dosen_id', $dosen->id)
+                    ->orWhere('dosen_pendamping_id', $dosen->id);
+            })
+            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
             ->withCount('students')
             ->withCount('assessments')
             ->orderByDesc('semester_id')

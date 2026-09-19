@@ -45,10 +45,6 @@
            class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpmk' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
             2. Butir CPMK per Mata Kuliah ({{ $allCpmks->count() }})
         </a>
-        <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'mapping']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'mapping' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
-            3. Matriks Pemetaan CPL &harr; CPMK
-        </a>
     </div>
 
     @if($tab === 'cpl')
@@ -151,7 +147,7 @@
                                 <th class="p-2.5 w-24">Kode</th>
                                 <th class="p-2.5">Deskripsi CPMK</th>
                                 <th class="p-2.5 text-center w-24">Standar Kelulusan</th>
-                                <th class="p-2.5 w-48">CPL Terkait &amp; Bobot</th>
+                                <th class="p-2.5 w-48">CPL Terkait</th>
                                 <th class="p-2.5 text-right w-28">Aksi</th>
                             </tr>
                         </thead>
@@ -173,8 +169,8 @@
                                     @else
                                         <div class="flex flex-wrap gap-1">
                                             @foreach($cpmk->cpls as $cpl)
-                                                <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" title="Bobot kontribusi: {{ $cpl->pivot->weight }}%">
-                                                    {{ $cpl->code }} ({{ (float)$cpl->pivot->weight }}%)
+                                                <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" title="{{ $cpl->description }}">
+                                                    {{ $cpl->code }}
                                                 </span>
                                             @endforeach
                                         </div>
@@ -183,7 +179,7 @@
                                 <td class="p-2.5 text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <button type="button" 
-                                                onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})" 
+                                                onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }}, {{ json_encode($cpmk->cpls->pluck('id')) }})" 
                                                 class="button-secondary text-[10px] py-1 px-2">
                                             Ubah
                                         </button>
@@ -210,74 +206,6 @@
         @endforelse
     </div>
 
-    @elseif($tab === 'mapping')
-    <!-- ================= TAB 3: MATRIKS PEMETAAN ================= -->
-    <div class="surface p-5 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h2 class="text-base font-bold text-ink">Matriks Kontribusi CPMK ke CPL (OBE Matrix)</h2>
-                <p class="text-xs text-muted">Tentukan bobot kontribusi (%) setiap butir CPMK terhadap pemenuhan CPL program studi.</p>
-            </div>
-        </div>
-
-        @if($allCpmks->isEmpty() || $cpls->isEmpty())
-            <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-                Pastikan Anda telah mengisi butir CPL dan CPMK pada Tab 1 dan Tab 2 sebelum mengatur matriks pemetaan.
-            </div>
-        @else
-            <form action="{{ route('admin-prodi.kurikulum.mapping.update') }}" method="POST" class="space-y-4">
-                @csrf
-                <input type="hidden" name="prodi_id" value="{{ $activeProdi?->id }}">
-
-                <div class="overflow-x-auto border border-line rounded-xl">
-                    <table class="admin-table w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-line bg-canvas/80 text-muted">
-                                <th class="p-3 sticky left-0 bg-white border-r border-line z-10 w-64">Mata Kuliah &amp; CPMK</th>
-                                @foreach($cpls as $cpl)
-                                    <th class="p-3 text-center min-w-[100px]" title="{{ $cpl->description }}">
-                                        <span class="font-mono font-bold text-brand block">{{ $cpl->code }}</span>
-                                    </th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-line/60">
-                            @foreach($allCpmks as $cpmk)
-                            <tr class="hover:bg-canvas/30">
-                                <td class="p-3 sticky left-0 bg-white border-r border-line z-10">
-                                    <span class="font-bold text-ink">{{ $cpmk->code }}</span>
-                                    <span class="text-[11px] text-muted block truncate max-w-xs">{{ $cpmk->mataKuliah->code }} - {{ $cpmk->description }}</span>
-                                </td>
-                                @foreach($cpls as $cpl)
-                                    @php
-                                        $currentWeight = $cpmk->cpls->firstWhere('id', $cpl->id)?->pivot->weight;
-                                    @endphp
-                                    <td class="p-2 text-center">
-                                        <div class="inline-flex items-center gap-1 justify-center">
-                                            <input type="number" 
-                                                   name="matrix[{{ $cpmk->id }}][{{ $cpl->id }}]" 
-                                                   value="{{ $currentWeight ? (float)$currentWeight : '' }}" 
-                                                   placeholder="—"
-                                                   min="0" max="100" step="1"
-                                                   class="field text-center text-xs font-bold w-16 p-1.5 focus:border-brand">
-                                            <span class="text-[10px] text-muted">%</span>
-                                        </div>
-                                    </td>
-                                @endforeach
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="flex justify-end pt-2">
-                    <button type="submit" class="button-primary text-xs px-5 py-2.5">
-                        Simpan Matriks Pemetaan CPL-CPMK
-                    </button>
-                </div>
-            </form>
-        @endif
-    </div>
     @endif
 </div>
 
@@ -388,7 +316,7 @@
 
 <!-- Modal Edit CPMK -->
 <div id="editCpmkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Butir CPMK</h2>
             <button type="button" onclick="closeEditCpmkModal()" class="text-muted hover:text-ink text-xl">&times;</button>
@@ -408,8 +336,22 @@
             </div>
             <div>
                 <label for="cpmk_edit_desc" class="block text-xs font-semibold text-ink mb-1">Deskripsi CPMK</label>
-                <textarea name="description" id="cpmk_edit_desc" required rows="4" class="field text-xs"></textarea>
+                <textarea name="description" id="cpmk_edit_desc" required rows="3" class="field text-xs"></textarea>
             </div>
+            @if($cpls->isNotEmpty())
+            <div>
+                <label class="block text-xs font-semibold text-ink mb-1.5">Pilih CPL yang Didukung (Opsional):</label>
+                <div class="space-y-1.5 max-h-36 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
+                    @foreach($cpls as $cpl)
+                    <label class="flex items-center gap-2 text-xs cursor-pointer">
+                        <input type="checkbox" name="cpl_ids[]" value="{{ $cpl->id }}" class="edit-cpmk-cpl-checkbox rounded text-brand focus:ring-brand">
+                        <span class="font-bold text-ink">{{ $cpl->code }}</span>
+                        <span class="text-muted truncate text-[11px]">- {{ $cpl->description }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="button" onclick="closeEditCpmkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
@@ -459,12 +401,18 @@
         document.getElementById('createCpmkModal').classList.remove('flex');
     }
 
-    function openEditCpmkModal(id, code, desc, threshold) {
+    function openEditCpmkModal(id, code, desc, threshold, cplIds = []) {
         const form = document.getElementById('editCpmkForm');
         form.action = `/admin-prodi/kurikulum/cpmk/${id}`;
         document.getElementById('cpmk_edit_code').value = code;
         document.getElementById('cpmk_edit_desc').value = desc;
         document.getElementById('cpmk_edit_threshold').value = threshold;
+
+        const ids = Array.isArray(cplIds) ? cplIds.map(Number) : [];
+        document.querySelectorAll('.edit-cpmk-cpl-checkbox').forEach(cb => {
+            cb.checked = ids.includes(parseInt(cb.value));
+        });
+
         document.getElementById('editCpmkModal').classList.remove('hidden');
         document.getElementById('editCpmkModal').classList.add('flex');
     }

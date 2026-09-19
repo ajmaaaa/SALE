@@ -375,7 +375,7 @@ class ObeRumusVerificationTest extends TestCase
             ->get(route('dosen.penilaian.matriks', $this->section->id));
 
         $resMatriks->assertOk()
-            ->assertSee('Rancangan Matriks Penilaian (Versi C)')
+            ->assertSee('Rancangan Matriks Penilaian')
             ->assertSee('CPMK 041')
             ->assertSee('CPMK 042')
             ->assertSee('Case Based Project (CBM)')

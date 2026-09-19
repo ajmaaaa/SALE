@@ -65,7 +65,7 @@
                             <div class="rounded-xl border border-line bg-white px-4 py-2 text-right">
                                 <p class="text-[10px] uppercase font-semibold text-muted">Nilai Akhir</p>
                                 <p class="text-lg font-bold {{ $finalScore !== null && $finalScore >= 65 ? 'text-brand' : 'text-ink' }}">
-                                    {{ $finalScore !== null ? number_format($finalScore, 1) : '—' }}
+                                    {{ $finalScore !== null ? number_format($finalScore, 2) : '—' }}
                                 </p>
                             </div>
                         </div>
@@ -104,7 +104,7 @@
                                                         @if($score === null)
                                                             <span class="text-muted">—</span>
                                                         @else
-                                                            <span class="{{ $achieved ? 'text-brand' : 'text-amber-700' }}">{{ number_format($score, 1) }}</span>
+                                                            <span class="{{ $achieved ? 'text-brand' : 'text-amber-700' }}">{{ number_format($score, 2) }}</span>
                                                         @endif
                                                     </td>
                                                     <td class="px-4 py-3 text-center">
@@ -152,7 +152,7 @@
                                             <div class="mt-2 flex items-center justify-between border-t border-line/60 pt-2 text-xs">
                                                 <span class="text-muted">Skor CPL:</span>
                                                 <span class="font-bold {{ $passed ? 'text-brand' : 'text-ink' }}">
-                                                    {{ $score !== null ? number_format($score, 1) : '—' }}
+                                                    {{ $score !== null ? number_format($score, 2) : '—' }}
                                                 </span>
                                             </div>
                                         </div>

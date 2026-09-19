@@ -474,4 +474,79 @@ class AdminProdiManagementTest extends TestCase
         $courseAfter->assertStatus(200);
         $courseAfter->assertSee('Pemrograman Mobile Lanjut');
     }
+
+    /**
+     * Verifikasi fitur Opsi 2: Matriks Pemetaan CPL-CPMK berbasis Checklist
+     * tanpa box Catatan Pembobotan rancu dan bobot otomatis proporsional.
+     */
+    public function test_cpl_cpmk_checklist_mapping_and_view_rendering(): void
+    {
+        $this->actingAs($this->adminProdi);
+
+        $mk = MataKuliah::create([
+            'prodi_id' => $this->prodi->id,
+            'code' => 'IF999',
+            'name' => 'Testing Kurikulum Checklist',
+            'sks' => 3,
+        ]);
+
+        $cpl = Cpl::create([
+            'prodi_id' => $this->prodi->id,
+            'code' => 'CPL-99',
+            'description' => 'Mampu memverifikasi matriks checklist CPL.',
+        ]);
+
+        $cpmk1 = Cpmk::create([
+            'mata_kuliah_id' => $mk->id,
+            'code' => 'CPMK-91',
+            'description' => 'CPMK Uji 1',
+            'threshold' => 65,
+        ]);
+
+        $cpmk2 = Cpmk::create([
+            'mata_kuliah_id' => $mk->id,
+            'code' => 'CPMK-92',
+            'description' => 'CPMK Uji 2',
+            'threshold' => 65,
+        ]);
+
+        // 1. Verifikasi Tab 3 Matriks Pemetaan sudah dihapus dari navigasi
+        $viewResponse = $this->get(route('admin-prodi.kurikulum.index', [
+            'prodi_id' => $this->prodi->id,
+            'tab' => 'cpmk',
+        ]));
+        $viewResponse->assertStatus(200);
+        $viewResponse->assertDontSee('3. Matriks Pemetaan');
+        $viewResponse->assertDontSee('Catatan Pembobotan');
+        $viewResponse->assertSee('1. Butir CPL Prodi');
+        $viewResponse->assertSee('2. Butir CPMK per Mata Kuliah');
+
+        // 2. Hubungkan CPMK-91 ke CPL-99 melalui Update CPMK
+        $updateResponse = $this->put(route('admin-prodi.kurikulum.cpmk.update', $cpmk1->id), [
+            'code' => 'CPMK-91',
+            'description' => 'CPMK Uji 1 Updated',
+            'threshold' => 65,
+            'cpl_ids' => [$cpl->id],
+        ]);
+        $updateResponse->assertRedirect();
+
+        $this->assertDatabaseHas('cpl_cpmk', [
+            'cpl_id' => $cpl->id,
+            'cpmk_id' => $cpmk1->id,
+        ]);
+
+        // 3. Lepaskan pemetaan CPL dari CPMK-91
+        $uncheckResponse = $this->put(route('admin-prodi.kurikulum.cpmk.update', $cpmk1->id), [
+            'code' => 'CPMK-91',
+            'description' => 'CPMK Uji 1 Updated',
+            'threshold' => 65,
+            'cpl_ids' => [],
+        ]);
+        $uncheckResponse->assertRedirect();
+
+        $this->assertDatabaseMissing('cpl_cpmk', [
+            'cpl_id' => $cpl->id,
+            'cpmk_id' => $cpmk1->id,
+        ]);
+    }
 }

@@ -47,8 +47,17 @@
                     };
                 @endphp
                 <div class="surface p-5 flex flex-col gap-4">
+                    @php
+                        $currentUserId = auth()->id() ?? (session('auth_user.id') ?? null);
+                        $isWakil = $section->dosen_pendamping_id && $section->dosen_pendamping_id == $currentUserId;
+                    @endphp
                     <div>
-                        <p class="text-xs font-semibold text-brand">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs font-semibold text-brand">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</p>
+                            @if($isWakil)
+                                <span class="status bg-purple-50 text-purple-700 border-purple-200 text-[10px]">Dosen Wakil</span>
+                            @endif
+                        </div>
                         <h2 class="mt-1 text-base font-semibold text-ink leading-snug">{{ $section->mataKuliah->name }}</h2>
                         <p class="mt-1 text-xs text-muted">{{ $section->semester->name }}</p>
                     </div>

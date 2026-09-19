@@ -75,9 +75,10 @@ class InputNilaiController extends Controller
             $messages = [];
 
             foreach ($cpmks as $cpmk) {
-                $maxScore = (int) $this->obe->assessmentCpmkMaxScore($assessment, $cpmk);
+                $maxScore = round($this->obe->assessmentCpmkMaxScore($assessment, $cpmk), 1);
+                $maxScoreFormatted = rtrim(rtrim(number_format($maxScore, 1), '0'), '.');
                 $rules["cpmk_scores.*.{$cpmk->id}"] = ['nullable', 'numeric', 'min:0', 'max:' . ($maxScore + 0.05)];
-                $messages["cpmk_scores.*.{$cpmk->id}.max"] = "Nilai {$cpmk->code} tidak boleh melebihi batas maksimal {$maxScore}.";
+                $messages["cpmk_scores.*.{$cpmk->id}.max"] = "Nilai {$cpmk->code} tidak boleh melebihi batas maksimal {$maxScoreFormatted}.";
                 $messages["cpmk_scores.*.{$cpmk->id}.min"] = "Nilai {$cpmk->code} tidak boleh kurang dari 0.";
             }
 

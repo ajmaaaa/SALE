@@ -35,10 +35,17 @@
 </header>
 
 <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto overflow-y-hidden border-b border-line/80 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Tab penilaian kelas">
+    @php
+        $isMatrixValid = method_exists($section, 'isMatrixValid') ? $section->isMatrixValid() : true;
+    @endphp
     @foreach($mainTabs as $route => $label)
         <a href="{{ route($route, $section->id) }}"
-           class="px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors {{ request()->routeIs($route) || ($route === 'dosen.penilaian.rekap' && request()->routeIs('dosen.penilaian.cpmk')) ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
-            {{ $label }}
+           @if($route === 'dosen.penilaian.asesmen' && ! $isMatrixValid) title="Bobot matriks belum tepat 100%. Selesaikan Langkah 1 terlebih dahulu." @endif
+           class="px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors inline-flex items-center gap-1.5 {{ request()->routeIs($route) || ($route === 'dosen.penilaian.rekap' && request()->routeIs('dosen.penilaian.cpmk')) ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
+            <span>{{ $label }}</span>
+            @if($route === 'dosen.penilaian.asesmen' && ! $isMatrixValid)
+                <svg class="h-3.5 w-3.5 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            @endif
         </a>
     @endforeach
 </nav>

@@ -76,9 +76,9 @@ class ObeCalculationServiceTest extends TestCase
      */
     public function test_cpmk_score_matches_manual_calculation(): void
     {
-        $tugas1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'TGS-01', 'name' => 'Tugas 1', 'type' => 'tugas', 'final_weight' => 10]);
-        $tugas2 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'TGS-02', 'name' => 'Tugas 2', 'type' => 'tugas', 'final_weight' => 10]);
-        $pbl1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'PBL-01', 'name' => 'PBL 1', 'type' => 'pbl', 'final_weight' => 20]);
+        $tugas1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'TGS-01', 'name' => 'Tugas 1', 'type' => 'tugas', 'final_weight' => 30]);
+        $tugas2 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'TGS-02', 'name' => 'Tugas 2', 'type' => 'tugas', 'final_weight' => 20]);
+        $pbl1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'PBL-01', 'name' => 'PBL 1', 'type' => 'pbl', 'final_weight' => 50]);
 
         $this->cpmk1->assessments()->attach($tugas1->id, ['weight' => 30]);
         $this->cpmk1->assessments()->attach($tugas2->id, ['weight' => 20]);
@@ -191,5 +191,50 @@ class ObeCalculationServiceTest extends TestCase
         $this->assertTrue($this->service->cpmkAchieved($this->cpmk1, 75));
         $this->assertFalse($this->service->cpmkAchieved($this->cpmk1, 65));
         $this->assertNull($this->service->cpmkAchieved($this->cpmk1, null));
+    }
+
+    public function test_cpmk_score_details_reports_coverage_and_metadata(): void
+    {
+        $t1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'T1', 'name' => 'Tugas 1', 'type' => 'tugas', 'final_weight' => 40]);
+        $t2 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'T2', 'name' => 'Tugas 2', 'type' => 'tugas', 'final_weight' => 60]);
+
+        $this->cpmk1->assessments()->attach($t1->id, ['weight' => 100]);
+        $this->cpmk1->assessments()->attach($t2->id, ['weight' => 100]);
+
+        StudentAssessmentScore::create(['assessment_id' => $t1->id, 'mahasiswa_id' => $this->student->id, 'score' => 85]);
+        // T2 not graded yet
+
+        $details = $this->service->cpmkScoreDetails($this->cpmk1->fresh(), $this->student->id, $this->section->id);
+
+        $this->assertEquals(85.0, $details['score']);
+        $this->assertEquals(40.0, $details['coverage']); // 40 / 100
+        $this->assertEquals(40.0, $details['weight_graded']);
+        $this->assertEquals(100.0, $details['weight_total']);
+        $this->assertFalse($details['is_complete']);
+
+        // When T2 is also graded
+        StudentAssessmentScore::create(['assessment_id' => $t2->id, 'mahasiswa_id' => $this->student->id, 'score' => 95]);
+        $completeDetails = $this->service->cpmkScoreDetails($this->cpmk1->fresh(), $this->student->id, $this->section->id);
+
+        $this->assertEquals(91.0, $completeDetails['score']); // (85*40 + 95*60) / 100 = (3400 + 5700) / 100 = 91
+        $this->assertEquals(100.0, $completeDetails['coverage']);
+        $this->assertTrue($completeDetails['is_complete']);
+    }
+
+    public function test_cpl_score_details_reports_coverage_and_metadata(): void
+    {
+        // cpl1 has cpmk1 (60%) and cpmk2 (40%)
+        $t1 = Assessment::create(['class_section_id' => $this->section->id, 'code' => 'T1', 'name' => 'Tugas 1', 'type' => 'tugas', 'final_weight' => 50]);
+        $this->cpmk1->assessments()->attach($t1->id, ['weight' => 100]);
+        StudentAssessmentScore::create(['assessment_id' => $t1->id, 'mahasiswa_id' => $this->student->id, 'score' => 80]);
+
+        // cpmk2 has no grades yet
+        $details = $this->service->cplScoreDetails($this->cpl1->fresh(), $this->student->id, $this->section->id);
+
+        $this->assertEquals(80.0, $details['score']);
+        $this->assertEquals(60.0, $details['coverage']); // cpmk1 weight is 60 of 100
+        $this->assertEquals(1, $details['cpmks_graded']);
+        $this->assertEquals(2, $details['cpmks_total']);
+        $this->assertFalse($details['is_complete']);
     }
 }

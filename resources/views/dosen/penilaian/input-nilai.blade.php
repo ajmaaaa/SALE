@@ -29,7 +29,7 @@
                                     $effWeight = $obeService->assessmentCpmkEffectiveWeight($assessment, $cpmk);
                                     $maxScore = $obeService->assessmentCpmkMaxScore($assessment, $cpmk);
                                 @endphp
-                                {{ $cpmk->code }} (Maks: {{ (int)$maxScore }} · Bobot: {{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%){{ $idx < $cpmks->count() - 1 ? ', ' : '' }}
+                                {{ $cpmk->code }} (Maks: {{ rtrim(rtrim(number_format($maxScore, 1), '0'), '.') }} · Bobot: {{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%){{ $idx < $cpmks->count() - 1 ? ', ' : '' }}
                             @endforeach
                         </span>
                     @endif
@@ -91,7 +91,7 @@
                                     <th class="text-center min-w-[110px]">
                                         <div class="font-mono font-bold">{{ $cpmk->code }}</div>
                                         <div class="text-[10px] font-normal text-muted">
-                                            Maks: {{ (int)$maxScore }}
+                                            Maks: {{ rtrim(rtrim(number_format($maxScore, 1), '0'), '.') }}
                                             <span class="text-muted/60">(Bobot: {{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%)</span>
                                         </div>
                                     </th>
@@ -133,7 +133,7 @@
                                                    value="{{ $val !== null ? $val : '' }}"
                                                    min="0" max="{{ $maxScore }}" step="0.5"
                                                    class="field text-center font-mono text-sm w-20 mx-auto block cpmk-input {{ $isInvalid ? '!border-rose-500 !text-rose-600' : '' }}"
-                                                   placeholder="0–{{ (int)$maxScore }}"
+                                                   placeholder="0–{{ rtrim(rtrim(number_format($maxScore, 1), '0'), '.') }}"
                                                    data-max="{{ $maxScore }}"
                                                    data-student-id="{{ $student->id }}"
                                                    oninput="calcStudentTotal({{ $student->id }})">

@@ -144,7 +144,7 @@
                                                     $sc = $sRow['cpmk_scores'][$cItem['cpmk']->id] ?? null;
                                                 @endphp
                                                 <td class="text-center font-mono">
-                                                    {{ $sc !== null ? number_format($sc, 1) : '—' }}
+                                                    {{ $sc !== null ? number_format($sc, 2) : '—' }}
                                                 </td>
                                             @endforeach
                                             <td class="text-center font-mono font-bold bg-brand-soft/10">

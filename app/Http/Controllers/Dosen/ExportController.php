@@ -129,7 +129,7 @@ class ExportController extends Controller
 
         $filename = 'rekap_cpl_' . $section->mataKuliah->code . '_' . $section->section_code . '.csv';
 
-        return response()->streamDownload(function () use ($students, $cpls) {
+        return response()->streamDownload(function () use ($students, $cpls, $section) {
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
@@ -140,7 +140,7 @@ class ExportController extends Controller
             fputcsv($handle, $header, ';');
 
             foreach ($students as $i => $student) {
-                $scores = $this->obe->cplScoresFor($cpls, $student->id);
+                $scores = $this->obe->cplScoresFor($cpls, $student->id, $section->id);
 
                 $row = [$i + 1, $student->nim_nidn ?? '', $student->name];
                 foreach ($cpls as $cpl) {
