@@ -67,7 +67,70 @@ class InputNilaiController extends Controller
         $enrolledIds = $section->students()->pluck('users.id');
         $dosenId = Auth::guard('web')->id();
 
-        if ($cpmks->isNotEmpty()) {
+        if ($request->has('rubric_scores') && $assessment->uses_rubric && $assessment->rubric) {
+            $criteria = $assessment->rubric->criteria;
+            $request->validate([
+                'rubric_scores' => ['required', 'array'],
+                'rubric_scores.*' => ['array'],
+                'rubric_scores.*.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            ]);
+
+            DB::transaction(function () use ($request, $assessment, $criteria, $enrolledIds, $dosenId) {
+                foreach ($request->input('rubric_scores', []) as $mahasiswaId => $criterionScores) {
+                    $mahasiswaId = (int) $mahasiswaId;
+                    if (! $enrolledIds->contains($mahasiswaId)) {
+                        continue;
+                    }
+
+                    foreach ($criteria as $criterion) {
+                        $rawScore = $criterionScores[$criterion->id] ?? null;
+                        $scoreValue = ($rawScore !== null && $rawScore !== '') ? (float) $rawScore : null;
+
+                        \App\Models\StudentRubricScore::updateOrCreate(
+                            [
+                                'rubric_criterion_id' => $criterion->id,
+                                'mahasiswa_id' => $mahasiswaId,
+                            ],
+                            [
+                                'score' => $scoreValue,
+                            ]
+                        );
+                    }
+
+                    $this->obe->syncRubricToAssessmentScore($assessment, $mahasiswaId, $dosenId);
+                }
+            });
+        } elseif ($request->has('scores') || $cpmks->isEmpty()) {
+            // Asesmen dengan input nilai langsung (direct score) atau tanpa CPMK
+            $request->validate([
+                'scores' => ['required', 'array'],
+                'scores.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            ]);
+
+            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId) {
+                foreach ($request->input('scores', []) as $mahasiswaId => $score) {
+                    $mahasiswaId = (int) $mahasiswaId;
+                    if (! $enrolledIds->contains($mahasiswaId)) {
+                        continue;
+                    }
+
+                    $scoreValue = ($score !== null && $score !== '') ? (float) $score : null;
+
+                    StudentAssessmentScore::updateOrCreate(
+                        [
+                            'assessment_id' => $assessment->id,
+                            'mahasiswa_id' => $mahasiswaId,
+                        ],
+                        [
+                            'score' => $scoreValue,
+                            'feedback' => null,
+                            'graded_by' => $scoreValue !== null ? $dosenId : null,
+                            'graded_at' => $scoreValue !== null ? now() : null,
+                        ]
+                    );
+                }
+            });
+        } else {
             $rules = [
                 'cpmk_scores' => ['required', 'array'],
                 'cpmk_scores.*' => ['array'],
@@ -134,36 +197,6 @@ class InputNilaiController extends Controller
                             'feedback' => null,
                             'graded_by' => $overallScore !== null ? $dosenId : null,
                             'graded_at' => $overallScore !== null ? now() : null,
-                        ]
-                    );
-                }
-            });
-        } else {
-            // Asesmen tanpa pemetaan CPMK langsung
-            $request->validate([
-                'scores' => ['required', 'array'],
-                'scores.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            ]);
-
-            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId) {
-                foreach ($request->input('scores', []) as $mahasiswaId => $score) {
-                    $mahasiswaId = (int) $mahasiswaId;
-                    if (! $enrolledIds->contains($mahasiswaId)) {
-                        continue;
-                    }
-
-                    $scoreValue = ($score !== null && $score !== '') ? (float) $score : null;
-
-                    StudentAssessmentScore::updateOrCreate(
-                        [
-                            'assessment_id' => $assessment->id,
-                            'mahasiswa_id' => $mahasiswaId,
-                        ],
-                        [
-                            'score' => $scoreValue,
-                            'feedback' => null,
-                            'graded_by' => $scoreValue !== null ? $dosenId : null,
-                            'graded_at' => $scoreValue !== null ? now() : null,
                         ]
                     );
                 }
@@ -264,8 +297,64 @@ class InputNilaiController extends Controller
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
         $lines = preg_split('/\r\n|\r|\n/', trim($content));
 
+        // Filter non-empty lines
+        $lines = array_values(array_filter($lines, fn ($l) => trim($l) !== '' && ! str_starts_with(trim($l), '#')));
+
         if (count($lines) < 2) {
             return back()->withErrors(['file' => 'File CSV kosong atau hanya berisi header.']);
+        }
+
+        // Parse header row
+        $headerLine = trim($lines[0]);
+        $delimiter = str_contains($headerLine, ';') ? ';' : (str_contains($headerLine, "\t") ? "\t" : ',');
+        $rawHeaderCols = array_map('trim', str_getcsv($headerLine, $delimiter, '"', '\\'));
+
+        if (count($rawHeaderCols) < 3) {
+            return back()->withErrors(['file' => 'Format header CSV tidak valid (minimal 3 kolom: NIM, Nama, Nilai/CPMK).']);
+        }
+
+        // Assessment CPMKs
+        $assessmentCpmks = $assessment->cpmks()->orderBy('code')->get();
+        $cpmkByCode = $assessmentCpmks->keyBy(fn ($c) => strtoupper(trim($c->code)));
+
+        $colsToCheck = array_slice($rawHeaderCols, 2);
+        $firstColName = strtolower(trim($colsToCheck[0] ?? ''));
+
+        $mode = 'legacy';
+        $cpmkMapping = [];
+
+        // Deteksi mode: Multi-CPMK vs Legacy
+        if ($assessmentCpmks->isNotEmpty() && $firstColName !== 'nilai' && $firstColName !== 'score' && ! str_starts_with($firstColName, 'nilai')) {
+            $mode = 'cpmk';
+
+            foreach ($colsToCheck as $idxOffset => $headerColName) {
+                $colIdx = 2 + $idxOffset;
+                $code = strtoupper(trim($headerColName));
+                if ($code === '') {
+                    continue;
+                }
+
+                if (! $cpmkByCode->has($code)) {
+                    return back()->withErrors([
+                        'file' => "Kolom header '$headerColName' bukan CPMK yang diukur oleh asesmen ini."
+                    ]);
+                }
+
+                $cpmk = $cpmkByCode->get($code);
+                $maxScore = $this->obe->assessmentCpmkMaxScore($assessment, $cpmk);
+
+                $cpmkMapping[$colIdx] = [
+                    'cpmk_id' => $cpmk->id,
+                    'code' => $cpmk->code,
+                    'max' => $maxScore,
+                ];
+            }
+
+            if (empty($cpmkMapping)) {
+                return back()->withErrors([
+                    'file' => 'Tidak ditemukan kolom CPMK yang valid pada header CSV.'
+                ]);
+            }
         }
 
         // Get enrolled students indexed by NIM
@@ -275,25 +364,16 @@ class InputNilaiController extends Controller
         $rows = [];
         $errors = [];
 
-        // Skip header row
+        // Parse data rows
         for ($i = 1; $i < count($lines); $i++) {
             $line = trim($lines[$i]);
             if ($line === '' || str_starts_with($line, '#')) {
                 continue;
             }
 
-            $delimiter = str_contains($line, ';') ? ';' : (str_contains($line, "\t") ? "\t" : ',');
             $cols = array_map('trim', str_getcsv($line, $delimiter, '"', '\\'));
-
-            if (count($cols) < 3) {
-                $errors[] = "Baris " . ($i + 1) . ": kurang dari 3 kolom.";
-                continue;
-            }
-
-            $nim = $cols[0];
-            $name = $cols[1];
-            $score = $cols[2];
-            $feedback = $cols[3] ?? '';
+            $nim = $cols[0] ?? '';
+            $name = $cols[1] ?? '';
 
             $student = $studentsByNim[$nim] ?? null;
 
@@ -302,19 +382,82 @@ class InputNilaiController extends Controller
                 continue;
             }
 
-            if ($score !== '' && (! is_numeric($score) || (float) $score < 0 || (float) $score > 100)) {
-                $errors[] = "Baris " . ($i + 1) . ": Nilai '$score' tidak valid (harus 0-100).";
-                continue;
-            }
+            if ($mode === 'cpmk') {
+                $cpmkScores = [];
+                $sumOfPoints = 0.0;
+                $hasAnyScore = false;
+                $rowHasError = false;
 
-            $rows[] = [
-                'mahasiswa_id' => $student->id,
-                'nim' => $nim,
-                'name' => $student->name,
-                'score' => $score !== '' ? (float) $score : null,
-                'feedback' => $feedback,
-                'status' => $score !== '' ? 'valid' : 'kosong',
-            ];
+                foreach ($cpmkMapping as $colIndex => $mapping) {
+                    $rawVal = $cols[$colIndex] ?? '';
+                    $cpmkId = $mapping['cpmk_id'];
+                    $cpmkCode = $mapping['code'];
+                    $maxScore = $mapping['max'];
+
+                    if ($rawVal === '' || $rawVal === null) {
+                        $cpmkScores[$cpmkId] = null;
+                        continue;
+                    }
+
+                    if (! is_numeric($rawVal)) {
+                        $errors[] = "Baris " . ($i + 1) . ": Nilai {$cpmkCode} ('$rawVal') tidak valid (harus berupa angka).";
+                        $rowHasError = true;
+                        continue;
+                    }
+
+                    $numVal = (float) $rawVal;
+
+                    if ($numVal < 0) {
+                        $errors[] = "Baris " . ($i + 1) . ": Nilai {$cpmkCode} tidak boleh kurang dari 0.";
+                        $rowHasError = true;
+                        continue;
+                    }
+
+                    if ($numVal > ($maxScore + 0.05)) {
+                        $errors[] = "Baris " . ($i + 1) . ": Nilai {$cpmkCode} ($numVal) melebihi batas maksimal " . (int)$maxScore . ".";
+                        $rowHasError = true;
+                        continue;
+                    }
+
+                    $cpmkScores[$cpmkId] = $numVal;
+                    $sumOfPoints += $numVal;
+                    $hasAnyScore = true;
+                }
+
+                if ($rowHasError) {
+                    continue;
+                }
+
+                $overallScore = $hasAnyScore ? min(100.0, round($sumOfPoints, 2)) : null;
+
+                $rows[] = [
+                    'mahasiswa_id' => $student->id,
+                    'nim' => $nim,
+                    'name' => $student->name,
+                    'cpmk_scores' => $cpmkScores,
+                    'overall_score' => $overallScore,
+                    'status' => $hasAnyScore ? 'valid' : 'kosong',
+                ];
+            } else {
+                $score = $cols[2] ?? '';
+                $feedback = $cols[3] ?? '';
+
+                if ($score !== '' && (! is_numeric($score) || (float) $score < 0 || (float) $score > 100)) {
+                    $errors[] = "Baris " . ($i + 1) . ": Nilai '$score' tidak valid (harus 0-100).";
+                    continue;
+                }
+
+                $scoreVal = $score !== '' ? (float) $score : null;
+
+                $rows[] = [
+                    'mahasiswa_id' => $student->id,
+                    'nim' => $nim,
+                    'name' => $student->name,
+                    'score' => $scoreVal,
+                    'feedback' => $feedback,
+                    'status' => $scoreVal !== null ? 'valid' : 'kosong',
+                ];
+            }
         }
 
         if (empty($rows) && ! empty($errors)) {
@@ -324,6 +467,8 @@ class InputNilaiController extends Controller
         // Store preview in session for confirmation
         session([
             'import_preview' => [
+                'mode' => $mode,
+                'cpmk_headers' => array_values($cpmkMapping),
                 'rows' => $rows,
                 'errors' => $errors,
                 'assessment_id' => $assessment->id,
@@ -348,25 +493,73 @@ class InputNilaiController extends Controller
         }
 
         $dosenId = Auth::guard('web')->id();
+        $mode = $preview['mode'] ?? 'legacy';
         $saved = 0;
 
-        DB::transaction(function () use ($preview, $assessment, $dosenId, &$saved) {
+        DB::transaction(function () use ($preview, $assessment, $dosenId, $mode, &$saved) {
             foreach ($preview['rows'] as $row) {
-                StudentAssessmentScore::updateOrCreate(
-                    [
-                        'assessment_id' => $assessment->id,
-                        'mahasiswa_id' => $row['mahasiswa_id'],
-                    ],
-                    [
-                        'score' => $row['score'],
-                        'feedback' => $row['feedback'] ?: null,
-                        'graded_by' => $row['score'] !== null ? $dosenId : null,
-                        'graded_at' => $row['score'] !== null ? now() : null,
-                    ],
-                );
+                if ($mode === 'cpmk') {
+                    foreach ($row['cpmk_scores'] as $cpmkId => $val) {
+                        \App\Models\StudentAssessmentCpmkScore::updateOrCreate(
+                            [
+                                'assessment_id' => $assessment->id,
+                                'cpmk_id' => $cpmkId,
+                                'mahasiswa_id' => $row['mahasiswa_id'],
+                            ],
+                            [
+                                'score' => $val,
+                            ],
+                        );
+                    }
 
-                if ($row['score'] !== null) {
-                    $saved++;
+                    StudentAssessmentScore::updateOrCreate(
+                        [
+                            'assessment_id' => $assessment->id,
+                            'mahasiswa_id' => $row['mahasiswa_id'],
+                        ],
+                        [
+                            'score' => $row['overall_score'],
+                            'feedback' => null,
+                            'graded_by' => $row['overall_score'] !== null ? $dosenId : null,
+                            'graded_at' => $row['overall_score'] !== null ? now() : null,
+                        ],
+                    );
+
+                    if ($row['overall_score'] !== null) {
+                        $saved++;
+                    }
+                } else {
+                    StudentAssessmentScore::updateOrCreate(
+                        [
+                            'assessment_id' => $assessment->id,
+                            'mahasiswa_id' => $row['mahasiswa_id'],
+                        ],
+                        [
+                            'score' => $row['score'],
+                            'feedback' => $row['feedback'] ?: null,
+                            'graded_by' => $row['score'] !== null ? $dosenId : null,
+                            'graded_at' => $row['score'] !== null ? now() : null,
+                        ],
+                    );
+
+                    // Jika asesmen memiliki 1 CPMK, sinkronkan juga ke StudentAssessmentCpmkScore
+                    if ($assessment->cpmks()->count() === 1) {
+                        $singleCpmk = $assessment->cpmks()->first();
+                        \App\Models\StudentAssessmentCpmkScore::updateOrCreate(
+                            [
+                                'assessment_id' => $assessment->id,
+                                'cpmk_id' => $singleCpmk->id,
+                                'mahasiswa_id' => $row['mahasiswa_id'],
+                            ],
+                            [
+                                'score' => $row['score'],
+                            ],
+                        );
+                    }
+
+                    if ($row['score'] !== null) {
+                        $saved++;
+                    }
                 }
             }
         });
@@ -399,7 +592,7 @@ class InputNilaiController extends Controller
             $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void
