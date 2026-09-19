@@ -1,4 +1,4 @@
-@extends('layouts.mahasiswa')
+﻿@extends('layouts.mahasiswa')
 
 @section('title', $item['title'].' | SALE')
 @section('header', $course['title'])
@@ -42,7 +42,7 @@
             @endif
         </div>
         <h1 class="page-heading mt-1">{{ $item['title'] }}</h1>
-        <p class="page-description">{{ $course['lecturer'] }} · {{ $item['module'] }}</p>
+        <p class="page-description">{{ $course['lecturer'] }} Â· {{ $item['module'] }}</p>
     </header>
 
     {{-- Submission form wraps main questions & side actions if student --}}
@@ -81,7 +81,7 @@
                                             Lihat Tanda Terima Kuis
                                         </a>
                                         <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="quiet-link text-xs">
-                                            ← Kembali ke Halaman Course
+                                            â† Kembali ke Halaman Course
                                         </a>
                                     </div>
                                 </div>
@@ -165,83 +165,273 @@
 
                 </section>
 
-                {{-- Task Questions for Regular Assignments (Non-CBT Quiz) --}}
-                @if(!$isLecturer && $isTask && !$isDedicatedQuiz && $hasMultiQuestions)
-                    <div class="space-y-5">
-                        @foreach($item['questions'] as $qIdx => $q)
-                            <section class="surface p-6 sm:p-7 space-y-4">
-                                <div class="flex items-center justify-between border-b border-line/50 pb-3">
+                {{-- Multi-Question Items Rendering with Step-by-Step Navigator --}}
+                @if($hasMultiQuestions)
+                    <section class="space-y-4" data-quiz-container>
+                        {{-- Quiz Header & Question Number Navigator --}}
+                        <div class="surface p-4 sm:p-5 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 pb-3">
+                                <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="rounded bg-slate-900 text-white text-xs font-bold px-2 py-0.5">Soal {{ $qIdx + 1 }}</span>
-                                        <span class="text-xs font-semibold text-muted uppercase">{{ $q['type'] }}</span>
+                                        <span class="inline-flex items-center rounded-md bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">
+                                            {{ count($item['questions']) }} Soal
+                                        </span>
+                                        <h2 class="text-base font-bold text-ink">{{ $item['title'] }}</h2>
                                     </div>
-                                    <span class="text-xs font-bold text-ink">{{ $q['points'] ?? 10 }} Poin</span>
+                                    <p class="mt-1 text-xs text-muted" data-quiz-counter-text>
+                                        Sedang menampilkan <strong class="text-ink font-semibold">Soal <span data-quiz-current-num>1</span></strong> dari {{ count($item['questions']) }} soal.
+                                    </p>
                                 </div>
-                                <p class="text-sm text-ink leading-relaxed">{{ $q['prompt'] }}</p>
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-xs font-semibold text-ink bg-canvas px-2.5 py-1 rounded-md border border-line/60">
+                                        Total {{ $item['points'] ?? array_sum(array_column($item['questions'], 'points')) }} Poin
+                                    </span>
+                                    @if(!$isLecturer)
+                                        <button type="submit" class="button-primary text-xs py-1.5 px-3.5 font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs">
+                                            Kumpulkan Kuis
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
 
-                                @if($q['type'] === 'benar_salah')
-                                    <div class="flex items-center gap-4 pt-1">
-                                        <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs cursor-pointer hover:bg-slate-100 transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Benar" @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Benar')>
-                                            <span class="font-medium text-ink">Benar</span>
-                                        </label>
-                                        <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs cursor-pointer hover:bg-slate-100 transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Salah" @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Salah')>
-                                            <span class="font-medium text-ink">Salah</span>
-                                        </label>
+                            {{-- Question Selector Buttons (1, 2, 3, ...) --}}
+                            <div class="flex flex-wrap items-center gap-2 pt-0.5" role="tablist" aria-label="Navigasi nomor soal kuis">
+                                <span class="text-xs font-semibold text-muted mr-1 shrink-0">Nomor Soal:</span>
+                                @foreach($item['questions'] as $qIdx => $q)
+                                    <button type="button"
+                                        data-quiz-tab="{{ $qIdx }}"
+                                        title="Buka Soal {{ $qIdx + 1 }} ({{ $q['type'] }})"
+                                        class="h-8 min-w-8 px-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 border {{ $qIdx === 0 ? 'bg-[#102f50] text-white border-[#102f50] shadow-xs' : 'bg-white text-ink border-line hover:border-brand' }}">
+                                        <span>{{ $qIdx + 1 }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Individual Question Cards (One active at a time) --}}
+                        @foreach($item['questions'] as $qIdx => $q)
+                            <div data-quiz-card="{{ $qIdx }}" class="rounded-xl bg-white p-5 sm:p-6 shadow-sm space-y-4 {{ $qIdx === 0 ? '' : 'hidden' }}">
+                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#102f50] text-xs font-bold text-white">
+                                            {{ $qIdx + 1 }}
+                                        </span>
+                                        <span class="text-sm font-bold text-ink">Soal {{ $qIdx + 1 }} dari {{ count($item['questions']) }}</span>
                                     </div>
-                                @elseif($q['type'] === 'mencocokkan')
-                                    @php
-                                        $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
-                                        $pairs = [];
-                                        foreach($pairLines as $pLine) {
-                                            if (str_contains($pLine, ' = ')) {
-                                                [$left, $right] = explode(' = ', $pLine, 2);
-                                                $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                            } elseif (str_contains($pLine, '=')) {
-                                                [$left, $right] = explode('=', $pLine, 2);
-                                                $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                            } else {
-                                                $pairs[] = ['left' => $pLine, 'right' => $pLine];
-                                            }
-                                        }
-                                        $allRights = array_column($pairs, 'right');
-                                    @endphp
-                                    <div class="space-y-3 pt-1">
-                                        @foreach($pairs as $pIdx => $pair)
-                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg bg-canvas border border-line/50">
-                                                <span class="text-xs font-medium text-ink">{{ $pair['left'] }}</span>
-                                                <select name="question_answers[{{ $qIdx }}][matching][{{ $pIdx }}]" class="field text-xs sm:w-64">
-                                                    <option value="">-- Pilih Pasangan --</option>
-                                                    @foreach($allRights as $target)
-                                                        <option value="{{ $target }}" @selected(old("question_answers.$qIdx.matching.$pIdx", $submission['question_answers'][$qIdx]['matching'][$pIdx] ?? '') === $target)>
-                                                            {{ $target }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        @endforeach
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-xs font-medium text-ink bg-canvas px-2 py-0.5 rounded border border-line/40">
+                                            {{ $q['cpmk'] }} @if(!empty($q['cpl']))â†’ {{ $q['cpl'] }} @endif
+                                        </span>
+                                        <span class="text-xs text-muted">Â·</span>
+                                        <span class="text-xs font-semibold text-brand">
+                                            {{ $q['points'] }} Poin
+                                        </span>
+                                        <span class="text-xs text-muted">Â·</span>
+                                        <span class="text-xs font-semibold uppercase tracking-wider text-muted">
+                                            {{ $q['type'] === 'uraian' ? 'Essay' : ($q['type'] === 'pilihan' ? 'Pilihan Ganda' : ($q['type'] === 'kompleks' ? 'Pilihan Kompleks' : ($q['type'] === 'benar_salah' ? 'Benar / Salah' : ($q['type'] === 'mencocokkan' ? 'Mencocokkan' : 'Coding')))) }}
+                                        </span>
                                     </div>
-                                @elseif(in_array($q['type'], ['pilihan', 'kompleks']))
-                                    @php
-                                        $options = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($option) => $option !== '');
-                                        $isMultiple = $q['type'] === 'kompleks';
-                                    @endphp
-                                    <div class="space-y-2 pt-1">
-                                        @foreach($options as $option)
-                                            <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs cursor-pointer hover:bg-slate-100 transition">
-                                                <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}" name="question_answers[{{ $qIdx }}][choices][]" value="{{ $option }}"
-                                                    @checked(in_array($option, old("question_answers.$qIdx.choices", $submission['question_answers'][$qIdx]['choices'] ?? [])))>
-                                                <span class="text-ink">{{ $option }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <textarea name="question_answers[{{ $qIdx }}][text]" rows="4" class="field text-xs" placeholder="Tulis jawaban di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? '') }}</textarea>
+                                </div>
+
+                                <div class="text-sm text-ink leading-relaxed font-medium">
+                                    {{ $q['prompt'] }}
+                                </div>
+
+                                @if(!empty($q['image']))
+                                    <figure class="mt-3">
+                                        <img src="{{ route('preview.file', $q['image']) }}" alt="{{ $q['alt'] ?? 'Stimulus soal' }}" class="max-h-60 rounded-lg object-contain border border-line/40 p-1 bg-white">
+                                        @if(!empty($q['alt']))
+                                            <figcaption class="mt-1 text-[11px] text-muted">{{ $q['alt'] }}</figcaption>
+                                        @endif
+                                    </figure>
                                 @endif
-                            </section>
+
+                                {{-- Question Answering Inputs (Only for Students) --}}
+                                @if(!$isLecturer)
+                                    @if($q['type'] === 'pilihan')
+                                        @php
+                                            $opts = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
+                                        @endphp
+                                        <div class="space-y-2 pt-1">
+                                            @foreach($opts as $optIdx => $opt)
+                                                <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-sm cursor-pointer hover:bg-slate-100 transition">
+                                                    <input type="radio" name="question_answers[{{ $qIdx }}][choices][]" value="{{ $opt }}"
+                                                        @checked(in_array($opt, old("question_answers.$qIdx.choices", $submission['question_answers'][$qIdx]['choices'] ?? [])))>
+                                                    <span class="font-semibold text-muted text-xs mr-1">{{ chr(65 + $optIdx) }}.</span>
+                                                    <span class="text-ink">{{ $opt }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @elseif($q['type'] === 'kompleks')
+                                        @php
+                                            $opts = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
+                                        @endphp
+                                        <div class="space-y-2 pt-1">
+                                            <p class="text-xs text-muted">Pilih semua jawaban yang sesuai:</p>
+                                            @foreach($opts as $optIdx => $opt)
+                                                <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-sm cursor-pointer hover:bg-slate-100 transition">
+                                                    <input type="checkbox" name="question_answers[{{ $qIdx }}][choices][]" value="{{ $opt }}"
+                                                        @checked(in_array($opt, old("question_answers.$qIdx.choices", $submission['question_answers'][$qIdx]['choices'] ?? [])))>
+                                                    <span class="font-semibold text-muted text-xs mr-1">{{ chr(65 + $optIdx) }}.</span>
+                                                    <span class="text-ink">{{ $opt }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @elseif($q['type'] === 'benar_salah')
+                                        <div class="flex items-center gap-4 pt-1">
+                                            <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-sm cursor-pointer hover:bg-slate-100 transition">
+                                                <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Benar"
+                                                    @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Benar')>
+                                                <span class="font-medium text-ink">Benar</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-sm cursor-pointer hover:bg-slate-100 transition">
+                                                <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Salah"
+                                                    @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Salah')>
+                                                <span class="font-medium text-ink">Salah</span>
+                                            </label>
+                                        </div>
+                                    @elseif($q['type'] === 'mencocokkan')
+                                        @php
+                                            $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
+                                            $pairs = [];
+                                            foreach($pairLines as $pLine) {
+                                                if (str_contains($pLine, ' = ')) {
+                                                    [$left, $right] = explode(' = ', $pLine, 2);
+                                                    $pairs[] = ['left' => trim($left), 'right' => trim($right)];
+                                                } elseif (str_contains($pLine, '=')) {
+                                                    [$left, $right] = explode('=', $pLine, 2);
+                                                    $pairs[] = ['left' => trim($left), 'right' => trim($right)];
+                                                } else {
+                                                    $pairs[] = ['left' => $pLine, 'right' => $pLine];
+                                                }
+                                            }
+                                            if (empty($pairs)) {
+                                                $pairs = [
+                                                    ['left' => 'Binary Tree', 'right' => 'Setiap simpul memiliki maksimal 2 anak'],
+                                                    ['left' => 'Linked List', 'right' => 'Struktur data linier terhubung pointer'],
+                                                    ['left' => 'Stack', 'right' => 'LIFO (Last In First Out)'],
+                                                ];
+                                            }
+                                            $rightOptions = array_column($pairs, 'right');
+                                            $hasImageRight = collect($rightOptions)->contains(function($opt) {
+                                                return str_starts_with($opt, 'http://') || str_starts_with($opt, 'https://') || str_starts_with($opt, 'data:image') || str_starts_with($opt, '/');
+                                            });
+                                        @endphp
+
+                                        <div class="space-y-3 pt-1">
+                                            @if($hasImageRight)
+                                                <div class="rounded-lg border border-line/60 bg-canvas/30 p-3 space-y-2">
+                                                    <p class="text-[11px] font-bold text-muted uppercase tracking-wider">Katalog Gambar Pilihan Pasangan:</p>
+                                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                        @foreach($rightOptions as $rIdx => $rOpt)
+                                                            @php
+                                                                $isRImg = str_starts_with($rOpt, 'http://') || str_starts_with($rOpt, 'https://') || str_starts_with($rOpt, 'data:image') || str_starts_with($rOpt, '/');
+                                                            @endphp
+                                                            <div class="flex flex-col items-center p-2 rounded-lg border border-line/40 bg-white text-center shadow-2xs">
+                                                                <span class="text-[11px] font-bold text-brand mb-1">Pilihan {{ chr(65 + $rIdx) }}</span>
+                                                                @if($isRImg)
+                                                                    <img src="{{ $rOpt }}" alt="Pilihan {{ chr(65 + $rIdx) }}" class="max-h-20 object-contain rounded border border-line/30 bg-slate-50 p-1">
+                                                                @else
+                                                                    <span class="text-xs text-ink">{{ $rOpt }}</span>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            <p class="text-xs text-muted">Jodohkan item premis di sebelah kiri dengan pasangan yang tepat:</p>
+                                            <div class="space-y-2.5">
+                                                @foreach($pairs as $pIdx => $pair)
+                                                    @php
+                                                        $isLeftImg = str_starts_with($pair['left'], 'http://') || str_starts_with($pair['left'], 'https://') || str_starts_with($pair['left'], 'data:image') || str_starts_with($pair['left'], '/');
+                                                    @endphp
+                                                    <div class="grid sm:grid-cols-2 gap-3 items-center p-3.5 rounded-lg bg-canvas border border-line/40">
+                                                        <div>
+                                                            <span class="text-[11px] font-bold text-muted block mb-1">Premis {{ $pIdx + 1 }}:</span>
+                                                            @if($isLeftImg)
+                                                                <img src="{{ $pair['left'] }}" alt="Gambar premis {{ $pIdx + 1 }}" class="max-h-24 rounded object-contain border border-line/60 bg-white p-1 mb-1">
+                                                            @else
+                                                                <span class="font-medium text-xs sm:text-sm text-ink">{{ $pair['left'] }}</span>
+                                                            @endif
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-[11px] font-bold text-muted block mb-1">Pasangan Jawaban:</span>
+                                                            <select name="question_answers[{{ $qIdx }}][matching][{{ $pIdx }}]" class="field text-xs py-2">
+                                                                <option value="">-- Pilih Pasangan --</option>
+                                                                @foreach($rightOptions as $optIdx => $opt)
+                                                                    @php
+                                                                        $isOptImg = str_starts_with($opt, 'http://') || str_starts_with($opt, 'https://') || str_starts_with($opt, 'data:image') || str_starts_with($opt, '/');
+                                                                        $optLabel = $isOptImg ? 'Pilihan ' . chr(65 + $optIdx) : $opt;
+                                                                    @endphp
+                                                                    <option value="{{ $opt }}" @selected(old("question_answers.$qIdx.matching.$pIdx", $submission['question_answers'][$qIdx]['matching'][$pIdx] ?? '') === $opt)>
+                                                                        {{ $optLabel }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @elseif($q['type'] === 'coding')
+                                        <div class="pt-1 space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <label class="form-label text-xs">Jawaban Pemrograman (Kode Solusi)</label>
+                                                <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="quiet-link text-xs font-semibold">
+                                                    Buka di Code Editor &amp; Lumina AI
+                                                </a>
+                                            </div>
+                                            <textarea rows="7" name="question_answers[{{ $qIdx }}][text]" class="field font-mono text-xs leading-relaxed" placeholder="// Tuliskan implementasi kode solusi Anda di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? ($q['options'] ?? '')) }}</textarea>
+                                        </div>
+                                    @else
+                                        <div class="pt-1">
+                                            <label class="form-label text-xs">Jawaban Uraian / Analisis</label>
+                                            <textarea rows="4" name="question_answers[{{ $qIdx }}][text]" class="field text-sm" placeholder="Tuliskan uraian dan argumen jawaban Anda...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? '') }}</textarea>
+                                        </div>
+                                    @endif
+                                @endif
+
+                                {{-- If Lecturer Graded This Question --}}
+                                @if(isset($itemGrade['points'][$qIdx]))
+                                    <div class="rounded-lg bg-canvas p-3 text-xs flex items-center justify-between">
+                                        <div>
+                                            <span class="font-semibold text-ink">Nilai Dosen: {{ $itemGrade['points'][$qIdx] }} / {{ $q['points'] }} Poin</span>
+                                            <span class="ml-2 text-muted">Â· Capaian {{ $q['cpmk'] }} tercatat</span>
+                                        </div>
+                                        <span class="font-semibold text-ink">Dinilai</span>
+                                    </div>
+                                @endif
+
+                                {{-- Question Card Stepper Controls (Kembali / Selanjutnya / Kumpulkan) --}}
+                                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/50 pt-4 mt-6">
+                                    <div>
+                                        @if($qIdx > 0)
+                                            <button type="button" data-quiz-nav-btn="{{ $qIdx - 1 }}" class="button-secondary text-xs py-2 px-3.5 font-semibold flex items-center gap-1.5">
+                                                <svg class="h-3.5 w-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                                <span>Kembali (Soal {{ $qIdx }})</span>
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-muted italic">Awal kuis</span>
+                                        @endif
+                                    </div>
+
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="text-xs text-muted mr-1 hidden sm:inline">Soal {{ $qIdx + 1 }} dari {{ count($item['questions']) }}</span>
+                                        @if($qIdx < count($item['questions']) - 1)
+                                            <button type="button" data-quiz-nav-btn="{{ $qIdx + 1 }}" class="button-primary text-xs py-2 px-4 font-semibold flex items-center gap-1.5">
+                                                <span>Selanjutnya (Soal {{ $qIdx + 2 }})</span>
+                                            </button>
+                                        @elseif(!$isLecturer)
+                                            <button type="submit" class="button-primary text-xs py-2 px-4 font-bold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shadow-2xs">
+                                                <span>Kumpulkan Semua Jawaban âœ“</span>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                         @endforeach
-                    </div>
+                    </section>
                 @endif
 
                 {{-- Single Objective Questions (Only Choices in Center, No Duplicate Button) --}}
@@ -319,13 +509,13 @@
 
                         <div class="space-y-2 pt-2">
                             <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                Lihat &amp; Nilai Jawaban Mahasiswa →
+                                Lihat &amp; Nilai Jawaban Mahasiswa â†’
                             </a>
                             <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
                                 + Tambah Konten / Soal Baru
                             </a>
                             <a href="{{ route('dosen.course.show', $course['id']) }}" class="quiet-link text-xs text-center block pt-1">
-                                ← Kembali ke Halaman Course
+                                â† Kembali ke Halaman Course
                             </a>
                         </div>
                     </aside>
@@ -346,7 +536,7 @@
 
                             <div class="text-xs text-muted">
                                 <span>{{ $item['points'] ?? 100 }} Poin</span>
-                                <span>·</span>
+                                <span>Â·</span>
                                 <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
                             </div>
 
@@ -465,5 +655,83 @@
             <button type="button" id="modal-link-submit" class="button-primary text-xs py-1.5 px-3 font-semibold">Tambahkan Link</button>
         </div>
     </dialog>
+    {{-- Quiz Stepper Controller Script --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const quizContainer = document.querySelector('[data-quiz-container]');
+            if (!quizContainer) return;
+
+            const cards = quizContainer.querySelectorAll('[data-quiz-card]');
+            const tabs = quizContainer.querySelectorAll('[data-quiz-tab]');
+            const currentNumSpan = quizContainer.querySelector('[data-quiz-current-num]');
+
+            const updateAnsweredIndicators = () => {
+                cards.forEach((card, idx) => {
+                    const tab = tabs[idx];
+                    if (!tab) return;
+                    
+                    const radios = card.querySelectorAll('input[type="radio"]:checked');
+                    const checkboxes = card.querySelectorAll('input[type="checkbox"]:checked');
+                    const selects = card.querySelectorAll('select');
+                    let selectAnswered = selects.length > 0;
+                    selects.forEach(s => { if (!s.value) selectAnswered = false; });
+                    const textareas = card.querySelectorAll('textarea');
+                    let textAnswered = false;
+                    textareas.forEach(t => { if (t.value.trim().length > 0) textAnswered = true; });
+
+                    const isAnswered = radios.length > 0 || checkboxes.length > 0 || (selects.length > 0 && selectAnswered) || textAnswered;
+                    
+                    if (isAnswered && !tab.classList.contains('bg-[#102f50]')) {
+                        tab.classList.add('border-emerald-600', 'text-emerald-700', 'bg-emerald-50/60');
+                    } else if (!isAnswered && !tab.classList.contains('bg-[#102f50]')) {
+                        tab.classList.remove('border-emerald-600', 'text-emerald-700', 'bg-emerald-50/60');
+                    }
+                });
+            };
+
+            const showQuestion = (index) => {
+                const targetIdx = Number(index);
+                cards.forEach((c, idx) => {
+                    if (idx === targetIdx) {
+                        c.classList.remove('hidden');
+                    } else {
+                        c.classList.add('hidden');
+                    }
+                });
+
+                tabs.forEach((tab, idx) => {
+                    if (idx === targetIdx) {
+                        tab.className = 'h-8 min-w-8 px-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 border bg-[#102f50] text-white border-[#102f50] shadow-xs';
+                    } else {
+                        tab.className = 'h-8 min-w-8 px-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 border bg-white text-ink border-line hover:border-brand';
+                    }
+                });
+
+                if (currentNumSpan) currentNumSpan.textContent = `${targetIdx + 1}`;
+                updateAnsweredIndicators();
+            };
+
+            quizContainer.addEventListener('click', (e) => {
+                const tabBtn = e.target.closest('[data-quiz-tab]');
+                if (tabBtn) {
+                    showQuestion(tabBtn.dataset.quizTab);
+                    return;
+                }
+
+                const navBtn = e.target.closest('[data-quiz-nav-btn]');
+                if (navBtn) {
+                    showQuestion(navBtn.dataset.quizNavBtn);
+                    quizContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+            });
+
+            quizContainer.addEventListener('change', updateAnsweredIndicators);
+            quizContainer.addEventListener('input', updateAnsweredIndicators);
+            updateAnsweredIndicators();
+        });
+    </script>
+
 </div>
 @endsection
+
