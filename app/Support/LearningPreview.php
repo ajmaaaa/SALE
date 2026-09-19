@@ -152,15 +152,67 @@ class LearningPreview
 
     public static function course(int $id): array
     {
-        abort_unless(isset(self::courses()[$id]), 404);
+        $courses = self::courses();
+        if (isset($courses[$id])) {
+            return $courses[$id];
+        }
 
-        return self::courses()[$id];
+        if (\Illuminate\Support\Facades\Schema::hasTable('class_sections')) {
+            $sec = \App\Models\ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])->find($id);
+            if ($sec) {
+                $dosenKetua = $sec->dosen?->name ?? 'Dosen Pengampu';
+
+                return [
+                    'id' => $sec->id,
+                    'code' => $sec->display_code,
+                    'title' => $sec->mataKuliah->name,
+                    'lecturer' => $dosenKetua,
+                    'dosen_ketua' => $dosenKetua,
+                    'dosen_wakil' => $sec->dosenPendamping?->name ?? null,
+                    'description' => 'Perkuliahan ' . $sec->mataKuliah->name . ' (' . $sec->mataKuliah->code . ') kelas ' . $sec->section_code . ' semester ' . ($sec->semester->name ?? 'aktif') . '.',
+                    'cover' => null,
+                    'video' => null,
+                    'sks' => ($sec->mataKuliah->sks ?? 3) . ' SKS',
+                    'section_code' => $sec->section_code,
+                ];
+            }
+        }
+
+        abort(404);
     }
 
     public static function resource(int $course, int $item): array
     {
         self::course($course);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('assessments')) {
+            $asm = \App\Models\Assessment::with(['classSection', 'cpmks'])
+                ->where('class_section_id', $course)
+                ->find($item);
+
+            if ($asm) {
+                $cpmkNames = $asm->cpmks->pluck('code')->implode(', ');
+                $bodyText = 'Asesmen perkuliahan ' . $asm->name . ' dengan bobot ' . $asm->final_weight . '% terhadap nilai akhir. Silakan kumpulkan hasil pekerjaan sesuai instruksi yang diberikan.';
+
+                return self::item(
+                    $asm->id,
+                    $course,
+                    'Asesmen Perkuliahan',
+                    'tugas',
+                    $asm->name,
+                    $bodyText,
+                    null,
+                    $asm->classSection?->section_code ?? 'A'
+                ) + [
+                    'description' => $bodyText,
+                    'cpmk' => $cpmkNames ?: 'CPMK Terkait',
+                    'points' => 100,
+                ];
+            }
+        }
+
         $resource = self::items()[$item] ?? null;
+
         abort_unless($resource && $resource['course'] === $course, 404);
 
         return $resource;
