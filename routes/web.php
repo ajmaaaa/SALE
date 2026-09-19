@@ -140,6 +140,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 Route::prefix('kaprodi')->name('kaprodi.')->group(function () {
     Route::get('/monitoring/cpmk', [KaprodiMonitoringController::class, 'cpmk'])->name('monitoring.cpmk');
     Route::get('/monitoring/cpl', [KaprodiMonitoringController::class, 'cpl'])->name('monitoring.cpl');
+    Route::get('/export', [KaprodiMonitoringController::class, 'exportIndex'])->name('export.index');
+    Route::get('/export/cpmk', [KaprodiMonitoringController::class, 'exportCpmk'])->name('export.cpmk');
+    Route::get('/export/cpl', [KaprodiMonitoringController::class, 'exportCpl'])->name('export.cpl');
 });
 
 // Mahasiswa Join Kelas via Link / Barcode QR Code
