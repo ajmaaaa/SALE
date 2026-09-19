@@ -47,7 +47,7 @@
         @forelse($items as $item)
             @php
                 $isSubmitted = session('learning.submissions.'.$item['id']);
-                $targetUrl = ($item['type'] === 'coding' && empty($item['questions'])) ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$item['course'], $item['id']]);
+                $targetUrl = $item['type'] === 'coding' ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$item['course'], $item['id']]);
             @endphp
             <a href="{{ $targetUrl }}" class="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 hover:bg-canvas transition">
                 <div class="min-w-0 flex-1">
