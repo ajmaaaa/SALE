@@ -57,8 +57,8 @@
             <div class="min-w-0 space-y-6">
                 {{-- Instructions Card --}}
                 <section class="surface p-6 sm:p-7">
-                    <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
-                    <p class="prose-content mt-4 text-sm">{{ $item['body'] }}</p>
+                    <h2 class="section-heading">{{ ($item['type'] ?? '') === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
+                    <p class="prose-content mt-4 text-sm">{{ $item['body'] ?? $item['description'] ?? '' }}</p>
 
                     @if($item['id'] === 1 || $item['type'] === 'kuis')
                         <div class="mt-5 pt-4 border-t border-line/60 flex flex-wrap items-center justify-between gap-3">
@@ -505,9 +505,23 @@
                         </div>
 
                         <div class="space-y-2 pt-2">
-                            <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                Lihat &amp; Nilai Jawaban Mahasiswa
-                            </a>
+                            @php
+                                $isDbSection = \Illuminate\Support\Facades\Schema::hasTable('class_sections') && \App\Models\ClassSection::where('id', $course['id'])->exists();
+                                $isDbAsm = $isDbSection && \Illuminate\Support\Facades\Schema::hasTable('assessments') && \App\Models\Assessment::where('class_section_id', $course['id'])->where('id', $item['id'])->exists();
+                            @endphp
+                            @if($isDbAsm)
+                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
+                                    Input &amp; Kelola Nilai Asesmen
+                                </a>
+                            @elseif($isDbSection)
+                                <a href="{{ route('dosen.penilaian.matriks', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
+                                    Kelola Matriks Penilaian OBE
+                                </a>
+                            @else
+                                <a href="{{ route('dosen.gradebook', ['course' => $course['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
+                                    Lihat &amp; Nilai Jawaban Mahasiswa
+                                </a>
+                            @endif
                             <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
                                 + Tambah Konten / Soal Baru
                             </a>
@@ -607,12 +621,16 @@
                                 {{-- Saved files --}}
                                 @if(!empty($submission['files']))
                                     @foreach($submission['files'] as $sf)
+                                        @php
+                                            $fileId = is_array($sf) ? ($sf['id'] ?? '') : $sf;
+                                            $fileName = is_array($sf) ? ($sf['name'] ?? 'Berkas lampiran') : (session("learning.files.{$fileId}.name") ?? $fileId);
+                                        @endphp
                                         <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
                                             <div class="flex items-center gap-2 min-w-0">
                                                 <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                                <span class="text-ink truncate font-medium">{{ $sf['name'] }}</span>
+                                                <span class="text-ink truncate font-medium">{{ $fileName }}</span>
                                             </div>
-                                            <input type="hidden" name="keep_files[]" value="{{ $sf['id'] }}">
+                                            <input type="hidden" name="keep_files[]" value="{{ $fileId }}">
                                         </div>
                                     @endforeach
                                 @endif

@@ -6,7 +6,7 @@
 @section('content')
 @php
     $role = request()->is('dosen*') ? 'dosen' : 'mahasiswa';
-    $cpmkList = \App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? [];
+    $cpmkList = $cpmkList ?? (\App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? []);
     $allCourseItems = collect($items)->where('type', '!=', 'pengumuman');
     $modules = $allCourseItems->groupBy('module');
     $announcements = collect($items)->where('type', 'pengumuman');
@@ -39,9 +39,9 @@
             <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted font-medium">
                 <span class="font-semibold text-ink">{{ $course['code'] }}</span>
                 <span>·</span>
-                <span>3 SKS</span>
+                <span>{{ $course['sks'] ?? '3 SKS' }}</span>
                 <span>·</span>
-                <span>Semester Ganjil 2026/2027</span>
+                <span>{{ !empty($classSection->semester?->name) ? 'Semester ' . $classSection->semester->name : 'Semester Ganjil 2026/2027' }}</span>
                 <span>·</span>
                 <span class="rounded bg-brand/10 px-2 py-0.5 font-bold text-brand">Kelas {{ $sec }}</span>
             </div>
@@ -229,7 +229,10 @@
             <section class="surface p-5" aria-labelledby="lecturer-heading">
                 <p class="text-xs font-semibold text-muted uppercase tracking-wider">Dosen Pengampu</p>
                 <h2 id="lecturer-heading" class="mt-2 text-base font-semibold text-ink">{{ $course['lecturer'] }}</h2>
-                <p class="mt-1 text-xs text-muted">Fakultas Ilmu Komputer</p>
+                @if(!empty($course['dosen_wakil']))
+                    <p class="mt-1 text-xs text-muted"><span class="font-semibold text-ink">Dosen Pendamping:</span> {{ $course['dosen_wakil'] }}</p>
+                @endif
+                <p class="mt-1 text-xs text-muted">{{ !empty($classSection) && $classSection->mataKuliah?->prodi ? $classSection->mataKuliah->prodi->name : 'Fakultas Ilmu Komputer' }}</p>
                 <p class="mt-3 text-xs leading-relaxed text-muted">Diskusikan pertanyaan melalui materi atau tugas terkait di kelas ini.</p>
             </section>
 

@@ -25,7 +25,7 @@
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar course">
         @php
             $displayCourses = $courseCards ?? [];
-            if (empty($displayCourses)) {
+            if (empty($displayCourses) && !request()->is('dosen*') && empty(request('q'))) {
                 foreach ($courses as $c) {
                     $contents = collect(\App\Support\LearningPreview::items())->where('course', $c['id']);
                     $next = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
@@ -130,7 +130,35 @@
                 </div>
             </a>
         @empty
-            <p class="p-6 text-sm text-muted col-span-full">Course tidak ditemukan. Coba kata pencarian lainnya.</p>
+            <div class="col-span-full surface p-10 text-center rounded-2xl border border-line/70">
+                <div class="h-12 w-12 rounded-full bg-brand-soft text-brand flex items-center justify-center mx-auto mb-3">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                </div>
+                @if(request()->filled('q'))
+                    <h3 class="text-base font-bold text-ink">Course tidak ditemukan</h3>
+                    <p class="mt-1 text-xs text-muted max-w-md mx-auto">Tidak ada kelas atau mata kuliah yang cocok dengan kata pencarian "{{ request('q') }}". Coba gunakan kata kunci lainnya.</p>
+                    <div class="mt-4">
+                        <a href="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" class="button-secondary text-xs px-4 py-2 font-semibold">
+                            Reset Pencarian
+                        </a>
+                    </div>
+                @else
+                    <h3 class="text-base font-bold text-ink">Belum Ada Course / Kelas</h3>
+                    <p class="mt-1 text-xs text-muted max-w-md mx-auto">
+                        {{ request()->is('dosen*') ? 'Anda belum memiliki kelas yang diampu pada semester ini. Anda dapat masuk kelas via Kode/QR di Daftar Kelas atau membuat course baru.' : 'Belum ada course perkuliahan yang aktif untuk Anda saat ini.' }}
+                    </p>
+                    @if(request()->is('dosen*'))
+                        <div class="mt-4 flex flex-wrap justify-center gap-2">
+                            <a href="{{ route('dosen.penilaian.index') }}" class="button-primary text-xs px-4 py-2 font-semibold">
+                                Buka Daftar Kelas &amp; Masuk via Kode / QR
+                            </a>
+                            <a href="{{ route('dosen.course.create') }}" class="button-secondary text-xs px-4 py-2 font-semibold">
+                                + Tambah Course Baru
+                            </a>
+                        </div>
+                    @endif
+                @endif
+            </div>
         @endforelse
     </section>
 </div>
