@@ -302,7 +302,8 @@ class AssessmentController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        abort_unless($section->dosen_id === Auth::guard('web')->id(), 403);
+        $userId = Auth::guard('web')->id();
+        abort_unless($section->dosen_id === $userId || $section->dosen_pendamping_id === $userId, 403);
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void

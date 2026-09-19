@@ -361,6 +361,6 @@ class PenilaianController extends Controller
             $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
     }
 }
