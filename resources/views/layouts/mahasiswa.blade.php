@@ -69,7 +69,7 @@
                 @endforeach
             @endif
         </nav>
-        @elseif(request()->is('dosen*'))
+        @elseif(request()->is('dosen*') || (request()->is('join-kelas*') && (auth()->user()?->hasRole(\App\Models\Role::DOSEN) || (session('auth_user.role') ?? '') === 'dosen')) || (request()->is('join-kelas*') && (auth()->user()?->role?->name ?? '') === 'dosen'))
         @php
             $currentSection = request()->route('section');
             $currentSectionId = is_object($currentSection) ? $currentSection->id : ($currentSection ?? session('last_active_section_id'));
@@ -116,11 +116,23 @@
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
         @elseif(request()->is('kaprodi*'))
-        <nav class="flex-1 space-y-2 px-4 py-5" aria-label="Navigasi kaprodi">
-            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">Ruang Kaprodi</p>
-            <a href="{{ route('kaprodi.monitoring.cpmk') }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs('kaprodi.monitoring.cpmk') ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">Monitoring CPMK</a>
-            <a href="{{ route('kaprodi.monitoring.cpl') }}" class="block rounded-lg px-3 py-3 text-sm font-medium {{ request()->routeIs('kaprodi.monitoring.cpl') ? 'bg-brand-dark text-white' : 'hover:bg-brand-soft' }}">Monitoring CPL</a>
-            <p class="px-3 pt-5 text-xs leading-5 text-muted">Akses pemantauan ketercapaian CPMK dan CPL program studi.</p>
+        <nav class="flex-1 px-3 py-5" aria-label="Navigasi kaprodi">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Kaprodi</p>
+            <div class="space-y-1">
+                <a href="{{ route('kaprodi.monitoring.cpmk') }}" @if(request()->routeIs('kaprodi.monitoring.cpmk')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('kaprodi.monitoring.cpmk') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+                    Monitoring CPMK
+                </a>
+                <a href="{{ route('kaprodi.monitoring.cpl') }}" @if(request()->routeIs('kaprodi.monitoring.cpl')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('kaprodi.monitoring.cpl') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
+                    Monitoring CPL
+                </a>
+                <a href="{{ route('kaprodi.export.index') }}" @if(request()->routeIs('kaprodi.export.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('kaprodi.export.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Export Rekap Nilai
+                </a>
+            </div>
+            <p class="px-3 pt-5 text-xs leading-5 text-muted">Akses pemantauan ketercapaian CPMK dan CPL program studi serta ekspor rekapitulasi nilai.</p>
         </nav>
         @else
         <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
