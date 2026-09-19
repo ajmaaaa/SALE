@@ -311,19 +311,274 @@ if (coverInput) {
     });
     remove.addEventListener('click', () => { clear(); coverInput.value = ''; coverInput.setCustomValidity(''); });
 }
+const parseCategory = (val) => {
+    const v = (val || '').toLowerCase().trim();
+    if (!v) return '';
+    if (v === 'materi') return 'materi';
+    if (v === 'pengumuman') return 'pengumuman';
+    if (v.includes('coding') || v.includes('pemrograman')) return 'coding';
+    if (v.includes('uts')) return 'uts';
+    if (v.includes('uas')) return 'uas';
+    if (v.includes('kuis') || v.includes('quiz') || v.includes('ujian')) return 'kuis';
+    if (v === 'lainnya') {
+        const customInp = document.querySelector('[data-custom-type]');
+        const customVal = (customInp?.value || '').toLowerCase().trim();
+        if (customVal.includes('uas')) return 'uas';
+        if (customVal.includes('uts')) return 'uts';
+        return 'uts';
+    }
+    if (v === 'tugas') return 'tugas';
+    return '';
+};
+
 const contentType = document.querySelector('[data-content-type]');
 if (contentType) {
     const questionType = document.querySelector('[data-question-type]');
-    const sync = () => {
-        const assignment = ['tugas', 'coding', 'kuis'].includes(contentType.value);
-        document.querySelector('[data-assignment-fields]').hidden = !assignment;
-        const hasChoices = assignment && ['pilihan', 'kompleks'].includes(questionType.value);
-        document.querySelector('[data-choice-fields]').hidden = !hasChoices;
-        document.querySelectorAll('[data-option-images] input').forEach(input => input.disabled = !hasChoices);
+    const codeLanguageFields = document.querySelector('[data-code-language-fields]');
+    const codeLanguageInput = document.querySelector('[data-code-language-input]');
+    const customTypeContainer = document.querySelector('[data-custom-type-container]');
+    const customTypeInput = document.querySelector('[data-custom-type]');
+    const assignmentFields = document.querySelector('[data-assignment-fields]');
+    const questionBuilder = document.querySelector('[data-question-builder]');
+    const quizDurationSettings = document.querySelector('[data-quiz-duration-settings]');
+    const emptyStateBanner = document.querySelector('[data-assessment-empty-state]');
+    const emptyStateTitle = document.querySelector('[data-empty-state-title]');
+    const emptyStateDesc = document.querySelector('[data-empty-state-desc]');
+    const emptyStateChecklist = document.querySelector('[data-empty-state-checklist]');
+    const assessmentTitleLabel = document.querySelector('[data-assessment-title-label]');
+
+    const moduleInput = document.querySelector('#module');
+    const titleInput = document.querySelector('#title');
+    const bodyInput = document.querySelector('#body');
+
+    let initialized = false;
+
+    const setSectionVisibility = (el, visible) => {
+        if (!el) return;
+        if (visible) {
+            el.hidden = false;
+            if (initialized) {
+                el.classList.add('transition-all', 'duration-300', 'ease-out');
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(6px)';
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    });
+                });
+            } else {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }
+        } else {
+            if (initialized && !el.hidden) {
+                el.classList.add('transition-all', 'duration-200', 'ease-in');
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(6px)';
+                setTimeout(() => {
+                    if (el.style.opacity === '0') {
+                        el.hidden = true;
+                    }
+                }, 200);
+            } else {
+                el.hidden = true;
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(6px)';
+            }
+        }
     };
-    contentType.addEventListener('change', () => { if (contentType.value === 'coding') questionType.value = 'coding'; sync(); });
-    questionType.addEventListener('change', sync);
+
+    const sync = () => {
+        const isLainnya = contentType.value === 'lainnya';
+        if (customTypeContainer) customTypeContainer.hidden = !isLainnya;
+        if (customTypeInput) {
+            customTypeInput.disabled = !isLainnya;
+            if (isLainnya) {
+                const val = customTypeInput.value.trim().toUpperCase();
+                if (!['UTS', 'UAS'].includes(val)) {
+                    customTypeInput.setCustomValidity('Hanya dapat diisi "UTS" atau "UAS"');
+                } else {
+                    customTypeInput.setCustomValidity('');
+                }
+            } else {
+                customTypeInput.setCustomValidity('');
+            }
+        }
+
+        const cat = parseCategory(contentType.value);
+        const hasSelectedType = Boolean(cat);
+
+        const isModuleFilled = Boolean(moduleInput && moduleInput.value.trim());
+        const isTitleFilled = Boolean(titleInput && titleInput.value.trim());
+        const isBodyFilled = Boolean(bodyInput && bodyInput.value.trim());
+        const isCustomTypeValid = !isLainnya || (customTypeInput && ['UTS', 'UAS'].includes(customTypeInput.value.trim().toUpperCase()));
+
+        const isContentInfoComplete = hasSelectedType && isModuleFilled && isTitleFilled && isBodyFilled && isCustomTypeValid;
+
+        const isAssessmentType = ['kuis', 'tugas', 'uts', 'uas', 'coding'].includes(cat);
+
+        if (emptyStateBanner) {
+            if (isAssessmentType) {
+                emptyStateBanner.hidden = isContentInfoComplete;
+                emptyStateBanner.classList.remove('bg-emerald-50/70', 'border-emerald-200');
+                emptyStateBanner.classList.add('bg-canvas/60', 'border-line/80');
+            } else {
+                emptyStateBanner.hidden = false;
+                if (isContentInfoComplete) {
+                    emptyStateBanner.classList.add('bg-emerald-50/70', 'border-emerald-200');
+                    emptyStateBanner.classList.remove('bg-canvas/60', 'border-line/80');
+                } else {
+                    emptyStateBanner.classList.remove('bg-emerald-50/70', 'border-emerald-200');
+                    emptyStateBanner.classList.add('bg-canvas/60', 'border-line/80');
+                }
+            }
+
+            const selectedText = contentType.options[contentType.selectedIndex]?.text || '';
+
+            if (!isAssessmentType && isContentInfoComplete) {
+                if (emptyStateTitle) emptyStateTitle.textContent = `✓ Informasi ${selectedText} Lengkap`;
+                if (emptyStateDesc) emptyStateDesc.textContent = `Konten "${selectedText}" tidak membutuhkan Detail Asesmen / Paket Soal. Anda dapat langsung menekan tombol "Tambahkan ke course" di bawah.`;
+            } else if (!isContentInfoComplete) {
+                if (!hasSelectedType) {
+                    if (emptyStateTitle) emptyStateTitle.textContent = 'Belum Ada Detail Asesmen Dibuka';
+                    if (emptyStateDesc) emptyStateDesc.textContent = 'Silakan pilih jenis konten dan lengkapi informasi modul, judul, serta materi di atas terlebih dahulu.';
+                } else {
+                    if (emptyStateTitle) emptyStateTitle.textContent = isAssessmentType ? 'Detail Asesmen Belum Terbuka' : `Informasi ${selectedText} Belum Lengkap`;
+                    if (emptyStateDesc) emptyStateDesc.textContent = `Jenis konten "${selectedText}" dipilih. Silakan lengkapi Nama modul, Judul, dan Materi / instruksi di atas ${isAssessmentType ? 'untuk membuka Detail Asesmen' : ''}.`;
+                }
+            }
+
+            if (emptyStateChecklist) {
+                emptyStateChecklist.innerHTML = `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${hasSelectedType ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                        ${hasSelectedType ? '✓' : '◯'} Jenis Konten${hasSelectedType ? `: ${selectedText}` : ''}
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isModuleFilled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                        ${isModuleFilled ? '✓' : '◯'} Nama Modul
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isTitleFilled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                        ${isTitleFilled ? '✓' : '◯'} Judul
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isBodyFilled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                        ${isBodyFilled ? '✓' : '◯'} Materi / Instruksi
+                    </span>
+                `;
+            }
+        }
+
+        const selectedText = contentType.options[contentType.selectedIndex]?.text || '';
+        if (assessmentTitleLabel && selectedText) {
+            assessmentTitleLabel.textContent = `Detail Asesmen — ${selectedText}`;
+        }
+
+        const isCodingCat = cat === 'coding';
+        const hideCoding = ['tugas', 'kuis', 'uts', 'uas'].includes(cat);
+        if (questionType) {
+            [...questionType.options].forEach(option => {
+                if (option.value === 'coding') {
+                    option.hidden = hideCoding;
+                    option.disabled = hideCoding;
+                } else {
+                    option.hidden = isCodingCat;
+                    option.disabled = isCodingCat;
+                }
+            });
+            if (isCodingCat) {
+                questionType.value = 'coding';
+            } else if (hideCoding && questionType.value === 'coding') {
+                questionType.value = 'uraian';
+            }
+        }
+
+        const isAssignment = ['tugas', 'coding'].includes(cat);
+        const isQuizOrExam = ['kuis', 'uts', 'uas'].includes(cat);
+
+        const showAssignment = isAssignment && isContentInfoComplete;
+        const showQuizOrExam = isQuizOrExam && isContentInfoComplete;
+
+        setSectionVisibility(assignmentFields, showAssignment);
+        setSectionVisibility(questionBuilder, showQuizOrExam);
+        setSectionVisibility(quizDurationSettings, showQuizOrExam);
+
+        const hasChoices = showAssignment && ['pilihan', 'kompleks'].includes(questionType?.value);
+        const choiceFields = document.querySelector('[data-choice-fields]');
+        if (choiceFields) choiceFields.hidden = !hasChoices;
+        const isCoding = showAssignment && questionType?.value === 'coding';
+        if (codeLanguageFields) codeLanguageFields.hidden = !isCoding;
+        if (codeLanguageInput) codeLanguageInput.disabled = !isCoding;
+    };
+
+    let previousType = contentType.value;
+
+    const resetFormContent = () => {
+        if (moduleInput) moduleInput.value = '';
+        if (titleInput) titleInput.value = '';
+        if (bodyInput) bodyInput.value = '';
+        if (customTypeInput) customTypeInput.value = '';
+
+        const questionImage = document.querySelector('[data-image-input]');
+        if (questionImage) {
+            questionImage.value = '';
+            const removeImgBtn = document.querySelector('[data-image-remove]');
+            removeImgBtn?.click();
+        }
+        const altInput = document.querySelector('#image_alt');
+        if (altInput) altInput.value = '';
+
+        const attachInput = document.querySelector('[data-file-input]');
+        if (attachInput) {
+            attachInput.value = '';
+            const fileList = attachInput.parentElement?.querySelector('[data-file-list]');
+            if (fileList) fileList.replaceChildren();
+        }
+
+        const linkInput = document.querySelector('#link');
+        if (linkInput) linkInput.value = '';
+
+        const builder = document.querySelector('[data-question-builder]');
+        if (builder) {
+            const rows = builder.querySelector('[data-question-rows]');
+            if (rows) rows.replaceChildren();
+            const totalEl = builder.querySelector('[data-question-total]');
+            if (totalEl) totalEl.textContent = '0 soal · 0 poin';
+        }
+
+        if (questionType) questionType.value = 'uraian';
+        const pointsInp = document.querySelector('#points');
+        if (pointsInp) pointsInp.value = '100';
+        const dueInp = document.querySelector('#due');
+        if (dueInp) dueInp.value = '';
+        const allowLateInp = document.querySelector('input[name="allow_late"][value="1"]');
+        if (allowLateInp) allowLateInp.checked = true;
+        const optionsTextarea = document.querySelector('#options');
+        if (optionsTextarea) optionsTextarea.value = '';
+
+        const durationEnabledRadio = document.querySelector('#duration_mode_enabled');
+        if (durationEnabledRadio) durationEnabledRadio.checked = true;
+        const durationMinutesInp = document.querySelector('#duration_minutes');
+        if (durationMinutesInp) durationMinutesInp.value = '60';
+    };
+
+    contentType.addEventListener('change', () => {
+        if (contentType.value !== previousType) {
+            resetFormContent();
+            previousType = contentType.value;
+        }
+        sync();
+    });
+    contentType.addEventListener('input', sync);
+    customTypeInput?.addEventListener('input', sync);
+    customTypeInput?.addEventListener('change', sync);
+    moduleInput?.addEventListener('input', sync);
+    moduleInput?.addEventListener('change', sync);
+    titleInput?.addEventListener('input', sync);
+    titleInput?.addEventListener('change', sync);
+    bodyInput?.addEventListener('input', sync);
+    bodyInput?.addEventListener('change', sync);
+    questionType?.addEventListener('change', sync);
     sync();
+    initialized = true;
 }
 
 const academicChart = document.querySelector('[data-academic-chart]');
@@ -631,18 +886,109 @@ if (builder) {
         syncPairs(row);
     };
 
+    let activePageIndex = 0;
+
+    const renderPagination = () => {
+        const total = rows.children.length;
+        if (total === 0) return;
+        if (activePageIndex >= total) activePageIndex = total - 1;
+        if (activePageIndex < 0) activePageIndex = 0;
+
+        [...rows.children].forEach((row, i) => {
+            row.hidden = (i !== activePageIndex);
+        });
+
+        const tabsContainer = builder.querySelector('[data-question-tabs]');
+        if (tabsContainer) {
+            tabsContainer.innerHTML = '';
+            for (let i = 0; i < total; i++) {
+                const tab = document.createElement('button');
+                tab.type = 'button';
+                const isActive = (i === activePageIndex);
+                tab.className = isActive
+                    ? 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand text-white shadow-2xs transition'
+                    : 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-line/60 text-ink hover:bg-slate-100 transition';
+                tab.textContent = `Soal ${i + 1}`;
+                tab.title = `Buka Soal ${i + 1}`;
+                tab.addEventListener('click', () => {
+                    activePageIndex = i;
+                    renderPagination();
+                });
+                tabsContainer.appendChild(tab);
+            }
+        }
+
+        const prevBtns = builder.querySelectorAll('[data-prev-question]');
+        const nextBtns = builder.querySelectorAll('[data-next-question]');
+        const pageLabel = builder.querySelector('[data-question-page-label]');
+
+        if (pageLabel) {
+            pageLabel.textContent = `Soal ${activePageIndex + 1} dari ${total}`;
+        }
+
+        prevBtns.forEach(btn => {
+            btn.disabled = (activePageIndex <= 0);
+            btn.classList.toggle('opacity-50', activePageIndex <= 0);
+            btn.classList.toggle('pointer-events-none', activePageIndex <= 0);
+        });
+
+        nextBtns.forEach(btn => {
+            btn.disabled = (activePageIndex >= total - 1);
+            btn.classList.toggle('opacity-50', activePageIndex >= total - 1);
+            btn.classList.toggle('pointer-events-none', activePageIndex >= total - 1);
+        });
+    };
+
     const update = () => {
-        const active = ['tugas', 'kuis'].includes(type.value);
+        const cat = parseCategory(type.value);
+        const moduleInp = document.querySelector('#module');
+        const titleInp = document.querySelector('#title');
+        const bodyInp = document.querySelector('#body');
+        const isLainnya = type.value === 'lainnya';
+        const customTypeInp = document.querySelector('[data-custom-type]');
+        const isCustomTypeValid = !isLainnya || (customTypeInp && ['UTS', 'UAS'].includes(customTypeInp.value.trim().toUpperCase()));
+
+        const isContentInfoComplete = Boolean(cat) &&
+            Boolean(moduleInp && moduleInp.value.trim()) &&
+            Boolean(titleInp && titleInp.value.trim()) &&
+            Boolean(bodyInp && bodyInp.value.trim()) &&
+            isCustomTypeValid;
+
+        const active = ['kuis', 'uts', 'uas'].includes(cat) && isContentInfoComplete;
         builder.hidden = !active;
         builder.querySelectorAll('input,textarea,select').forEach(input => input.disabled = !active);
+
+        const hideCoding = ['tugas', 'kuis', 'uts', 'uas'].includes(cat);
+
+        const tmplSelect = template.content.querySelector('select[data-q-field="type"]');
+        if (tmplSelect) {
+            const tmplOpt = tmplSelect.querySelector('option[value="coding"]');
+            if (tmplOpt) {
+                tmplOpt.hidden = hideCoding;
+                tmplOpt.disabled = hideCoding;
+            }
+        }
 
         [...rows.children].forEach((row, index) => {
             const numBadge = row.querySelector('[data-question-number-badge]');
             if (numBadge) numBadge.textContent = `${index + 1}`;
-            row.querySelector('[data-question-number]').textContent = `Soal ${index + 1}`;
+            const qNum = row.querySelector('[data-question-number]');
+            if (qNum) qNum.textContent = `Soal ${index + 1}`;
             row.querySelectorAll('[data-q-field]').forEach(input => input.name = `questions[${index}][${input.dataset.qField}]`);
 
-            const qType = row.querySelector('[data-q-field="type"]').value;
+            const qTypeSelect = row.querySelector('select[data-q-field="type"]');
+            if (qTypeSelect) {
+                const codingOpt = qTypeSelect.querySelector('option[value="coding"]');
+                if (codingOpt) {
+                    codingOpt.hidden = hideCoding;
+                    codingOpt.disabled = hideCoding;
+                }
+                if (hideCoding && qTypeSelect.value === 'coding') {
+                    qTypeSelect.value = 'uraian';
+                }
+            }
+
+            const qType = qTypeSelect ? qTypeSelect.value : 'uraian';
             row.querySelector('[data-q-options]').hidden = !['pilihan', 'kompleks'].includes(qType);
             const b = row.querySelector('[data-q-boolean]');
             if (b) b.hidden = qType !== 'benar_salah';
@@ -651,9 +997,10 @@ if (builder) {
         });
 
         builder.querySelector('[data-question-total]').textContent = `${rows.children.length} soal · ${[...rows.querySelectorAll('[data-q-field="points"]')].reduce((sum, input) => sum + Number(input.value || 0), 0)} poin`;
+        renderPagination();
     };
 
-    const add = (data = {}) => {
+    const add = (data = {}, setAsActive = true) => {
         if (rows.children.length >= 30) return;
         const row = template.content.firstElementChild.cloneNode(true);
 
@@ -686,10 +1033,44 @@ if (builder) {
         }
 
         rows.append(row);
+        if (setAsActive) {
+            activePageIndex = rows.children.length - 1;
+        }
         update();
     };
 
-    builder.querySelector('[data-add-question]').addEventListener('click', () => add());
+    builder.querySelectorAll('[data-add-question]').forEach(btn => {
+        btn.addEventListener('click', () => add({}, true));
+    });
+
+    builder.querySelectorAll('[data-prev-question]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (activePageIndex > 0) {
+                activePageIndex--;
+                renderPagination();
+            }
+        });
+    });
+
+    builder.querySelectorAll('[data-next-question]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (activePageIndex < rows.children.length - 1) {
+                activePageIndex++;
+                renderPagination();
+            }
+        });
+    });
+
+    rows.addEventListener('invalid', (event) => {
+        const row = event.target.closest('[data-question-row]');
+        if (row && rows.contains(row)) {
+            const idx = [...rows.children].indexOf(row);
+            if (idx >= 0 && idx !== activePageIndex) {
+                activePageIndex = idx;
+                renderPagination();
+            }
+        }
+    }, true);
 
     rows.addEventListener('input', (event) => {
         const row = event.target.closest('[data-question-row]');
@@ -862,17 +1243,61 @@ if (builder) {
         // Remove question button
         if (event.target.closest('[data-remove-question]') && rows.children.length > 1) {
             row.remove();
+            if (activePageIndex >= rows.children.length) {
+                activePageIndex = rows.children.length - 1;
+            }
             update();
         }
     });
 
+    const categoryQuestionsMap = {};
+    let activeCategory = parseCategory(type?.value);
+
+    const getQuestionsDataFromRows = () => {
+        const questionsList = [];
+        [...rows.children].forEach(row => {
+            const qData = {};
+            row.querySelectorAll('[data-q-field]').forEach(input => {
+                qData[input.dataset.qField] = input.value;
+            });
+            questionsList.push(qData);
+        });
+        return questionsList;
+    };
+
+    const switchCategoryQuestions = (newCat) => {
+        if (newCat === activeCategory) return;
+        if (activeCategory) {
+            categoryQuestionsMap[activeCategory] = getQuestionsDataFromRows();
+        }
+        activeCategory = newCat;
+        rows.replaceChildren();
+        const saved = categoryQuestionsMap[newCat];
+        if (saved && saved.length > 0) {
+            saved.forEach((qData, idx) => add(qData, idx === 0));
+        } else {
+            add({}, true);
+        }
+        activePageIndex = 0;
+        update();
+    };
+
     const old = JSON.parse(builder.querySelector('[data-old-questions]').textContent);
-    (old.length ? old : [{}]).forEach(add);
+    if (old.length) {
+        if (activeCategory) categoryQuestionsMap[activeCategory] = old;
+        old.forEach((qData, idx) => add(qData, idx === 0));
+    } else {
+        add({}, true);
+    }
 
     const sync = () => {
+        const cat = parseCategory(type.value);
+        if (cat !== activeCategory) {
+            switchCategoryQuestions(cat);
+        }
         update();
-        const active = ['tugas', 'kuis'].includes(type.value);
-        const isQuiz = type.value === 'kuis';
+        const active = ['kuis', 'uts', 'uas'].includes(cat);
+        const isQuiz = ['kuis', 'uts', 'uas'].includes(cat);
         const quizDuration = document.querySelector('[data-quiz-duration-settings]');
         if (quizDuration) quizDuration.hidden = !isQuiz;
         const legacy = document.querySelector('[data-legacy-question-settings]');
@@ -886,6 +1311,10 @@ if (builder) {
         if (active && document.querySelector('#question_type')) document.querySelector('#question_type').value = 'uraian';
     };
     type.addEventListener('change', sync);
+    type.addEventListener('input', sync);
+    const customTypeInp = document.querySelector('[data-custom-type]');
+    customTypeInp?.addEventListener('input', sync);
+    customTypeInp?.addEventListener('change', sync);
     sync();
 }
 

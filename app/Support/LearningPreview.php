@@ -186,6 +186,25 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function labels(): array
     {
-        return ['materi' => 'Materi', 'tugas' => 'Tugas', 'coding' => 'Tugas coding', 'kuis' => 'Kuis', 'pengumuman' => 'Pengumuman'];
+        return [
+            'materi' => 'Materi',
+            'tugas' => 'Tugas',
+            'coding' => 'Tugas coding',
+            'kuis' => 'Kuis',
+            'lainnya' => 'Lainnya',
+            'pengumuman' => 'Pengumuman',
+        ];
+    }
+
+    public static function label(?string $type): string
+    {
+        if (!$type) return 'Konten';
+        if (in_array(mb_strtolower($type), ['uts'])) return 'UTS';
+        if (in_array(mb_strtolower($type), ['uas'])) return 'UAS';
+        $labels = self::labels();
+        if (isset($labels[$type])) return $labels[$type];
+        $lower = mb_strtolower($type);
+        if (isset($labels[$lower])) return $labels[$lower];
+        return $type;
     }
 }

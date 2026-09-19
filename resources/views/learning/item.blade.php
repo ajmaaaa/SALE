@@ -6,8 +6,9 @@
 @section('content')
 @php
     $isLecturer = (session('auth_user.role') === 'dosen') || request()->routeIs('dosen.*');
-    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis']);
+    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas']);
     $hasMultiQuestions = !empty($item['questions']);
+    $isDedicatedQuiz = ($item['id'] === 1 || in_array($item['type'], ['kuis', 'uts', 'uas']));
     $submission = session('learning.submissions.'.$item['id']);
     $itemGrade = session('academic.item_grades.'.$item['id'].'.1');
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
@@ -32,7 +33,7 @@
     <header class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
             <span class="rounded bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand">
-                {{ \App\Support\LearningPreview::labels()[$item['type']] }}
+                {{ \App\Support\LearningPreview::label($item['type']) }}
             </span>
             @if(!empty($item['component']))
                 <span class="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">

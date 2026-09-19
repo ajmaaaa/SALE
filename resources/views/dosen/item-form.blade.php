@@ -8,17 +8,29 @@
 
     <form class="surface mt-7 space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data">
         @csrf
+        {{-- Header Seksi Informasi Konten --}}
+        <div class="border-b border-line/60 pb-3">
+            <h2 class="text-base font-bold text-ink">Informasi Konten</h2>
+            <p class="text-xs text-muted">Lengkapi jenis konten, modul, judul, dan materi di bawah ini untuk membuka Detail Asesmen.</p>
+        </div>
+
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
-                <label class="form-label" for="type">Jenis konten</label>
-                <select id="type" name="type" class="field" data-content-type>
+                <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
+                <select id="type" name="type" class="field" data-content-type required>
+                    <option value="" disabled @selected(!old('type') && !request('type'))>-- Pilih jenis konten --</option>
                     @foreach(\App\Support\LearningPreview::labels() as $value => $label)
-                        <option value="{{ $value }}" @selected(old('type') === $value)>{{ $label }}</option>
+                        <option value="{{ $value }}" @selected(old('type', request('type')) === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
+                <div data-custom-type-container hidden class="mt-2.5 space-y-1">
+                    <label class="form-label text-xs" for="custom_type">Nama jenis konten (Lainnya)</label>
+                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik UTS atau UAS..." data-custom-type value="{{ old('custom_type') }}" maxlength="10">
+                    <p class="text-[11px] text-muted">Hanya dapat diisi <strong>UTS</strong> atau <strong>UAS</strong>.</p>
+                </div>
             </div>
             <div>
-                <label class="form-label" for="module">Nama modul / topik</label>
+                <label class="form-label" for="module">Nama modul / topik <span class="text-danger">*</span></label>
                 <input id="module" name="module" class="field" required maxlength="100" list="modules" value="{{ old('module') }}" placeholder="Minggu 3 · Tree dan traversal">
                 <datalist id="modules">
                     @foreach(collect(\App\Support\LearningPreview::items())->where('course', $course['id'])->pluck('module')->unique() as $module)
@@ -29,20 +41,20 @@
         </div>
 
         <div>
-            <label class="form-label" for="title">Judul</label>
-            <input id="title" name="title" required maxlength="160" class="field" value="{{ old('title') }}">
+            <label class="form-label" for="title">Judul <span class="text-danger">*</span></label>
+            <input id="title" name="title" required maxlength="160" class="field" value="{{ old('title') }}" placeholder="Contoh: Kuis 1 · Transversal Pohon Biner">
         </div>
 
         <div>
-            <label class="form-label" for="body">Materi / instruksi / stimulus soal</label>
-            <textarea id="body" name="body" required rows="6" class="field">{{ old('body') }}</textarea>
+            <label class="form-label" for="body">Materi / instruksi / stimulus soal <span class="text-danger">*</span></label>
+            <textarea id="body" name="body" required rows="5" class="field" placeholder="Tuliskan petunjuk umum, stimulus materi, atau deskripsi singkat...">{{ old('body') }}</textarea>
         </div>
 
         {{-- Stimulus visual untuk materi / tugas tunggal --}}
         <section class="rounded-xl bg-canvas p-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h2 class="font-semibold text-sm">Gambar pada soal / materi</h2>
+                    <h2 class="font-semibold text-sm">Gambar pada soal / materi (Opsional)</h2>
                     <p class="mt-1 text-xs leading-5 text-muted">Tambahkan diagram, tabel, ilustrasi, atau stimulus visual. Gambar tampil langsung di atas jawaban.</p>
                 </div>
             </div>
@@ -57,7 +69,7 @@
         </section>
 
         <div>
-            <label class="form-label" for="attachments">Lampiran materi atau berkas pendukung</label>
+            <label class="form-label" for="attachments">Lampiran materi atau berkas pendukung (Opsional)</label>
             <input id="attachments" name="attachments[]" type="file" multiple data-file-input class="field" accept=".pdf,.ppt,.pptx,.doc,.docx,.jpg,.jpeg,.png,.webp,.mp4">
             <p class="mt-2 text-xs text-muted">PDF, PowerPoint, Word, gambar, atau MP4. Maksimal 5 berkas, 20 MB per berkas.</p>
             <div data-file-list class="mt-3 space-y-2"></div>
@@ -68,11 +80,21 @@
             <input id="link" name="link" type="url" class="field" value="{{ old('link') }}" placeholder="https://">
         </div>
 
+        {{-- Dynamic Status & Empty State Banner --}}
+        <div data-assessment-empty-state class="rounded-xl border border-dashed border-line/80 bg-canvas/60 p-6 text-center transition-all duration-300">
+            <div class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-brand/10 text-brand font-bold text-base">
+                ✦
+            </div>
+            <h3 class="mt-3 text-sm font-bold text-ink" data-empty-state-title>Belum Ada Detail Asesmen Dibuka</h3>
+            <p class="mt-1 text-xs text-muted max-w-md mx-auto leading-relaxed" data-empty-state-desc>Silakan pilih jenis konten dan lengkapi informasi modul, judul, serta materi di atas terlebih dahulu. Detail asesmen dan pengaturan soal akan ditampilkan setelah informasi konten terisi.</p>
+            <div data-empty-state-checklist class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs"></div>
+        </div>
+
         {{-- Pengaturan Batas Waktu & Durasi Kuis --}}
-        <section data-quiz-duration-settings class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4" hidden>
+        <section data-quiz-duration-settings class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4 transition-all duration-300 ease-out" hidden>
             <div class="border-b border-line/60 pb-3">
-                <h2 class="text-sm font-bold text-ink">Batas Waktu &amp; Durasi Pengerjaan Kuis</h2>
-                <p class="mt-0.5 text-xs text-muted">Tentukan apakah mahasiswa memiliki batas waktu countdown saat membuka ruang ujian kuis, atau pengerjaan bebas tanpa batas waktu.</p>
+                <h2 class="text-sm font-bold text-ink" data-quiz-title-label>Batas Waktu &amp; Durasi Pengerjaan</h2>
+                <p class="mt-0.5 text-xs text-muted">Tentukan apakah mahasiswa memiliki batas waktu countdown saat membuka ruang ujian, atau pengerjaan bebas tanpa batas waktu.</p>
             </div>
 
             <div class="space-y-3">
@@ -81,7 +103,7 @@
                     <div class="space-y-2 flex-1">
                         <div>
                             <span class="text-xs font-bold text-ink block">Batas Waktu (Countdown Timer)</span>
-                            <span class="text-[11px] text-muted block mt-0.5">Waktu ujian berjalan mundur otomatis saat mahasiswa memulai pengerjaan kuis.</span>
+                            <span class="text-[11px] text-muted block mt-0.5">Waktu ujian berjalan mundur otomatis saat mahasiswa memulai pengerjaan.</span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 pt-1">
                             <input type="number" name="duration_minutes" id="duration_minutes" value="60" min="1" max="1440" class="field text-xs py-1.5 w-24 bg-white" aria-label="Durasi menit">
@@ -101,20 +123,20 @@
                     <input type="radio" name="duration_mode" value="disabled" class="mt-0.5" id="duration_mode_disabled">
                     <div>
                         <span class="text-xs font-bold text-ink block">Tanpa Batas Waktu (Durasi Bebas)</span>
-                        <span class="text-[11px] text-muted block mt-0.5">Kuis dapat diselesaikan secara fleksibel tanpa pembatasan timer hitung mundur.</span>
+                        <span class="text-[11px] text-muted block mt-0.5">Asesmen dapat diselesaikan secara fleksibel tanpa pembatasan timer hitung mundur.</span>
                     </div>
                 </label>
             </div>
         </section>
 
         {{-- Paket Soal Campuran / Multi-Question Builder --}}
-        <section data-question-builder class="rounded-xl bg-canvas p-5" hidden>
-            <div class="flex flex-wrap items-center justify-between gap-3">
+        <section data-question-builder class="rounded-xl bg-canvas p-5 transition-all duration-300 ease-out" hidden>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
                 <div>
-                    <h2 class="section-heading">Daftar Paket Soal</h2>
+                    <h2 class="section-heading" data-assessment-title-label>Detail Asesmen</h2>
                     <p class="mt-1 text-xs text-muted">Buat beragam soal (Essay, Pilihan Ganda, Mencocokkan, Coding) dengan pemetaan CPMK &amp; CPL yang jelas.</p>
                 </div>
-                <button type="button" class="button-secondary text-xs font-semibold py-2 px-3.5" data-add-question>+ Tambah Soal</button>
+                <button type="button" class="button-primary text-xs font-semibold py-2 px-4 shadow-xs hover:shadow transition" data-add-question>+ Tambah Konten</button>
             </div>
 
             <div class="mt-4">
@@ -126,20 +148,28 @@
                 </select>
             </div>
 
-            <div data-question-rows class="mt-5 space-y-4"></div>
-            <p class="mt-4 text-sm font-semibold" data-question-total>0 soal · 0 poin</p>
+            {{-- Combined Question Navigation Bar (Merged Tabs & Stepper) --}}
+            <div data-question-pagination-header class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/60 bg-white p-3 shadow-2xs">
+                <div class="flex flex-wrap items-center gap-1.5" data-question-tabs></div>
+                <div class="flex items-center gap-2">
+                    <button type="button" data-prev-question class="button-secondary text-xs py-1.5 px-3 font-semibold">← Sebelumnya</button>
+                    <button type="button" data-next-question class="button-secondary text-xs py-1.5 px-3 font-semibold">Selanjutnya →</button>
+                </div>
+            </div>
+
+            <div data-question-rows class="mt-4"></div>
+
+            <div class="mt-4 border-t border-line/60 pt-4">
+                <p class="text-sm font-semibold" data-question-total>0 soal · 0 poin</p>
+            </div>
             <p class="mt-2 text-xs text-muted">Maksimal 30 soal. Setiap soal memiliki target CPMK/CPL dan bobot nilai masing-masing.</p>
 
             {{-- Template Baris Soal --}}
             <template data-question-template>
                 <section data-question-row class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4">
-                    {{-- Header Soal --}}
-                    <div class="flex items-center justify-between border-b border-line/60 pb-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand" data-question-number-badge>1</span>
-                            <h3 data-question-number class="text-sm font-bold text-ink">Soal 1</h3>
-                        </div>
-                        <button type="button" data-remove-question class="text-xs font-semibold text-danger hover:underline">Hapus Soal</button>
+                    {{-- Action Header Soal --}}
+                    <div class="flex items-center justify-end border-b border-line/60 pb-2.5">
+                        <button type="button" data-remove-question class="text-xs font-semibold text-danger hover:underline">Hapus Soal Ini</button>
                     </div>
 
                     {{-- Jenis Soal & Bobot Nilai --}}
@@ -270,7 +300,7 @@
         </section>
 
         {{-- Pengaturan Pekerjaan Tugas Tunggal (Legacy / Single Task) --}}
-        <div data-legacy-question-settings data-assignment-fields class="space-y-5 pt-5">
+        <div data-legacy-question-settings data-assignment-fields class="space-y-5 pt-5 transition-all duration-300 ease-out" hidden>
             <h2 class="section-heading">Pengaturan Pekerjaan Tugas</h2>
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>

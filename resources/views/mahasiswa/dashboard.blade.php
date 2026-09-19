@@ -4,6 +4,15 @@
 @section('header', 'Dashboard')
 
 @section('content')
+@php
+    $allCourses = isset($courses) ? collect($courses) : collect(\App\Support\LearningPreview::courses());
+    $totalCourses = $allCourses->count();
+    $allItems = collect(\App\Support\LearningPreview::items());
+    $pendingTasks = $allItems
+        ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas'])
+        ->filter(fn($i) => !session('learning.submissions.' . $i['id']))
+        ->count();
+@endphp
 <div class="space-y-8">
     <header class="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -40,7 +49,7 @@
                 </div>
 
                 <div class="rounded-xl bg-white px-2 py-2 shadow-sm border border-line/60">
-                    @forelse(collect(\App\Support\LearningPreview::items())->whereIn('type',['tugas','coding','kuis'])->filter(fn($i)=>!session('learning.submissions.'.$i['id']))->sortBy('due')->take(3) as $item)
+                    @forelse(collect(\App\Support\LearningPreview::items())->whereIn('type',['tugas','coding','kuis','uts','uas'])->filter(fn($i)=>!session('learning.submissions.'.$i['id']))->sortBy('due')->take(4) as $item)
                         @if(!$loop->first)
                             <div class="mx-4 h-px bg-[#e7eaee]" aria-hidden="true"></div>
                         @endif

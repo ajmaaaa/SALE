@@ -9,6 +9,11 @@
     $cpmkList = \App\Support\AcademicPreview::config($course['id'])['cpmk'] ?? [];
     $modules = collect($items)->where('type', '!=', 'pengumuman')->groupBy('module');
     $announcements = collect($items)->where('type', 'pengumuman');
+    $materiItems = collect($items)->where('type', 'materi');
+    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas']);
+    $uncompletedTasksCount = $tugasItems->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))->count();
+    $allUsers = \App\Support\AdminPreview::users();
+    $enrolledStudents = array_filter($allUsers, fn($u) => $u['role'] === 'mahasiswa');
 @endphp
 
 <div class="space-y-7">
@@ -123,11 +128,8 @@
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
                                     @endphp
                                     <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
-                                        {{-- Icon: simple, clean, no background box --}}
                                         <span class="shrink-0 text-muted group-hover:text-ink transition">
-                                            @if($item['type'] === 'coding')
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                                            @elseif($item['type'] === 'kuis')
+                                            @if(in_array($item['type'], ['kuis', 'uts', 'uas']))
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .8-1.8 1.2-1.8 2.5M12 17h.01"/></svg>
                                             @elseif($item['type'] === 'materi')
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3zM14 3v5h5"/></svg>
@@ -140,7 +142,7 @@
                                         <div class="min-w-0 flex-1">
                                             <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
                                             <p class="mt-0.5 text-xs text-muted">
-                                                <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
+                                                <span>{{ \App\Support\LearningPreview::labels()[$item['type']] ?? \App\Support\LearningPreview::label($item['type']) }}</span>
                                                 @if(!empty($item['cpmk']))
                                                     <span>· {{ $item['cpmk'] }}</span>
                                                 @endif

@@ -31,7 +31,7 @@ class LearningController extends Controller
     public function quizRoom(int $course, int $item)
     {
         $resource = Learning::resource($course, $item);
-        abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding']), 404);
+        abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding', 'uts', 'uas']), 404);
 
         $submission = session("learning.submissions.$item", null);
 
@@ -45,7 +45,7 @@ class LearningController extends Controller
     public function assignments(Request $request)
     {
         $items = array_filter(Learning::items(), function ($item) use ($request) {
-            return in_array($item['type'], ['tugas', 'coding', 'kuis'])
+            return in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'])
                 && (! $request->filled('course') || $item['course'] === (int) $request->query('course'))
                 && (! $request->filled('type') || $item['type'] === $request->query('type'))
                 && str_contains(mb_strtolower($item['title']), mb_strtolower((string) $request->query('q', '')));
@@ -94,13 +94,14 @@ class LearningController extends Controller
         $academic = \App\Support\AcademicPreview::config($course);
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
-            'type' => ['required', Rule::in(array_keys(Learning::labels()))],
+            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'lainnya'])],
+            'custom_type' => 'nullable|string|max:10',
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
             'allow_late' => 'nullable|in:0,1,true,false',
             'link' => 'nullable|url:http,https|max:2000',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,webp,mp4|max:20480',
-            'formats' => 'required_if:type,tugas,kuis,coding|array|min:1',
+            'formats' => 'required_if:type,tugas,kuis,uts,uas,coding,lainnya|array|min:1',
             'formats.*' => [Rule::in(['file', 'image', 'link', 'text'])],
             'question_type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
             'question_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -122,7 +123,28 @@ class LearningController extends Controller
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
         ]);
-        if (in_array($data['question_type'], ['pilihan', 'kompleks']) && in_array($data['type'], ['tugas', 'kuis'])) {
+        if ($data['type'] === 'lainnya') {
+            $custom = strtoupper(trim($request->input('custom_type', '')));
+            if (!in_array($custom, ['UTS', 'UAS'])) {
+                return back()->withErrors(['custom_type' => 'Pilihan Lainnya hanya boleh diisi "UTS" atau "UAS".'])->withInput();
+            }
+            $data['type'] = strtolower($custom);
+        }
+        $category = $data['type'];
+        if ($category === 'coding') {
+            $data['question_type'] = 'coding';
+        }
+        if (in_array($category, ['tugas', 'kuis', 'uts', 'uas'])) {
+            if ($data['question_type'] === 'coding') {
+                return back()->withErrors(['question_type' => 'Bentuk soal Pemrograman / Coding tidak tersedia untuk jenis konten ' . Learning::label($category) . '.'])->withInput();
+            }
+            foreach ($data['questions'] ?? [] as $index => $question) {
+                if (($question['type'] ?? '') === 'coding') {
+                    return back()->withErrors(["questions.$index.type" => 'Bentuk soal Pemrograman / Coding tidak tersedia untuk jenis konten ' . Learning::label($category) . '.'])->withInput();
+                }
+            }
+        }
+        if (in_array($data['question_type'], ['pilihan', 'kompleks']) && in_array($category, ['tugas', 'kuis', 'uts', 'uas'])) {
             $request->validate(['options' => ['required', function ($attribute, $value, $fail) {
                 $options = array_filter(array_map('trim', explode("\n", $value)), fn ($option) => $option !== '');
                 if (count($options) < 2 || count($options) > 20 || count(array_unique($options)) !== count($options)) {
@@ -144,7 +166,7 @@ class LearningController extends Controller
             }
         }
         if (!empty($data['questions'])) {
-            if (!in_array($data['type'], ['tugas','kuis'])) return back()->withErrors(['type'=>'Paket soal campuran digunakan untuk tugas atau kuis.'])->withInput();
+            if (!in_array($category, ['kuis', 'uts', 'uas', 'tugas', 'coding'])) return back()->withErrors(['type'=>'Paket soal campuran hanya dapat digunakan untuk Tugas, Kuis, UTS, dan UAS.'])->withInput();
             foreach ($data['questions'] as $index => &$question) {
                 $question['image'] = $request->hasFile("questions.$index.image") ? $this->upload($request->file("questions.$index.image")) : null;
                 $mapping = collect($academic['cpmk'])->firstWhere('code',$question['cpmk']);
@@ -153,7 +175,7 @@ class LearningController extends Controller
             unset($question);
             $data['questions'] = array_values($data['questions']);
             $data['points'] = array_sum(array_column($data['questions'],'points'));
-            $data['component'] ??= $data['type']==='kuis' ? 'kuis' : 'tugas';
+            $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas']) ? $category : 'tugas';
         }
         $data['question_image'] = $request->hasFile('question_image') ? $this->upload($request->file('question_image')) : null;
         $data['option_images'] = array_map(fn ($file) => $this->upload($file), $request->file('option_images', []));

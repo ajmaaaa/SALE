@@ -90,8 +90,8 @@ class LearningWorkflowTest extends TestCase
     {
         // 1. Create a task with mixed questions including benar_salah and mencocokkan
         $this->post('/dosen/course/1/items', [
-            'type' => 'tugas',
-            'title' => 'Tugas Struktur Data Lanjutan',
+            'type' => 'kuis',
+            'title' => 'Kuis Struktur Data Lanjutan',
             'module' => 'Minggu 5',
             'body' => 'Kerjakan soal-soal berikut.',
             'question_type' => 'uraian',
@@ -117,19 +117,20 @@ class LearningWorkflowTest extends TestCase
 
         $itemId = max(array_keys(session('learning.items')));
 
-        // 2. Student views the item
-        $response = $this->get("/mahasiswa/course/1/item/{$itemId}");
+        // 2. Student views the item in quiz room
+        $response = $this->get("/mahasiswa/course/1/item/{$itemId}/quiz");
         $response->assertSee('Salah');
         $response->assertSee('Stack');
         $response->assertSee('LIFO (Last In First Out)');
 
         // 3. Student submits answers
         $this->post("/mahasiswa/course/1/item/{$itemId}/submission", [
+            'from_quiz_room' => 1,
             'question_answers' => [
                 ['boolean_choice' => 'Salah'],
                 ['matching' => ['0' => 'LIFO (Last In First Out)', '1' => 'FIFO (First In First Out)']],
             ],
-        ])->assertRedirect("/mahasiswa/course/1/item/{$itemId}");
+        ])->assertRedirect("/mahasiswa/course/1/item/{$itemId}/quiz");
 
         // 4. Discussion index navigation
         $discResponse = $this->get('/mahasiswa/discussion');
@@ -253,11 +254,11 @@ class LearningWorkflowTest extends TestCase
                     'options' => "QuickSort = O(n log n)\nBubbleSort = O(n^2)",
                 ],
                 [
-                    'type' => 'coding',
+                    'type' => 'uraian',
                     'prompt' => 'Tuliskan fungsi pencarian binary search.',
                     'points' => 50,
                     'cpmk' => 'CPMK-02',
-                    'options' => 'def binary_search(): pass',
+                    'options' => 'Jelaskan alur binary search.',
                 ],
             ],
         ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
@@ -291,5 +292,124 @@ class LearningWorkflowTest extends TestCase
         $submission = session("learning.submissions.{$quizId}");
         $this->assertNotNull($submission);
         $this->assertEquals('O(n log n)', $submission['question_answers'][0]['matching'][0]);
+    }
+
+    public function test_tugas_kuis_uts_uas_content_types_disallow_coding_question_type(): void
+    {
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+        
+        foreach (['tugas', 'kuis', 'uts', 'uas'] as $disallowedType) {
+            $this->post('/dosen/course/1/items', [
+                'type' => $disallowedType,
+                'title' => 'Tes dengan Pemrograman',
+                'module' => 'Minggu 9',
+                'body' => 'Cobalah buat ini.',
+                'question_type' => 'coding',
+                'cpmk' => 'Memahami koding.',
+                'formats' => ['text'],
+            ])->assertSessionHasErrors('question_type');
+
+            $this->post('/dosen/course/1/items', [
+                'type' => $disallowedType,
+                'title' => 'Tes dengan Paket Soal Coding',
+                'module' => 'Minggu 9',
+                'body' => 'Cobalah buat ini.',
+                'question_type' => 'uraian',
+                'cpmk' => 'Memahami koding.',
+                'formats' => ['text'],
+                'questions' => [
+                    [
+                        'type' => 'coding',
+                        'prompt' => 'Tulis fungsi python',
+                        'points' => 50,
+                        'cpmk' => 'CPMK-01',
+                    ],
+                ],
+            ])->assertSessionHasErrors('questions.0.type');
+        }
+    }
+
+    public function test_lecturer_can_create_uts_and_uas_content(): void
+    {
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+        
+        // Create UTS
+        $this->post('/dosen/course/1/items', [
+            'type' => 'uts',
+            'title' => 'Ujian Tengah Semester - Struktur Data',
+            'module' => 'Minggu 8',
+            'body' => 'Kerjakan soal UTS berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Capaian UTS',
+            'formats' => ['text'],
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 90,
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $utsId = max(array_keys(session('learning.items')));
+        $this->assertEquals('uts', session('learning.items')[$utsId]['type']);
+
+        // Create UAS
+        $this->post('/dosen/course/1/items', [
+            'type' => 'uas',
+            'title' => 'Ujian Akhir Semester - Struktur Data',
+            'module' => 'Minggu 16',
+            'body' => 'Kerjakan soal UAS berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Capaian UAS',
+            'formats' => ['text'],
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 120,
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $uasId = max(array_keys(session('learning.items')));
+        $this->assertEquals('uas', session('learning.items')[$uasId]['type']);
+    }
+
+    public function test_lainnya_content_type_only_accepts_uts_and_uas(): void
+    {
+        session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);
+
+        // 1. Invalid custom_type should return error
+        $this->post('/dosen/course/1/items', [
+            'type' => 'lainnya',
+            'custom_type' => 'Tubes',
+            'title' => 'Judul sampel',
+            'module' => 'Minggu 10',
+            'body' => 'Deskripsi.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Capaian.',
+            'formats' => ['text'],
+        ])->assertSessionHasErrors('custom_type');
+
+        // 2. Valid UTS via Lainnya
+        $this->post('/dosen/course/1/items', [
+            'type' => 'lainnya',
+            'custom_type' => 'UTS',
+            'title' => 'UTS via Lainnya',
+            'module' => 'Minggu 8',
+            'body' => 'Soal UTS.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Capaian UTS.',
+            'formats' => ['text'],
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $utsId = max(array_keys(session('learning.items')));
+        $this->assertEquals('uts', session('learning.items')[$utsId]['type']);
+
+        // 3. Valid UAS via Lainnya
+        $this->post('/dosen/course/1/items', [
+            'type' => 'lainnya',
+            'custom_type' => 'uas',
+            'title' => 'UAS via Lainnya',
+            'module' => 'Minggu 16',
+            'body' => 'Soal UAS.',
+            'question_type' => 'uraian',
+            'cpmk' => 'Capaian UAS.',
+            'formats' => ['text'],
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $uasId = max(array_keys(session('learning.items')));
+        $this->assertEquals('uas', session('learning.items')[$uasId]['type']);
     }
 }

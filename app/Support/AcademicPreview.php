@@ -31,7 +31,7 @@ class AcademicPreview
 
         $items = [];
         foreach (LearningPreview::items() as $id=>$item) {
-            if ($item['course'] !== $course || !in_array($item['type'], ['tugas', 'coding', 'kuis'], true)) continue;
+            if ($item['course'] !== $course || !in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'], true)) continue;
             $questions = !empty($item['questions']) ? $item['questions'] : [[
                 'prompt'=>$item['body'] ?? $item['title'],
                 'cpmk'=>$item['cpmk'] ?? null, 'points'=>$item['points'] ?? 100,
@@ -40,7 +40,7 @@ class AcademicPreview
             $grades = session("academic.item_grades.$id.$student.points", []);
             $assessment = [
                 'id'=>$id, 'title'=>$item['title'],
-                'component'=>$item['component'] ?? ($item['type'] === 'kuis' ? 'kuis' : 'tugas'),
+                'component'=>$item['component'] ?? (in_array($item['type'], ['kuis', 'uts', 'uas']) ? $item['type'] : 'tugas'),
                 'questions'=>[], 'score'=>null, 'complete'=>$max > 0,
             ];
             $earned = 0;

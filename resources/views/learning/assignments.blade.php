@@ -59,7 +59,7 @@
                         <span>·</span>
                         <span>{{ $item['module'] }}</span>
                         <span>·</span>
-                        <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
+                        <span>{{ \App\Support\LearningPreview::label($item['type']) }}</span>
                     </p>
                 </div>
                 @php
@@ -69,10 +69,6 @@
                     @if($isSubmitted)
                         <span class="text-xs font-semibold text-emerald-600">
                             Sudah dikumpulkan
-                        </span>
-                    @elseif($isPast)
-                        <span class="text-xs font-medium text-slate-500">
-                            Terlambat
                         </span>
                     @else
                         <span class="text-xs font-semibold text-rose-600">
