@@ -5,7 +5,9 @@
 
 @section('content')
 @php
-    $role = request()->is('dosen*') ? 'dosen' : 'mahasiswa';
+    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa'));
+    $isDosen = (in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
+    $role = $isDosen ? 'dosen' : 'mahasiswa';
     $materiItems = collect($items)->where('type', 'materi');
     $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
     $uncompletedTasksCount = $tugasItems->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))->count();
@@ -203,7 +205,11 @@
                                             </div>
                                         </div>
 
-                                        @if($hasSubmission)
+                                        @if($isDosen)
+                                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 shrink-0">
+                                                Kelola Konten →
+                                            </span>
+                                        @elseif($hasSubmission)
                                             <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 shrink-0">
                                                 Selesai
                                             </span>

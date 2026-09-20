@@ -76,6 +76,9 @@ class LearningController extends Controller
 
     public function quizRoom(int $course, int $item)
     {
+        $isDosen = (session('auth_user.role') === 'dosen') || (auth()->user()?->hasRole(\App\Models\Role::DOSEN));
+        abort_if($isDosen, 403, 'Akses ditolak: Dosen tidak dapat mengikuti ujian CBT mahasiswa.');
+
         $resource = Learning::resource($course, $item);
         abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding']), 404);
 

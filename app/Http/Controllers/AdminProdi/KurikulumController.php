@@ -91,6 +91,16 @@ class KurikulumController extends Controller
         $prodiId = $cpl->prodi_id;
         $code = $cpl->code;
 
+        // S14: Cegah penghapusan CPL jika CPMK-CPMK terkait sudah memiliki data penilaian mahasiswa aktif.
+        $linkedCpmkIds = $cpl->cpmks()->pluck('cpmks.id');
+        $hasActiveScores = \App\Models\StudentAssessmentCpmkScore::whereIn('cpmk_id', $linkedCpmkIds)->exists();
+        if ($hasActiveScores) {
+            return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'cpl'])
+                ->withErrors([
+                    'cpl' => "CPL {$code} tidak dapat dihapus karena CPMK yang terhubung sudah memiliki data penilaian mahasiswa aktif. Hapus data nilai terlebih dahulu.",
+                ]);
+        }
+
         $cpl->cpmks()->detach();
         $cpl->delete();
 

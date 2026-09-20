@@ -116,14 +116,6 @@ class KaprodiMonitoringController extends Controller
                 ->first();
         }
 
-        if (! $user && ! session()->has('auth_user')) {
-            $kaprodiUser = User::with('role')->whereHas('role', fn ($q) => $q->where('name', Role::KAPRODI))->first();
-            if ($kaprodiUser) {
-                Auth::login($kaprodiUser);
-                $user = $kaprodiUser;
-            }
-        }
-
         $isKaprodi = ($user && $user->role && $user->role->name === Role::KAPRODI)
             || (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === Role::KAPRODI);
 

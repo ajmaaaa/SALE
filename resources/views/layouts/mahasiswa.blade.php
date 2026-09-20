@@ -250,39 +250,23 @@
                                     {{ $roleLabel }} · {{ $activeUser['number'] ?? '—' }}
                                 </span>
                             </div>
-                            <div class="py-2">
-                                <p class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Beralih Peran Cepat (5 Role)</p>
-                                <a href="{{ route('switch-role', 'mahasiswa') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Mahasiswa (Ahmad Maulana)</span>
-                                    @if($roleName === 'mahasiswa')
-                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                    @endif
-                                </a>
+                            @if(in_array($roleName, ['dosen', 'kaprodi'], true))
+                            <div class="py-2 border-b border-line/60">
+                                <p class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Beralih Peran (Dosen &amp; Kaprodi)</p>
                                 <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Dosen (Budi Santoso, M.Kom.)</span>
+                                    <span>Ruang Dosen (Budi Santoso, M.Kom.)</span>
                                     @if($roleName === 'dosen')
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif
                                 </a>
                                 <a href="{{ route('switch-role', 'kaprodi') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Kaprodi (Dr. H. Kaprodi, M.T.)</span>
+                                    <span>Ruang Kaprodi (Dr. H. Kaprodi, M.T.)</span>
                                     @if($roleName === 'kaprodi')
                                         <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                                     @endif
                                 </a>
-                                <a href="{{ route('switch-role', 'admin_prodi') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Admin Prodi (Kurikulum &amp; Akademik)</span>
-                                    @if($roleName === 'admin_prodi')
-                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                    @endif
-                                </a>
-                                <a href="{{ route('switch-role', 'admin') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Admin Sistem (Pengaturan &amp; Sistem)</span>
-                                    @if($roleName === 'admin')
-                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                    @endif
-                                </a>
                             </div>
+                            @endif
                             <div class="border-t border-line/60 pt-2">
                                 <a href="{{ route('login') }}" class="block rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-slate-100">
                                     Halaman Masuk (Login)

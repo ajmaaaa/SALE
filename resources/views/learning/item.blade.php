@@ -5,7 +5,11 @@
 
 @section('content')
 @php
-    $isLecturer = (session('auth_user.role') === 'dosen') || request()->routeIs('dosen.*');
+    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa'));
+    $isLecturer = in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->routeIs('dosen.*');
+    if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
+        $isLecturer = false;
+    }
     $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis']);
     $hasMultiQuestions = !empty($item['questions']);
     $isDedicatedQuiz = ($item['id'] === 1 || $item['type'] === 'kuis');
@@ -113,7 +117,11 @@
                                         </div>
 
                                         <div class="shrink-0">
-                                            @if($isLocked)
+                                            @if($isLecturer)
+                                                <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-secondary text-xs py-2.5 px-5 font-bold shadow-xs">
+                                                    Lihat Nilai &amp; Jawaban Kuis →
+                                                </a>
+                                            @elseif($isLocked)
                                                 <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-bold opacity-60 cursor-not-allowed">
                                                     Kuis Ditutup
                                                 </button>
@@ -125,7 +133,11 @@
                                         </div>
                                     </div>
                                     <p class="text-[11px] text-muted leading-relaxed">
-                                        Tekan tombol <strong>Mulai Kerjakan Kuis</strong> untuk masuk ke ruang ujian fokus layar penuh. Soal dapat dikerjakan secara berurutan atau acak menggunakan daftar nomor soal.
+                                        @if($isLecturer)
+                                            Sebagai dosen pengampu, Anda dapat meninjau butir soal di bawah ini atau memeriksa rekap hasil pengerjaan kuis mahasiswa di buku nilai.
+                                        @else
+                                            Tekan tombol <strong>Mulai Kerjakan Kuis</strong> untuk masuk ke ruang ujian fokus layar penuh. Soal dapat dikerjakan secara berurutan atau acak menggunakan daftar nomor soal.
+                                        @endif
                                     </p>
                                 </div>
                             @endif

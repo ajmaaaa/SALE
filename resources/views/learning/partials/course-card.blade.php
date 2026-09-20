@@ -7,9 +7,10 @@
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
     $due = $course['due'] ?? (!empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : '');
-    $role = $role ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa');
-    $targetUrl = route($role . '.course.show', $course['id']);
-    $isDosen = ($role === 'dosen' || request()->is('dosen*'));
+    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? ($role ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa')));
+    $isDosen = (in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
+    $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
+    $targetUrl = route($targetRole . '.course.show', $course['id']);
     $enrollmentCode = $course['enrollment_code'] ?? ($course['code'] . '-2026');
     $enrollmentUrl = $course['enrollment_url'] ?? url('/join-kelas/' . $enrollmentCode);
     $qrUrl = $course['qr_url'] ?? ('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($enrollmentUrl));

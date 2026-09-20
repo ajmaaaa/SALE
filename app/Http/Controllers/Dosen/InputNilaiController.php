@@ -199,7 +199,7 @@ class InputNilaiController extends Controller
                 fputcsv($handle, $header, ';');
 
                 foreach ($students as $student) {
-                    $row = [$student->nim_nidn ?? '', $student->name];
+                    $row = [$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
                     foreach ($cpmks as $cpmk) {
                         $row[] = '';
                     }
@@ -208,7 +208,7 @@ class InputNilaiController extends Controller
             } else {
                 fputcsv($handle, ['NIM', 'Nama', 'Nilai'], ';');
                 foreach ($students as $student) {
-                    fputcsv($handle, [$student->nim_nidn ?? '', $student->name, ''], ';');
+                    fputcsv($handle, [$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name), ''], ';');
                 }
             }
 
@@ -404,5 +404,14 @@ class InputNilaiController extends Controller
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void
     {
         abort_unless($assessment->class_section_id === $section->id, 404);
+    }
+
+    private function sanitizeCsv(mixed $value): string
+    {
+        $str = (string) $value;
+        if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $str;
+        }
+        return $str;
     }
 }

@@ -57,8 +57,49 @@
                     </button>
                 </div>
             </form>
+
+            <div class="mt-6 border-t border-line/60 pt-4">
+                <details class="text-xs group" open>
+                    <summary class="cursor-pointer font-semibold text-brand flex items-center justify-between py-1">
+                        <span>ℹ️ Akun Demo / Uji Coba Cepat</span>
+                        <span class="text-muted group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 space-y-2 text-[11px] text-muted bg-canvas p-3 rounded-lg border border-line">
+                        <p class="font-medium text-ink">Klik salah satu akun untuk mengisi kredensial otomatis (Password: <code>password</code>):</p>
+                        <div class="grid grid-cols-1 gap-1.5 pt-1">
+                            <button type="button" onclick="fillLogin('231011401234', 'password')" class="text-left px-2.5 py-1.5 rounded bg-white hover:bg-slate-100 border border-line text-ink flex justify-between items-center cursor-pointer">
+                                <span><strong>Mahasiswa:</strong> Ahmad Maulana (231011401234)</span>
+                                <span class="text-brand font-semibold text-[10px]">Pilih →</span>
+                            </button>
+                            <button type="button" onclick="fillLogin('198501012010121001', 'password')" class="text-left px-2.5 py-1.5 rounded bg-white hover:bg-slate-100 border border-line text-ink flex justify-between items-center cursor-pointer">
+                                <span><strong>Dosen:</strong> Dr. Budi Santoso (198501012010121001)</span>
+                                <span class="text-brand font-semibold text-[10px]">Pilih →</span>
+                            </button>
+                            <button type="button" onclick="fillLogin('197501012000031001', 'password')" class="text-left px-2.5 py-1.5 rounded bg-white hover:bg-slate-100 border border-line text-ink flex justify-between items-center cursor-pointer">
+                                <span><strong>Kaprodi:</strong> Dr. H. Kaprodi, M.T. (197501012000031001)</span>
+                                <span class="text-brand font-semibold text-[10px]">Pilih →</span>
+                            </button>
+                            <button type="button" onclick="fillLogin('AP001', 'password')" class="text-left px-2.5 py-1.5 rounded bg-white hover:bg-slate-100 border border-line text-ink flex justify-between items-center cursor-pointer">
+                                <span><strong>Admin Prodi:</strong> AP001</span>
+                                <span class="text-brand font-semibold text-[10px]">Pilih →</span>
+                            </button>
+                            <button type="button" onclick="fillLogin('ADM001', 'password')" class="text-left px-2.5 py-1.5 rounded bg-white hover:bg-slate-100 border border-line text-ink flex justify-between items-center cursor-pointer">
+                                <span><strong>Admin Sistem:</strong> ADM001</span>
+                                <span class="text-brand font-semibold text-[10px]">Pilih →</span>
+                            </button>
+                        </div>
+                    </div>
+                </details>
+            </div>
         </div>
     </main>
+
+    <script>
+        function fillLogin(id, pwd) {
+            document.getElementById('login_id').value = id;
+            document.getElementById('password').value = pwd;
+        }
+    </script>
 
     <footer class="border-t border-line/50 bg-white px-6 py-4 text-center text-xs text-muted">
         SALE · Smart Academic Learning Ecosystem

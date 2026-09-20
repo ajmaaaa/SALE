@@ -9,7 +9,7 @@
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
             <h1 class="page-heading">Rekap Nilai Kelas</h1>
-            <p class="page-description">Dari rekap kelas hingga rincian soal. Telusuri nilai setiap penilaian dan ketercapaian CPMK secara terpisah.</p>
+            <p class="page-description">Dari rekap kelas hingga rincian soal. Telusuri nilai setiap penilaian dan Ketercapaian CPMK secara terpisah.</p>
         </div>
         <div class="flex flex-wrap gap-2.5 shrink-0">
             <button type="button" onclick="document.getElementById('bulk-score-section').toggleAttribute('hidden')" class="button-secondary">

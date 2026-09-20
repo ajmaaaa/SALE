@@ -17,7 +17,11 @@ class DosenAccountSeeder extends Seeder
         $adminRole = Role::where('name', Role::ADMIN)->first();
         $mahasiswaRole = Role::where('name', Role::MAHASISWA)->first();
 
-        User::updateOrCreate(
+        // S08: Gunakan firstOrCreate (bukan updateOrCreate) agar seeder tidak pernah
+        // menimpa password atau data user yang sudah ada di database produksi.
+        // Kolom selain 'email' hanya diisi saat user pertama kali dibuat.
+
+        User::firstOrCreate(
             ['email' => 'ahmad.maulana@student.test'],
             [
                 'name' => 'Ahmad Maulana',
@@ -27,7 +31,7 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => 'budi@example.test'],
             [
                 'name' => 'Budi Santoso, M.Kom.',
@@ -37,7 +41,7 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => 'kaprodi@example.test'],
             [
                 'name' => 'Dr. H. Kaprodi, M.T.',
@@ -47,7 +51,7 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => 'adminprodi@example.test'],
             [
                 'name' => 'Admin Prodi TI',
@@ -57,7 +61,7 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => 'admin@example.test'],
             [
                 'name' => 'Admin Sistem Akademik',
