@@ -7,11 +7,11 @@ use Tests\TestCase;
 
 class StudentFrontendTest extends TestCase
 {
-    public function test_the_application_redirects_to_the_student_dashboard(): void
+    public function test_the_application_redirects_to_the_login_page(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirect(route('mahasiswa.dashboard'));
+        $response->assertRedirect(route('login'));
     }
 
     public function test_public_prototype_pages_are_available_with_security_headers(): void

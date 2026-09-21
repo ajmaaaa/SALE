@@ -109,7 +109,8 @@ class AuthController extends Controller
         }
 
         if (! $user) {
-            $user = collect($users)->first(fn ($candidate) => AdminPreview::hasRole($candidate, $selectedRole));
+            $fallbackRole = $selectedRole ?? 'mahasiswa';
+            $user = collect($users)->first(fn ($candidate) => AdminPreview::hasRole($candidate, $fallbackRole));
             if ($user) {
                 $user['role'] = $this->roleForUser($user, $selectedRole);
             }
