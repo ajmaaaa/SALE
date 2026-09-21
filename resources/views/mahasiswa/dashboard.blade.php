@@ -4,19 +4,13 @@
 @section('header', 'Dashboard')
 
 @section('content')
-@php
-    $allCourses = collect($courses);
-    $studentName = $student?->name ?? session('auth_user.name', 'Ahmad Maulana');
-    $firstName = str($studentName)->before(' ');
-@endphp
+@php($allCourses = collect($courses))
 <div class="space-y-7">
-    <header class="flex flex-col gap-5 border-b border-line/60 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <header class="pb-1">
         <div>
-            <p class="mb-2 text-sm font-semibold text-brand">{{ now()->translatedFormat('l, d F Y') }}</p>
-            <h1 class="page-heading">Selamat datang, {{ $firstName }}.</h1>
-    <p class="page-description">Lanjutkan perkuliahan dari materi terakhir atau ikuti percakapan di forum kelas.</p>
+            <h1 class="page-heading">Dashboard Mahasiswa</h1>
+            <p class="page-description">Ringkasan perkuliahan dan aktivitas belajar Anda semester ini.</p>
         </div>
-        <a href="{{ route('mahasiswa.course.show', 1) }}" class="button-primary shrink-0">Lanjutkan belajar</a>
     </header>
 
     <section class="grid gap-4 sm:grid-cols-2" aria-label="Ringkasan akademik">
