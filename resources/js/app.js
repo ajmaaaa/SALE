@@ -1019,6 +1019,7 @@ if (contentType) {
     const customTypeInput = document.querySelector('[data-custom-type]');
     const assignmentFields = document.querySelector('[data-assignment-fields]');
     const materialModeSettings = document.querySelector('[data-material-mode-settings]');
+    const pinVideoOption = document.querySelector('[data-pin-video-option]');
     const questionBuilder = document.querySelector('[data-question-builder]');
     const quizDurationSettings = document.querySelector('[data-quiz-duration-settings]');
     const assessmentTitleLabel = document.querySelector('[data-assessment-title-label]');
@@ -1078,6 +1079,11 @@ if (contentType) {
         const showQuizOrExam = ['kuis', 'uts', 'uas'].includes(category);
         setSectionVisibility(assignmentFields, showAssignment);
         setSectionVisibility(materialModeSettings, showMaterialMode);
+        setSectionVisibility(pinVideoOption, showMaterialMode);
+        if (pinVideoOption) {
+            const pinInput = pinVideoOption.querySelector('input');
+            if (pinInput) pinInput.disabled = !showMaterialMode;
+        }
         const isQuestionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
         setSectionVisibility(questionBuilder, showQuizOrExam && isQuestionStep);
         setSectionVisibility(quizDurationSettings, showQuizOrExam);

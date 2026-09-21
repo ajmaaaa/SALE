@@ -193,6 +193,7 @@ class LearningController extends Controller
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
             'allow_late' => 'nullable|in:0,1,true,false',
             'link' => 'nullable|url:http,https|max:2000',
+            'pin_video' => 'nullable|boolean',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,webp,mp4|max:20480',
             'formats' => 'required_if:type,tugas,kuis,uts,uas,coding,lainnya|array|min:1',
@@ -336,6 +337,30 @@ class LearningController extends Controller
             : null;
         $data['option_images'] = array_map(fn ($file) => $this->upload($file), $request->file('option_images', []));
         $data['attachments'] = array_map(fn ($file) => $this->upload($file), $request->file('attachments', []));
+        $data['pin_video'] = $request->boolean('pin_video');
+
+        if ($data['pin_video'] && $category === 'materi') {
+            $videoAttachment = collect($data['attachments'])->first(function ($file) {
+                return str_starts_with((string) session("learning.files.$file.mime", ''), 'video/');
+            });
+            $videoLink = trim((string) ($data['link'] ?? ''));
+            $playableLink = $videoLink !== '' && (
+                Learning::youtubeEmbedUrl($videoLink) !== null
+                || (bool) preg_match('/\.(?:mp4|webm|ogg)(?:[?#].*)?$/i', $videoLink)
+            );
+
+            if (! $videoAttachment && ! $playableLink) {
+                return back()->withErrors(['pin_video' => 'Pilih tautan YouTube/video atau lampirkan berkas video MP4 terlebih dahulu.'])->withInput();
+            }
+
+            $courses = Learning::courses();
+            $courseData = $courses[$course];
+            $courseData['video'] = $playableLink ? $videoLink : $videoAttachment;
+            $courseData['video_type'] = $playableLink ? 'url' : 'file';
+            $courseData['video_title'] = $data['title'];
+            $courses[$course] = $courseData;
+            session(['learning.courses' => $courses]);
+        }
         $data['points'] = $data['points'] ?? 100;
         $data['allow_late'] = $request->boolean('allow_late', true);
         if (in_array($category, ['kuis', 'uts', 'uas'], true) && ! empty($data['due'])) {
@@ -547,6 +572,7 @@ class LearningController extends Controller
         $meta = session("learning.files.$file");
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
         $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])
+            || str_starts_with((string) $meta['mime'], 'video/')
             || ($request->boolean('inline') && $meta['mime'] === 'application/pdf');
         $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
         if ($inline && !$request->boolean('download')) {

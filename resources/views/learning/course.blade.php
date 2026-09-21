@@ -17,6 +17,10 @@
         ->filter(fn($u) => in_array($u['role'], ['mahasiswa', 'dosen'], true))
         ->sortBy(fn($u) => $u['role'] === 'dosen' ? 0 : 1)
         ->values();
+    $courseVideo = $course['video'] ?? null;
+    $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
+    $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
+    $courseVideoMeta = $courseVideoType === 'file' && $courseVideo ? session('learning.files.'.$courseVideo, []) : [];
 @endphp
 
 <div class="space-y-7">
@@ -97,28 +101,18 @@
             {{-- 16:9 Video Player Card --}}
             <section aria-labelledby="video-heading">
                 <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
-                    <div class="flex h-full flex-col items-center justify-center px-6 text-center text-white">
-                        <div class="mb-3.5 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white transition group-hover:scale-110 group-hover:bg-brand">
-                            <svg class="h-6 w-6 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <path d="m9 7 9 5-9 5V7z"/>
-                            </svg>
-                        </div>
-                        <h2 id="video-heading" class="text-base sm:text-lg font-bold text-white">
-                            {{ $course['title'] }}: Pengantar &amp; Konsep Utama
-                        </h2>
-                        <p class="mt-1 text-xs text-[#c9d3d9]">Video pengantar perkuliahan — 24 menit</p>
-                        @if(!empty($course['video']))
-                            <a href="{{ $course['video'] }}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
-                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                Putar Video Pengantar ↗
-                            </a>
-                        @else
-                            <button type="button" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#172633] shadow hover:bg-slate-100 transition">
-                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                Putar Video
-                            </button>
-                        @endif
-                    </div>
+                    @if($youtubeEmbed)
+                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubeEmbed }}" title="Video {{ $course['title'] }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
+                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? $course['title'] }}">
+                            <source src="{{ route('preview.file', $courseVideo) }}" type="{{ $courseVideoMeta['mime'] ?? 'video/mp4' }}">
+                            Browser Anda tidak mendukung pemutaran video.
+                        </video>
+                    @elseif($courseVideoType === 'url' && !empty($courseVideo))
+                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" src="{{ $courseVideo }}" title="Video {{ $course['title'] }}"></video>
+                    @else
+                        <div class="flex h-full items-center justify-center px-6 text-center text-sm text-[#c9d3d9]">Video pengantar belum ditambahkan.</div>
+                    @endif
                 </div>
             </section>
 

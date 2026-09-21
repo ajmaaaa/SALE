@@ -152,6 +152,34 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         return self::courses()[$id];
     }
 
+    public static function youtubeEmbedUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $host = preg_replace('/^www\./', '', $host);
+        $videoId = null;
+
+        if (in_array($host, ['youtube.com', 'm.youtube.com'], true)) {
+            if (($parts['path'] ?? '') === '/watch') {
+                parse_str((string) ($parts['query'] ?? ''), $query);
+                $videoId = $query['v'] ?? null;
+            } elseif (preg_match('#^/(?:embed|shorts)/([A-Za-z0-9_-]{6,})#', (string) ($parts['path'] ?? ''), $matches)) {
+                $videoId = $matches[1];
+            }
+        } elseif ($host === 'youtu.be') {
+            $videoId = trim((string) ($parts['path'] ?? ''), '/');
+        }
+
+        return $videoId && preg_match('/^[A-Za-z0-9_-]{6,}$/', $videoId)
+            ? 'https://www.youtube-nocookie.com/embed/'.$videoId.'?rel=0'
+            : null;
+    }
+
     public static function resource(int $course, int $item): array
     {
         self::course($course);

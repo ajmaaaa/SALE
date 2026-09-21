@@ -112,6 +112,11 @@
                     <label class="form-label" for="link">Tautan materi / video</label>
                     <input id="link" name="link" type="url" class="field" value="{{ old('link') }}" placeholder="https://">
                 </div>
+
+                <label data-pin-video-option class="flex cursor-pointer items-start gap-3 rounded-lg border border-line/60 bg-white p-3 text-xs" hidden>
+                    <input type="checkbox" name="pin_video" value="1" class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video'))>
+                    <span><span class="block font-semibold text-ink">Pin video ke bagian atas course</span><span class="mt-0.5 block text-muted">Gunakan untuk tautan YouTube atau lampiran MP4 agar bisa diputar langsung di halaman course.</span></span>
+                </label>
             </div>
         </section>
 
