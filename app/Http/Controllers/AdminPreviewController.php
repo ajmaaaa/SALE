@@ -36,13 +36,19 @@ class AdminPreviewController extends Controller
         $roles = array_values(array_unique($data['roles'] ?? array_filter([$data['role'] ?? null])));
         if (empty($roles)) return back()->withErrors(['roles' => 'Pilih minimal satu peran akses.'])->withInput();
         $users = AdminPreview::users();
+        $isNewUser = ! array_key_exists('id', $data);
         $id = (int) ($data['id'] ?? (max(array_keys($users)) + 1));
-        abort_if(isset($data['id']) && ! isset($users[$id]), 404);
+        abort_if(! $isNewUser && ! isset($users[$id]), 404);
         $data['id'] = $id;
         foreach ($users as $existingId => $user) {
             if ($user['id'] !== $id && (strcasecmp($user['email'], $data['email']) === 0 || $user['number'] === $data['number'])) {
-                if (! isset($data['id'])) {
-                    $users[$existingId]['roles'] = array_values(array_unique(array_merge($user['roles'], $roles)));
+                if ($isNewUser) {
+                    $existingRoles = $user['roles'] ?? [$user['role'] ?? null];
+                    $newRoles = array_values(array_diff($roles, $existingRoles));
+                    if (empty($newRoles)) {
+                        return back()->withErrors(['email' => 'Email atau nomor identitas sudah dipakai.'])->withInput();
+                    }
+                    $users[$existingId]['roles'] = array_values(array_unique(array_merge($existingRoles, $newRoles)));
                     $users[$existingId]['role'] = $users[$existingId]['roles'][0];
                     session(['admin.users' => $users]);
                     AdminPreview::log('Menambahkan peran pada pengguna '.$user['name'].'.');
