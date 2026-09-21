@@ -16,14 +16,15 @@ class LearningPreview
         ]);
 
         $samplePath = 'testing/big-buck-bunny-720p-10s.mp4';
+        $sampleId = '00000000-0000-4000-8000-000000000001';
         if (Storage::disk('local')->exists($samplePath)) {
-            session(['learning.files.sample-mp4-video' => [
+            session(["learning.files.$sampleId" => [
                 'path' => $samplePath,
                 'name' => 'big-buck-bunny-720p-10s.mp4',
                 'mime' => 'video/mp4',
             ]]);
             if (isset($courses[1])) {
-                $courses[1]['video'] = 'sample-mp4-video';
+                $courses[1]['video'] = $sampleId;
                 $courses[1]['video_type'] = 'file';
                 $courses[1]['video_title'] = 'Contoh Big Buck Bunny MP4';
             }
