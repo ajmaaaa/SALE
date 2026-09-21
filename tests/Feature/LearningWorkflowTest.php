@@ -75,6 +75,32 @@ class LearningWorkflowTest extends TestCase
         $this->get('/preview/files/'.$id)->assertNotFound();
     }
 
+    public function test_pinned_mp4_material_plays_on_course_page(): void
+    {
+        Storage::fake('local');
+
+        $this->post('/dosen/course', [
+            'code' => 'IF301', 'title' => 'Course Video', 'description' => 'Video kelas', 'lecturer' => 'Dosen video',
+        ])->assertRedirect('/dosen/course/5');
+
+        $this->post('/dosen/course/5/items', [
+            'type' => 'materi', 'title' => 'Video Binary Tree', 'module' => 'Minggu 1',
+            'body' => 'Tonton video berikut.', 'question_type' => 'uraian', 'cpmk' => 'Memahami konsep.',
+            'pin_video' => '1', 'attachments' => [UploadedFile::fake()->create('binary-tree.mp4', 128, 'video/mp4')],
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/5');
+
+        $course = session('learning.courses.5');
+        $this->assertSame('file', $course['video_type']);
+        $this->assertSame('video/mp4', session('learning.files.'.$course['video'].'.mime'));
+
+        $page = $this->get('/mahasiswa/course/5')->assertOk();
+        $page->assertSee('<video', false)->assertSee(route('preview.file', $course['video']), false);
+        $this->get('/preview/files/'.$course['video'])
+            ->assertOk()
+            ->assertHeader('Content-Type', 'video/mp4')
+            ->assertHeader('Content-Disposition', 'inline; filename=binary-tree.mp4');
+    }
+
     public function test_discussion_is_scoped_and_user_text_is_escaped(): void
     {
         $this->post('/mahasiswa/course/1/discussion', ['message' => '<script>alert(1)</script>'])->assertRedirect();
