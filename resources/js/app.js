@@ -176,7 +176,7 @@ if (editorMount && editorSource) {
         const fileTabs = document.querySelector('[data-file-tabs]');
         const counterEl = document.querySelector('[data-chars-count]');
         const fileLanguageBadge = document.querySelector('[data-file-language-badge]');
-        document.querySelector('[data-code-submit] button').disabled = false;
+        document.querySelector('[data-code-submit] button')?.removeAttribute('disabled');
 
         const flush = () => { if (files[active]) files[active].code = editor.state.doc.toString(); };
         const updateCounter = () => {
