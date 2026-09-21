@@ -98,9 +98,10 @@
     <div class="course-layout-grid grid items-start gap-7">
         {{-- KOLOM KIRI: Video Pengantar & Modul Terpisah (Materi & Tugas) --}}
         <div class="min-w-0 space-y-7">
-            {{-- 16:9 Video Player Card --}}
-            <section aria-labelledby="video-heading">
-                <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
+            {{-- 16:9 Video Player Card: hanya tampil jika course memiliki video yang dipasang. --}}
+            @if(!empty($courseVideo))
+                <section aria-labelledby="video-heading">
+                    <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
                     @if($youtubeEmbed)
                         <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubeEmbed }}" title="Video {{ $course['title'] }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
@@ -113,8 +114,9 @@
                     @else
                         <div class="flex h-full items-center justify-center px-6 text-center text-sm text-[#c9d3d9]">Video pengantar belum ditambahkan.</div>
                     @endif
-                </div>
-            </section>
+                    </div>
+                </section>
+            @endif
 
             {{-- TABS NAV: MATERI & TUGAS --}}
             <div class="space-y-4">
