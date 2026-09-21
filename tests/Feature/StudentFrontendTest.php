@@ -65,7 +65,7 @@ class StudentFrontendTest extends TestCase
         $dosenDash->assertOk()
             ->assertSee('Jumlah Course (Matkul)')
             ->assertSee('Pesan belum dibaca')
-            ->assertSee('Pertanyaan dan tanggapan terbaru dari forum kelas.')
+            ->assertSee('Pesan masuk dari forum kelas')
             ->assertSee(route('dosen.course.index'))
             ->assertSee('Struktur Data dan Algoritma')
             ->assertSee('Salin kode')

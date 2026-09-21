@@ -43,43 +43,44 @@
         </div>
     </div>
 
-    @php($unreadDiscussions = collect(\App\Support\LearningPreview::unreadDiscussions())->take(3))
-    <section aria-labelledby="dosen-discussion-heading" class="surface overflow-hidden rounded-2xl border border-line/70 shadow-sm">
-        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-line/50 p-5 sm:p-6">
-            <div>
-                <h2 id="dosen-discussion-heading" class="text-lg font-semibold text-ink">Pesan belum dibaca</h2>
-                <p class="mt-0.5 text-xs text-muted">Pertanyaan dan tanggapan terbaru dari forum kelas.</p>
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
+        {{-- Course List Section: Strong Alignment & Card Repetition --}}
+        <section aria-labelledby="dosen-course-heading" class="min-w-0">
+            <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 id="dosen-course-heading" class="section-heading truncate text-base sm:text-lg">Daftar Kelas Saya</h2>
+                    <p class="mt-0.5 truncate text-xs text-muted">Kelas yang Anda ampu semester ini</p>
+                </div>
+                <a href="{{ route('dosen.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
-            <a href="{{ route('dosen.discussion.index') }}" class="button-secondary shrink-0 px-3 py-2 text-xs">Buka forum</a>
-        </div>
-        <div class="divide-y divide-line/60">
-            @forelse($unreadDiscussions as $discussion)
-                <a href="{{ route('dosen.course.show', $discussion['course']) }}#diskusi-kelas" class="block px-5 py-4 transition hover:bg-canvas sm:px-6">
-                    <p class="text-[11px] font-medium text-muted">{{ $discussion['course_title'] }}</p>
-                    <p class="mt-1 line-clamp-2 text-sm font-semibold leading-relaxed text-ink">{{ $discussion['message'] }}</p>
-                    <p class="mt-1.5 text-xs text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
-                </a>
-            @empty
-                <p class="p-5 text-sm text-muted sm:p-6">Belum ada pesan yang perlu dibaca.</p>
-            @endforelse
-        </div>
-    </section>
-
-    {{-- Course List Section: Strong Alignment & Card Repetition --}}
-    <section class="surface p-6 rounded-2xl border border-line/70 shadow-sm space-y-5">
-        <div class="flex items-center justify-between border-b border-line/50 pb-4">
-            <div>
-                <h2 class="text-lg font-semibold text-ink">Daftar Kelas Saya</h2>
-                <p class="mt-0.5 text-xs text-muted">Kelola penilaian berbasis OBE untuk setiap kelas yang Anda ampu pada semester berjalan.</p>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                @foreach($allCourses as $course)
+                    @include('learning.partials.course-card', ['course' => $course, 'role' => 'dosen', 'isFirst' => $loop->first])
+                @endforeach
             </div>
-        </div>
+        </section>
 
-        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            @foreach($allCourses as $course)
-                @include('learning.partials.course-card', ['course' => $course, 'role' => 'dosen', 'isFirst' => $loop->first])
-            @endforeach
-        </div>
-
-    </section>
+        @php($unreadDiscussions = collect(\App\Support\LearningPreview::unreadDiscussions())->take(3))
+        <section aria-labelledby="dosen-discussion-heading" class="min-w-0">
+            <div class="mb-4 flex h-12 items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 id="dosen-discussion-heading" class="section-heading truncate text-base sm:text-lg">Pesan belum dibaca</h2>
+                    <p class="mt-0.5 truncate text-xs text-muted">Pesan masuk dari forum kelas</p>
+                </div>
+                <a href="{{ route('dosen.discussion.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Buka forum</a>
+            </div>
+            <div class="divide-y divide-line/60 overflow-hidden rounded-xl border border-line/60 bg-white shadow-sm">
+                @forelse($unreadDiscussions as $discussion)
+                    <a href="{{ route('dosen.course.show', $discussion['course']) }}#diskusi-kelas" class="block p-4 text-xs transition duration-200 hover:bg-canvas">
+                        <p class="text-[11px] font-medium text-muted">{{ $discussion['course_title'] }}</p>
+                        <p class="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-ink">{{ $discussion['message'] }}</p>
+                        <p class="mt-1.5 text-xs leading-4 text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                    </a>
+                @empty
+                    <p class="p-4 text-sm text-muted">Belum ada pesan terbaru.</p>
+                @endforelse
+            </div>
+        </section>
+    </div>
 </div>
 @endsection
