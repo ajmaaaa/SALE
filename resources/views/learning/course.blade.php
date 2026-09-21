@@ -243,8 +243,8 @@
                                         </div>
 
                                         @if($isDosen)
-                                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 shrink-0">
-                                                {{ $isCoding ? 'Buka Editor ↗' : 'Kelola Konten' }}
+                                            <span class="shrink-0 text-xs font-semibold text-brand">
+                                                Kerjakan
                                             </span>
                                         @elseif($hasSubmission)
                                             <span class="shrink-0 text-xs font-semibold text-emerald-700">
