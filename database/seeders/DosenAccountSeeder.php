@@ -21,6 +21,17 @@ class DosenAccountSeeder extends Seeder
         // menimpa password atau data user yang sudah ada di database produksi.
         // Kolom selain 'email' hanya diisi saat user pertama kali dibuat.
 
+        $repairDemoRole = static function (string $email, ?int $roleId): void {
+            if (! $roleId) {
+                return;
+            }
+
+            $user = User::where('email', $email)->first();
+            if ($user && $user->role_id !== $roleId) {
+                $user->update(['role_id' => $roleId]);
+            }
+        };
+
         User::firstOrCreate(
             ['email' => 'ahmad.maulana@student.test'],
             [
@@ -30,6 +41,14 @@ class DosenAccountSeeder extends Seeder
                 'nim_nidn' => '231011401234',
             ]
         );
+
+        // Repair role_id when an older local database was seeded before the
+        // five demo roles were finalized. Passwords and other user data stay intact.
+        $repairDemoRole('ahmad.maulana@student.test', $mahasiswaRole?->id);
+        $repairDemoRole('budi@example.test', $dosenRole?->id);
+        $repairDemoRole('kaprodi@example.test', $kaprodiRole?->id);
+        $repairDemoRole('adminprodi@example.test', $adminProdiRole?->id);
+        $repairDemoRole('admin@example.test', $adminRole?->id);
 
         User::firstOrCreate(
             ['email' => 'budi@example.test'],

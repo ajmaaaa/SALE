@@ -80,6 +80,19 @@ class AuthLoginTest extends TestCase
         $this->assertEquals('admin_prodi', session('auth_user.role'));
     }
 
+    public function test_demo_seeder_repairs_an_old_admin_prodi_role(): void
+    {
+        $adminProdi = User::where('email', 'adminprodi@example.test')->firstOrFail();
+        $adminProdi->update(['role_id' => Role::where('name', Role::MAHASISWA)->value('id')]);
+
+        $this->seed(DosenAccountSeeder::class);
+
+        $this->assertSame(
+            Role::where('name', Role::ADMIN_PRODI)->value('id'),
+            $adminProdi->fresh()->role_id
+        );
+    }
+
     public function test_multi_role_preview_account_uses_selected_admin_prodi_role(): void
     {
         $this->withSession(['admin.users' => [
