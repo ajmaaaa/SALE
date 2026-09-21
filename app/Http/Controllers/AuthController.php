@@ -56,16 +56,17 @@ class AuthController extends Controller
             }
         }
 
-        $selectedRole = $request->input('role', 'mahasiswa');
-        if (! in_array($selectedRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'], true)) {
-            $selectedRole = 'mahasiswa';
+        $selectedRole = $request->input('role');
+        if ($selectedRole !== null && ! in_array($selectedRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'], true)) {
+            $selectedRole = null;
         }
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
         $password = (string) $request->input('password', '');
         $normalizedLogin = strtolower($loginId);
 
         if ($loginId === '') {
-            $defaultUser = collect($users)->first(fn ($user) => AdminPreview::hasRole($user, $selectedRole));
+            $defaultRole = $selectedRole ?? 'mahasiswa';
+            $defaultUser = collect($users)->first(fn ($user) => AdminPreview::hasRole($user, $defaultRole));
             if ($defaultUser) {
                 $defaultUser['role'] = $this->roleForUser($defaultUser, $selectedRole);
                 return $this->loginAsUser($defaultUser, "Masuk sebagai {$defaultUser['name']}.");
@@ -73,7 +74,7 @@ class AuthController extends Controller
             return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
         }
 
-        $user = collect($users)->first(function ($u) use ($loginId, $normalizedLogin, $selectedRole) {
+        $user = collect($users)->first(function ($u) use ($loginId, $normalizedLogin) {
             return strcasecmp($u['email'] ?? '', $loginId) === 0
                 || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0
                 || (AdminPreview::hasRole($u, 'mahasiswa') && in_array($normalizedLogin, ['ahmad.maulana@student.test', 'ahmad@example.test', '231011401234']));
