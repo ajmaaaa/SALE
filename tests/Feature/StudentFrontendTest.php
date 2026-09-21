@@ -83,7 +83,8 @@ class StudentFrontendTest extends TestCase
             ->assertDontSee('Lihat Nilai Saya')
             ->assertSee('Forum Diskusi Kelas')
             ->assertSee('diskusi-kelas')
-            ->assertSee('Dosen Pengampu');
+            ->assertSee('Dosen Pengampu')
+            ->assertSee('youtube-nocookie.com/embed/aqz-KE-bpKQ', false);
     }
 
     public function test_recent_discussions_links_on_dashboard_resolve_without_404(): void
