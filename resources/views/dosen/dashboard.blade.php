@@ -43,6 +43,28 @@
         </div>
     </div>
 
+    @php($unreadDiscussions = collect(\App\Support\LearningPreview::unreadDiscussions())->take(3))
+    <section aria-labelledby="dosen-discussion-heading" class="surface overflow-hidden rounded-2xl border border-line/70 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-line/50 p-5 sm:p-6">
+            <div>
+                <h2 id="dosen-discussion-heading" class="text-lg font-semibold text-ink">Pesan belum dibaca</h2>
+                <p class="mt-0.5 text-xs text-muted">Pertanyaan dan tanggapan terbaru dari forum kelas.</p>
+            </div>
+            <a href="{{ route('dosen.discussion.index') }}" class="button-secondary shrink-0 px-3 py-2 text-xs">Buka forum</a>
+        </div>
+        <div class="divide-y divide-line/60">
+            @forelse($unreadDiscussions as $discussion)
+                <a href="{{ route('dosen.course.show', $discussion['course']) }}#diskusi-kelas" class="block px-5 py-4 transition hover:bg-canvas sm:px-6">
+                    <p class="text-[11px] font-medium text-muted">{{ $discussion['course_title'] }}</p>
+                    <p class="mt-1 line-clamp-2 text-sm font-semibold leading-relaxed text-ink">{{ $discussion['message'] }}</p>
+                    <p class="mt-1.5 text-xs text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                </a>
+            @empty
+                <p class="p-5 text-sm text-muted sm:p-6">Belum ada pesan yang perlu dibaca.</p>
+            @endforelse
+        </div>
+    </section>
+
     {{-- Course List Section: Strong Alignment & Card Repetition --}}
     <section class="surface p-6 rounded-2xl border border-line/70 shadow-sm space-y-5">
         <div class="flex items-center justify-between border-b border-line/50 pb-4">

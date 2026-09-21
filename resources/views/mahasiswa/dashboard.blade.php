@@ -14,7 +14,7 @@
         <div>
             <p class="mb-2 text-sm font-semibold text-brand">{{ now()->translatedFormat('l, d F Y') }}</p>
             <h1 class="page-heading">Selamat datang, {{ $firstName }}.</h1>
-            <p class="page-description">Lanjutkan perkuliahan dari materi terakhir atau periksa pekerjaan yang segera berakhir.</p>
+    <p class="page-description">Lanjutkan perkuliahan dari materi terakhir atau ikuti percakapan di forum kelas.</p>
         </div>
         <a href="{{ route('mahasiswa.course.show', 1) }}" class="button-primary shrink-0">Lanjutkan belajar</a>
     </header>
@@ -61,28 +61,6 @@
         </section>
 
         <div class="min-w-0 space-y-6">
-            <aside aria-labelledby="deadline-heading" class="min-w-0">
-                <div class="mb-4 flex h-12 items-start justify-between gap-3">
-                    <div class="min-w-0"><h2 id="deadline-heading" class="section-heading truncate text-base sm:text-lg">Tenggat terdekat</h2><p class="mt-0.5 truncate text-xs text-muted">Tugas segera berakhir</p></div>
-                    <a href="{{ route('mahasiswa.assignment.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
-                </div>
-                <div class="rounded-xl border border-line/60 bg-white px-2 py-2 shadow-sm">
-                    @forelse($activeItems->take(1) as $item)
-                        @php
-                            $isToday = $item['due'] && \Carbon\Carbon::parse($item['due'])->isToday();
-                            $dateText = $item['due'] ? ($isToday ? 'Hari ini' : \Carbon\Carbon::parse($item['due'])->translatedFormat('d M')) : 'Bebas';
-                            $timeText = $item['due'] ? \Carbon\Carbon::parse($item['due'])->format('H.i') : '';
-                        @endphp
-                        <a href="{{ route('mahasiswa.course.item', [$item['course'], $item['id']]) }}" class="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-4 rounded-xl px-3 py-4 transition hover:bg-[#f3f6f9]">
-                            <span class="grid auto-rows-[20px] content-start"><span class="block text-xs font-semibold leading-5 {{ $isToday ? 'text-danger' : 'text-ink' }}">{{ $dateText }}</span>@if($timeText)<span class="block text-xs leading-5 text-muted">{{ $timeText }}</span>@endif</span>
-                            <span class="grid auto-rows-[20px] min-w-0 content-start"><span class="block truncate text-sm font-semibold leading-5 text-ink">{{ $item['title'] }}</span><span class="block truncate text-xs leading-5 text-muted">{{ \App\Support\LearningPreview::course($item['course'])['title'] }}</span></span>
-                        </a>
-                    @empty
-                        <p class="p-4 text-sm text-muted">Belum ada tenggat terdekat.</p>
-                    @endforelse
-                </div>
-            </aside>
-
             <section aria-labelledby="discussion-heading" class="min-w-0">
                 <div class="mb-4 flex h-12 items-start justify-between gap-3">
                     <div class="min-w-0"><h2 id="discussion-heading" class="section-heading truncate text-base sm:text-lg">Pesan belum dibaca</h2><p class="mt-0.5 truncate text-xs text-muted">Pesan masuk dari forum kelas</p></div>

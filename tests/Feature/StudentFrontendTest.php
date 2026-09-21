@@ -57,13 +57,15 @@ class StudentFrontendTest extends TestCase
         $studentDash->assertOk()
             ->assertSee('Course diikuti')
             ->assertSee('Tugas belum dikerjakan')
-            ->assertSee('Tenggat terdekat')
             ->assertSee('Pesan belum dibaca')
+            ->assertDontSee('Tenggat terdekat')
             ->assertDontSee('Nilai tersedia');
 
         $dosenDash = $this->get(route('dosen.dashboard'));
         $dosenDash->assertOk()
             ->assertSee('Jumlah Course (Matkul)')
+            ->assertSee('Pesan belum dibaca')
+            ->assertSee('Pertanyaan dan tanggapan terbaru dari forum kelas.')
             ->assertSee(route('dosen.course.index'))
             ->assertSee('Struktur Data dan Algoritma')
             ->assertSee('Salin kode')
@@ -128,6 +130,7 @@ class StudentFrontendTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Belum ada pesan terbaru.')
-            ->assertSee('Belum ada tenggat terdekat.');
+            ->assertDontSee('Belum ada tenggat terdekat.')
+            ->assertDontSee('Tenggat terdekat');
     }
 }
