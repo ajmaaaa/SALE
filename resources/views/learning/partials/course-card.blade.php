@@ -23,10 +23,10 @@
         <a href="{{ $targetUrl }}" class="block">
             <img src="{{ route('preview.file', $course['cover']) }}" alt="Sampul {{ $course['title'] }}" class="h-36 w-full object-cover">
             <div class="px-5 pt-4">
-                <div class="flex items-center gap-2 text-xs font-semibold text-brand">
-                    <span class="font-mono">{{ $course['code'] }}</span>
-                    <span class="h-2.5 w-px bg-brand/30"></span>
-                    <span>{{ $sks }}</span>
+                <div class="inline-flex items-baseline gap-2 text-xs font-semibold leading-4 text-brand">
+                    <span class="font-mono leading-4">{{ $course['code'] }}</span>
+                    <span class="h-3 w-px self-center bg-brand/30" aria-hidden="true"></span>
+                    <span class="leading-4">{{ $sks }}</span>
                 </div>
                 <h2 class="mt-1 text-lg font-semibold leading-snug text-ink group-hover:text-brand transition">{{ $course['title'] }}</h2>
                 <div class="mt-2 space-y-0.5 text-xs text-muted">
@@ -50,9 +50,10 @@
                 <svg class="absolute -right-2 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="15" y="20" width="34" height="22" rx="4"/><rect x="70" y="20" width="34" height="22" rx="4"/><rect x="43" y="79" width="34" height="22" rx="4"/><path d="M49 31h21M32 42v24h28v13M87 42v24H60"/></svg>
             @endif
             <div class="relative z-10">
-                <div class="flex items-center gap-3 text-xs font-semibold text-white/90">
-                    <span class="bg-white/20 px-2 py-0.5 rounded font-mono">{{ $course['code'] }}</span>
-                    <span>{{ $sks }}</span>
+                <div class="inline-flex items-baseline gap-2 text-xs font-semibold leading-4 text-white/90">
+                    <span class="font-mono leading-4">{{ $course['code'] }}</span>
+                    <span class="h-3 w-px self-center bg-white/30" aria-hidden="true"></span>
+                    <span class="leading-4">{{ $sks }}</span>
                 </div>
                 <h2 class="mt-2.5 text-lg sm:text-xl font-bold leading-snug text-white group-hover:text-slate-100 transition">{{ $course['title'] }}</h2>
                 
@@ -68,12 +69,12 @@
 
     <div class="flex flex-1 flex-col px-5 py-4 justify-between">
         <a href="{{ $targetUrl }}" class="block">
-            <p class="text-xs font-semibold text-brand">{{ $type }}</p>
-            <p class="mt-1 text-sm font-medium text-ink line-clamp-2">{{ $work }}</p>
+            <p class="text-xs font-semibold leading-4 text-brand">{{ $type }}</p>
+            <p class="mt-1 min-h-10 text-sm font-medium leading-5 text-ink line-clamp-2">{{ $work }}</p>
             {{-- Baris jam + QR sejajar --}}
             <div class="mt-2 flex items-center justify-between gap-2">
                 @if($due)
-                    <p class="text-xs font-medium {{ ($isFirst ?? false) ? 'text-danger' : 'text-muted' }}">{{ $due }}</p>
+                    <p class="text-xs font-medium leading-5 {{ ($isFirst ?? false) ? 'text-danger' : 'text-muted' }}">{{ $due }}</p>
                 @else
                     <span></span>
                 @endif
@@ -81,13 +82,15 @@
                     <button type="button"
                             onclick="event.preventDefault(); event.stopPropagation(); openQrModal('{{ $course['code'] }}', '{{ addslashes($course['title']) }}', '{{ $enrollmentCode }}', '{{ $enrollmentUrl }}', '{{ $qrUrl }}')"
                             title="Tampilkan QR Code Kelas"
-                            class="flex items-center gap-1 text-muted border border-line/60 rounded-md p-1.5 hover:border-brand hover:text-brand hover:bg-slate-50 transition cursor-pointer shrink-0">
+                            aria-label="QR Code kelas {{ $course['code'] }}"
+                            class="flex items-center gap-1.5 text-xs text-muted border border-line/60 rounded-md px-2 py-1 hover:border-brand hover:text-brand hover:bg-slate-50 transition cursor-pointer shrink-0">
                         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <rect x="3" y="3" width="7" height="7"/>
                             <rect x="14" y="3" width="7" height="7"/>
                             <rect x="3" y="14" width="7" height="7"/>
                             <path d="M14 14h7v7h-7z"/>
                         </svg>
+                        <span>QR</span>
                     </button>
                 @endif
             </div>
@@ -97,7 +100,8 @@
         <div class="mt-4 pt-3 flex items-center justify-between text-xs font-medium text-muted border-t border-line/60">
             <a href="{{ $targetUrl }}" class="flex items-center gap-1.5 hover:text-ink transition">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>{{ $studentsCount }} Mahasiswa</span>
+                <span>{{ $studentsCount }}</span>
+                <span class="sr-only">mahasiswa</span>
             </a>
             <a href="{{ $targetUrl }}" class="flex items-center gap-1.5 hover:text-ink transition">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -108,27 +112,51 @@
 </div>
 
 @once
-<!-- Modal Barcode / QR Code untuk Dosen -->
-<div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl text-center space-y-4" onclick="event.stopPropagation()">
-        <div class="flex items-center justify-between pb-3 border-b border-line">
-            <h2 class="text-base font-bold text-ink">QR Code Kelas</h2>
-            <button type="button" onclick="closeQrModal()" class="text-muted hover:text-ink text-xl leading-none cursor-pointer">&times;</button>
+<!-- Modal QR Presensi & Akses Kelas untuk Dosen -->
+<div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+
+        {{-- Header --}}
+        <div class="flex items-start justify-between px-5 pt-5 pb-4 border-b border-slate-100">
+            <div>
+                <h2 class="text-base font-bold text-ink leading-snug">QR Presensi &amp; Akses Kelas</h2>
+                <p id="modalCourseSubtitle" class="text-xs text-muted mt-0.5"></p>
+            </div>
+            <button type="button" onclick="closeQrModal()"
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition text-lg leading-none cursor-pointer -mt-0.5"
+                aria-label="Tutup">&times;</button>
         </div>
-        <div class="space-y-1 text-left">
-            <h3 id="modalCourseTitle" class="text-base font-bold text-ink"></h3>
-            <p class="text-xs text-muted">Mahasiswa dapat memindai barcode di bawah ini atau memasukkan kode masuk untuk bergabung ke dalam kelas.</p>
+
+        {{-- Body --}}
+        <div class="px-5 pt-5 pb-4 flex flex-col items-center gap-4">
+
+            {{-- QR Real Scannable --}}
+            <div class="flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 shadow-inner w-52 h-52 mx-auto">
+                <img id="modalQrImage" src="" alt="QR Code Kelas" class="w-full h-full object-contain">
+            </div>
+
+            {{-- Kode Akses --}}
+            <div class="w-full text-center space-y-0.5">
+                <p class="text-[11px] uppercase tracking-wider font-semibold text-muted">Kode Akses Kelas</p>
+                <p id="modalEnrollmentCode" class="text-2xl font-mono font-bold tracking-widest text-ink select-all"></p>
+            </div>
+
+            {{-- Deskripsi --}}
+            <p class="text-xs text-center text-muted leading-relaxed px-2">
+                Mahasiswa dapat memindai kode QR di atas atau memasukkan kode akses kelas untuk mencatat presensi dan bergabung.
+            </p>
         </div>
-        <div class="flex justify-center p-4 bg-white rounded-xl border border-line shadow-inner max-w-xs mx-auto">
-            <img id="modalQrImage" src="" alt="QR Code Kelas" class="w-48 h-48 object-contain">
-        </div>
-        <div class="space-y-1 bg-slate-50 p-3 rounded-lg border border-line text-center">
-            <span class="text-xs text-muted">Kode Masuk Kelas:</span>
-            <p id="modalEnrollmentCode" class="text-2xl font-mono font-bold tracking-widest text-brand"></p>
-        </div>
-        <div class="flex gap-2">
-            <button type="button" onclick="copyEnrollmentCode()" class="button-secondary flex-1 text-xs py-2 font-semibold">Salin Kode</button>
-            <button type="button" onclick="copyEnrollmentUrl()" class="button-primary flex-1 text-xs py-2 font-semibold">Salin Link Masuk</button>
+
+        {{-- Footer tindakan salin --}}
+        <div class="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/80 px-5 py-4">
+            <button id="copyEnrollmentCodeButton" type="button" onclick="copyEnrollmentCode(this)" class="button-secondary inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
+                <span>Salin kode</span>
+            </button>
+            <button id="copyEnrollmentUrlButton" type="button" onclick="copyEnrollmentUrl(this)" class="button-primary inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span>Salin link</span>
+            </button>
         </div>
     </div>
 </div>
@@ -138,12 +166,21 @@
     let currentEnrollmentCode = '';
 
     function openQrModal(code, title, enrollmentCode, enrollmentUrl, qrUrl) {
-        document.getElementById('modalCourseTitle').textContent = code + ' - ' + title;
+        // Subtitle: "Nama MK (KODE)"
+        document.getElementById('modalCourseSubtitle').textContent = title + ' (' + code + ')';
         document.getElementById('modalEnrollmentCode').textContent = enrollmentCode;
-        document.getElementById('modalQrImage').src = qrUrl || ('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(enrollmentUrl));
+
+        // QR real scannable — encode URL enrollment atau fallback kode
+        const dataToEncode = enrollmentUrl || (window.location.origin + '/join-kelas/' + enrollmentCode);
+        const qrSrc = qrUrl || (
+            'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=14&color=102f50&bgcolor=ffffff&data='
+            + encodeURIComponent(dataToEncode)
+        );
+        document.getElementById('modalQrImage').src = qrSrc;
+
         currentEnrollmentCode = enrollmentCode;
-        currentEnrollmentUrl = enrollmentUrl;
-        
+        currentEnrollmentUrl = dataToEncode;
+
         const modal = document.getElementById('dosenQrModal');
         if (modal) {
             modal.classList.remove('hidden');
@@ -159,18 +196,41 @@
         }
     }
 
-    function copyEnrollmentCode() {
+    function copyEnrollmentCode(btn) {
         if (!currentEnrollmentCode) return;
-        navigator.clipboard.writeText(currentEnrollmentCode).then(() => {
-            alert('Kode masuk kelas berhasil disalin: ' + currentEnrollmentCode);
-        });
+        copyQrText(currentEnrollmentCode, btn);
     }
 
-    function copyEnrollmentUrl() {
+    function copyEnrollmentUrl(btn) {
         if (!currentEnrollmentUrl) return;
-        navigator.clipboard.writeText(currentEnrollmentUrl).then(() => {
-            alert('Link pendaftaran kelas berhasil disalin!');
-        });
+        copyQrText(currentEnrollmentUrl, btn);
+    }
+
+    async function copyQrText(value, btn) {
+        const label = btn?.querySelector('span');
+        const originalLabel = label?.textContent;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                const input = document.createElement('textarea');
+                input.value = value;
+                input.setAttribute('readonly', '');
+                input.style.position = 'fixed';
+                input.style.opacity = '0';
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                input.remove();
+            }
+
+            if (label) label.textContent = 'Tersalin';
+        } catch (error) {
+            if (label) label.textContent = 'Gagal menyalin';
+        } finally {
+            if (label) setTimeout(() => { label.textContent = originalLabel; }, 1600);
+        }
     }
 </script>
 @endonce

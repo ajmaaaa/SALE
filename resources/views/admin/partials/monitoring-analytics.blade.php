@@ -51,7 +51,7 @@
         @if($demo)
             @include('admin.partials.monitoring-chart', [
                 'chartTitle' => 'Kunjungan & beban CPU',
-                'chartCaption' => $periodLabel.' · Data simulasi',
+                'chartCaption' => $periodLabel.' (Data simulasi)',
                 'chartRows' => $rows,
                 'chartTracks' => [
                     ['key' => 'visitors', 'label' => 'Pengunjung unik', 'unit' => 'orang', 'color' => 'bg-brand', 'max' => ceil(max(array_column($rows, 'visitors')) / 100) * 100],
@@ -73,7 +73,7 @@
         <div class="mt-6 border-t border-line/60 pt-5">
             <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold">Penyimpanan saat ini</h3><p class="text-sm font-semibold">{{ $demo ? '42 GB / 100 GB' : 'Belum diukur' }}</p></div>
             <div class="mt-3 h-2 overflow-hidden rounded-full bg-line" @if($demo) role="progressbar" aria-label="Penyimpanan terpakai" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" @endif><div class="h-full rounded-full bg-brand" style="width: {{ $demo ? 42 : 0 }}%"></div></div>
-            <p class="mt-2 text-xs text-muted">{{ $demo ? '58 GB tersedia · Data simulasi.' : 'Kapasitas terbaru ditampilkan setelah pengukuran penyimpanan aktif.' }}</p>
+            <p class="mt-2 text-xs text-muted">{{ $demo ? '58 GB tersedia (Data simulasi).' : 'Kapasitas terbaru ditampilkan setelah pengukuran penyimpanan aktif.' }}</p>
         </div>
     </div>
 </section>

@@ -25,18 +25,18 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="surface p-4">
             <p class="text-xs font-semibold uppercase tracking-wider text-muted">Mata Kuliah &amp; Kelas</p>
-            <p class="mt-1.5 text-2xl font-bold text-brand">{{ $stats['total_matakuliah'] }} <span class="text-xs font-normal text-muted">MK</span> &middot; {{ $stats['total_kelas'] }} <span class="text-xs font-normal text-muted">Kelas</span></p>
-            <a href="{{ route('admin-prodi.akademik.kelas') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Daftar kelas &amp; barcode &rarr;</a>
+            <p class="mt-1.5 text-2xl font-bold text-brand">{{ $stats['total_matakuliah'] }} <span class="text-xs font-normal text-muted">MK</span>, {{ $stats['total_kelas'] }} <span class="text-xs font-normal text-muted">Kelas</span></p>
+            <a href="{{ route('admin-prodi.akademik.kelas') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Daftar kelas &amp; barcode</a>
         </div>
         <div class="surface p-4">
             <p class="text-xs font-semibold uppercase tracking-wider text-muted">Dosen &amp; Mahasiswa</p>
-            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $stats['total_dosen'] }} <span class="text-xs font-normal text-muted">Dosen</span> &middot; {{ $stats['total_mahasiswa'] }} <span class="text-xs font-normal text-muted">Mhs</span></p>
-            <a href="{{ route('admin-prodi.users.index') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Impor / input data &rarr;</a>
+            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $stats['total_dosen'] }} <span class="text-xs font-normal text-muted">Dosen</span>, {{ $stats['total_mahasiswa'] }} <span class="text-xs font-normal text-muted">Mhs</span></p>
+            <a href="{{ route('admin-prodi.users.index') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Impor / input data</a>
         </div>
         <div class="surface p-4">
             <p class="text-xs font-semibold uppercase tracking-wider text-muted">Standar Mutu OBE</p>
-            <p class="mt-1.5 text-2xl font-bold text-emerald-600">{{ $stats['total_cpl'] }} <span class="text-xs font-normal text-muted">CPL</span> &middot; {{ $stats['total_cpmk'] }} <span class="text-xs font-normal text-muted">CPMK</span></p>
-            <a href="{{ route('admin-prodi.kurikulum.index') }}" class="mt-3 inline-block text-xs font-semibold text-emerald-700 hover:underline">Matriks pemetaan &rarr;</a>
+            <p class="mt-1.5 text-2xl font-bold text-emerald-600">{{ $stats['total_cpl'] }} <span class="text-xs font-normal text-muted">CPL</span>, {{ $stats['total_cpmk'] }} <span class="text-xs font-normal text-muted">CPMK</span></p>
+            <a href="{{ route('admin-prodi.kurikulum.index') }}" class="mt-3 inline-block text-xs font-semibold text-emerald-700 hover:underline">Matriks pemetaan</a>
         </div>
     </div>
 
@@ -52,7 +52,7 @@
                     Tetapkan butir Capaian Pembelajaran Lulusan (CPL) dan CPMK per mata kuliah secara terpusat agar dosen pengampu tinggal memilih saat membuat asesmen tugas/kuis/ujian.
                 </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kurikulum &rarr;</span>
+            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kurikulum</span>
         </a>
 
         <a href="{{ route('admin-prodi.akademik.kelas') }}" class="surface p-5 hover:border-brand transition-all flex flex-col justify-between group">
@@ -65,7 +65,7 @@
                     Bentuk kelas perkuliahan, tetapkan Dosen Ketua (Koordinator) dan Dosen Wakil (Pendamping), serta dapatkan Kode Unik Masuk &amp; Barcode/QR Code untuk mahasiswa join kelas.
                 </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kelas Perkuliahan &rarr;</span>
+            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kelas Perkuliahan</span>
         </a>
 
         <a href="{{ route('admin-prodi.laporan.index') }}" class="surface p-5 hover:border-brand transition-all flex flex-col justify-between group">
@@ -78,7 +78,7 @@
                     Pantau metrik spesifik prodi: jumlah dosen/mahasiswa, intake mahasiswa baru per semester, rata-rata nilai hasil evaluasi kelas, dan ekspor ke Excel/CSV siap cetak.
                 </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Laporan Prodi &rarr;</span>
+            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Laporan Prodi</span>
         </a>
     </div>
 
@@ -89,7 +89,7 @@
                 <h2 class="text-base font-bold text-ink">Kelas Perkuliahan Aktif Terbaru</h2>
                 <p class="text-xs text-muted">Daftar seksi kelas dengan penetapan Dosen Ketua &amp; Dosen Wakil</p>
             </div>
-            <a href="{{ route('admin-prodi.akademik.kelas') }}" class="text-xs font-semibold text-brand hover:underline">Lihat Semua Kelas &rarr;</a>
+            <a href="{{ route('admin-prodi.akademik.kelas') }}" class="text-xs font-semibold text-brand hover:underline">Lihat Semua Kelas</a>
         </div>
 
         <div class="overflow-x-auto">
@@ -111,7 +111,7 @@
                         <td class="p-3 font-bold text-brand">{{ $rc->display_code }}</td>
                         <td class="p-3">
                             <span class="font-semibold text-ink">{{ $rc->mataKuliah->name }}</span>
-                            <span class="block text-[11px] text-muted">{{ $rc->mataKuliah->prodi->name ?? '-' }} &middot; {{ $rc->mataKuliah->sks }} SKS</span>
+                            <span class="block text-[11px] text-muted">{{ $rc->mataKuliah->prodi->name ?? '-' }} ({{ $rc->mataKuliah->sks }} SKS)</span>
                         </td>
                         <td class="p-3">
                             <span class="font-medium text-ink">{{ $rc->dosen?->name ?? 'Belum ditentukan' }}</span>

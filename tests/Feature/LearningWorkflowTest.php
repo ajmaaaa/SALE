@@ -8,6 +8,52 @@ use Tests\TestCase;
 
 class LearningWorkflowTest extends TestCase
 {
+    public function test_coding_material_uses_ai_workspace_and_quiz_can_have_a_deadline(): void
+    {
+        $this->post('/dosen/course/1/items', [
+            'type' => 'materi',
+            'material_mode' => 'coding',
+            'module' => 'Tutorial Array Interaktif',
+            'body' => 'Eksplorasi operasi array melalui editor.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+
+        $materialId = max(array_keys(session('learning.items')));
+        $material = session("learning.items.$materialId");
+        $this->assertSame('materi', $material['type']);
+        $this->assertSame('coding', $material['material_mode']);
+        $this->assertTrue($material['ai_enabled']);
+        $this->get("/mahasiswa/assignment/$materialId/code")
+            ->assertOk()
+            ->assertSee('Lumina AI');
+        $this->get('/mahasiswa/course/1')
+            ->assertSee('Tutorial Array Interaktif')
+            ->assertSee('Tutorial coding &amp; Lumina AI', false);
+
+        $due = now()->addDay()->format('Y-m-d\TH:i');
+        $this->post('/dosen/course/1/items', [
+            'type' => 'kuis',
+            'module' => 'Kuis Array',
+            'body' => 'Jawab pertanyaan berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['text'],
+            'due' => $due,
+            'questions' => [[
+                'type' => 'uraian',
+                'prompt' => 'Jelaskan indeks array.',
+                'points' => 10,
+                'cpmk' => 'CPMK-01',
+            ]],
+        ])->assertSessionHasNoErrors();
+
+        $quiz = session('learning.items')[max(array_keys(session('learning.items')))];
+        $this->assertSame($due, $quiz['due']);
+        $this->assertFalse($quiz['allow_late']);
+        $this->assertFalse($quiz['ai_enabled']);
+    }
+
     public function test_courses_have_distinct_content_and_items_cannot_cross_courses(): void
     {
         $this->get('/mahasiswa/course/2')->assertOk()->assertSee('Laporan Evaluasi Usability')->assertDontSee('Praktikum Binary Tree');
@@ -198,7 +244,8 @@ class LearningWorkflowTest extends TestCase
 
         $discResponse = $this->get('/mahasiswa/discussion');
         $discResponse->assertOk()
-            ->assertSee('bg-blue-600', false)
+            ->assertSee('bg-[#4c1d95]', false)
+            ->assertSee('belum dibaca')
             ->assertDontSee('bg-brand-soft text-brand', false);
     }
 
@@ -389,5 +436,36 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('Kuis Telah Berhasil Dikumpulkan')
             ->assertSee('Lihat Tanda Terima Kuis')
             ->assertDontSee('Mulai Kerjakan Kuis');
+    }
+
+    public function test_course_discussion_ajax_and_materi_coding_integration(): void
+    {
+        // 1. AJAX discussion message post
+        $ajaxResponse = $this->postJson('/mahasiswa/course/1/discussion', [
+            'message' => 'Halo dari tes interaktif enter',
+        ]);
+        $ajaxResponse->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message.message', 'Halo dari tes interaktif enter');
+
+        // 2. Course page renders coding workbench in Materi and Tugas tabs, plus modern discussion form
+        $coursePage = $this->get('/mahasiswa/course/1');
+        $coursePage->assertOk()
+            ->assertSee('Praktikum Coding: Binary Search Tree')
+            ->assertSee('Kerjakan')
+            ->assertDontSee('Buka Editor &amp; AI', false)
+            ->assertSee('(Saya)')
+            ->assertSee('Hari ini')
+            ->assertSee('id="course-discuss-form"', false)
+            ->assertSee('id="course_discuss_message"', false)
+            ->assertSee('id="course-discuss-submit-btn"', false)
+            ->assertDontSee('Tekan <kbd', false);
+
+        // 3. Coding room renders Lumina AI assistant and 1-click Demo AI helper
+        $codingRoom = $this->get('/mahasiswa/assignment/1/code');
+        $codingRoom->assertOk()
+            ->assertSee('Lumina AI')
+            ->assertSee('1-Klik Masuk Demo AI')
+            ->assertSee('Enter ↵', false);
     }
 }

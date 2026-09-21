@@ -32,7 +32,7 @@
                 <select name="course" id="course" onchange="this.form.submit()" class="field text-xs font-bold text-brand py-2 shadow-2xs">
                     @foreach(\App\Support\LearningPreview::courses() as $c)
                         <option value="{{ $c['id'] }}" @selected($c['id'] === $course['id'])>
-                            {{ $c['code'] }} · {{ $c['title'] }}
+                            {{ $c['code'] }} - {{ $c['title'] }}
                         </option>
                     @endforeach
                 </select>
@@ -79,21 +79,21 @@
             <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
                 <div>
                     <span class="inline-block rounded bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">Kelas A</span>
-                    <p class="text-xs font-medium text-ink mt-1">32 Mahasiswa · Reguler Pagi</p>
+                    <p class="text-xs font-medium text-ink mt-1">32 Mahasiswa (Reguler Pagi)</p>
                 </div>
                 <span class="text-xs font-semibold text-emerald-700">Aktif</span>
             </div>
             <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
                 <div>
                     <span class="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">Kelas B</span>
-                    <p class="text-xs font-medium text-ink mt-1">28 Mahasiswa · Paralel Siang</p>
+                    <p class="text-xs font-medium text-ink mt-1">28 Mahasiswa (Paralel Siang)</p>
                 </div>
                 <span class="text-xs font-semibold text-emerald-700">Aktif</span>
             </div>
             <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
                 <div>
                     <span class="inline-block rounded bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">Kelas C</span>
-                    <p class="text-xs font-medium text-ink mt-1">20 Mahasiswa · Eksekutif Malam</p>
+                    <p class="text-xs font-medium text-ink mt-1">20 Mahasiswa (Eksekutif Malam)</p>
                 </div>
                 <span class="text-xs font-semibold text-emerald-700">Aktif</span>
             </div>
@@ -244,7 +244,7 @@
                                                     <div class="text-right">
                                                         <span class="font-semibold text-ink">{{ $outcome['score'] === null ? 'Belum lengkap' : number_format($outcome['score'], 1, ',', '.').' / 100' }}</span>
                                                         <span class="ml-1 text-[10px] font-bold {{ $outcome['passed'] ? 'text-emerald-700' : ($outcome['passed'] === false ? 'text-danger' : 'text-muted') }}">
-                                                            · {{ $outcome['passed'] === null ? 'Menunggu' : ($outcome['passed'] ? 'Tercapai' : 'Belum tercapai') }}
+                                                            ({{ $outcome['passed'] === null ? 'Menunggu' : ($outcome['passed'] ? 'Tercapai' : 'Belum tercapai') }})
                                                         </span>
                                                     </div>
                                                 </div>

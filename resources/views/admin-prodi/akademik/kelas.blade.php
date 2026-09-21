@@ -75,7 +75,7 @@
                         </td>
                         <td class="p-3">
                             <span class="font-semibold text-ink block text-xs">{{ $cls->mataKuliah->name }}</span>
-                            <span class="text-[11px] text-muted">{{ $cls->mataKuliah->sks }} SKS &middot; {{ $cls->semester->name }}</span>
+                            <span class="text-[11px] text-muted">{{ $cls->mataKuliah->sks }} SKS, {{ $cls->semester->name }}</span>
                         </td>
                         <td class="p-3">
                             <div class="flex items-center gap-2">

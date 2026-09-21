@@ -25,7 +25,7 @@
         <select id="course" name="course" class="field sm:w-60">
             <option value="">Semua mata kuliah</option>
             @foreach($courses as $course)
-                <option value="{{ $course['id'] }}" @selected(request('course') == $course['id'])>{{ $course['code'] }} · {{ $course['title'] }}</option>
+                <option value="{{ $course['id'] }}" @selected(request('course') == $course['id'])>{{ $course['code'] }} - {{ $course['title'] }}</option>
             @endforeach
         </select>
         <label class="sr-only" for="type">Jenis</label>
@@ -47,19 +47,14 @@
         @forelse($items as $item)
             @php
                 $isSubmitted = session('learning.submissions.'.$item['id']);
-                $targetUrl = ($item['type'] === 'coding' && empty($item['questions'])) ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$item['course'], $item['id']]);
+                $targetUrl = ($item['type'] === 'coding') ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$item['course'], $item['id']]);
             @endphp
-            <a href="{{ $targetUrl }}" class="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 hover:bg-canvas transition">
+            <a href="{{ $targetUrl }}" class="group flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-5 hover:bg-canvas transition">
                 <div class="min-w-0 flex-1">
                     <h2 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h2>
-                    <p class="mt-1 text-xs text-muted">
-                        <span class="font-medium text-ink">{{ $courses[$item['course']]['code'] }}</span>
-                        <span>·</span>
-                        <span>{{ $courses[$item['course']]['title'] }}</span>
-                        <span>·</span>
-                        <span>{{ $item['module'] }}</span>
-                        <span>·</span>
-                        <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
+                    <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
+                        <span class="font-medium text-ink">{{ $courses[$item['course']]['code'] }} - {{ $courses[$item['course']]['title'] }}</span>
+                        <span>({{ $item['module'] }}, {{ \App\Support\LearningPreview::labels()[$item['type']] }})</span>
                     </p>
                 </div>
                 @php

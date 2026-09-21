@@ -47,7 +47,7 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="rounded bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">{{ $sec->mataKuliah->code }}</span>
-                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} &middot; Semester {{ $sec->semester->name ?? '—' }}</span>
+                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} - Semester {{ $sec->semester->name ?? '—' }}</span>
                             </div>
                             <h3 class="mt-1 text-base font-bold text-ink">{{ $sec->mataKuliah->name }}</h3>
                             <p class="text-xs text-muted">Dosen Pengampu: {{ $sec->dosen->name ?? '—' }}</p>

@@ -14,14 +14,14 @@
         <section class="surface overflow-hidden">
             <header class="p-5 border-b border-line/60 flex flex-wrap justify-between gap-3">
                 <div><p class="text-xs text-muted mb-1">{{ collect($config['components'])->firstWhere('code', $componentFilter)['name'] }}</p><h2 class="section-heading">{{ $assessment['title'] }}</h2></div>
-                <span class="text-xs text-muted">{{ count($assessment['questions']) }} soal / kriteria · {{ array_sum(array_column($assessment['questions'], 'points')) }} poin</span>
+                <span class="text-xs text-muted">{{ count($assessment['questions']) }} soal / kriteria{{ $assessment['scoring_mode'] === 'legacy_points' ? ' ('.array_sum(array_column($assessment['questions'], 'points')).' poin)' : '' }}</span>
             </header>
             <details class="p-5 border-b border-line/60" @if($assessmentFilter) open @endif>
                 <summary class="text-sm font-semibold text-brand cursor-pointer">Pemetaan soal &amp; bobot penilaian</summary>
-                <p class="mt-3 text-xs text-muted">Bobot soal = poin maksimum soal / total poin penilaian. Soal dengan CPMK yang sama digabung berdasarkan poin, bukan rata-rata persentase.</p>
-                <div class="overflow-x-auto mt-3"><table class="admin-table w-full"><thead><tr><th>Soal / kriteria</th><th>CPMK</th><th>Poin maks.</th><th>Bobot dalam penilaian</th></tr></thead><tbody>
+                <p class="mt-3 text-xs text-muted">@if($assessment['scoring_mode'] === 'automatic_cpmk') Setiap CPMK bernilai penuh 100. Nilainya dibagi rata ke soal pada CPMK yang sama, lalu kontribusi CPMK mengikuti proporsi jumlah soal. @elseif($assessment['scoring_mode'] === 'manual_cpmk') Persentase CPMK ditentukan dosen dan totalnya 100%. @else Bobot soal mengikuti poin maksimum terhadap total poin penilaian. @endif</p>
+                <div class="overflow-x-auto mt-3"><table class="admin-table w-full"><thead><tr><th>Soal / kriteria</th><th>CPMK</th><th>{{ $assessment['scoring_mode'] === 'automatic_cpmk' ? 'Bobot dalam CPMK' : 'Poin maks.' }}</th><th>Kontribusi nilai akhir</th></tr></thead><tbody>
                     @foreach($assessment['questions'] as $index => $question)
-                        <tr><td class="min-w-[240px]"><span class="font-semibold">{{ $index + 1 }}.</span> {{ $question['prompt'] }}</td><td class="whitespace-nowrap">{{ $question['cpmk'] ?? 'Belum dipetakan' }}</td><td>{{ $question['points'] }}</td><td>{{ number_format($question['weight'], 1, ',', '.') }}%</td></tr>
+                        <tr><td class="min-w-[240px]"><span class="font-semibold">{{ $index + 1 }}.</span> {{ $question['prompt'] }}</td><td class="whitespace-nowrap">{{ $question['cpmk'] ?? 'Belum dipetakan' }}</td><td>{{ $assessment['scoring_mode'] === 'automatic_cpmk' ? number_format($question['within_cpmk_weight'], 2, ',', '.').'%' : $question['points'] }}</td><td>{{ number_format($question['weight'], 2, ',', '.') }}%</td></tr>
                     @endforeach
                 </tbody></table></div>
             </details>
@@ -33,7 +33,7 @@
                         <td class="whitespace-nowrap"><span class="font-semibold">{{ $studentAssessment['score'] === null ? 'Belum lengkap' : number_format($studentAssessment['score'], 1, ',', '.') }}</span></td>
                         <td class="min-w-[280px]"><details><summary class="cursor-pointer text-xs font-semibold text-brand">Lihat nilai &amp; CPMK</summary><div class="mt-3 space-y-2">
                             @foreach($studentAssessment['questions'] as $index => $question)
-                                <div class="flex flex-wrap justify-between gap-2 text-xs border-b border-line/40 pb-2"><span>Soal {{ $index + 1 }} · {{ $question['cpmk'] ?? 'Tanpa CPMK' }}</span><span class="font-semibold">{{ $question['earned'] === null ? 'Belum dinilai' : $question['earned'].' / '.$question['points'].' poin' }}</span></div>
+                                <div class="flex flex-wrap justify-between gap-2 text-xs border-b border-line/40 pb-2"><span>Soal {{ $index + 1 }} ({{ $question['cpmk'] ?? 'Tanpa CPMK' }})</span><span class="font-semibold">{{ $question['earned'] === null ? 'Belum dinilai' : $question['earned'].' / '.$question['points'].' poin' }}</span></div>
                             @endforeach
                         </div></details></td>
                     </tr>

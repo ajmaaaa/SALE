@@ -187,7 +187,7 @@
                 </div>
                 <div>
                     <span class="font-semibold text-ink">Kategori Predikat Ketercapaian:</span>
-                    <p class="mt-0.5 text-[11px]">≥85: Sangat Baik · 70–84.9: Baik · 60–69.9: Cukup · &lt;60: Kurang</p>
+                    <p class="mt-0.5 text-[11px]">≥85: Sangat Baik, 70–84.9: Baik, 60–69.9: Cukup, &lt;60: Kurang</p>
                 </div>
             </div>
         </div>

@@ -70,10 +70,11 @@
         @php
             $currentSection = request()->route('section');
             $currentSectionId = is_object($currentSection) ? $currentSection->id : ($currentSection ?? session('last_active_section_id'));
-            $isPenilaianActive = request()->routeIs('dosen.penilaian.index', 'dosen.penilaian.matriks', 'dosen.penilaian.asesmen*');
+            $isPenilaianActive = request()->routeIs('dosen.penilaian.index', 'dosen.penilaian.dashboard', 'dosen.penilaian.matriks', 'dosen.penilaian.asesmen*', 'dosen.penilaian.pengaturan');
             $isRekapActive = request()->routeIs('dosen.rekap.*', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk', 'dosen.penilaian.cpl', 'dosen.penilaian.export*');
             $isCpmkActive = request()->routeIs('dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
             $isCplActive = request()->routeIs('dosen.penilaian.cpl');
+            $pendingGradingCount = \App\Support\DosenNavigation::pendingGradingCount();
         @endphp
         <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi dosen">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang mengajar</p>
@@ -99,7 +100,10 @@
                    @if($isPenilaianActive) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isPenilaianActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
-                    Penilaian OBE
+                    <span class="min-w-0 flex-1">Penilaian</span>
+                    @if($pendingGradingCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 99 ? '99+' : $pendingGradingCount }}</span>
+                    @endif
                 </a>
 
                 <!-- Rekap Nilai -->
@@ -138,6 +142,10 @@
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Akses pemantauan evaluasi mutu &amp; ketercapaian kurikulum OBE program studi.</p>
         </nav>
         @else
+        @php
+            $forumUnreadCount = \App\Support\LearningPreview::unreadDiscussionCount();
+            $pendingTaskCount = \App\Support\LearningPreview::pendingTaskCount();
+        @endphp
         <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
             <div class="space-y-1">
@@ -155,7 +163,17 @@
                 </a>
                 <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
-                    Forum Diskusi
+                    <span class="min-w-0 flex-1">Forum Diskusi</span>
+                    @if($forumUnreadCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 99 ? '99+' : $forumUnreadCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*', 'mahasiswa.grade.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*', 'mahasiswa.grade.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span class="min-w-0 flex-1">Tugas &amp; Kuis</span>
+                    @if($pendingTaskCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $pendingTaskCount }} tugas dan kuis belum dikerjakan">{{ $pendingTaskCount > 99 ? '99+' : $pendingTaskCount }}</span>
+                    @endif
                 </a>
             </div>
 
@@ -202,7 +220,7 @@
                 request()->is('admin-prodi*') ? ['id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi', 'status' => 'aktif'] :
                 (request()->is('admin*') ? \App\Support\AdminPreview::users()[3] :
                 (request()->is('dosen*') ? \App\Support\AdminPreview::users()[2] :
-                (request()->is('kaprodi*') ? ['id' => 5, 'name' => 'Dr. H. Kaprodi, M.T.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi', 'status' => 'aktif'] :
+                (request()->is('kaprodi*') ? ['id' => 5, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi', 'status' => 'aktif'] :
                 \App\Support\AdminPreview::users()[1])))
             ));
 
@@ -235,7 +253,7 @@
                         <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg p-1.5 hover:bg-[#eceeeb] focus:outline-none">
                             <span class="hidden text-right sm:block">
                                 <span class="block text-sm font-semibold leading-4 text-ink">{{ $activeUser['name'] }}</span>
-                                <span class="block text-xs text-muted">{{ $activeUser['number'] ?? '—' }} · {{ $roleLabel }}</span>
+                                <span class="block text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '—' }})</span>
                             </span>
                             <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-sm font-semibold text-brand-dark">
                                 {{ $initials }}
@@ -243,34 +261,29 @@
                             <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                         </summary>
                         <div class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-line bg-white p-3 shadow-xl">
-                            <div class="border-b border-line/60 pb-3">
+                        <div class="border-b border-line/60 pb-3">
                                 <p class="text-sm font-bold text-ink">{{ $activeUser['name'] }}</p>
                                 <p class="text-xs text-muted">{{ $activeUser['email'] ?? 'user@example.test' }}</p>
-                                <span class="mt-1.5 inline-block rounded bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand">
-                                    {{ $roleLabel }} · {{ $activeUser['number'] ?? '—' }}
-                                </span>
+                                <p class="mt-1 text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '' }})</p>
                             </div>
                             @if(in_array($roleName, ['dosen', 'kaprodi'], true))
                             <div class="py-2 border-b border-line/60">
                                 <p class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Beralih Peran (Dosen &amp; Kaprodi)</p>
-                                <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Ruang Dosen (Budi Santoso, M.Kom.)</span>
-                                    @if($roleName === 'dosen')
-                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                    @endif
+                                @if($roleName !== 'dosen')
+                                <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
+                                    <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    <span>Ruang Dosen</span>
                                 </a>
-                                <a href="{{ route('switch-role', 'kaprodi') }}" class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <span>Ruang Kaprodi (Dr. H. Kaprodi, M.T.)</span>
-                                    @if($roleName === 'kaprodi')
-                                        <svg class="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                    @endif
+                                @endif
+                                @if($roleName !== 'kaprodi')
+                                <a href="{{ route('switch-role', 'kaprodi') }}" class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
+                                    <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    <span>Ruang Kaprodi</span>
                                 </a>
+                                @endif
                             </div>
                             @endif
-                            <div class="border-t border-line/60 pt-2">
-                                <a href="{{ route('login') }}" class="block rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-slate-100">
-                                    Halaman Masuk (Login)
-                                </a>
+                            <div class="pt-2">
                                 <a href="{{ route('logout') }}" class="block rounded-lg px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10">
                                     Keluar (Logout)
                                 </a>
@@ -314,4 +327,3 @@
     @endif
 </body>
 </html>
-

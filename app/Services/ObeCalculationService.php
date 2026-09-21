@@ -46,22 +46,10 @@ class ObeCalculationService
     }
 
     /**
-     * Compute assessment score from rubric criteria for one student.
-     *
-     * Formula: Nilai Assessment = Σ (Skor Criterion / Max Score × Bobot Criterion)
-     * Result is normalized to 0-100 scale.
-     *
-     * Only criteria that have been graded are included. Returns null if
-     * none of the criteria have scores yet.
+     * Hitung nilai rubrik untuk satu mahasiswa dari kriteria rubrik.
      */
-    public function assessmentScoreFromRubric(Assessment $assessment, int $studentId): ?float
+    public function rubricScore(\App\Models\Rubric $rubric, int $studentId): ?float
     {
-        $rubric = $assessment->rubric;
-
-        if (! $rubric) {
-            return null;
-        }
-
         $criteria = $rubric->criteria;
 
         if ($criteria->isEmpty()) {
@@ -103,6 +91,26 @@ class ObeCalculationService
     }
 
     /**
+     * Compute assessment score from rubric criteria for one student.
+     *
+     * Formula: Nilai Assessment = Σ (Skor Criterion / Max Score × Bobot Criterion)
+     * Result is normalized to 0-100 scale.
+     *
+     * Only criteria that have been graded are included. Returns null if
+     * none of the criteria have scores yet.
+     */
+    public function assessmentScoreFromRubric(Assessment $assessment, int $studentId): ?float
+    {
+        $rubric = $assessment->rubric;
+
+        if (! $rubric) {
+            return null;
+        }
+
+        return $this->rubricScore($rubric, $studentId);
+    }
+
+    /**
      * Sync assessment score from rubric criteria calculation into
      * student_assessment_scores. Call this after saving rubric scores
      * so the main assessment score stays in sync.
@@ -134,12 +142,103 @@ class ObeCalculationService
      * rather than counted as 0. Returns null if none of the measuring
      * assessments have a score yet.
      */
-    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): ?float
+    public const DEFAULT_THRESHOLD = 65.0;
+
+    /**
+     * Ambil skor mahasiswa pada satu asesmen spesifik untuk CPMK tertentu (skala 0-100).
+     *
+     * Aturan Fallback (Poin 6):
+     * 1. Jika terdapat baris spesifik pada StudentAssessmentCpmkScore, gunakan nilai tersebut
+     *    (dinormalisasi ke skala 0-100 terhadap poin maksimal CPMK pada asesmen ini).
+     * 2. Jika tidak ada baris spesifik (atau null):
+     *    - Jika asesmen dinilai per-CPMK (memiliki baris CPMK lain yang dinilai untuk mahasiswa ini),
+     *      maka CPMK ini dianggap BELUM DINILAI (return null), bukan mengambil nilai total asesmen.
+     *    - Fallback ke StudentAssessmentScore HANYA diizinkan jika asesmen secara struktural
+     *      menggunakan satu nilai yang sama untuk seluruh CPMK (misal: hanya mengukur 1 CPMK,
+     *      atau menggunakan rubrik umum, atau memang asesmen dengan skor tunggal tanpa breakdown CPMK).
+     * 3. Nilai yang belum ada tidak pernah dianggap 0 (return null).
+     */
+    public function studentScoreForAssessmentCpmk(Assessment $assessment, Cpmk $cpmk, int $studentId): ?float
+    {
+        // 1. Cek nilai spesifik per-CPMK untuk mahasiswa ini jika ada
+        $cpmkScoreRow = \App\Models\StudentAssessmentCpmkScore::query()
+            ->where('assessment_id', $assessment->id)
+            ->where('cpmk_id', $cpmk->id)
+            ->where('mahasiswa_id', $studentId)
+            ->first();
+
+        if ($cpmkScoreRow !== null) {
+            if ($cpmkScoreRow->score !== null) {
+                $rawScore = (float) $cpmkScoreRow->score;
+                $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
+                $normalized = $maxScore > 0 ? ($rawScore / $maxScore) * 100.0 : $rawScore;
+
+                return round(min(100.0, max(0.0, $normalized)), 2);
+            }
+
+            // Jika baris per-CPMK mahasiswa ini sudah ada tetapi nilainya null,
+            // berarti CPMK ini belum dinilai (return null, jangan fallback ke nilai umum asesmen).
+            return null;
+        }
+
+        // 2. Jika baris spesifik per-CPMK belum ada:
+        // Jika mahasiswa ini sudah dinilai pada CPMK lain dalam asesmen multi-CPMK ini,
+        // maka CPMK ini murni belum dinilai (harus tetap null, jangan fallback ke nilai umum asesmen!).
+        $hasOtherCpmkGraded = \App\Models\StudentAssessmentCpmkScore::query()
+            ->where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $studentId)
+            ->whereNotNull('score')
+            ->exists();
+
+        if ($hasOtherCpmkGraded) {
+            return null;
+        }
+
+        // 3. Fallback hanya jika asesmen secara struktural menggunakan nilai tunggal bersama:
+        // - Asesmen hanya mengukur <= 1 CPMK
+        // - Atau asesmen menggunakan rubrik umum (uses_rubric)
+        // - Atau pada asesmen multi-CPMK tanpa rubrik jika mahasiswa ini belum memiliki baris per-CPMK sama sekali
+        if (! $assessment->relationLoaded('cpmks')) {
+            $assessment->load('cpmks');
+        }
+
+        return $this->assessmentScore($assessment->id, $studentId);
+    }
+
+    /**
+     * Bobot kontribusi asesmen dalam mengukur CPMK (assessment_cpmk.weight).
+     * Kontrak konsisten (Poin 1 & 2):
+     * - Asesmen tunggal mengukur 1 CPMK: bobot = 100%.
+     * - Asesmen multi-CPMK: dibagi proporsional (misal: 60% dan 40%).
+     * Tidak mencampurkan final_weight asesmen terhadap nilai akhir MK.
+     */
+    public function assessmentCpmkWeight(Assessment $assessment, Cpmk $cpmk): float
+    {
+        if (! $assessment->relationLoaded('cpmks')) {
+            $assessment->load('cpmks');
+        }
+
+        $pivot = $assessment->cpmks->firstWhere('id', $cpmk->id);
+
+        return (float) ($pivot?->pivot?->weight ?? 0.0);
+    }
+
+    /**
+     * Hitung nilai CPMK untuk satu mahasiswa beserta metadata progres penilaian (coverage).
+     *
+     * @return array{
+     *     score: ?float,
+     *     coverage: float,
+     *     weight_graded: float,
+     *     weight_total: float,
+     *     is_complete: bool
+     * }
+     */
+    public function cpmkScoreDetails(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): array
     {
         if ($classSectionId !== null) {
             $measuringAssessments = $cpmk->assessments()->where('class_section_id', $classSectionId)->get();
         } else {
-            // Find section from student enrollment if possible
             $studentSection = ClassSection::whereHas('students', fn ($q) => $q->where('users.id', $studentId))
                 ->where('mata_kuliah_id', $cpmk->mata_kuliah_id)
                 ->first();
@@ -152,47 +251,67 @@ class ObeCalculationService
         }
 
         $weightedSum = 0.0;
-        $weightTotal = 0.0;
+        $weightGraded = 0.0;
+        $weightTotalPossible = 0.0;
 
         foreach ($measuringAssessments as $assessment) {
-            // Check if there is a specific score for this CPMK on this assessment
-            $cpmkScoreRow = \App\Models\StudentAssessmentCpmkScore::query()
-                ->where('assessment_id', $assessment->id)
-                ->where('cpmk_id', $cpmk->id)
-                ->where('mahasiswa_id', $studentId)
-                ->first();
-
-            if ($cpmkScoreRow !== null && $cpmkScoreRow->score !== null) {
-                $rawScore = (float) $cpmkScoreRow->score;
-                $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
-                $score = $maxScore > 0 ? ($rawScore / $maxScore) * 100.0 : $rawScore;
-            } else {
-                $score = $this->assessmentScore($assessment->id, $studentId);
-            }
-
-            if ($score === null) {
+            $effectiveWeight = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
+            if ($effectiveWeight <= 0) {
                 continue;
             }
 
-            $weight = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
-            $weightedSum += (float) $score * $weight;
-            $weightTotal += $weight;
+            $weightTotalPossible += $effectiveWeight;
+
+            $score = $this->studentScoreForAssessmentCpmk($assessment, $cpmk, $studentId);
+
+            if ($score !== null) {
+                $weightedSum += (float) $score * $effectiveWeight;
+                $weightGraded += $effectiveWeight;
+            }
         }
 
-        if ($weightTotal <= 0) {
-            return null;
-        }
+        $coverage = $weightTotalPossible > 0 ? round(($weightGraded / $weightTotalPossible) * 100.0, 1) : 0.0;
+        $score = $weightGraded > 0 ? round($weightedSum / $weightGraded, 2) : null;
 
-        return round($weightedSum / $weightTotal, 2);
+        return [
+            'score' => $score,
+            'coverage' => $coverage,
+            'weight_graded' => round($weightGraded, 2),
+            'weight_total' => round($weightTotalPossible, 2),
+            'is_complete' => $coverage >= 99.9,
+        ];
     }
 
     /**
-     * Hitung bobot kontribusi efektif asesmen terhadap CPMK pada Matriks OBE (Tabel C).
-     * Jika asesmen memiliki final_weight (bobot terhadap nilai akhir MK),
-     * maka bobot efektif dihitung proporsional sehingga total kontribusi seluruh CPMK = final_weight.
+     * CPMK score for one student (Poin 2, 3, 6, 8):
+     * CPMK = Σ (nilai asesmen × bobot efektif asesmen→CPMK) / Σ (bobot efektif asesmen→CPMK yang dinilai)
+     */
+    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): ?float
+    {
+        return $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId)['score'];
+    }
+
+    /**
+     * Persentase kelengkapan penilaian (coverage) untuk satu CPMK (0.0 - 100.0).
+     */
+    public function cpmkCoverage(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): float
+    {
+        return $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId)['coverage'];
+    }
+
+    /**
+     * Bobot efektif satu sel asesmen x CPMK terhadap nilai akhir mata kuliah.
+     * Definisi murni (tanpa heuristik/tebak-tebakan):
+     * - assessment.final_weight = bobot asesmen terhadap nilai akhir MK (misal 20%).
+     * - assessment_cpmk.weight = alokasi bobot asesmen untuk CPMK (misal 60 dan 40 poin).
+     * Bobot efektif proporsional = final_weight * (pivot_weight / total_pivot).
      */
     public function assessmentCpmkEffectiveWeight(Assessment $assessment, Cpmk $cpmk): float
     {
+        if (! $assessment->relationLoaded('cpmks')) {
+            $assessment->load('cpmks');
+        }
+
         $pivot = $assessment->cpmks->firstWhere('id', $cpmk->id);
         if (! $pivot) {
             return 0.0;
@@ -201,34 +320,22 @@ class ObeCalculationService
         $pivotWeight = (float) $pivot->pivot->weight;
         $finalWeight = (float) $assessment->final_weight;
 
-        if ($finalWeight <= 0) {
-            return $pivotWeight;
+        if ($finalWeight <= 0 || $pivotWeight <= 0) {
+            return 0.0;
         }
 
         $totalPivot = (float) $assessment->cpmks->sum(fn ($c) => (float) $c->pivot->weight);
-
-        // Jika bobot pivot sudah sesuai dengan final_weight (misal diinput langsung angka bobot akhir)
-        if (abs($totalPivot - $finalWeight) < 0.1) {
-            return $pivotWeight;
+        if ($totalPivot <= 0) {
+            return 0.0;
         }
 
-        // Jika pivot 100% pada asesmen ini (mengukur 1 CPMK penuh)
-        if ($pivotWeight >= 99.9) {
-            return $finalWeight;
-        }
-
-        // Jika asesmen mengukur beberapa CPMK dengan total persentase bobot pivot ~100%
-        if ($totalPivot >= 99.0) {
-            return round(($finalWeight * $pivotWeight) / 100.0, 2);
-        }
-
-        return $pivotWeight;
+        return round(($finalWeight * $pivotWeight) / $totalPivot, 2);
     }
 
     /**
      * Hitung skor maksimal untuk satu CPMK pada asesmen tertentu
      * berdasarkan proporsi bobotnya (total maksimal seluruh CPMK pada asesmen = 100 poin).
-     * Contoh: Jika Tugas 1 mengukur CPMK-01 (6%) dan CPMK-02 (4%),
+     * Contoh: Jika Tugas 1 mengukur CPMK-01 (60%) dan CPMK-02 (40%),
      * maka max score CPMK-01 = 60 dan CPMK-02 = 40.
      * Jika asesmen hanya mengukur 1 CPMK, maka max score = 100.
      */
@@ -243,109 +350,137 @@ class ObeCalculationService
             return 100.0;
         }
 
-        $effWeight = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
-        $totalEffWeight = (float) $cpmks->sum(fn ($c) => $this->assessmentCpmkEffectiveWeight($assessment, $c));
+        $weight = $this->assessmentCpmkWeight($assessment, $cpmk);
+        $totalWeight = (float) $cpmks->sum(fn ($c) => (float) ($c->pivot?->weight ?: 0));
 
-        if ($totalEffWeight > 0) {
-            return round(($effWeight / $totalEffWeight) * 100.0, 1);
+        if ($totalWeight > 0) {
+            return round(($weight / $totalWeight) * 100.0, 1);
         }
 
-        $pivotWeight = (float) ($cpmks->firstWhere('id', $cpmk->id)?->pivot?->weight ?: 0);
-        $totalPivot = (float) $cpmks->sum(fn ($c) => (float) ($c->pivot?->weight ?: 0));
-
-        return $totalPivot > 0 ? round(($pivotWeight / $totalPivot) * 100.0, 1) : 100.0;
+        return 100.0;
     }
 
     /**
-     * CPL score for one student = weighted average of the CPMK scores
-     * that build up this CPL, using each CPMK's contribution weight to
-     * this CPL (cpl_cpmk.weight). Same "exclude and re-normalize" rule
-     * for CPMK that aren't computable yet.
+     * Hitung capaian CPL untuk satu mahasiswa beserta metadata coverage.
+     *
+     * @return array{
+     *     score: ?float,
+     *     coverage: float,
+     *     cpmks_graded: int,
+     *     cpmks_total: int,
+     *     weight_graded: float,
+     *     weight_total: float,
+     *     is_complete: bool
+     * }
      */
-    public function cplScore(Cpl $cpl, int $studentId, ?int $classSectionId = null): ?float
+    public function cplScoreDetails(Cpl $cpl, int $studentId, ?int $classSectionId = null): array
     {
         $contributingCpmks = $cpl->cpmks; // has pivot 'weight'
 
         $weightedSum = 0.0;
-        $weightTotal = 0.0;
+        $weightGraded = 0.0;
+        $weightTotalPossible = 0.0;
+        $cpmksGradedCount = 0;
 
         foreach ($contributingCpmks as $cpmk) {
-            $score = $this->cpmkScore($cpmk, $studentId, $classSectionId);
+            $pivotWeight = (float) $cpmk->pivot->weight;
+            $weightTotalPossible += $pivotWeight;
 
-            if ($score === null) {
-                continue;
+            $cpmkDetails = $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId);
+            $score = $cpmkDetails['score'];
+
+            if ($score !== null) {
+                $weightedSum += $score * $pivotWeight;
+                $weightGraded += $pivotWeight;
+                $cpmksGradedCount++;
             }
-
-            $weight = (float) $cpmk->pivot->weight;
-            $weightedSum += $score * $weight;
-            $weightTotal += $weight;
         }
 
-        if ($weightTotal <= 0) {
-            return null;
-        }
+        $coverage = $weightTotalPossible > 0 ? round(($weightGraded / $weightTotalPossible) * 100.0, 1) : 0.0;
+        $score = $weightGraded > 0 ? round($weightedSum / $weightGraded, 2) : null;
 
-        return round($weightedSum / $weightTotal, 2);
+        return [
+            'score' => $score,
+            'coverage' => $coverage,
+            'cpmks_graded' => $cpmksGradedCount,
+            'cpmks_total' => $contributingCpmks->count(),
+            'weight_graded' => round($weightGraded, 2),
+            'weight_total' => round($weightTotalPossible, 2),
+            'is_complete' => $coverage >= 99.9,
+        ];
     }
 
     /**
-     * Final course grade for one student in a class section = weighted
-     * sum of assessment scores at the matrix cell level (w(j,k) * s(j,k)),
-     * which equals the weighted sum of CPMK scores using their RPS weights.
+     * CPL score for one student (Poin 4, 8):
+     * CPL = Σ (nilai CPMK × bobot CPMK→CPL) / Σ (bobot CPMK→CPL yang dinilai)
+     */
+    public function cplScore(Cpl $cpl, int $studentId, ?int $classSectionId = null): ?float
+    {
+        return $this->cplScoreDetails($cpl, $studentId, $classSectionId)['score'];
+    }
+
+    /**
+     * Persentase kelengkapan penilaian (coverage) untuk satu CPL (0.0 - 100.0).
+     */
+    public function cplCoverage(Cpl $cpl, int $studentId, ?int $classSectionId = null): float
+    {
+        return $this->cplScoreDetails($cpl, $studentId, $classSectionId)['coverage'];
+    }
+
+    /**
+     * Final course grade for one student in a class section (Poin 1, 7, 8):
+     * Nilai Akhir = Σ (nilai asesmen × assessment.final_weight) / Σ (final_weight yang dinilai)
      *
-     * IMPORTANT (per requirement): this is a distinct calculation path
-     * from the CPL average — it must never be derived from CPL scores.
-     * Missing assessments/cells are excluded and weights re-normalized, and
-     * `coverage` reports how much of the total course weight is backed by
-     * an actual grade, so callers can show a "provisional" indicator
-     * instead of presenting an incomplete result as final.
+     * Berdiri sendiri dan terpisah total dari jalur capaian CPMK/CPL OBE.
+     * Mengembalikan coverage agar status parsial/provisional terdeteksi transparan.
      *
      * @return array{score: ?float, coverage: float} coverage is 0–100.
      */
     public function finalScore(ClassSection $section, int $studentId): array
     {
-        $assessments = $section->assessments()->with('cpmks')->get();
+        $assessments = $section->assessments;
 
         $weightedSum = 0.0;
         $weightGraded = 0.0;
         $weightTotal = 0.0;
 
         foreach ($assessments as $assessment) {
-            if ($assessment->cpmks->isNotEmpty()) {
-                foreach ($assessment->cpmks as $cpmk) {
-                    $w = $this->assessmentCpmkEffectiveWeight($assessment, $cpmk);
-                    $weightTotal += $w;
+            $weight = (float) $assessment->final_weight;
+            $weightTotal += $weight;
 
-                    // Check if there is a specific score for this CPMK on this assessment
-                    $cpmkScoreRow = \App\Models\StudentAssessmentCpmkScore::query()
-                        ->where('assessment_id', $assessment->id)
-                        ->where('cpmk_id', $cpmk->id)
-                        ->where('mahasiswa_id', $studentId)
-                        ->first();
+            // Sumber utama: student_assessment_scores.score
+            $score = $this->assessmentScore($assessment->id, $studentId);
 
-                    if ($cpmkScoreRow !== null && $cpmkScoreRow->score !== null) {
-                        $rawScore = (float) $cpmkScoreRow->score;
-                        $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
-                        $score = $maxScore > 0 ? ($rawScore / $maxScore) * 100.0 : $rawScore;
-                    } else {
-                        $score = $this->assessmentScore($assessment->id, $studentId);
+            // Fallback cadangan HANYA jika student_assessment_scores belum tersimpan/null,
+            // asesmen mengukur CPMK, dan secara data terbukti bahwa seluruh nilai per-CPMK
+            // mahasiswa ini adalah poin kontribusi yang valid (0 <= score <= maxScore, bukan 0-100).
+            if ($score === null && $assessment->cpmks()->exists()) {
+                $cpmks = $assessment->relationLoaded('cpmks') ? $assessment->cpmks : $assessment->cpmks()->get();
+                $cpmkScores = \App\Models\StudentAssessmentCpmkScore::query()
+                    ->where('assessment_id', $assessment->id)
+                    ->where('mahasiswa_id', $studentId)
+                    ->get()
+                    ->keyBy('cpmk_id');
+
+                $allGradedAndValid = $cpmks->isNotEmpty() && $cpmks->every(function ($cpmk) use ($cpmkScores, $assessment) {
+                    $row = $cpmkScores->get($cpmk->id);
+                    if ($row === null || $row->score === null) {
+                        return false;
                     }
+                    $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
+                    $val = (float) $row->score;
 
-                    if ($score !== null) {
-                        $weightedSum += $score * $w;
-                        $weightGraded += $w;
-                    }
+                    return $val >= 0 && $val <= ($maxScore + 0.05);
+                });
+
+                if ($allGradedAndValid) {
+                    $score = round((float) $cpmkScores->sum('score'), 2);
                 }
-            } else {
-                $weight = (float) $assessment->final_weight;
-                $weightTotal += $weight;
+            }
 
-                $score = $this->assessmentScore($assessment->id, $studentId);
-
-                if ($score !== null) {
-                    $weightedSum += $score * $weight;
-                    $weightGraded += $weight;
-                }
+            if ($score !== null) {
+                $weightedSum += $score * $weight;
+                $weightGraded += $weight;
             }
         }
 
@@ -391,6 +526,34 @@ class ObeCalculationService
     }
 
     /**
+     * Ambang batas ketercapaian untuk CPMK tertentu.
+     */
+    public function thresholdForCpmk(Cpmk $cpmk): float
+    {
+        return (float) ($cpmk->threshold ?: config('obe.default_cpmk_threshold', self::DEFAULT_THRESHOLD));
+    }
+
+    /**
+     * Ambang batas ketercapaian untuk CPL tertentu.
+     */
+    public function thresholdForCpl(?Cpl $cpl = null): float
+    {
+        return (float) ($cpl?->threshold ?: config('obe.default_cpl_threshold', self::DEFAULT_THRESHOLD));
+    }
+
+    /**
+     * Status teks ketercapaian OBE biner (Poin 7).
+     */
+    public function attainmentStatus(?bool $isAchieved): ?string
+    {
+        if ($isAchieved === null) {
+            return null;
+        }
+
+        return $isAchieved ? 'Tercapai' : 'Tidak Tercapai';
+    }
+
+    /**
      * Whether a CPMK score meets its own configured threshold.
      * Returns null (undetermined) if the score itself is null.
      */
@@ -400,7 +563,20 @@ class ObeCalculationService
             return null;
         }
 
-        return $score >= (float) $cpmk->threshold;
+        return $score >= $this->thresholdForCpmk($cpmk);
+    }
+
+    /**
+     * Whether a CPL score meets its configured threshold.
+     * Returns null (undetermined) if the score itself is null.
+     */
+    public function cplAchieved(Cpl $cpl, ?float $score): ?bool
+    {
+        if ($score === null) {
+            return null;
+        }
+
+        return $score >= $this->thresholdForCpl($cpl);
     }
 
     /**
@@ -467,7 +643,7 @@ class ObeCalculationService
      *  %Mahasiswa_Tuntas(k, kelas) = Jumlah(mhs dengan NCPMK ≥ ambang_batas) / Jumlah_mahasiswa × 100
      *
      * @param Collection<int, int> $studentIds
-     * @return array{graded_count: int, total_count: int, average: ?float, pass_count: int, pass_rate: ?float, predicate: ?string}
+     * @return array{graded_count: int, total_count: int, average: ?float, threshold: float, pass_count: int, pass_rate: ?float, is_achieved: ?bool, attainment_status: ?string, predicate: ?string}
      */
     public function cpmkClassAggregate(Cpmk $cpmk, Collection $studentIds, ?int $classSectionId = null): array
     {
@@ -481,29 +657,36 @@ class ObeCalculationService
 
         $totalCount = $studentIds->count();
         $gradedCount = count($scores);
+        $threshold = $this->thresholdForCpmk($cpmk);
 
         if ($gradedCount === 0) {
             return [
                 'graded_count' => 0,
                 'total_count' => $totalCount,
                 'average' => null,
+                'threshold' => $threshold,
                 'pass_count' => 0,
                 'pass_rate' => null,
+                'is_achieved' => null,
+                'attainment_status' => null,
                 'predicate' => null,
             ];
         }
 
         $average = round(array_sum($scores) / $gradedCount, 2);
-        $threshold = (float) ($cpmk->threshold ?: 60.0);
         $passCount = count(array_filter($scores, fn ($s) => $s >= $threshold));
         $passRate = round(($passCount / $gradedCount) * 100, 1);
+        $isAchieved = $average >= $threshold;
 
         return [
             'graded_count' => $gradedCount,
             'total_count' => $totalCount,
             'average' => $average,
+            'threshold' => $threshold,
             'pass_count' => $passCount,
             'pass_rate' => $passRate,
+            'is_achieved' => $isAchieved,
+            'attainment_status' => $this->attainmentStatus($isAchieved),
             'predicate' => $this->predicate($average),
         ];
     }
@@ -511,10 +694,10 @@ class ObeCalculationService
     /**
      * Rekap agregat kelas untuk satu CPL (Level 4 & 5 rumus-obe-cpmk-cpl.md):
      *  RataRata_CPL(m, kelas) = Σ NCPL(m, mhs) / Jumlah_mahasiswa
-     *  %Mahasiswa_Tuntas = Jumlah(mhs dengan NCPL ≥ 65) / Jumlah_mahasiswa × 100
+     *  %Mahasiswa_Tuntas = Jumlah(mhs dengan NCPL ≥ ambang_batas) / Jumlah_mahasiswa × 100
      *
      * @param Collection<int, int> $studentIds
-     * @return array{graded_count: int, total_count: int, average: ?float, pass_count: int, pass_rate: ?float, predicate: ?string}
+     * @return array{graded_count: int, total_count: int, average: ?float, threshold: float, pass_count: int, pass_rate: ?float, is_achieved: ?bool, attainment_status: ?string, predicate: ?string}
      */
     public function cplClassAggregate(Cpl $cpl, Collection $studentIds, ?int $classSectionId = null): array
     {
@@ -528,29 +711,36 @@ class ObeCalculationService
 
         $totalCount = $studentIds->count();
         $gradedCount = count($scores);
+        $threshold = $this->thresholdForCpl($cpl);
 
         if ($gradedCount === 0) {
             return [
                 'graded_count' => 0,
                 'total_count' => $totalCount,
                 'average' => null,
+                'threshold' => $threshold,
                 'pass_count' => 0,
                 'pass_rate' => null,
+                'is_achieved' => null,
+                'attainment_status' => null,
                 'predicate' => null,
             ];
         }
 
         $average = round(array_sum($scores) / $gradedCount, 2);
-        $threshold = 65.0; // Ambang batas CPL standar
         $passCount = count(array_filter($scores, fn ($s) => $s >= $threshold));
         $passRate = round(($passCount / $gradedCount) * 100, 1);
+        $isAchieved = $average >= $threshold;
 
         return [
             'graded_count' => $gradedCount,
             'total_count' => $totalCount,
             'average' => $average,
+            'threshold' => $threshold,
             'pass_count' => $passCount,
             'pass_rate' => $passRate,
+            'is_achieved' => $isAchieved,
+            'attainment_status' => $this->attainmentStatus($isAchieved),
             'predicate' => $this->predicate($average),
         ];
     }

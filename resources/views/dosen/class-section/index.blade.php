@@ -4,13 +4,13 @@
     $isRekap = ($mode ?? 'penilaian') === 'rekap';
 @endphp
 
-@section('title', ($isRekap ? 'Rekap Nilai' : 'Daftar Kelas') . ' | SALE')
-@section('header', $isRekap ? 'Rekap Nilai OBE' : 'Daftar Kelas Saya')
+@section('title', ($isRekap ? 'Rekap Nilai' : 'Penilaian') . ' | SALE')
+@section('header', $isRekap ? 'Rekap Nilai OBE' : 'Penilaian')
 
 @section('content')
 <div class="space-y-6">
     <header>
-        <h1 class="page-heading">{{ $isRekap ? 'Rekap Nilai OBE' : 'Daftar Kelas Saya' }}</h1>
+        <h1 class="page-heading">{{ $isRekap ? 'Rekap Nilai OBE' : 'Penilaian' }}</h1>
         <p class="page-description">
             {{ $isRekap ? 'Pantau dan evaluasi rekapitulasi ketercapaian CPMK serta CPL mahasiswa untuk setiap kelas yang Anda ampu.' : 'Kelola penilaian berbasis OBE untuk setiap kelas yang Anda ampu pada semester berjalan.' }}
         </p>

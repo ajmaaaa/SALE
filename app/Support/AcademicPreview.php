@@ -32,18 +32,31 @@ class AcademicPreview
         $items = [];
         foreach (LearningPreview::items() as $id=>$item) {
             if ($item['course'] !== $course || !in_array($item['type'], ['tugas', 'coding', 'kuis'], true)) continue;
-            $questions = !empty($item['questions']) ? $item['questions'] : [[
-                'prompt'=>$item['body'] ?? $item['title'],
-                'cpmk'=>$item['cpmk'] ?? null, 'points'=>$item['points'] ?? 100,
-            ]];
+            if (! empty($item['questions'])) {
+                $questions = $item['questions'];
+            } elseif (($item['scoring_mode'] ?? null) === 'manual_cpmk' && ! empty($item['manual_cpmk_weights'])) {
+                $questions = [];
+                foreach ($item['manual_cpmk_weights'] as $code => $weight) {
+                    $questions[] = ['prompt'=>'Kriteria '.$code, 'cpmk'=>$code, 'points'=>100, 'manual_weight'=>$weight];
+                }
+            } else {
+                $questions = [[
+                    'prompt'=>$item['body'] ?? $item['title'],
+                    'cpmk'=>$item['cpmk'] ?? null, 'points'=>$item['points'] ?? 100,
+                ]];
+            }
             $max = array_sum(array_column($questions, 'points'));
             $grades = session("academic.item_grades.$id.$student.points", []);
+            $scoringMode = $item['scoring_mode'] ?? 'legacy_points';
+            $groupCounts = array_count_values(array_filter(array_column($questions, 'cpmk')));
             $assessment = [
                 'id'=>$id, 'title'=>$item['title'],
                 'component'=>$item['component'] ?? ($item['type'] === 'kuis' ? 'kuis' : 'tugas'),
                 'questions'=>[], 'score'=>null, 'complete'=>$max > 0,
+                'scoring_mode'=>$scoringMode,
             ];
             $earned = 0;
+            $normalizedScore = 0;
             foreach ($questions as $index=>$question) {
                 $code = $question['cpmk'] ?? null;
                 // Seeded quizzes predate the canonical CPMK-01 code format.
@@ -52,19 +65,47 @@ class AcademicPreview
                 }
                 $points = $grades[$index] ?? null;
                 $points = is_numeric($points) ? (float) $points : null;
+                $questionMax = $question['points'] ?? 100;
+                $weight = $max > 0 ? $questionMax / $max * 100 : 0;
+                $withinCpmkWeight = $weight;
+                $cpmkWeight = $weight;
+                if ($scoringMode === 'automatic_cpmk') {
+                    $groupCount = max(1, (int) ($groupCounts[$question['cpmk'] ?? ''] ?? 1));
+                    $weight = 100 / max(1, count($questions));
+                    $withinCpmkWeight = 100 / $groupCount;
+                    $cpmkWeight = $groupCount / max(1, count($questions)) * 100;
+                } elseif ($scoringMode === 'manual_cpmk') {
+                    $weight = (float) ($question['manual_weight'] ?? 0);
+                    $withinCpmkWeight = 100;
+                    $cpmkWeight = $weight;
+                }
                 $assessment['questions'][] = [
-                    'prompt'=>$question['prompt'], 'cpmk'=>$code, 'points'=>$question['points'],
-                    'earned'=>$points, 'weight'=>$max > 0 ? round($question['points'] / $max * 100, 2) : 0,
+                    'prompt'=>$question['prompt'], 'cpmk'=>$code, 'points'=>$questionMax,
+                    'earned'=>$points, 'weight'=>round($weight, 4),
+                    'within_cpmk_weight'=>round($withinCpmkWeight, 4),
+                    'cpmk_weight'=>round($cpmkWeight, 4),
                 ];
                 $earned += $points ?? 0;
+                if ($points !== null && in_array($scoringMode, ['automatic_cpmk', 'manual_cpmk'], true)) {
+                    $normalizedScore += ($questionMax > 0 ? $points / $questionMax : 0) * $weight;
+                }
                 if ($points === null) $assessment['complete'] = false;
                 if (isset($cpmk[$code])) {
-                    $cpmk[$code]['max'] += $question['points'];
-                    $cpmk[$code]['earned'] += $points ?? 0;
+                    if (in_array($scoringMode, ['automatic_cpmk', 'manual_cpmk'], true)) {
+                        $cpmk[$code]['max'] += $weight;
+                        $cpmk[$code]['earned'] += $points === null || $questionMax <= 0 ? 0 : $points / $questionMax * $weight;
+                    } else {
+                        $cpmk[$code]['max'] += $questionMax;
+                        $cpmk[$code]['earned'] += $points ?? 0;
+                    }
                     if ($points === null) $cpmk[$code]['complete'] = false;
                 }
             }
-            if ($assessment['complete']) $assessment['score'] = round($earned / $max * 100, 2);
+            if ($assessment['complete']) {
+                $assessment['score'] = in_array($scoringMode, ['automatic_cpmk', 'manual_cpmk'], true)
+                    ? round($normalizedScore, 2)
+                    : round($earned / $max * 100, 2);
+            }
             $items[] = $assessment;
         }
 
@@ -92,8 +133,7 @@ class AcademicPreview
         $graded = [];
         foreach (self::breakdown($course, $student)['items'] as $item) {
             if (!$item['complete']) continue;
-            $graded[$item['component']][] = array_sum(array_column($item['questions'], 'earned'))
-                / array_sum(array_column($item['questions'], 'points')) * 100;
+            $graded[$item['component']][] = $item['score'];
         }
         foreach ($graded as $component=>$values) $scores[$component] = round(array_sum($values)/count($values),2);
 

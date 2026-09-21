@@ -56,8 +56,14 @@ class AssessmentController extends Controller
             $this->syncCpmk($assessment, $cpmkWeights);
         });
 
+        $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
+        $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
+        $statusMsg = abs($newTotal - 100.0) < 0.01
+            ? "Total bobot kelas telah lengkap (100%)."
+            : "Total bobot kelas saat ini {$totalFormatted}% (sisa " . rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.') . "% belum dialokasikan).";
+
         return redirect()->route('dosen.penilaian.asesmen', $section->id)
-            ->with('notice', "Asesmen \"{$data['name']}\" berhasil dibuat.");
+            ->with('notice', "Asesmen \"{$data['name']}\" berhasil dibuat. {$statusMsg}");
     }
 
     /**
@@ -105,8 +111,14 @@ class AssessmentController extends Controller
             $this->syncCpmk($assessment, $cpmkWeights);
         });
 
+        $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
+        $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
+        $statusMsg = abs($newTotal - 100.0) < 0.01
+            ? "Total bobot kelas telah lengkap (100%)."
+            : "Total bobot kelas saat ini {$totalFormatted}% (sisa " . rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.') . "% belum dialokasikan).";
+
         return redirect()->route('dosen.penilaian.asesmen', $section->id)
-            ->with('notice', "Asesmen \"{$data['name']}\" berhasil diperbarui.");
+            ->with('notice', "Asesmen \"{$data['name']}\" berhasil diperbarui. {$statusMsg}");
     }
 
     /**
@@ -170,9 +182,17 @@ class AssessmentController extends Controller
      * weight-total rule is checked separately by the caller (store/
      * update) so it can return a proper redirect instead of throwing
      * from inside a private helper.
+     *
+     * Also validates that the total final_weight across all assessments
+     * in this class section does not exceed 100%.
      */
     private function validated(Request $request, ClassSection $section, ?Assessment $ignoring = null): array
     {
+        $currentOtherTotal = round((float) $section->assessments()
+            ->when($ignoring, fn ($q) => $q->where('id', '!=', $ignoring->id))
+            ->sum('final_weight'), 2);
+        $maxAllowed = round(100.0 - $currentOtherTotal, 2);
+
         return $request->validate([
             'code' => [
                 'required', 'string', 'max:30', 'alpha_dash',
@@ -183,7 +203,21 @@ class AssessmentController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'type' => ['required', 'string', 'max:30'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'final_weight' => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'final_weight' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                'max:100',
+                function ($attribute, $value, $fail) use ($currentOtherTotal, $maxAllowed) {
+                    $val = (float) $value;
+                    if ($currentOtherTotal + $val > 100.001) {
+                        $available = max(0.0, $maxAllowed);
+                        $formattedUsed = rtrim(rtrim(number_format($currentOtherTotal, 2), '0'), '.');
+                        $formattedAvailable = rtrim(rtrim(number_format($available, 2), '0'), '.');
+                        $fail("Total bobot nilai akhir seluruh asesmen untuk kelas ini tidak boleh melebihi 100%. Saat ini sudah teralokasi {$formattedUsed}%, sehingga sisa bobot yang tersedia adalah {$formattedAvailable}%.");
+                    }
+                },
+            ],
             'status' => ['required', Rule::in([Assessment::STATUS_DRAFT, Assessment::STATUS_PUBLISHED, Assessment::STATUS_CLOSED])],
         ], [
             'code.unique' => 'Kode asesmen sudah digunakan di kelas ini. Gunakan kode lain, misalnya TGS-03.',
@@ -269,7 +303,8 @@ class AssessmentController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        abort_unless($section->dosen_id === Auth::guard('web')->id(), 403);
+        $userId = Auth::guard('web')->id();
+        abort_unless($section->dosen_id === $userId || $section->dosen_pendamping_id === $userId, 403);
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void

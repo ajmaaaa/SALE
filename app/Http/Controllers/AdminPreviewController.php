@@ -15,7 +15,7 @@ class AdminPreviewController extends Controller
         $users = AdminPreview::users();
         $academic = AdminPreview::academic();
         $q = mb_strtolower((string) $request->query('q', ''));
-        $visibleUsers = array_filter($users, fn ($u) => str_contains(mb_strtolower($u['name'].' '.$u['email'].' '.$u['number']), $q) && (! $request->filled('role') || $u['role'] === $request->query('role')));
+        $visibleUsers = array_filter($users, fn ($u) => str_contains(mb_strtolower($u['name'].' '.$u['email'].' '.$u['number']), $q) && (! $request->filled('role') || AdminPreview::hasRole($u, $request->query('role'))));
         $visibleAcademic = array_filter($academic, fn ($a) => str_contains(mb_strtolower($a['name'].' '.$a['code']), $q) && (! $request->filled('type') || $a['type'] === $request->query('type')));
         $edit = $request->integer('edit');
         $record = $section === 'pengguna' ? ($users[$edit] ?? null) : ($academic[$edit] ?? null);
@@ -25,25 +25,44 @@ class AdminPreviewController extends Controller
 
     public function user(Request $request)
     {
-        $data = $request->validate(['id' => 'nullable|integer', 'name' => 'required|string|max:100', 'email' => 'required|email|max:150', 'number' => 'required|string|max:30', 'role' => ['required', Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
+        $data = $request->validate([
+            'id' => 'nullable|integer', 'name' => 'required|string|max:100',
+            'email' => 'required|email|max:150', 'number' => 'required|string|max:30',
+            'role' => ['nullable', Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])],
+            'roles' => 'nullable|array|min:1',
+            'roles.*' => [Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])],
+            'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
+        ]);
+        $roles = array_values(array_unique($data['roles'] ?? array_filter([$data['role'] ?? null])));
+        if (empty($roles)) return back()->withErrors(['roles' => 'Pilih minimal satu peran akses.'])->withInput();
         $users = AdminPreview::users();
         $id = (int) ($data['id'] ?? (max(array_keys($users)) + 1));
         abort_if(isset($data['id']) && ! isset($users[$id]), 404);
         $data['id'] = $id;
-        foreach ($users as $user) {
+        foreach ($users as $existingId => $user) {
             if ($user['id'] !== $id && (strcasecmp($user['email'], $data['email']) === 0 || $user['number'] === $data['number'])) {
-                return back()->withErrors(['email' => 'Email atau nomor identitas sudah dipakai.'])->withInput();
+                if (! isset($data['id'])) {
+                    $users[$existingId]['roles'] = array_values(array_unique(array_merge($user['roles'], $roles)));
+                    $users[$existingId]['role'] = $users[$existingId]['roles'][0];
+                    session(['admin.users' => $users]);
+                    AdminPreview::log('Menambahkan peran pada pengguna '.$user['name'].'.');
+
+                    return redirect('/admin/pengguna')->with('notice', 'Identitas sudah ada; peran baru ditambahkan ke akun yang sama.');
+                }
+                return back()->withErrors(['email' => 'Email atau nomor identitas sudah dipakai pengguna lain.'])->withInput();
             }
         }
-        if (($users[$id]['role'] ?? '') === 'admin' && ($data['role'] !== 'admin' || $data['status'] !== 'aktif') && count(array_filter($users, fn ($u) => $u['role'] === 'admin' && $u['status'] === 'aktif' && $u['id'] !== $id)) === 0) {
+        if (isset($users[$id]) && AdminPreview::hasRole($users[$id], 'admin') && (! in_array('admin', $roles, true) || $data['status'] !== 'aktif') && count(array_filter($users, fn ($u) => AdminPreview::hasRole($u, 'admin') && $u['status'] === 'aktif' && $u['id'] !== $id)) === 0) {
             return back()->withErrors(['role' => 'Minimal satu administrator harus tetap aktif.'])->withInput();
         }
-        if (($data['role'] !== 'mahasiswa' || $data['status'] !== 'aktif') && array_filter(AdminPreview::academic(), fn ($record) => in_array($id, $record['students'], true))) {
+        if ((! in_array('mahasiswa', $roles, true) || $data['status'] !== 'aktif') && array_filter(AdminPreview::academic(), fn ($record) => in_array($id, $record['students'], true))) {
             return back()->withErrors(['status' => 'Keluarkan mahasiswa dari peserta kelas sebelum mengubah peran atau menonaktifkan akun.'])->withInput();
         }
+        $data['roles'] = $roles;
+        $data['role'] = in_array($users[$id]['role'] ?? '', $roles, true) ? $users[$id]['role'] : $roles[0];
         $users[$id] = $data + ['id' => $id];
         session(['admin.users' => $users]);
-        AdminPreview::log('Menyimpan pengguna '.$data['name'].' sebagai '.$data['role'].' ('.$data['status'].').');
+        AdminPreview::log('Menyimpan pengguna '.$data['name'].' dengan peran '.implode(', ', $roles).' ('.$data['status'].').');
 
         return redirect('/admin/pengguna')->with('notice', 'Data pengguna disimpan dalam pratinjau.');
     }
@@ -80,10 +99,12 @@ class AdminPreviewController extends Controller
             $status = isset($cols[4]) && in_array(strtolower($cols[4]), ['aktif', 'nonaktif']) ? strtolower($cols[4]) : 'aktif';
 
             $exists = false;
-            foreach ($users as $existing) {
+            foreach ($users as $existingId => $existing) {
                 if (strcasecmp($existing['email'], $email) === 0 || $existing['number'] === $number) {
-                    $errors[] = "Baris " . ($lineIndex + 1) . ": Email/NIM '{$number}' atau '{$email}' sudah digunakan.";
+                    $users[$existingId]['roles'] = array_values(array_unique(array_merge($existing['roles'] ?? [$existing['role']], [$role])));
+                    $users[$existingId]['role'] = $users[$existingId]['roles'][0];
                     $exists = true;
+                    $added++;
                     break;
                 }
             }
@@ -99,6 +120,7 @@ class AdminPreviewController extends Controller
                 'name' => $name,
                 'email' => $email,
                 'role' => $role,
+                'roles' => [$role],
                 'status' => $status,
             ];
             $added++;
@@ -122,7 +144,7 @@ class AdminPreviewController extends Controller
         abort_unless(isset($users[$id]), 404);
         $user = $users[$id];
 
-        if (($user['role'] ?? '') === 'admin' && count(array_filter($users, fn ($u) => $u['role'] === 'admin' && $u['status'] === 'aktif' && $u['id'] !== $id)) === 0) {
+        if (AdminPreview::hasRole($user, 'admin') && count(array_filter($users, fn ($u) => AdminPreview::hasRole($u, 'admin') && $u['status'] === 'aktif' && $u['id'] !== $id)) === 0) {
             return back()->withErrors(['role' => 'Minimal satu administrator harus tetap aktif. Tidak dapat menghapus admin ini.']);
         }
 
@@ -135,7 +157,7 @@ class AdminPreviewController extends Controller
 
     public function academic(Request $request)
     {
-        $data = $request->validate(['id' => 'nullable|integer', 'type' => ['required', Rule::in(['fakultas', 'prodi', 'semester', 'kelas'])], 'code' => 'required|string|max:30', 'name' => 'required|string|max:150', 'parent' => 'nullable|integer', 'course' => ['nullable', 'integer', Rule::in(array_keys(LearningPreview::courses()))], 'students' => 'nullable|array', 'students.*' => ['integer', Rule::in(array_keys(array_filter(AdminPreview::users(), fn ($u) => $u['role'] === 'mahasiswa' && $u['status'] === 'aktif')))], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
+        $data = $request->validate(['id' => 'nullable|integer', 'type' => ['required', Rule::in(['fakultas', 'prodi', 'semester', 'kelas'])], 'code' => 'required|string|max:30', 'name' => 'required|string|max:150', 'parent' => 'nullable|integer', 'course' => ['nullable', 'integer', Rule::in(array_keys(LearningPreview::courses()))], 'students' => 'nullable|array', 'students.*' => ['integer', Rule::in(array_keys(array_filter(AdminPreview::users(), fn ($u) => AdminPreview::hasRole($u, 'mahasiswa') && $u['status'] === 'aktif')))], 'status' => ['required', Rule::in(['aktif', 'nonaktif'])]]);
         $records = AdminPreview::academic();
         $id = (int) ($data['id'] ?? (max(array_keys($records) ?: [0]) + 1));
         $editing = isset($data['id']);

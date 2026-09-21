@@ -165,9 +165,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
     {
         $examples = [
             1 => [
-                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Selamat datang di perkuliahan Struktur Data dan Algoritma. Silakan ajukan pertanyaan seputar materi atau praktikum kuis di forum kelas ini.', 'time' => '10 Sep, 08:00', 'timestamp' => 1788915600, 'role' => 'dosen'],
+                ['author' => 'Budi Santoso, M.Kom.', 'message' => 'Selamat datang di perkuliahan Struktur Data dan Algoritma. Silakan ajukan pertanyaan seputar materi atau praktikum kuis di forum kelas ini.', 'time' => '10 Sep, 08:00', 'timestamp' => 1788915600, 'role' => 'dosen'],
                 ['author' => 'Ahmad Maulana', 'message' => 'Pak, untuk praktikum Binary Tree apakah implementasi delete node juga akan diuji pada kuis akhir nanti?', 'time' => '11 Sep, 14:20', 'timestamp' => 1789024800, 'role' => 'mahasiswa'],
-                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu.', 'time' => '11 Sep, 15:05', 'timestamp' => 1789027500, 'role' => 'dosen'],
+                ['author' => 'Budi Santoso, M.Kom.', 'message' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu.', 'time' => '11 Sep, 15:05', 'timestamp' => 1789027500, 'role' => 'dosen'],
             ],
             2 => [
                 ['author' => 'Prof. Dr. Ir. Rian Saputra, S.T., M.Kom.', 'message' => 'Forum diskusi kelas Interaksi Manusia dan Komputer telah dibuka. Anda dapat berdiskusi mengenai prinsip evaluasi usability dan desain antarmuka di sini.', 'time' => '09 Sep, 09:15', 'timestamp' => 1788832500, 'role' => 'dosen'],
@@ -179,6 +179,66 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         ];
 
         return session("learning.course_discussions.$course", $examples[$course] ?? []);
+    }
+
+    public static function unreadDiscussionCount(?int $course = null): int
+    {
+        return count(self::unreadDiscussions($course));
+    }
+
+    public static function unreadDiscussions(?int $course = null): array
+    {
+        $courses = $course === null ? self::courses() : [$course => self::course($course)];
+        $viewer = self::discussionViewer();
+        $messages = [];
+
+        foreach ($courses as $courseId => $courseData) {
+            $courseMessages = self::courseDiscussions((int) $courseId);
+            $read = (int) session("learning.discussion_reads.$courseId", 0);
+
+            foreach (array_slice($courseMessages, $read) as $message) {
+                $isOwnMessage = isset($message['sender_key'])
+                    ? hash_equals($viewer['key'], (string) $message['sender_key'])
+                    : trim((string) ($message['author'] ?? '')) === $viewer['name'];
+
+                if ($isOwnMessage) {
+                    continue;
+                }
+
+                $messages[] = $message + [
+                    'course' => (int) $courseId,
+                    'course_title' => $courseData['title'],
+                    'timestamp' => $message['timestamp'] ?? 0,
+                ];
+            }
+        }
+
+        usort($messages, fn ($a, $b) => ($b['timestamp'] ?? 0) <=> ($a['timestamp'] ?? 0));
+
+        return $messages;
+    }
+
+    public static function pendingTaskCount(): int
+    {
+        return collect(self::items())
+            ->filter(fn ($item) => in_array($item['type'] ?? '', ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
+            ->reject(fn ($item) => session("learning.submissions.{$item['id']}"))
+            ->count();
+    }
+
+    private static function discussionViewer(): array
+    {
+        $user = auth()->user();
+        $sessionUser = session('auth_user', []);
+        $role = $user?->role?->name ?? ($sessionUser['role'] ?? 'mahasiswa');
+        $name = trim((string) ($user?->name ?? ($sessionUser['name'] ?? 'Ahmad Maulana')));
+        $identifier = $user?->getAuthIdentifier()
+            ?? ($sessionUser['id'] ?? $sessionUser['number'] ?? $sessionUser['email'] ?? 1);
+
+        return [
+            'key' => $user ? 'user:'.$identifier : 'preview:'.$role.':'.$identifier,
+            'name' => $name,
+        ];
     }
 
     public static function discussions(int $item): array
@@ -199,7 +259,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 $messages[] = $message + [
                     'course' => $course['id'],
                     'course_title' => $course['title'],
-                    'item' => 1,
                     'timestamp' => $message['timestamp'] ?? 0,
                 ];
             }
@@ -211,6 +270,30 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function labels(): array
     {
-        return ['materi' => 'Materi', 'tugas' => 'Tugas', 'coding' => 'Tugas coding', 'kuis' => 'Kuis', 'pengumuman' => 'Pengumuman'];
+        return [
+            'materi' => 'Materi',
+            'tugas' => 'Tugas',
+            'coding' => 'Tugas coding',
+            'kuis' => 'Kuis',
+            'pengumuman' => 'Pengumuman',
+            'lainnya' => 'Lainnya',
+        ];
+    }
+
+    public static function label(?string $type): string
+    {
+        if (! $type) {
+            return 'Konten';
+        }
+
+        $normalized = mb_strtolower($type);
+        if ($normalized === 'uts') {
+            return 'UTS';
+        }
+        if ($normalized === 'uas') {
+            return 'UAS';
+        }
+
+        return self::labels()[$type] ?? self::labels()[$normalized] ?? $type;
     }
 }

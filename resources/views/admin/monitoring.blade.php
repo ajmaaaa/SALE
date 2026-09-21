@@ -40,7 +40,7 @@
         @foreach([
             ['ai', 'Pemakaian & kuota AI', '640.000 token', 'Sisa 360.000 dari kuota 1.000.000 token', 'Pemakaian dan sisa kuota belum tersedia'],
             ['server', 'Pengunjung & beban sistem', 'Rekap penggunaan', 'Pengunjung, permintaan, CPU, RAM, dan penyimpanan', 'Statistik kunjungan dan beban belum tersedia'],
-            ['backup', 'Backup & pemulihan', '15 Sep, 02.00', 'Contoh backup berhasil · 8,4 GB', 'Belum ada backup'],
+            ['backup', 'Backup & pemulihan', '15 Sep, 02.00', 'Contoh backup berhasil (8,4 GB)', 'Belum ada backup'],
         ] as [$target, $label, $value, $description, $empty])
             <a href="{{ $monitorUrl($detail === $target ? null : $target) }}" @if($detail === $target) aria-current="true" @endif class="surface group border p-5 transition hover:border-brand hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand {{ $detail === $target ? 'border-brand ring-1 ring-brand' : 'border-transparent' }}"><h2 class="text-sm text-muted">{{ $label }}</h2><p class="mt-3 text-2xl font-semibold tracking-tight">{{ $demo ? $value : '—' }}</p><p class="mt-2 text-xs leading-5 text-muted">{{ $demo ? $description : $empty }}</p><span class="mt-5 flex items-center justify-between text-xs font-semibold text-brand">{{ $detail === $target ? 'Tutup detail' : 'Lihat detail' }}</span></a>
         @endforeach
@@ -62,7 +62,7 @@
                 @elseif($demo)
                     @include('admin.partials.monitoring-chart', [
                         'chartTitle' => 'Tren pemakaian AI',
-                        'chartCaption' => $series['caption'].' · Data simulasi',
+                        'chartCaption' => $series['caption'].' (Data simulasi)',
                         'chartRows' => collect($series['labels'])->map(fn ($label, $index) => ['label' => $label, 'value' => $series['values'][$index] * $scale])->all(),
                         'chartTracks' => [['key' => 'value', 'label' => ucfirst($metric), 'unit' => $metric, 'color' => 'bg-brand', 'max' => 100 * $scale]],
                     ])
@@ -91,7 +91,7 @@
         </div>
         <div class="p-5 sm:p-6">
             <div class="grid gap-6 rounded-xl bg-canvas/60 p-5 sm:grid-cols-2">
-                <div><p class="text-xs font-semibold text-muted">BACKUP TERAKHIR</p><p class="mt-2 text-xl font-semibold">{{ $demo ? '15 September 2026' : 'Belum ada cadangan' }}</p><p class="mt-1 text-sm text-muted">{{ $demo ? '02.00 WIB · 8,4 GB · Data contoh' : 'Cadangan pertama akan muncul di sini.' }}</p></div>
+                <div><p class="text-xs font-semibold text-muted">BACKUP TERAKHIR</p><p class="mt-2 text-xl font-semibold">{{ $demo ? '15 September 2026' : 'Belum ada cadangan' }}</p><p class="mt-1 text-sm text-muted">{{ $demo ? '02.00 WIB, 8,4 GB (Data contoh)' : 'Cadangan pertama akan muncul di sini.' }}</p></div>
                 <dl class="space-y-3 text-sm"><div class="flex justify-between gap-4"><dt class="text-muted">Cakupan</dt><dd class="text-right font-medium">Database & unggahan</dd></div><div class="flex justify-between gap-4"><dt class="text-muted">Backup otomatis</dt><dd class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-muted">Belum aktif</dd></div></dl>
             </div>
             <p id="backup-unavailable" class="mt-4 text-xs leading-5 text-muted">Layanan backup belum terhubung. Pembuatan dan pemulihan cadangan belum tersedia.{{ $demo ? ' Riwayat berikut hanya contoh.' : '' }}</p>
@@ -100,8 +100,8 @@
                 <div class="divide-y divide-line/60 rounded-xl border border-line/60">
                     @foreach([['15 September 2026', '8,4 GB'], ['14 September 2026', '7,6 GB']] as [$date, $size])
                         <div class="flex flex-wrap items-center justify-between gap-4 p-4">
-                            <div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand" aria-hidden="true"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v5H4zM6 9v11h12V9M10 13h4"/></svg></span><div><p class="text-sm font-semibold">{{ $date }}</p><p class="mt-1 text-xs text-muted">02.00 WIB · {{ $size }} · Database & unggahan</p></div></div>
-                            <div class="flex items-center gap-4"><span class="rounded-full bg-brand-soft px-2.5 py-1 text-xs text-brand">Berhasil · contoh</span><button type="button" disabled aria-describedby="backup-unavailable" class="button-secondary cursor-not-allowed opacity-50">Pulihkan</button></div>
+                            <div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand" aria-hidden="true"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v5H4zM6 9v11h12V9M10 13h4"/></svg></span><div><p class="text-sm font-semibold">{{ $date }}</p><p class="mt-1 text-xs text-muted">02.00 WIB, {{ $size }}, Database & unggahan</p></div></div>
+                            <div class="flex items-center gap-4"><span class="rounded-full bg-brand-soft px-2.5 py-1 text-xs text-brand">Berhasil (contoh)</span><button type="button" disabled aria-describedby="backup-unavailable" class="button-secondary cursor-not-allowed opacity-50">Pulihkan</button></div>
                         </div>
                     @endforeach
                 </div>

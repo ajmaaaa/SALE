@@ -40,7 +40,7 @@
 
             <div>
                 <h3 class="text-base font-bold text-ink">{{ $section->mataKuliah->name }}</h3>
-                <p class="text-xs text-muted">{{ $section->mataKuliah->prodi->name ?? '' }} &middot; {{ $section->mataKuliah->sks }} SKS</p>
+                <p class="text-xs text-muted">{{ $section->mataKuliah->prodi->name ?? '' }} ({{ $section->mataKuliah->sks }} SKS)</p>
             </div>
 
             <div class="grid grid-cols-2 gap-3 pt-2 text-xs">

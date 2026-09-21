@@ -15,7 +15,7 @@
         </nav>
         <h2 class="section-heading">Rubrik: {{ $assessment->name }}</h2>
         <p class="mt-1 text-sm text-muted">
-            {{ $assessment->code }} · {{ ucfirst($assessment->type) }} · Bobot {{ rtrim(rtrim(number_format($assessment->final_weight, 1), '0'), '.') }}%
+            {{ $assessment->code }}, {{ ucfirst($assessment->type) }}, Bobot {{ rtrim(rtrim(number_format($assessment->final_weight, 1), '0'), '.') }}%
         </p>
     </header>
 

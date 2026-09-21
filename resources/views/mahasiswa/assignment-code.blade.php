@@ -81,7 +81,14 @@
 </head>
 <body class="min-h-screen bg-canvas font-sans text-ink antialiased">
     @php
-    $language = $item['language'] ?? 'python';
+    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa'));
+    $isLecturer = in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->routeIs('dosen.*');
+    if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
+        $isLecturer = false;
+    }
+    $storedLanguage = $item['language'] ?? 'python';
+    $requestedLanguage = request()->query('language');
+    $language = in_array($requestedLanguage, ['python', 'web'], true) ? $requestedLanguage : $storedLanguage;
     if ($language === 'web') {
         $defaultFiles = [[
             'name' => 'index.html',
@@ -130,22 +137,33 @@ class BinaryTree:
     <header class="sticky top-0 z-30 bg-white shadow-[0_1px_3px_rgba(29,39,48,0.06)] border-b border-line/60">
         <div class="flex min-h-14 w-full flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6">
             <div class="flex min-w-0 items-center gap-3">
-                <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-slate-100 transition" aria-label="Kembali ke Detail Tugas">
+                <a href="{{ $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']) }}" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-slate-100 transition" aria-label="Kembali ke Halaman Course">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
                 </a>
                 <div class="min-w-0">
                     <h1 class="truncate text-sm font-bold text-ink">{{ $item['title'] }}</h1>
-                    <p class="truncate text-xs text-muted">{{ $course['code'] }} · {{ $course['title'] }}</p>
+                    <p class="truncate text-xs text-muted">{{ $course['code'] }} - {{ $course['title'] }}</p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}">
-                    @csrf
-                    <input type="hidden" name="answer" data-code-answer>
-                    <button disabled class="button-primary text-xs py-2 px-4 font-bold">
-                        Kumpulkan Kode
-                    </button>
-                </form>
+                @if($isLecturer)
+                    <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200">
+                        <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Mode Tinjau Dosen
+                    </span>
+                @else
+                    <div class="flex items-center rounded-lg border border-line bg-slate-50 p-1" aria-label="Pilih lingkungan pemrograman">
+                        <a href="{{ route('mahasiswa.assignment.code', ['assignment' => $item['id'], 'language' => 'python']) }}" class="rounded-md px-2.5 py-1 text-[11px] font-semibold {{ $language === 'python' ? 'bg-white text-brand shadow-sm' : 'text-muted hover:text-ink' }}">Python</a>
+                        <a href="{{ route('mahasiswa.assignment.code', ['assignment' => $item['id'], 'language' => 'web']) }}" class="rounded-md px-2.5 py-1 text-[11px] font-semibold {{ $language === 'web' ? 'bg-white text-brand shadow-sm' : 'text-muted hover:text-ink' }}">Web</a>
+                    </div>
+                    <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}">
+                        @csrf
+                        <input type="hidden" name="answer" data-code-answer>
+                        <button disabled class="button-primary text-xs py-2 px-4 font-bold">
+                            Kumpulkan Kode
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
     </header>
@@ -163,14 +181,36 @@ class BinaryTree:
                 <div>
                     <span class="text-xs font-semibold text-muted uppercase tracking-wider">Praktikum Coding</span>
                     <h2 id="question-heading" class="text-base font-bold text-ink mt-1">{{ $item['title'] }}</h2>
-                    <p class="text-xs text-muted mt-0.5">{{ $item['module'] }} · {{ $course['lecturer'] }}</p>
+                    <p class="text-xs text-muted mt-0.5">{{ $item['module'] }} ({{ $course['lecturer'] }})</p>
                 </div>
 
                 <div class="border-t border-line/60 pt-4">
-                    <h3 class="text-xs font-bold text-ink uppercase tracking-wider mb-2">Petunjuk Pengerjaan</h3>
-                    <p class="text-xs leading-relaxed text-ink font-medium whitespace-pre-line">{{ $item['body'] }}</p>
+                    <h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-ink">Petunjuk Pengerjaan</h3>
+                    <p class="whitespace-pre-line text-xs font-medium leading-relaxed text-ink">{{ $item['body'] }}</p>
                 </div>
 
+                @if(!empty($item['coding_steps']))
+                    <div class="border-t border-line/60 pt-4" data-code-steps>
+                        <div class="mb-3 flex flex-wrap gap-1" data-code-step-tabs></div>
+                        @foreach($item['coding_steps'] as $index => $step)
+                            <article data-code-step class="space-y-3" @if($index !== 0) hidden @endif>
+                                <div><p class="text-[10px] font-bold uppercase tracking-wider text-brand">Tahap {{ $index + 1 }}</p><h3 class="mt-1 text-sm font-bold text-ink">{{ $step['title'] }}</h3></div>
+                                <p class="whitespace-pre-line text-xs leading-relaxed text-ink">{{ $step['body'] }}</p>
+                                @if(!empty($step['attachment']))
+                                    @php($stepFile = session('learning.files.'.$step['attachment']))
+                                    @if(str_starts_with($stepFile['mime'] ?? '', 'image/'))
+                                        <img class="max-h-44 w-full rounded-lg border border-line/60 object-contain" src="{{ route('preview.file', $step['attachment']) }}" alt="Lampiran {{ $step['title'] }}">
+                                    @else
+                                        <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment']) }}">Buka lampiran{{ !empty($stepFile['name']) ? ': '.$stepFile['name'] : '' }}</a>
+                                    @endif
+                                @endif
+                                @if(!empty($step['link']))<a class="quiet-link inline-flex text-xs" href="{{ $step['link'] }}" target="_blank" rel="noopener">Buka tautan pendukung ↗</a>@endif
+                                <p class="text-[11px] font-semibold text-muted">Target {{ $step['cpmk'] }}</p>
+                            </article>
+                        @endforeach
+                        <div class="mt-4 flex justify-between gap-2"><button type="button" class="button-secondary px-2.5 py-1.5 text-[11px]" data-code-step-prev>← Sebelumnya</button><button type="button" class="button-secondary px-2.5 py-1.5 text-[11px]" data-code-step-next>Selanjutnya →</button></div>
+                    </div>
+                @elseif($item['id'] === 1)
                 <div class="border-t border-line/60 pt-4 space-y-2 text-xs">
                     <h3 class="text-xs font-bold text-ink uppercase tracking-wider">Target Spesifikasi</h3>
                     <ul class="list-disc list-inside space-y-1.5 text-muted text-xs leading-relaxed">
@@ -181,6 +221,7 @@ class BinaryTree:
                         <li>Selalu kembalikan simpul <code class="font-mono text-[11px] text-ink">root</code> setelah modifikasi.</li>
                     </ul>
                 </div>
+                @endif
 
                 <div class="border-t border-line/60 pt-4 space-y-1.5 text-xs">
                     <h3 class="text-xs font-bold text-ink uppercase tracking-wider">Capaian Pembelajaran (CPMK)</h3>
@@ -224,7 +265,7 @@ class BinaryTree:
                         <span data-code-save-status>Draf tersimpan di browser</span>
                         <span class="flex items-center gap-3">
                             <span data-chars-count></span>
-                            <span>UTF-8 · 4 Spasi</span>
+                            <span>UTF-8, 4 Spasi</span>
                         </span>
                     </div>
                 </section>
@@ -244,7 +285,7 @@ class BinaryTree:
                                     <button type="button" data-terminal-minimize class="h-3 w-3 rounded-full bg-[#ffbd2e] hover:opacity-80 transition inline-block shadow-xs" title="Perkecil Terminal" aria-label="Perkecil Terminal"></button>
                                     <button type="button" data-terminal-maximize class="h-3 w-3 rounded-full bg-[#27c93f] hover:opacity-80 transition inline-block shadow-xs" title="Perbesar Terminal" aria-label="Perbesar Terminal"></button>
                                 </div>
-                                <span class="text-xs font-mono text-slate-300 font-medium">{{ $language === 'web' ? 'Output Web · Pratinjau Browser' : 'Output Python · Terminal' }}</span>
+                                <span class="text-xs font-mono text-slate-300 font-medium">{{ $language === 'web' ? 'Output Web / Pratinjau Browser' : 'Output Python / Terminal' }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <button type="button" data-stop-code hidden class="text-xs text-rose-300 px-2 py-1">Hentikan</button>
@@ -305,13 +346,19 @@ class BinaryTree:
                         <button class="underline ml-2" type="submit">Keluar akun AI</button>
                     </form>
                 @else
-                    <form method="POST" action="{{ route('ai.login') }}" class="p-3 space-y-2 border-b border-line">
+                    <form method="POST" action="{{ route('ai.login') }}" class="p-3 space-y-2.5 border-b border-line bg-canvas/30">
                         @csrf
                         <input type="hidden" name="assignment" value="{{ $item['id'] }}">
-                        <p class="text-xs text-muted">Masuk dengan akun AI yang diberikan pengelola. Akun pratinjau peran tidak memberikan akses AI.</p>
-                        <label class="block text-xs">Email akun AI<input class="field mt-1" type="email" name="email" required autocomplete="username"></label>
-                        <label class="block text-xs">Password<input class="field mt-1" type="password" name="password" required autocomplete="current-password"></label>
-                        <button class="button-primary text-xs" type="submit">Masuk akun AI</button>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-ink">Akses Asisten AI</span>
+                            <button type="button" onclick="document.querySelector('#ai-login-email').value='demo.ai@sale.test';document.querySelector('#ai-login-password').value='password123456';this.closest('form').submit();" class="text-[10px] font-bold text-brand hover:underline inline-flex items-center gap-1 bg-brand-soft px-2 py-0.5 rounded border border-brand/20">
+                                <span>✦ 1-Klik Masuk Demo AI</span>
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-muted leading-relaxed">Masuk untuk mengaktifkan sesi bimbingan AI, atau gunakan tombol <strong>1-Klik Masuk Demo AI</strong> untuk uji coba langsung.</p>
+                        <label class="block text-xs">Email akun AI<input id="ai-login-email" class="field mt-1 text-xs" type="email" name="email" required autocomplete="username" placeholder="demo.ai@sale.test"></label>
+                        <label class="block text-xs">Password<input id="ai-login-password" class="field mt-1 text-xs" type="password" name="password" required autocomplete="current-password" placeholder="••••••••"></label>
+                        <button class="button-primary text-xs w-full py-2 font-bold" type="submit">Masuk akun AI</button>
                     </form>
                 @endauth
 
@@ -341,9 +388,9 @@ class BinaryTree:
                     </div>
                     <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
                         <label for="assistant-message" class="sr-only">Pertanyaan untuk Lumina AI</label>
-                        <textarea required maxlength="2000" id="assistant-message" rows="2" class="w-full bg-transparent border-0 p-2.5 pb-8 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tanyakan petunjuk konsep kode..."></textarea>
+                        <textarea required maxlength="2000" id="assistant-message" rows="2" class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tanyakan petunjuk konsep kode..."></textarea>
                         <div class="absolute right-2 bottom-2 flex items-center">
-                            <button disabled type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg disabled:opacity-30 inline-flex items-center justify-center transition-all duration-150 transform scale-0 opacity-0 pointer-events-none shrink-0 shadow-xs" title="Kirim pertanyaan ke Lumina AI" aria-label="Kirim pertanyaan">
+                            <button disabled type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg disabled:opacity-30 inline-flex items-center justify-center transition-all duration-150 transform scale-0 opacity-0 pointer-events-none shrink-0 shadow-xs" title="Kirim pertanyaan ke Lumina AI (Enter)" aria-label="Kirim pertanyaan">
                                 <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                 </svg>
@@ -352,6 +399,7 @@ class BinaryTree:
                     </div>
                     <div class="mt-1.5 flex items-center justify-between px-1">
                         <span data-ai-status role="status" class="text-[10px] text-muted">Memuat kuota AI…</span>
+                        <span class="text-[10px] text-muted">Tekan <kbd class="font-mono bg-canvas px-1 py-0.5 rounded border border-line/60 font-semibold">Enter ↵</kbd> kirim</span>
                     </div>
                 </form>
             </aside>

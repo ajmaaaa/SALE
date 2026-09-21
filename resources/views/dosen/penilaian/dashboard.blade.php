@@ -7,12 +7,12 @@
 <div class="space-y-6">
     <header>
         <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-            <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Daftar Kelas</a>
+            <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Penilaian</a>
             <span>/</span>
             <span class="text-ink font-semibold">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
         </nav>
         <h1 class="page-heading">{{ $section->mataKuliah->name }}</h1>
-        <p class="page-description">{{ $section->mataKuliah->code }}-{{ $section->section_code }} · {{ $section->semester->name }} · Diampu oleh {{ $section->dosen->name }}</p>
+        <p class="page-description">{{ $section->mataKuliah->code }}-{{ $section->section_code }}, {{ $section->semester->name }}, Diampu oleh {{ $section->dosen->name }}</p>
     </header>
 
     <div class="surface p-5 grid grid-cols-2 gap-4 sm:grid-cols-4">

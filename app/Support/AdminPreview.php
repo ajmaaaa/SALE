@@ -6,11 +6,23 @@ class AdminPreview
 {
     public static function users(): array
     {
-        return session('admin.users', [
+        $users = session('admin.users', [
             1 => ['id' => 1, 'name' => 'Ahmad Maulana', 'email' => 'ahmad@example.test', 'number' => '231011401234', 'role' => 'mahasiswa', 'status' => 'aktif'],
             2 => ['id' => 2, 'name' => 'Budi Santoso', 'email' => 'budi@example.test', 'number' => 'DSN001', 'role' => 'dosen', 'status' => 'aktif'],
             3 => ['id' => 3, 'name' => 'Admin Akademik', 'email' => 'admin@example.test', 'number' => 'ADM001', 'role' => 'admin', 'status' => 'aktif'],
         ]);
+
+        return array_map(function ($user) {
+            $user['roles'] = array_values(array_unique($user['roles'] ?? [$user['role']]));
+            $user['role'] = $user['role'] ?? $user['roles'][0];
+
+            return $user;
+        }, $users);
+    }
+
+    public static function hasRole(array $user, string $role): bool
+    {
+        return in_array($role, $user['roles'] ?? [$user['role'] ?? null], true);
     }
 
     public static function academic(): array

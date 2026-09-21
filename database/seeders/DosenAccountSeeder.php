@@ -44,7 +44,7 @@ class DosenAccountSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'kaprodi@example.test'],
             [
-                'name' => 'Dr. H. Kaprodi, M.T.',
+                'name' => 'Budi Santoso, M.Kom.',
                 'password' => Hash::make('password'),
                 'role_id' => $kaprodiRole?->id,
                 'nim_nidn' => '197501012000031001',

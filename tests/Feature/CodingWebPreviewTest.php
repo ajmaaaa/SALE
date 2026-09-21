@@ -36,7 +36,7 @@ class CodingWebPreviewTest extends TestCase
         $response = $this->get('/mahasiswa/assignment/1/code');
         $response->assertOk()
             ->assertSee('data-code-language="python"', false)
-            ->assertSee('Output Python · Terminal')
+            ->assertSee('Output Python / Terminal')
             ->assertSee('data-output-tab="console"', false);
     }
 

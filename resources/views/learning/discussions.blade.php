@@ -31,7 +31,7 @@
                 <option value="">Semua Mata Kuliah ({{ count($courses) }})</option>
                 @foreach($courses as $c)
                     <option value="{{ $c['id'] }}" @selected((string)$selectedCourseId === (string)$c['id'])>
-                        {{ $c['code'] }} · {{ $c['title'] }}
+                        {{ $c['code'] }} - {{ $c['title'] }}
                     </option>
                 @endforeach
             </select>
@@ -51,8 +51,7 @@
         @forelse($courses as $c)
             @if(!$selectedCourseId || (string)$selectedCourseId === (string)$c['id'])
                 @php
-                    $msgs = \App\Support\LearningPreview::courseDiscussions($c['id']);
-                    $msgCount = count($msgs);
+                    $msgCount = \App\Support\LearningPreview::unreadDiscussionCount($c['id']);
                 @endphp
                 <a href="{{ route('mahasiswa.course.show', $c['id']) }}#diskusi-kelas"
                    class="group flex items-center justify-between gap-3 px-5 py-4 hover:bg-canvas transition">
@@ -63,19 +62,18 @@
                                 {{ $c['title'] }}
                             </h3>
                         </div>
-                        <p class="mt-1 text-xs text-muted">
+                        <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
                             <span>Pengampu: {{ $c['lecturer'] }}</span>
-                            <span>·</span>
-                            <span>Forum Diskusi Kelas &amp; Konsultasi Akademik</span>
+                            <span>(Forum Diskusi &amp; Konsultasi Akademik)</span>
                         </p>
                     </div>
                     <div class="shrink-0 flex items-center justify-center">
                         @if($msgCount > 0)
-                            <span class="inline-flex items-center justify-center min-w-6 h-6 px-2.5 text-xs font-bold rounded-full bg-blue-600 text-white" title="{{ $msgCount }} pesan diskusi">
-                                {{ $msgCount }} Pesan
+                            <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white" title="{{ $msgCount }} pesan belum dibaca">
+                                {{ $msgCount }} belum dibaca
                             </span>
                         @else
-                            <span class="text-xs text-muted font-normal">0 Pesan</span>
+                            <span class="text-xs text-muted font-normal">Tidak ada pesan baru</span>
                         @endif
                     </div>
                 </a>

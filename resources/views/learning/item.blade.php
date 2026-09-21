@@ -10,9 +10,10 @@
     if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
         $isLecturer = false;
     }
-    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis']);
+    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas']);
     $hasMultiQuestions = !empty($item['questions']);
-    $isDedicatedQuiz = ($item['id'] === 1 || $item['type'] === 'kuis');
+    $isDedicatedQuiz = in_array($item['type'], ['kuis', 'uts', 'uas'], true);
+    $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
     $submission = session('learning.submissions.'.$item['id']);
     $itemGrade = session('academic.item_grades.'.$item['id'].'.1');
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
@@ -46,7 +47,7 @@
             @endif
         </div>
         <h1 class="page-heading mt-1">{{ $item['title'] }}</h1>
-        <p class="page-description">{{ $course['lecturer'] }} · {{ $item['module'] }}</p>
+        <p class="page-description">{{ $course['lecturer'] }}, {{ $item['module'] }}</p>
     </header>
 
     {{-- Submission form wraps main questions & side actions if student --}}
@@ -60,6 +61,30 @@
         @endif
             {{-- Main Column: Instructions, Multi-Question Cards, Stimulus, Attachments, Discussions --}}
             <div class="min-w-0 space-y-6">
+                {{-- Interactive Coding Workbench & Lumina AI Assistant Banner --}}
+                @if(!$isDedicatedQuiz && ($item['type'] === 'coding' || $isCodingMaterial))
+                    <div class="rounded-xl border border-brand/30 bg-gradient-to-r from-blue-50/70 via-white to-brand-soft/40 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center gap-1 rounded bg-brand px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                                    <span>✦</span> Lumina AI
+                                </span>
+                                <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                    Editor Monaco &amp; Terminal Linux
+                                </span>
+                            </div>
+                            <h3 class="text-sm font-bold text-ink">Ruang Praktikum Coding &amp; Asisten AI Tersedia</h3>
+                            <p class="text-xs text-muted leading-relaxed">
+                                Anda dapat menguji algoritma Binary Search Tree langsung di editor kode interaktif dengan panduan konsep cerdas dari Lumina AI.
+                            </p>
+                        </div>
+                        <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-primary text-xs py-2.5 px-4 font-bold inline-flex items-center gap-1.5 shrink-0 shadow-xs self-start sm:self-center">
+                            <span>Buka Editor Kode &amp; Tanya AI</span>
+                            <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                @endif
+
                 {{-- Instructions Card --}}
                 <section class="surface p-6 sm:p-7">
                     <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
@@ -82,16 +107,16 @@
                                     </div>
                                     <div class="pt-2 flex flex-wrap items-center gap-3 border-t border-line">
                                         <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2 px-3.5 font-bold">
-                                            Lihat Tanda Terima Kuis →
+                                            Lihat Tanda Terima Kuis
                                         </a>
                                         <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="quiet-link text-xs">
-                                            ← Kembali ke Halaman Course
+                                            Kembali ke Halaman Course
                                         </a>
                                     </div>
                                 </div>
                             @else
                                 <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-5 space-y-4">
-                                    <div class="flex flex-wrap items-center justify-between gap-4">
+                                    <div class="flex flex-wrap items-start justify-between gap-4">
                                         <div class="space-y-1">
                                             <span class="text-xs font-bold uppercase tracking-wider text-muted">Informasi Ujian &amp; Penilaian</span>
                                             <div class="flex flex-wrap items-center gap-2.5 text-xs text-slate-600 font-medium pt-0.5">
@@ -119,7 +144,7 @@
                                         <div class="shrink-0">
                                             @if($isLecturer)
                                                 <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-secondary text-xs py-2.5 px-5 font-bold shadow-xs">
-                                                    Lihat Nilai &amp; Jawaban Kuis →
+                                                    Lihat Nilai &amp; Jawaban Kuis
                                                 </a>
                                             @elseif($isLocked)
                                                 <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-bold opacity-60 cursor-not-allowed">
@@ -127,7 +152,7 @@
                                                 </button>
                                             @else
                                                 <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-bold shadow-xs">
-                                                    Mulai Kerjakan Kuis →
+                                                    Mulai Kerjakan Kuis
                                                 </a>
                                             @endif
                                         </div>
@@ -331,13 +356,13 @@
 
                         <div class="space-y-2 pt-2">
                             <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                Lihat &amp; Nilai Jawaban Mahasiswa →
+                                Lihat &amp; Nilai Jawaban Mahasiswa
                             </a>
                             <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
                                 + Tambah Konten / Soal Baru
                             </a>
                             <a href="{{ route('dosen.course.show', $course['id']) }}" class="quiet-link text-xs text-center block pt-1">
-                                ← Kembali ke Halaman Course
+                                Kembali ke Halaman Course
                             </a>
                         </div>
                     </aside>
@@ -356,9 +381,8 @@
                                 @endif
                             </div>
 
-                            <div class="text-xs text-muted">
+                            <div class="text-xs text-muted flex items-center gap-2">
                                 <span>{{ $item['points'] ?? 100 }} Poin</span>
-                                <span>·</span>
                                 <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
                             </div>
 

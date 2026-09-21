@@ -12,7 +12,7 @@
             <span class="text-ink font-semibold">{{ $assessment ? 'Ubah' : 'Tambah' }}</span>
         </nav>
         <h1 class="page-heading">{{ $assessment ? 'Ubah Asesmen' : 'Tambah Asesmen' }}</h1>
-        <p class="page-description">{{ $section->mataKuliah->code }}-{{ $section->section_code }} · {{ $section->mataKuliah->name }}</p>
+        <p class="page-description">{{ $section->mataKuliah->code }}-{{ $section->section_code }} - {{ $section->mataKuliah->name }}</p>
     </header>
 
     <form method="post" action="{{ $assessment ? route('dosen.penilaian.asesmen.update', [$section->id, $assessment->id]) : route('dosen.penilaian.asesmen.store', $section->id) }}" class="space-y-5">

@@ -120,7 +120,13 @@ class AcademicController extends Controller
     {
         $resource=Learning::items()[$item] ?? null;
         abort_unless($resource && session("learning.submissions.$item"),404);
-        $questions=$resource['questions'] ?? [['points'=>$resource['points'] ?? 100]];
+        if (!empty($resource['questions'])) {
+            $questions=$resource['questions'];
+        } elseif (($resource['scoring_mode'] ?? null) === 'manual_cpmk' && !empty($resource['manual_cpmk_weights'])) {
+            $questions=array_map(fn($weight)=>['points'=>100], array_values($resource['manual_cpmk_weights']));
+        } else {
+            $questions=[['points'=>$resource['points'] ?? 100]];
+        }
         $data=$request->validate(['points'=>'required|array|size:'.count($questions),'points.*'=>'required|numeric|min:0','feedback'=>'nullable|string|max:3000']);
         foreach($questions as $index=>$question){
             if(!isset($data['points'][$index]) || $data['points'][$index]>$question['points']) return back()->withErrors(['points'=>'Nilai soal tidak boleh melebihi poin maksimal.'])->withInput();
