@@ -51,6 +51,15 @@
                     <input id="password" name="password" type="password" required autocomplete="current-password" class="field text-sm" placeholder="••••••••">
                 </div>
 
+                <div>
+                    <label for="role" class="form-label text-xs">Masuk sebagai</label>
+                    <select id="role" name="role" class="field text-sm">
+                        @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Admin Sistem'] as $role => $label)
+                            <option value="{{ $role }}" @selected(old('role', $defaultRole) === $role)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="pt-2">
                     <button type="submit" class="button-primary w-full py-2.5 text-sm font-semibold">
                         Masuk

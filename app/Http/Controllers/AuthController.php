@@ -12,25 +12,25 @@ class AuthController extends Controller
     {
         $users = AdminPreview::users();
         $personas = [
-            'mahasiswa' => collect($users)->firstWhere('role', 'mahasiswa') ?? [
+            'mahasiswa' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'mahasiswa')) ?? [
                 'id' => 1, 'name' => 'Ahmad Maulana', 'email' => 'ahmad@example.test', 'number' => '231011401234', 'role' => 'mahasiswa'
             ],
-            'dosen' => collect($users)->firstWhere('role', 'dosen') ?? [
+            'dosen' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'dosen')) ?? [
                 'id' => 2, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'budi@example.test', 'number' => '198501012010121001', 'role' => 'dosen'
             ],
-            'kaprodi' => collect($users)->firstWhere('role', 'kaprodi') ?? [
+            'kaprodi' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'kaprodi')) ?? [
                 'id' => 5, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi'
             ],
-            'admin_prodi' => collect($users)->firstWhere('role', 'admin_prodi') ?? [
+            'admin_prodi' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'admin_prodi')) ?? [
                 'id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi'
             ],
-            'admin' => collect($users)->firstWhere('role', 'admin') ?? [
+            'admin' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'admin')) ?? [
                 'id' => 3, 'name' => 'Admin Sistem Akademik', 'email' => 'admin@example.test', 'number' => 'ADM001', 'role' => 'admin'
             ],
         ];
 
         $defaultRole = $request->query('role', request()->is('dosen*') ? 'dosen' : 'mahasiswa');
-        if (!in_array($defaultRole, ['mahasiswa', 'dosen', 'admin'])) {
+        if (!in_array($defaultRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'])) {
             $defaultRole = 'mahasiswa';
         }
 
@@ -50,29 +50,38 @@ class AuthController extends Controller
         if ($request->filled('persona_id')) {
             $user = $users[$request->integer('persona_id')] ?? null;
             if ($user) {
+                $user['role'] = $this->roleForUser($user, $request->input('role'));
                 session(['auth_user' => $user]);
                 return $this->redirectForRole($user['role'], "Masuk sebagai {$user['name']}.");
             }
         }
 
         $selectedRole = $request->input('role', 'mahasiswa');
+        if (! in_array($selectedRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'], true)) {
+            $selectedRole = 'mahasiswa';
+        }
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
         $password = (string) $request->input('password', '');
         $normalizedLogin = strtolower($loginId);
 
         if ($loginId === '') {
-            $defaultUser = collect($users)->firstWhere('role', $selectedRole);
+            $defaultUser = collect($users)->first(fn ($user) => AdminPreview::hasRole($user, $selectedRole));
             if ($defaultUser) {
+                $defaultUser['role'] = $this->roleForUser($defaultUser, $selectedRole);
                 return $this->loginAsUser($defaultUser, "Masuk sebagai {$defaultUser['name']}.");
             }
             return back()->withErrors(['login_id' => 'Email institusi atau NIM / NIDN wajib diisi.'])->withInput();
         }
 
-        $user = collect($users)->first(function ($u) use ($loginId, $normalizedLogin) {
+        $user = collect($users)->first(function ($u) use ($loginId, $normalizedLogin, $selectedRole) {
             return strcasecmp($u['email'] ?? '', $loginId) === 0
                 || strcasecmp((string)($u['number'] ?? ''), $loginId) === 0
-                || ($u['role'] === 'mahasiswa' && in_array($normalizedLogin, ['ahmad.maulana@student.test', 'ahmad@example.test', '231011401234']));
+                || (AdminPreview::hasRole($u, 'mahasiswa') && in_array($normalizedLogin, ['ahmad.maulana@student.test', 'ahmad@example.test', '231011401234']));
         });
+
+        if ($user) {
+            $user['role'] = $this->roleForUser($user, $selectedRole);
+        }
 
         if (! $user && \Illuminate\Support\Facades\Schema::hasTable('users')) {
             try {
@@ -99,7 +108,10 @@ class AuthController extends Controller
         }
 
         if (! $user) {
-            $user = collect($users)->firstWhere('role', $selectedRole);
+            $user = collect($users)->first(fn ($candidate) => AdminPreview::hasRole($candidate, $selectedRole));
+            if ($user) {
+                $user['role'] = $this->roleForUser($user, $selectedRole);
+            }
         }
 
         if (! $user) {
@@ -166,7 +178,7 @@ class AuthController extends Controller
         }
 
         $users = AdminPreview::users();
-        $user = collect($users)->firstWhere('role', $role);
+        $user = collect($users)->first(fn ($candidate) => AdminPreview::hasRole($candidate, $role));
 
         if (! $user) {
             $user = match ($role) {
@@ -213,6 +225,8 @@ class AuthController extends Controller
             };
         }
 
+        $user['role'] = $this->roleForUser($user, $role);
+
         session(['auth_user' => $user]);
 
         return $this->redirectForRole($role, "Beralih ke peran {$role} ({$user['name']}).");
@@ -258,6 +272,17 @@ class AuthController extends Controller
         }
 
         return $this->redirectForRole($user['role'], $message);
+    }
+
+    private function roleForUser(array $user, ?string $requestedRole = null): string
+    {
+        $roles = array_values(array_unique($user['roles'] ?? [$user['role'] ?? 'mahasiswa']));
+
+        if ($requestedRole && in_array($requestedRole, $roles, true)) {
+            return $requestedRole;
+        }
+
+        return in_array($user['role'] ?? null, $roles, true) ? $user['role'] : ($roles[0] ?? 'mahasiswa');
     }
 
     private function redirectForRole(string $role, string $message)

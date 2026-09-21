@@ -80,6 +80,30 @@ class AuthLoginTest extends TestCase
         $this->assertEquals('admin_prodi', session('auth_user.role'));
     }
 
+    public function test_multi_role_preview_account_uses_selected_admin_prodi_role(): void
+    {
+        $this->withSession(['admin.users' => [
+            10 => [
+                'id' => 10,
+                'name' => 'Petugas Prodi',
+                'email' => 'petugas@example.test',
+                'number' => 'PTG001',
+                'role' => 'mahasiswa',
+                'roles' => ['mahasiswa', 'admin_prodi'],
+                'status' => 'aktif',
+            ],
+        ]]);
+
+        $response = $this->post('/login', [
+            'login_id' => 'petugas@example.test',
+            'role' => 'admin_prodi',
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect('/admin-prodi/dashboard');
+        $this->assertEquals('admin_prodi', session('auth_user.role'));
+    }
+
     public function test_can_login_as_kaprodi(): void
     {
         $response = $this->post('/login', [
