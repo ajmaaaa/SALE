@@ -213,6 +213,9 @@ class LearningController extends Controller
             'questions.*.score_mode' => 'nullable|in:parsial,semua_atau_nol',
             'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'],'code'))],
             'questions.*.options' => 'nullable|string|max:3000',
+            'questions.*.correct_answer' => 'nullable|string|max:1000',
+            'questions.*.boolean_answer' => 'nullable|string|max:20',
+            'questions.*.essay_guide' => 'nullable|string|max:5000',
             'questions.*.matching' => 'nullable|array',
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'questions.*.alt' => 'nullable|string|max:300',
@@ -294,6 +297,9 @@ class LearningController extends Controller
             foreach ($data['questions'] as $index => &$question) {
                 $question['points'] = !empty($question['points']) && (int)$question['points'] > 0 ? (int)$question['points'] : 100;
                 $question['score_mode'] = $question['score_mode'] ?? 'parsial';
+                $question['correct_answer'] = $question['correct_answer'] ?? null;
+                $question['boolean_answer'] = $question['boolean_answer'] ?? null;
+                $question['essay_guide'] = $question['essay_guide'] ?? null;
                 $question['image'] = $request->hasFile("questions.$index.image") ? $this->upload($request->file("questions.$index.image")) : null;
                 $question['alt'] = $question['image']
                     ? trim((string) ($question['alt'] ?? '')) ?: Str::limit('Gambar pendukung untuk '.strip_tags($question['prompt']), 300, '')

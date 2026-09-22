@@ -1084,7 +1084,8 @@ if (contentType) {
             const pinInput = pinVideoOption.querySelector('input');
             if (pinInput) pinInput.disabled = !showMaterialMode;
         }
-        setSectionVisibility(questionBuilder, showQuizOrExam);
+        const isQuestionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
+        setSectionVisibility(questionBuilder, showQuizOrExam && isQuestionStep);
         setSectionVisibility(quizDurationSettings, showQuizOrExam);
 
         const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
@@ -1149,9 +1150,13 @@ if (contentType) {
 const contentForm = document.querySelector('[data-content-form]');
 if (contentForm) {
     const typeInput = contentForm.querySelector('[data-content-type]');
+    const setup = contentForm.querySelector('[data-content-setup]');
     const builder = contentForm.querySelector('[data-question-builder]');
     const durationSettings = contentForm.querySelector('[data-quiz-duration-settings]');
     const legacySettings = contentForm.querySelector('[data-legacy-question-settings]');
+    const progress = contentForm.querySelector('[data-content-progress]');
+    const nextButton = contentForm.querySelector('[data-next-to-questions]');
+    const backButton = contentForm.querySelector('[data-back-to-setup]');
     const submitButton = contentForm.querySelector('[data-submit-content]');
     const formErrorEl = contentForm.querySelector('[data-form-error]');
     const isQuiz = () => ['kuis', 'uts', 'uas'].includes(parseCategory(typeInput?.value));
@@ -1179,16 +1184,113 @@ if (contentForm) {
         });
     };
 
-    const syncSections = () => {
-        const quizActive = isQuiz();
-        const category = parseCategory(typeInput?.value);
-        if (durationSettings) durationSettings.hidden = !quizActive;
-        if (builder) builder.hidden = !quizActive;
-        if (legacySettings) legacySettings.hidden = !['tugas', 'coding'].includes(category);
+    const paintProgress = (step) => {
+        contentForm.querySelectorAll('[data-step-indicator]').forEach(indicator => {
+            const active = indicator.dataset.stepIndicator === step;
+            indicator.classList.toggle('text-brand', active);
+            indicator.classList.toggle('text-muted', !active);
+            const badge = indicator.querySelector('span');
+            badge?.classList.toggle('bg-brand', active);
+            badge?.classList.toggle('text-white', active);
+            badge?.classList.toggle('border', !active);
+            badge?.classList.toggle('border-line', !active);
+            badge?.classList.toggle('bg-white', !active);
+        });
     };
 
-    typeInput?.addEventListener('change', syncSections);
-    typeInput?.addEventListener('input', syncSections);
+    const showStep = (step) => {
+        const quizActive = isQuiz();
+        if (!quizActive) step = 'setup';
+        contentForm.dataset.step = step;
+        const questionsStep = step === 'questions';
+
+        if (setup) setup.hidden = questionsStep;
+        if (builder) {
+            builder.hidden = !questionsStep || !quizActive;
+            if (questionsStep && quizActive) {
+                builder.style.opacity = '1';
+                builder.style.transform = 'translateY(0)';
+            }
+        }
+        if (durationSettings) durationSettings.hidden = !quizActive;
+        if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding'].includes(parseCategory(typeInput?.value));
+        if (progress) progress.hidden = !quizActive;
+        if (nextButton) nextButton.hidden = questionsStep || !quizActive;
+        if (backButton) backButton.hidden = !questionsStep || !quizActive;
+        if (submitButton) submitButton.hidden = quizActive && !questionsStep;
+
+        paintProgress(step);
+
+        if (questionsStep && builder) {
+            const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
+            firstInput?.focus();
+        }
+    };
+
+    typeInput?.addEventListener('change', () => {
+        showStep('setup');
+        clearHighlights();
+        showFormError('');
+    });
+    typeInput?.addEventListener('input', () => {
+        showStep('setup');
+    });
+
+    nextButton?.addEventListener('click', () => {
+        clearHighlights();
+        showFormError('');
+
+        const category = parseCategory(typeInput?.value);
+        const moduleInput = contentForm.querySelector('#module');
+        const bodyInput = contentForm.querySelector('#body');
+
+        // 1. Jenis Konten
+        if (!typeInput?.value) {
+            typeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            typeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            typeInput?.focus();
+            showFormError('Pilih jenis konten terlebih dahulu.');
+            return;
+        }
+
+        if (typeInput.value === 'lainnya') {
+            const customTypeInput = contentForm.querySelector('#custom_type');
+            const customVal = customTypeInput?.value.trim().toUpperCase() || '';
+            if (!['UTS', 'UAS'].includes(customVal)) {
+                customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                customTypeInput?.focus();
+                showFormError('Nama jenis konten kustom harus diisi "UTS" atau "UAS".');
+                return;
+            }
+        }
+
+        // 2. Modul / Topik
+        if (!moduleInput?.value.trim()) {
+            moduleInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            moduleInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            moduleInput?.focus();
+            showFormError('Isi nama modul / topik pembelajaran.');
+            return;
+        }
+
+        // 3. Materi / Instruksi
+        if (!bodyInput?.value.trim()) {
+            bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            bodyInput?.focus();
+            showFormError('Isi materi, instruksi, atau stimulus soal.');
+            return;
+        }
+
+        showStep('questions');
+        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    backButton?.addEventListener('click', () => {
+        showStep('setup');
+        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 
     contentForm.querySelectorAll('[data-content-addon]').forEach(button => {
         button.addEventListener('click', () => {
@@ -1261,6 +1363,7 @@ if (contentForm) {
 
         // 1. Jenis Konten
         if (!typeInput?.value) {
+            showStep('setup');
             typeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
             typeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             typeInput?.focus();
@@ -1273,6 +1376,7 @@ if (contentForm) {
             const customTypeInput = contentForm.querySelector('#custom_type');
             const customVal = customTypeInput?.value.trim().toUpperCase() || '';
             if (!['UTS', 'UAS'].includes(customVal)) {
+                showStep('setup');
                 customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
                 customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 customTypeInput?.focus();
@@ -1284,6 +1388,7 @@ if (contentForm) {
 
         // 2. Modul / Topik
         if (!moduleInput?.value.trim()) {
+            showStep('setup');
             moduleInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
             moduleInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             moduleInput?.focus();
@@ -1294,6 +1399,7 @@ if (contentForm) {
 
         // 3. Materi / Instruksi
         if (!bodyInput?.value.trim()) {
+            showStep('setup');
             bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
             bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             bodyInput?.focus();
@@ -1306,6 +1412,7 @@ if (contentForm) {
         if (['kuis', 'uts', 'uas'].includes(category)) {
             const questionRows = [...contentForm.querySelectorAll('[data-question-row]')];
             if (questionRows.length === 0) {
+                showStep('questions');
                 builder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 showFormError('Tambahkan minimal 1 soal.');
                 e.preventDefault();
@@ -1321,6 +1428,7 @@ if (contentForm) {
                 const pts = pointsInput ? (parseInt(pointsInput.value) || 0) : 0;
 
                 if (!promptInput?.value.trim()) {
+                    showStep('questions');
                     const tabs = builder?.querySelectorAll('[data-question-tabs] button');
                     tabs?.[idx]?.click();
                     promptInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
@@ -1332,6 +1440,7 @@ if (contentForm) {
                 }
 
                 if (!cpmkSelect?.value) {
+                    showStep('questions');
                     const tabs = builder?.querySelectorAll('[data-question-tabs] button');
                     tabs?.[idx]?.click();
                     cpmkSelect?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
@@ -1343,6 +1452,7 @@ if (contentForm) {
                 }
 
                 if (pts <= 0) {
+                    showStep('questions');
                     const tabs = builder?.querySelectorAll('[data-question-tabs] button');
                     tabs?.[idx]?.click();
                     pointsInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
@@ -1356,6 +1466,7 @@ if (contentForm) {
                 if (['pilihan', 'kompleks'].includes(qType)) {
                     const choices = [...row.querySelectorAll('[data-choice-item-input]')].map(i => i.value.trim()).filter(Boolean);
                     if (choices.length < 2) {
+                        showStep('questions');
                         const tabs = builder?.querySelectorAll('[data-question-tabs] button');
                         tabs?.[idx]?.click();
                         const firstChoice = row.querySelector('[data-choice-item-input]');
@@ -1366,12 +1477,25 @@ if (contentForm) {
                         e.preventDefault();
                         return false;
                     }
+
+                    const checkedKeys = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+                    if (checkedKeys.length === 0) {
+                        showStep('questions');
+                        const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                        tabs?.[idx]?.click();
+                        const firstOption = row.querySelector('[data-choice-correct-input]');
+                        firstOption?.focus();
+                        showFormError(`Soal ${idx + 1}: Tentukan kunci jawaban yang benar dengan memilih tombol ${qType === 'kompleks' ? 'checklist' : 'radio'}.`);
+                        e.preventDefault();
+                        return false;
+                    }
                 }
 
                 if (qType === 'mencocokkan') {
                     const pairs = [...row.querySelectorAll('[data-pair-item]')];
                     const incomplete = pairs.some(p => !p.querySelector('[data-pair-left]')?.value.trim() || !p.querySelector('[data-pair-right]')?.value.trim());
                     if (pairs.length === 0 || incomplete) {
+                        showStep('questions');
                         const tabs = builder?.querySelectorAll('[data-question-tabs] button');
                         tabs?.[idx]?.click();
                         row.querySelector('[data-pair-left], [data-pair-right]')?.focus();
@@ -1384,6 +1508,7 @@ if (contentForm) {
 
             const totalPoints = questionRows.reduce((sum, r) => sum + (parseInt(r.querySelector('input[data-q-field="points"]')?.value) || 0), 0);
             if (totalPoints !== 100) {
+                showStep('questions');
                 builder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 const badge = builder?.querySelector('[data-total-points-badge]');
                 badge?.classList.add('ring-2', 'ring-danger/50');
@@ -1466,7 +1591,8 @@ if (contentForm) {
     contentForm.addEventListener('change', () => requestAnimationFrame(syncManualWeight));
     syncManualWeight();
 
-    syncSections();
+    const initialStep = contentForm.dataset.step || 'setup';
+    showStep(initialStep);
 }
 
 // Tahapan tutorial/tugas pemrograman menggunakan pola satu tahap per layar.
@@ -1678,23 +1804,55 @@ if (builder) {
 
     const syncChoices = (row) => {
         const textarea = row.querySelector('textarea[data-q-field="options"]');
-        if (!textarea) return;
+        const correctInput = row.querySelector('input[data-q-field="correct_answer"]');
         const inputs = row.querySelectorAll('[data-choice-item-input]');
         const values = [...inputs].map(i => i.value.trim()).filter(Boolean);
-        textarea.value = values.join('\n');
+        if (textarea) textarea.value = values.join('\n');
+
+        if (correctInput) {
+            const checkedInputs = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+            const checkedLetters = checkedInputs.map(inp => inp.value);
+            correctInput.value = checkedLetters.join(', ');
+        }
     };
 
-    const renderChoices = (row, choices = []) => {
+    const renderChoices = (row, choices = [], correctVal = null) => {
         const list = row.querySelector('[data-choice-list]');
         if (!list) return;
         list.innerHTML = '';
         const items = choices.length ? choices : ['', '', '', ''];
+        const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
+        const isComplex = qType === 'kompleks';
+        const inputType = isComplex ? 'checkbox' : 'radio';
+
+        const rowIndex = [...rows.children].indexOf(row);
+        const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : Math.random().toString(36).substring(2, 7)}`;
+
+        const correctInput = row.querySelector('input[data-q-field="correct_answer"]');
+        const currentCorrect = (correctVal !== null && correctVal !== undefined)
+            ? String(correctVal)
+            : (correctInput?.value || (isComplex ? 'A' : 'A'));
+        const correctArray = currentCorrect.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+
+        const hintEl = row.querySelector('[data-q-options-hint]');
+        if (hintEl) {
+            hintEl.textContent = isComplex
+                ? 'Centang checklist pada opsi yang merupakan jawaban benar (bisa lebih dari satu).'
+                : 'Pilih tombol radio pada opsi yang merupakan jawaban benar (satu jawaban).';
+        }
+
         items.forEach((val, idx) => {
+            const letter = letters[idx] || String(idx + 1);
+            const isChecked = correctArray.includes(letter.toUpperCase()) || (!isComplex && idx === 0 && correctArray.length === 0);
             const item = document.createElement('div');
-            item.className = 'flex items-center gap-2';
+            item.className = 'flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50/70 transition';
             item.innerHTML = `
-                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letters[idx] || (idx + 1)}</span>
-                <input type="text" class="field text-xs py-1.5 flex-1" value="${val.replace(/"/g, '&quot;')}" placeholder="Pilihan ${letters[idx] || (idx + 1)}..." data-choice-item-input>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs shrink-0 select-none border border-line/60" title="${isComplex ? 'Centang jika opsi ini adalah jawaban benar' : 'Pilih opsi ini sebagai kunci jawaban benar'}">
+                    <input type="${inputType}" ${!isComplex ? `name="${radioName}"` : ''} value="${letter}" data-choice-correct-input class="text-brand h-3.5 w-3.5 ${isComplex ? 'rounded' : ''}" ${isChecked ? 'checked' : ''}>
+                    <span class="text-[11px] font-semibold text-slate-700">Kunci</span>
+                </label>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letter}</span>
+                <input type="text" class="field text-xs py-1.5 flex-1" value="${val.replace(/"/g, '&quot;')}" placeholder="Pilihan ${letter}..." data-choice-item-input>
                 <button type="button" class="h-7 w-7 rounded-md text-muted hover:text-danger hover:bg-rose-50 flex items-center justify-center text-sm" data-remove-choice title="Hapus pilihan">×</button>
             `;
             list.appendChild(item);
@@ -1868,7 +2026,8 @@ if (builder) {
     const update = () => {
         const category = parseCategory(type.value);
         const active = ['kuis', 'uts', 'uas'].includes(category);
-        builder.hidden = !active;
+        const questionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
+        builder.hidden = !active || !questionStep;
         builder.querySelectorAll('input,textarea,select').forEach(input => input.disabled = !active);
 
         const hideCoding = ['tugas', 'kuis', 'uts', 'uas'].includes(category);
@@ -1895,6 +2054,11 @@ if (builder) {
             const number = row.querySelector('[data-question-number]');
             if (number) number.textContent = `Soal ${index + 1}`;
             row.querySelectorAll('[data-q-field]').forEach(input => input.name = `questions[${index}][${input.dataset.qField}]`);
+
+            const radioName = `correct_choice_${index}`;
+            row.querySelectorAll('[data-choice-correct-input][type="radio"]').forEach(inp => {
+                inp.name = radioName;
+            });
 
             const pointsInput = row.querySelector('input[data-q-field="points"]');
             const pts = pointsInput ? (parseInt(pointsInput.value) || 0) : 0;
@@ -1924,6 +2088,9 @@ if (builder) {
 
             const essayInfo = row.querySelector('[data-q-essay-info]');
             if (essayInfo) essayInfo.hidden = qType !== 'uraian';
+
+            const essayEl = row.querySelector('[data-q-essay]');
+            if (essayEl) essayEl.hidden = qType !== 'uraian';
 
             const cpmkSelect = row.querySelector('select[data-q-field="cpmk"]');
             const cpmkBadge = row.querySelector('[data-q-cpmk-badge]');
@@ -2030,7 +2197,7 @@ if (builder) {
         const qType = data.type || row.querySelector('[data-q-field="type"]').value;
         if (['pilihan', 'kompleks'].includes(qType)) {
             const choices = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
-            renderChoices(row, choices);
+            renderChoices(row, choices, data.correct_answer);
         } else {
             renderChoices(row, []);
         }
@@ -2196,10 +2363,16 @@ if (builder) {
             return;
         }
 
+        if (event.target.matches('[data-choice-correct-input]')) {
+            syncChoices(row);
+        }
+
         if (event.target.dataset.qField === 'type') {
             const qType = event.target.value;
             if (['pilihan', 'kompleks'].includes(qType)) {
-                renderChoices(row);
+                const existingChoices = [...row.querySelectorAll('[data-choice-item-input]')].map(i => i.value);
+                const currentCorrect = row.querySelector('input[data-q-field="correct_answer"]')?.value;
+                renderChoices(row, existingChoices, currentCorrect);
             } else if (qType === 'mencocokkan') {
                 renderPairs(row);
             }
@@ -2234,15 +2407,26 @@ if (builder) {
         if (event.target.closest('[data-add-choice-btn]')) {
             const list = row.querySelector('[data-choice-list]');
             const count = list.children.length;
+            const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
+            const isComplex = qType === 'kompleks';
+            const inputType = isComplex ? 'checkbox' : 'radio';
+            const rowIndex = [...rows.children].indexOf(row);
+            const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : '0'}`;
+            const letter = letters[count] || String(count + 1);
+
             const item = document.createElement('div');
-            item.className = 'flex items-center gap-2';
+            item.className = 'flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50/70 transition';
             item.innerHTML = `
-                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letters[count] || (count + 1)}</span>
-                <input type="text" class="field text-xs py-1.5 flex-1" placeholder="Pilihan ${letters[count] || (count + 1)}..." data-choice-item-input>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs shrink-0 select-none border border-line/60" title="${isComplex ? 'Centang jika opsi ini adalah jawaban benar' : 'Pilih opsi ini sebagai kunci jawaban benar'}">
+                    <input type="${inputType}" ${!isComplex ? `name="${radioName}"` : ''} value="${letter}" data-choice-correct-input class="text-brand h-3.5 w-3.5 ${isComplex ? 'rounded' : ''}">
+                    <span class="text-[11px] font-semibold text-slate-700">Kunci</span>
+                </label>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letter}</span>
+                <input type="text" class="field text-xs py-1.5 flex-1" placeholder="Pilihan ${letter}..." data-choice-item-input>
                 <button type="button" class="h-7 w-7 rounded-md text-muted hover:text-danger hover:bg-rose-50 flex items-center justify-center text-sm" data-remove-choice title="Hapus pilihan">×</button>
             `;
             list.appendChild(item);
-            item.querySelector('input').focus();
+            item.querySelector('input[data-choice-item-input]').focus();
             syncChoices(row);
             return;
         }
@@ -2254,7 +2438,12 @@ if (builder) {
                 event.target.closest('div').remove();
                 [...list.children].forEach((child, idx) => {
                     const l = child.querySelector('[data-choice-letter]');
-                    if (l) l.textContent = letters[idx] || (idx + 1);
+                    const letter = letters[idx] || String(idx + 1);
+                    if (l) l.textContent = letter;
+                    const correctInp = child.querySelector('[data-choice-correct-input]');
+                    if (correctInp) correctInp.value = letter;
+                    const textInp = child.querySelector('[data-choice-item-input]');
+                    if (textInp) textInp.placeholder = `Pilihan ${letter}...`;
                 });
                 syncChoices(row);
             }

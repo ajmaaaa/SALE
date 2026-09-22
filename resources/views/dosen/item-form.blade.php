@@ -8,7 +8,7 @@
     <h1 class="page-heading mt-5">Tambah konten</h1>
     <p class="page-description">Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.</p>
 
-    <form class="surface mt-7 space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form novalidate>
+    <form class="surface mt-7 space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}" novalidate>
         @csrf
 
         @if($errors->any())
@@ -27,6 +27,20 @@
             </div>
         @endif
 
+        {{-- Progress Bar Stepper (Khusus Kuis, UTS, UAS) --}}
+        <div class="flex items-center gap-3 border-b border-line/60 pb-4" data-content-progress hidden>
+            <div class="flex items-center gap-2 text-xs font-bold text-brand" data-step-indicator="setup">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white font-bold">1</span>
+                <span>Informasi konten</span>
+            </div>
+            <span class="h-px flex-1 bg-line/70"></span>
+            <div class="flex items-center gap-2 text-xs font-semibold text-muted" data-step-indicator="questions">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-white font-bold">2</span>
+                <span>Susun soal</span>
+            </div>
+        </div>
+
+        <div class="space-y-6" data-content-setup>
         <div class="border-b border-line/60 pb-3">
             <h2 class="text-base font-bold text-ink">Informasi Konten</h2>
             <p class="text-xs text-muted">Lengkapi data konten pembelajaran, kuis, atau tugas untuk course ini.</p>
@@ -158,6 +172,7 @@
                 </div>
             </div>
         </section>
+        </div>
 
         {{-- Paket Soal Asesmen (Kuis, UTS, UAS) --}}
         <section data-question-builder class="space-y-4" hidden>
@@ -300,16 +315,27 @@
                     {{-- Pilihan Ganda & Kompleks --}}
                     <div data-q-options class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         <div class="flex items-center justify-between">
-                            <span class="form-label text-xs mb-0">Pilihan Jawaban (A, B, C...)</span>
+                            <div>
+                                <span class="form-label text-xs mb-0">Pilihan Jawaban (A, B, C...)</span>
+                                <p class="text-[11px] text-muted" data-q-options-hint>Tandai kunci jawaban yang benar.</p>
+                            </div>
                             <button type="button" data-add-choice-btn class="button-secondary text-xs py-1.5 px-3 font-semibold">+ Tambah Pilihan</button>
                         </div>
                         <div data-choice-list class="space-y-2"></div>
                         <textarea data-q-field="options" hidden></textarea>
+                        <input type="hidden" data-q-field="correct_answer">
+                    </div>
+
+                    {{-- Uraian / Esai --}}
+                    <div data-q-essay class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-2" hidden>
+                        <label class="form-label text-xs mb-0">Pedoman Kunci Jawaban / Rubrik Singkat (Opsional)</label>
+                        <p class="text-[11px] text-muted">Tuliskan kata kunci atau kriteria jawaban yang diharapkan sebagai acuan penilaian.</p>
+                        <textarea rows="2" data-q-field="essay_guide" class="field text-xs leading-relaxed bg-white" placeholder="Contoh: Menjelaskan 3 fungsi utama, rumus kompleksitas O(n)..."></textarea>
                     </div>
 
                     {{-- Benar / Salah --}}
                     <div data-q-boolean class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 text-xs space-y-2" hidden>
-                        <span class="form-label text-xs">Pilihan Jawaban</span>
+                        <span class="form-label text-xs">Pilihan Jawaban (Kunci Jawaban Benar)</span>
                         <div class="flex items-center gap-6 pt-1">
                             <label class="flex items-center gap-2 cursor-pointer font-medium text-ink">
                                 <input type="radio" data-q-field="boolean_answer" value="Benar" checked class="text-brand">
@@ -325,7 +351,10 @@
                     {{-- Mencocokkan / Menjodohkan --}}
                     <div data-q-matching class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         <div class="flex items-center justify-between">
-                            <span class="form-label text-xs mb-0">Daftar Pasangan Menjodohkan</span>
+                            <div>
+                                <span class="form-label text-xs mb-0">Daftar Pasangan Menjodohkan</span>
+                                <p class="text-[11px] text-muted">Kunci Jawaban: Baris premis di kiri secara otomatis berpasangan dengan jawaban di kanan.</p>
+                            </div>
                             <button type="button" data-add-pair-btn class="button-secondary text-xs py-1.5 px-3 font-semibold">+ Tambah Pasangan</button>
                         </div>
                         <div data-pair-list class="space-y-2"></div>
@@ -432,7 +461,11 @@
 
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-5">
             <a class="button-secondary" href="{{ route('dosen.course.show', $course['id']) }}">Batal</a>
-            <button type="submit" class="button-primary" data-submit-content>Tambahkan ke course</button>
+            <div class="flex items-center gap-2">
+                <button type="button" class="button-secondary" data-back-to-setup hidden>← Kembali</button>
+                <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal →</button>
+                <button type="submit" class="button-primary" data-submit-content>Tambahkan ke course</button>
+            </div>
         </div>
     </form>
 </div>
