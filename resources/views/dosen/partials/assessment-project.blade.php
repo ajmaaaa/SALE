@@ -3,12 +3,12 @@
 {{-- ========================================================= --}}
 @php
     $projectStudents = [
-        ['no' => '01', 'initials' => 'AP', 'name' => 'Andi Pratama', 'number' => '2024081001', 'score' => 90, 'cpmk1' => 92, 'cpmk2' => 88, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '02', 'initials' => 'BS', 'name' => 'Budi Santoso', 'number' => '2024081002', 'score' => 82, 'cpmk1' => 84, 'cpmk2' => 80, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '03', 'initials' => 'CL', 'name' => 'Citra Lestari', 'number' => '2024081003', 'score' => 94, 'cpmk1' => 95, 'cpmk2' => 92, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '04', 'initials' => 'DS', 'name' => 'Dedi Saputra', 'number' => '2024081004', 'score' => 68, 'cpmk1' => 70, 'cpmk2' => 64, 'status_key' => 'evaluasi', 'status_label' => '⚠️ Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
-        ['no' => '05', 'initials' => 'EW', 'name' => 'Eka Wahyuni', 'number' => '2024081005', 'score' => 88, 'cpmk1' => 90, 'cpmk2' => 85, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '06', 'initials' => 'FM', 'name' => 'Fajar Maulana', 'number' => '2024081006', 'score' => 75, 'cpmk1' => 78, 'cpmk2' => 72, 'status_key' => 'evaluasi', 'status_label' => '⚠️ Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
+        ['no' => '01', 'initials' => 'AP', 'name' => 'Andi Pratama', 'number' => '2024081001', 'score' => 90, 'cpmk1' => 92, 'cpmk2' => 88, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '02', 'initials' => 'BS', 'name' => 'Budi Santoso', 'number' => '2024081002', 'score' => 82, 'cpmk1' => 84, 'cpmk2' => 80, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '03', 'initials' => 'CL', 'name' => 'Citra Lestari', 'number' => '2024081003', 'score' => 94, 'cpmk1' => 95, 'cpmk2' => 92, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '04', 'initials' => 'DS', 'name' => 'Dedi Saputra', 'number' => '2024081004', 'score' => 68, 'cpmk1' => 70, 'cpmk2' => 64, 'status_key' => 'evaluasi', 'status_label' => 'Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
+        ['no' => '05', 'initials' => 'EW', 'name' => 'Eka Wahyuni', 'number' => '2024081005', 'score' => 88, 'cpmk1' => 90, 'cpmk2' => 85, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '06', 'initials' => 'FM', 'name' => 'Fajar Maulana', 'number' => '2024081006', 'score' => 75, 'cpmk1' => 78, 'cpmk2' => 72, 'status_key' => 'evaluasi', 'status_label' => 'Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
     ];
 @endphp
 

@@ -1,15 +1,19 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Rekap Nilai & Gradebook | SALE')
-@section('header', 'Rekap Nilai Kelas')
+@section('title', 'Rekap Ketercapaian CPMK & Gradebook Course | SALE')
+@section('header', 'Rekap Nilai & CPMK Course')
 
 @section('content')
 <div class="space-y-6">
     {{-- Header --}}
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h1 class="page-heading">Rekap Nilai Kelas</h1>
-            <p class="page-description">Dari rekap kelas hingga rincian soal. Telusuri nilai setiap penilaian dan ketercapaian CPMK secara terpisah.</p>
+            <div class="flex items-center gap-2 mb-1.5">
+                <span class="status font-bold text-brand bg-brand-soft border-brand-soft uppercase text-[11px]">REKAP TINGKAT COURSE</span>
+                <span class="status font-semibold text-muted bg-canvas text-[11px]">{{ $course['code'] }}</span>
+            </div>
+            <h1 class="page-heading">Rekap Nilai &amp; Ketercapaian CPMK Course</h1>
+            <p class="page-description">Rekapitulasi ketercapaian CPMK dan evaluasi nilai mahasiswa tingkat Course (Mata Kuliah) berdasarkan pemetaan asesmen dan formula OBE.</p>
         </div>
         <div class="flex flex-wrap gap-2.5 shrink-0">
             <button type="button" onclick="document.getElementById('bulk-score-section').toggleAttribute('hidden')" class="button-secondary">
@@ -21,40 +25,29 @@
         </div>
     </header>
 
-    {{-- Course & Class Selector with Class CRUD Modal Trigger --}}
-    @php
-        $selectedClass = request()->query('section', 'A');
-    @endphp
+    {{-- Course Selector (Purely per Course) --}}
     <div class="surface p-5 rounded-2xl border border-line/70 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <form class="flex flex-wrap items-center gap-4 flex-1">
-            <div class="flex items-center gap-2.5 min-w-[240px] max-w-sm flex-1">
-                <label for="course" class="text-xs font-semibold text-muted shrink-0">Pilih Matkul:</label>
+            <div class="flex items-center gap-2.5 min-w-[280px] max-w-md flex-1">
+                <label for="course" class="text-xs font-semibold text-muted shrink-0">Pilih Mata Kuliah (Course):</label>
                 <select name="course" id="course" onchange="this.form.submit()" class="field text-xs font-bold text-brand py-2 shadow-2xs">
                     @foreach(\App\Support\LearningPreview::courses() as $c)
                         <option value="{{ $c['id'] }}" @selected($c['id'] === $course['id'])>
-                            {{ $c['code'] }} · {{ $c['title'] }}
+                            {{ $c['code'] }} - {{ $c['title'] }}
                         </option>
                     @endforeach
-                </select>
-            </div>
-
-            <div class="flex items-center gap-2.5 min-w-[160px]">
-                <label for="section" class="text-xs font-semibold text-muted shrink-0">Pilih Kelas:</label>
-                <select name="section" id="section" onchange="this.form.submit()" class="field text-xs font-bold text-ink py-2 w-36 shadow-2xs">
-                    <option value="A" @selected($selectedClass === 'A')>Kelas A (Reguler)</option>
-                    <option value="B" @selected($selectedClass === 'B')>Kelas B (Paralel)</option>
-                    <option value="C" @selected($selectedClass === 'C')>Kelas C (Eksekutif)</option>
                 </select>
             </div>
         </form>
 
         <div class="flex flex-wrap items-center gap-3 shrink-0">
-            <button type="button" onclick="document.getElementById('manage-class-modal').toggleAttribute('hidden')" class="button-secondary text-xs py-2 px-3.5 font-semibold">
-                + Kelola / Tambah Kelas
-            </button>
             <div class="flex items-center gap-2.5 text-xs shrink-0">
                 <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
-                    <span class="text-muted font-medium">Total Komponen:</span>
+                    <span class="text-muted font-medium">Total CPMK Course:</span>
+                    <span class="font-bold text-brand">{{ count($config['cpmk']) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
+                    <span class="text-muted font-medium">Komponen:</span>
                     <span class="font-bold text-ink">{{ count($config['components']) }}</span>
                 </div>
                 <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas border border-line/60 shadow-2xs">
@@ -65,48 +58,201 @@
         </div>
     </div>
 
-    {{-- Modal Kelola / CRUD Kelas (Paralel) --}}
-    <section id="manage-class-modal" hidden class="surface p-5 rounded-2xl border border-line/60 space-y-4 shadow-md bg-canvas">
-        <div class="flex items-center justify-between border-b border-line/60 pb-3">
+    @php
+        // Agregasi Ketercapaian CPMK tingkat Course (seluruh mahasiswa pada Course ini)
+        $cpmkStats = [];
+        foreach ($config['cpmk'] as $c) {
+            $cpmkStats[$c['code']] = [
+                'code' => $c['code'],
+                'description' => $c['description'] ?? '',
+                'threshold' => $c['threshold'] ?? 60,
+                'cpl' => $c['cpl'] ?? '',
+                'scores' => [],
+                'passed_count' => 0,
+                'graded_count' => 0,
+            ];
+        }
+
+        $studentAttainments = [];
+        $totalStudentsPassedCourse = 0;
+        $totalStudents = count($students);
+
+        foreach ($students as $stu) {
+            $breakdown = \App\Support\AcademicPreview::breakdown($course['id'], $stu['id']);
+            $studentAttainments[$stu['id']] = $breakdown;
+            if ($breakdown['passed'] === true) {
+                $totalStudentsPassedCourse++;
+            }
+
+            foreach ($breakdown['cpmk'] as $cCode => $outcome) {
+                if (isset($cpmkStats[$cCode])) {
+                    if ($outcome['score'] !== null) {
+                        $cpmkStats[$cCode]['scores'][] = $outcome['score'];
+                        $cpmkStats[$cCode]['graded_count']++;
+                        if ($outcome['passed']) {
+                            $cpmkStats[$cCode]['passed_count']++;
+                        }
+                    }
+                }
+            }
+        }
+
+        $overallCoursePassRate = $totalStudents > 0 ? round(($totalStudentsPassedCourse / $totalStudents) * 100, 1) : 0;
+    @endphp
+
+    {{-- Section 1: Rekap Ketercapaian CPMK Course (Mata Kuliah) --}}
+    @if($componentFilter === '')
+    <section class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h3 class="text-sm font-bold text-ink">Kelola Kelas (CRUD Kelas Parallel)</h3>
-                <p class="text-xs text-muted">Tambah, ubah, atau atur kelas pararel untuk mata kuliah {{ $course['title'] }}.</p>
+                <h2 class="text-base font-bold text-ink">Rekap Ketercapaian CPMK Course</h2>
+                <p class="text-xs text-muted">Statistik menyeluruh capaian pembelajaran mata kuliah {{ $course['title'] }} tanpa sekat kelas paralel.</p>
             </div>
-            <button type="button" onclick="document.getElementById('manage-class-modal').setAttribute('hidden', '')" class="text-xs font-bold text-muted hover:text-ink">Tutup ×</button>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-3">
-            <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
-                <div>
-                    <span class="inline-block rounded bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">Kelas A</span>
-                    <p class="text-xs font-medium text-ink mt-1">32 Mahasiswa · Reguler Pagi</p>
-                </div>
-                <span class="text-xs font-semibold text-emerald-700">Aktif</span>
-            </div>
-            <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
-                <div>
-                    <span class="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">Kelas B</span>
-                    <p class="text-xs font-medium text-ink mt-1">28 Mahasiswa · Paralel Siang</p>
-                </div>
-                <span class="text-xs font-semibold text-emerald-700">Aktif</span>
-            </div>
-            <div class="p-3 rounded-xl bg-white border border-line/60 flex items-center justify-between">
-                <div>
-                    <span class="inline-block rounded bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">Kelas C</span>
-                    <p class="text-xs font-medium text-ink mt-1">20 Mahasiswa · Eksekutif Malam</p>
-                </div>
-                <span class="text-xs font-semibold text-emerald-700">Aktif</span>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800">
+                    <span>{{ $totalStudentsPassedCourse }}/{{ $totalStudents }} Mahasiswa Tuntas Semua CPMK ({{ $overallCoursePassRate }}%)</span>
+                </span>
             </div>
         </div>
 
-        <div class="pt-2 flex items-center justify-between text-xs">
-            <span class="text-muted">Setiap kelas memiliki daftar mahasiswa dan rekap nilai yang terpisah secara independen.</span>
-            <button type="button" onclick="alert('Kelas baru berhasil ditambahkan!')" class="button-primary text-xs py-1.5 px-3">
-                + Tambah Paralel Kelas Baru
-            </button>
+        {{-- CPMK Summary Cards --}}
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach($config['cpmk'] as $cpmkItem)
+                @php
+                    $code = $cpmkItem['code'];
+                    $stats = $cpmkStats[$code] ?? null;
+                    $scores = $stats['scores'] ?? [];
+                    $avgScore = count($scores) > 0 ? round(array_sum($scores) / count($scores), 1) : null;
+                    $passCount = $stats['passed_count'] ?? 0;
+                    $gradedCount = $stats['graded_count'] ?? 0;
+                    $passRate = $gradedCount > 0 ? round(($passCount / $gradedCount) * 100, 1) : 0;
+                    $threshold = $stats['threshold'] ?? 60;
+                    $isSatisfied = $avgScore !== null && $avgScore >= $threshold;
+                @endphp
+                <div class="surface p-4 rounded-xl border border-line/60 flex flex-col justify-between hover:border-brand/30 transition shadow-2xs">
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-mono text-xs font-bold text-brand bg-brand-soft px-2 py-0.5 rounded">
+                                {{ $code }}
+                            </span>
+                            @if(!empty($cpmkItem['cpl']))
+                                <span class="text-[10px] font-semibold text-muted bg-canvas border border-line px-1.5 py-0.5 rounded">
+                                    {{ $cpmkItem['cpl'] }}
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs font-semibold text-ink line-clamp-2">
+                            {{ $cpmkItem['description'] }}
+                        </p>
+                        <p class="text-[11px] text-muted">
+                            Ambang Batas Kelulusan: <strong class="text-ink">≥ {{ $threshold }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-line/50 grid grid-cols-2 gap-2 text-center">
+                        <div class="p-2 rounded-lg bg-canvas/60">
+                            <span class="text-[10px] uppercase font-bold text-muted block">Rata-Rata</span>
+                            <span class="text-sm font-extrabold {{ $isSatisfied ? 'text-emerald-700' : 'text-danger' }}">
+                                {{ $avgScore !== null ? number_format($avgScore, 1, ',', '.') : '—' }}
+                            </span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-canvas/60">
+                            <span class="text-[10px] uppercase font-bold text-muted block">% Tuntas</span>
+                            <span class="text-sm font-extrabold text-ink">
+                                {{ $gradedCount > 0 ? $passRate.'%' : '—' }}
+                            </span>
+                            <span class="text-[9px] text-muted block">({{ $passCount }}/{{ $gradedCount }})</span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- Tabel Matriks Ketercapaian CPMK Mahasiswa per Course --}}
+        <div class="surface rounded-2xl border border-line/70 shadow-xs overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-line/50 bg-canvas/40 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold text-ink">Matriks Ketercapaian CPMK Mahasiswa Course</h3>
+                    <p class="text-xs text-muted">Evaluasi capaian masing-masing mahasiswa terhadap setiap indikator CPMK.</p>
+                </div>
+                <span class="text-xs text-muted">Total Mahasiswa: <strong class="text-ink">{{ count($students) }}</strong></span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="admin-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-12 text-center">NO</th>
+                            <th class="whitespace-nowrap">NIM</th>
+                            <th>NAMA MAHASISWA</th>
+                            @foreach($config['cpmk'] as $c)
+                                <th class="text-center min-w-[120px]">
+                                    {{ $c['code'] }}
+                                    <span class="block font-normal text-[10px] text-muted mt-0.5">(≥{{ $c['threshold'] ?? 60 }})</span>
+                                </th>
+                            @endforeach
+                            <th class="text-center min-w-[170px]">STATUS CPMK COURSE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($students as $idx => $student)
+                            @php
+                                $attain = $studentAttainments[$student['id']] ?? null;
+                            @endphp
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="text-center font-mono text-xs text-muted">{{ $idx + 1 }}</td>
+                                <td class="font-mono text-xs font-bold text-ink whitespace-nowrap">{{ $student['number'] }}</td>
+                                <td class="font-semibold text-ink whitespace-nowrap">{{ $student['name'] }}</td>
+                                @foreach($config['cpmk'] as $c)
+                                    @php
+                                        $cOutcome = $attain['cpmk'][$c['code']] ?? null;
+                                        $cScore = $cOutcome['score'] ?? null;
+                                        $cPassed = $cOutcome['passed'] ?? null;
+                                    @endphp
+                                    <td class="text-center">
+                                        @if($cScore !== null)
+                                            <span class="font-mono text-xs font-bold {{ $cPassed ? 'text-emerald-700' : 'text-danger' }}">
+                                                {{ number_format($cScore, 1, ',', '.') }}
+                                            </span>
+                                            <span class="block text-[10px] {{ $cPassed ? 'text-emerald-700' : 'text-danger' }}">
+                                                {{ $cPassed ? 'Tercapai' : 'Belum' }}
+                                            </span>
+                                        @else
+                                            <span class="text-xs text-muted font-mono">—</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td class="text-center whitespace-nowrap">
+                                    @if($attain['passed'] === true)
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-800 bg-emerald-100/80">
+                                            Memenuhi Seluruh CPMK
+                                        </span>
+                                    @elseif($attain['passed'] === false)
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-rose-800 bg-rose-100/80">
+                                            Belum Memenuhi CPMK
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-muted bg-canvas">
+                                            Menunggu Penilaian
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="{{ count($config['cpmk']) + 4 }}" class="p-8 text-center text-xs text-muted">
+                                    Belum ada mahasiswa terdaftar di mata kuliah ini.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
+    @endif
 
+    {{-- Detail Telusuri Penilaian & Rincian Soal Asesmen --}}
     @include('dosen.partials.gradebook-detail')
 
     {{-- Bulk Score Section (Collapsible) --}}
@@ -150,7 +296,7 @@
         </form>
     </section>
 
-    {{-- Main Gradebook Table --}}
+    {{-- Main Gradebook Table (Rekapitulasi Nilai Akhir & Komponen) --}}
     @if($componentFilter === '')
     <form method="post" action="{{ route('dosen.scores.save', $course['id']) }}">
         @csrf
@@ -179,7 +325,7 @@
                             @endforeach
                             <th class="text-center min-w-[110px]">NILAI / 100</th>
                             <th class="text-center">INDEKS</th>
-                            <th class="min-w-[220px]">KETERCAPAIAN CPMK</th>
+                            <th class="min-w-[220px]">Ketercapaian CPMK</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -229,7 +375,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @php($attainment = \App\Support\AcademicPreview::breakdown($course['id'], $student['id']))
+                                    @php($attainment = $studentAttainments[$student['id']] ?? \App\Support\AcademicPreview::breakdown($course['id'], $student['id']))
                                     <details class="text-xs">
                                         <summary class="cursor-pointer font-semibold {{ $attainment['passed'] === false ? 'text-danger' : 'text-brand' }} hover:underline">
                                             {{ $attainment['passed'] === null ? 'Menunggu penilaian' : ($attainment['passed'] ? 'Memenuhi seluruh CPMK' : 'Belum memenuhi CPMK') }}
@@ -244,7 +390,7 @@
                                                     <div class="text-right">
                                                         <span class="font-semibold text-ink">{{ $outcome['score'] === null ? 'Belum lengkap' : number_format($outcome['score'], 1, ',', '.').' / 100' }}</span>
                                                         <span class="ml-1 text-[10px] font-bold {{ $outcome['passed'] ? 'text-emerald-700' : ($outcome['passed'] === false ? 'text-danger' : 'text-muted') }}">
-                                                            · {{ $outcome['passed'] === null ? 'Menunggu' : ($outcome['passed'] ? 'Tercapai' : 'Belum tercapai') }}
+                                                            ({{ $outcome['passed'] === null ? 'Menunggu' : ($outcome['passed'] ? 'Tercapai' : 'Belum tercapai') }})
                                                         </span>
                                                     </div>
                                                 </div>
@@ -282,3 +428,4 @@
     @endif
 </div>
 @endsection
+

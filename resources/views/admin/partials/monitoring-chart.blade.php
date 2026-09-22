@@ -11,7 +11,7 @@
     <div class="relative mt-4 overflow-x-auto pb-2" role="group" aria-label="{{ $chartTitle }}">
         <div class="relative min-w-[480px] pt-20">
             <p class="absolute left-0 top-0 text-xs text-muted">{{ $chartCaption }}</p>
-            <div class="mb-3 flex justify-between gap-4 text-[11px] text-muted"><span>{{ $chartTracks[0]['label'] }} · {{ $chartTracks[0]['unit'] }}</span>@if(count($chartTracks) > 1)<span>{{ $chartTracks[1]['label'] }} · skala kanan (%)</span>@endif</div>
+            <div class="mb-3 flex justify-between gap-4 text-[11px] text-muted"><span>{{ $chartTracks[0]['label'] }} ({{ $chartTracks[0]['unit'] }})</span>@if(count($chartTracks) > 1)<span>{{ $chartTracks[1]['label'] }} (skala kanan %)</span>@endif</div>
             <div class="relative mx-10">
                 <div class="pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden="true">
                     @foreach([100, 75, 50, 25, 0] as $tick)
@@ -23,7 +23,7 @@
                         @php
                             $tooltip = $row['label'];
                             foreach ($chartTracks as $track) {
-                                $tooltip .= ' · '.$track['label'].': '.number_format($row[$track['key']], 0, ',', '.').' '.$track['unit'];
+                                $tooltip .= ', '.$track['label'].': '.number_format($row[$track['key']], 0, ',', '.').' '.$track['unit'];
                             }
                         @endphp
                         <div tabindex="0" role="img" aria-label="{{ $tooltip }}" class="group min-w-0 flex-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">

@@ -122,7 +122,7 @@
                 <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
                     <span class="text-muted">Rata-rata 21.300 token per hari</span>
                     <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
-                        Buka rincian pemakaian AI →
+                        Buka rincian pemakaian AI
                     </a>
                 </div>
             </section>
@@ -166,7 +166,7 @@
                 <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
                     <span class="text-muted">Pembaruan realtime setiap 30 detik</span>
                     <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'server', 'contoh' => 1]) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
-                        Buka grafik beban server →
+                        Buka grafik beban server
                     </a>
                 </div>
             </section>
@@ -189,7 +189,7 @@
                     <div class="rounded-lg bg-canvas/60 p-3 border border-line/40">
                         <p class="text-muted font-medium">Fakultas Utama</p>
                         <p class="font-bold text-ink text-sm mt-0.5">{{ $fakultas['name'] ?? 'Belum terdaftar' }}</p>
-                        <p class="text-xs text-muted mt-0.5">{{ $fakultas['code'] ?? '—' }} · Batas 1 fakultas tercapai</p>
+                        <p class="text-xs text-muted mt-0.5">{{ $fakultas['code'] ?? '—' }} (Batas 1 fakultas tercapai)</p>
                     </div>
                     <div class="p-2 space-y-1">
                         <p class="text-muted font-medium text-[11px]">Program Studi Terdaftar ({{ $prodis->count() }}):</p>

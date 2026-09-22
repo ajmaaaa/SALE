@@ -19,7 +19,7 @@ class AuthController extends Controller
                 'id' => 2, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'budi@example.test', 'number' => '198501012010121001', 'role' => 'dosen'
             ],
             'kaprodi' => collect($users)->firstWhere('role', 'kaprodi') ?? [
-                'id' => 5, 'name' => 'Dr. H. Kaprodi, M.T.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi'
+                'id' => 5, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi'
             ],
             'admin_prodi' => collect($users)->firstWhere('role', 'admin_prodi') ?? [
                 'id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi'
@@ -132,7 +132,7 @@ class AuthController extends Controller
                             'status' => 'aktif',
                         ]]);
                     }
-                    return redirect()->route('dosen.dashboard')->with('notice', 'Beralih ke peran dosen.');
+                    return redirect()->route('dosen.dashboard')->with('notice', 'Beralih ke peran Dosen.');
                 }
 
                 // Look up authentic database User first so Auth::user() is populated
@@ -151,7 +151,14 @@ class AuthController extends Controller
                         'status' => 'aktif',
                     ];
                     session(['auth_user' => $user]);
-                    return $this->redirectForRole($role, "Beralih ke peran {$dbUser->name}.");
+                    $roleLabel = match ($role) {
+                        'kaprodi' => 'Kaprodi',
+                        'dosen' => 'Dosen',
+                        'admin_prodi' => 'Admin Prodi',
+                        'admin' => 'Admin Sistem',
+                        default => ucfirst($role),
+                    };
+                    return $this->redirectForRole($role, "Beralih ke peran {$roleLabel}.");
                 }
             } catch (\Throwable $e) {
                 // Table doesn't exist or database not migrated in test
@@ -165,7 +172,7 @@ class AuthController extends Controller
             $user = match ($role) {
                 'kaprodi' => [
                     'id' => 5,
-                    'name' => 'Dr. H. Kaprodi, M.T.',
+                    'name' => 'Budi Santoso, M.Kom.',
                     'email' => 'kaprodi@example.test',
                     'number' => '197501012000031001',
                     'role' => 'kaprodi',
@@ -216,7 +223,7 @@ class AuthController extends Controller
         Auth::logout();
         session()->forget('auth_user');
 
-        return redirect()->route('login')->with('notice', 'Anda telah berhasil keluar dari akun.');
+        return redirect()->route('login');
     }
 
     private function loginAsUser(array $user, string $message)

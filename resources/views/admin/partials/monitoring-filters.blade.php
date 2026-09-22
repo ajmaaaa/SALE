@@ -8,7 +8,7 @@
     <button class="button-secondary" type="submit">Tampilkan</button>
 </form>
 @unless(($detail === 'server' && $rangeData['range'] === 'realtime') || $rangeData['range'] === 'requests')
-<p class="mt-3 text-xs text-muted">{{ $rangeData['caption'] }} · {{ $rangeData['granularity'] }}</p>
+<p class="mt-3 text-xs text-muted">{{ $rangeData['caption'] }} ({{ $rangeData['granularity'] }})</p>
 @endunless
 @if($rangeData['notice'])<p role="alert" class="mt-2 text-sm text-brand-dark">{{ $rangeData['notice'] }}</p>@endif
 @if($rangeData['range'] === 'realtime')<p role="status" class="mt-3 rounded-lg bg-brand-soft px-3 py-2 text-xs leading-5 text-brand-dark">{{ $detail === 'server' ? ($demo ? 'Pratinjau realtime dengan data simulasi. Batang RAM dan CPU berubah otomatis setiap 3 detik.' : 'Realtime belum terhubung. Pemakaian RAM dan CPU akan tersedia setelah pengukuran server aktif.') : ($demo ? 'Pratinjau realtime dengan data simulasi. Pilih Tampilkan untuk memperbarui jendela waktu.' : 'Realtime belum terhubung. Data langsung akan tersedia setelah pencatatan pengunjung dan pengukuran server diaktifkan.') }}</p>@endif

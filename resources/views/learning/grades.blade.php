@@ -121,7 +121,7 @@
                                     {{ $course['title'] }}
                                 </span>
                                 <p class="text-xs text-muted mt-0.5">
-                                    {{ $course['code'] }} · {{ $course['lecturer'] }}
+                                    {{ $course['code'] }} - {{ $course['lecturer'] }}
                                 </p>
                             </td>
                             <td class="py-3.5 px-4 text-center text-ink font-medium">
@@ -178,7 +178,7 @@
                                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-white border border-line/40 text-xs">
                                                     <div class="min-w-0 flex-1">
                                                         <span class="font-bold text-ink">{{ $cpmk['code'] }}</span>
-                                                        <span class="text-muted ml-1.5">{{ $cpmk['description'] }} · Batas {{ $cpmk['threshold'] }}/100</span>
+                                                        <span class="text-muted ml-1.5">{{ $cpmk['description'] }} (Batas {{ $cpmk['threshold'] }}/100)</span>
                                                     </div>
                                                     <div class="shrink-0 font-medium sm:text-right">
                                                         @if($cpmkScore !== null)

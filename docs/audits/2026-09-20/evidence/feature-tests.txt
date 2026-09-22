@@ -1,0 +1,177 @@
+
+   PASS  Tests\Feature\AcademicAndAuthEnhancementTest
+  ✓ login page renders                                                   0.10s  
+  ✓ login with nim and email credentials                                 0.02s  
+  ✓ one click persona login and logout                                   0.01s  
+  ✓ admin users table shows nim column and supports bulk import          0.02s  
+  ✓ lecturer academic settings requires 100 percent weight               0.01s  
+  ✓ lecturer can bulk import student scores                              0.01s  
+  ✓ student grades page renders transparent components                   0.01s  
+
+   PASS  Tests\Feature\AdminPreviewTest
+  ✓ admin pages render and unknown sections are rejected                 0.06s  
+  ✓ user changes are logged and last admin is preserved                  0.02s  
+  ✓ classes require correct parent and student roles                     0.02s  
+
+   PASS  Tests\Feature\AdminProdiManagementTest
+  ✓ admin prodi can crud prodi                                           0.11s  
+  ✓ admin prodi can manage cpl and cpmk curriculum                       0.03s  
+  ✓ admin prodi can manage matakuliah and class with ketua and wakil     0.03s  
+  ✓ admin prodi user input excel import and student join class           0.04s  
+  ✓ admin prodi can view and export semester report                      0.04s  
+  ✓ unauthorized user is blocked from admin prodi                        0.02s  
+  ✓ class qr code and barcode are accessible                             0.02s  
+  ✓ mahasiswa sees enrolled class on dashboard and course after joining  0.04s  
+
+   PASS  Tests\Feature\AiTutorTest
+  ✓ preview persona cannot spend tokens and access is checked            0.02s  
+  ✓ real login requires password                                         0.21s  
+  ✓ tutor uses authoritative task and accounts for all three calls       0.04s  
+  ✓ gate refuses without generating answer                               0.01s  
+  ✓ reviewer blocks solution and receives persistent history             0.01s  
+  ✓ daily budget and global budget stop calls                            0.01s  
+  ✓ task limit input limit and concurrent lock stop calls                0.01s  
+  ✓ provider failure keeps reservation and is not retried                0.02s  
+  ✓ connection timeout is reported without leaking provider details      0.01s  
+  ✓ provider auth error is not misreported as busy                       0.01s  
+  ✓ busy provider is not silently retried                                0.01s  
+  ✓ malformed gate fails closed and other accounts cannot read history   0.01s  
+  ✓ disabled feature and revoked access do not call provider             0.01s  
+  ✓ truncated candidate is not published or retried                      0.01s  
+  ✓ grant command reuses account and registered task                     0.01s  
+  ✓ daily reset preserves task history and logout ends real authenticat… 0.01s  
+  ✓ login returns to room instead of previous status endpoint            0.01s  
+
+   PASS  Tests\Feature\AssessmentDesignTest
+  ✓ assessment sheets render with grading controls                       0.02s  
+
+   PASS  Tests\Feature\AuthLoginTest
+  ✓ can login as mahasiswa with student email                            0.02s  
+  ✓ can login as mahasiswa with nim                                      0.02s  
+  ✓ can login as mahasiswa with alias email                              0.02s  
+  ✓ can login as dosen                                                   0.02s  
+  ✓ can login as admin prodi                                             0.02s  
+  ✓ can login as kaprodi                                                 0.02s  
+  ✓ can login as admin                                                   0.02s  
+  ✓ all five roles can switch smoothly                                   0.02s  
+
+   PASS  Tests\Feature\CodeRunnerTest
+  ✓ unconfigured runner does not execute or send code                    0.01s  
+  ✓ configured runner preserves both output streams                      0.01s  
+  ✓ provider failures are reported
+  ✓ anonymous users cannot use server runner                             0.01s  
+
+   PASS  Tests\Feature\CodingWebPreviewTest
+  ✓ web coding assignment renders preview tab and iframe                 0.02s  
+  ✓ python coding assignment keeps console only layout                   0.01s  
+  ✓ default language is python for new coding tasks                      0.01s  
+  ✓ language follows question type so uraian items never get web mode    0.01s  
+
+   FAIL  Tests\Feature\GradebookAttainmentTest
+  ⨯ gradebook filters render details and reject cross course assessment… 0.02s  
+  ✓ cpmk thresholds are validated and saved                              0.01s  
+  ✓ criteria are point weighted and outcomes have separate thresholds
+  ✓ missing grades are not zero and a complete failure can fail early
+  ✓ courses students and non grading resources are isolated
+  ✓ items average equally but cpmk aggregates points across items        0.01s  
+  ✓ manual component coverage cannot hide ungraded items
+  ✓ seeded legacy mappings and old session thresholds
+  ✓ questionless assessments use item points without inventing a mapping
+
+   PASS  Tests\Feature\LayoutRoleDisplayTest
+  ✓ topbar displays clean role label without json dump                   0.01s  
+  ✓ can switch to all 5 roles                                            0.01s  
+
+   PASS  Tests\Feature\LearningWorkflowTest
+  ✓ lecturer forum links and message stay in lecturer context            0.02s  
+  ✓ content form creates all six question types for latest task design   0.01s  
+  ✓ courses have distinct content and items cannot cross courses         0.01s  
+  ✓ lecturer can create course and material with session scoped file     0.03s  
+  ✓ discussion is scoped and user text is escaped                        0.01s  
+  ✓ submission requires content and is visible for review                0.02s  
+  ✓ new coding tasks get their own editor template                       0.01s  
+  ✓ resubmission preserves files until explicitly removed                0.01s  
+  ✓ numeric zero is a valid choice and duplicate choices are rejected    0.01s  
+  ✓ upload and choice validation                                         0.01s  
+  ✓ matching and boolean question types                                  0.01s  
+  ✓ late submission policy is enforced                                   0.01s  
+  ✓ grades and discussions ui                                            0.01s  
+  ✓ lecturer view and quiz action                                        0.01s  
+  ✓ code workbench linux layout                                          0.01s  
+  ✓ quiz room cbt and duration settings                                  0.01s  
+  ✓ quiz room early exit submits automatically and locks quiz            0.01s  
+
+   PASS  Tests\Feature\MonitoringRangeTest
+  ✓ presets stop at current time and month selection handles leap year   0.01s  
+  ✓ invalid or excessive ranges fall back and valid ranges are inclusiv… 0.01s  
+  ✓ realtime system shows resource bars without visitor stats or chart   0.01s  
+  ✓ ai defaults to per request usage and legacy realtime links show req… 0.03s  
+  ✓ both charts render all ranges with honest realtime status            0.11s  
+
+   PASS  Tests\Feature\ObeReportingAndRoleAuditTest
+  ✓ dosen can export rekap csv                                           0.02s  
+  ✓ dosen can export cpmk csv                                            0.02s  
+  ✓ dosen can export cpl csv                                             0.02s  
+  ✓ dosen can view printable rekap                                       0.03s  
+  ✓ unauthorized dosen cannot access or export other class               0.02s  
+  ✓ kaprodi can monitor cpmk and cpl                                     0.03s  
+  ✓ kaprodi cannot mutate dosen assessments or grades                    0.02s  
+  ✓ mahasiswa can view own obe progress                                  0.02s  
+  ✓ mahasiswa cannot access dosen or kaprodi pages                       0.03s  
+
+   PASS  Tests\Feature\ObeRumusVerificationTest
+  ✓ cpmk formula matches exact worked example                            0.03s  
+  ✓ predicate categories match design                                    0.02s  
+  ✓ cpmk class aggregate calculation                                     0.02s  
+  ✓ dosen penilaian views render with aggregates                         0.06s  
+  ✓ assessment with multiple cpmks renders input per cpmk and no feedba… 0.02s  
+  ✓ storing cpmk scores calculates weighted total and saves per cpmk     0.02s  
+  ✓ assessment table has no rubrik and sidebar is unified                0.02s  
+  ✓ exact rps matrix calculation and view rendering                      0.06s  
+  ✓ three cpmk weights sum to 100 percent and calculate final score      0.02s  
+  ✓ rekap renders without cpl and displays cpmk weights                  0.02s  
+  ✓ export csv includes cpmk weights and student results                 0.01s  
+  ✓ save matriks endpoint syncs matrix cells and final weights           0.02s  
+  ✓ asesmen view displays effective weights instead of misleading perce… 0.02s  
+  ✓ rekap table is pure cpmk with component breakdown and no cpl table…  0.03s  
+  ✓ desain v3 linear navigation and clean interfaces                     0.04s  
+  ✓ sidebar rekap nilai and cpmk cpl navigation                          0.05s  
+  ✓ input nilai displays matrix percentages matching matriks penilaian   0.03s  
+  ✓ input nilai proportional max points and direct sum                   0.03s  
+  ✓ input nilai blocks scores exceeding max proportional points          0.02s  
+
+   PASS  Tests\Feature\StudentFrontendTest
+  ✓ the application redirects to the student dashboard                   0.01s  
+  ✓ public prototype pages are available with security headers           0.05s  
+  ✓ unknown prototype resources return not found                         0.01s  
+  ✓ student and lecturer dashboards render expected sections             0.01s  
+  ✓ course detail page layout has sidebar discussion and no lihat nilai… 0.01s  
+
+   PASS  Tests\Feature\SubmissionPreviewTest
+  ✓ uploaded files are scoped to student course and component            0.01s  
+  ✓ pdf preview download and session isolation                           0.01s  
+  ✓ unsupported formats are never served inline                          0.01s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\GradebookAttainmentTest > gradebook filters render…    
+  Expected: <!DOCTYPE html>\n
+  <html lang="id">\n
+  <head>\n
+  ... (466 more lines)
+
+  To contain: Ketercapaian CPMK
+
+  at tests/Feature/GradebookAttainmentTest.php:12
+      8▕ class GradebookAttainmentTest extends TestCase
+      9▕ {
+     10▕     public function test_gradebook_filters_render_details_and_reject_cross_course_assessments(): void
+     11▕     {
+  ➜  12▕         $this->get('/dosen/gradebook?course=1')->assertOk()->assertSee('Telusuri penilaian')->assertSee('Ketercapaian CPMK');
+     13▕         $this->get('/dosen/gradebook?course=1&component=tugas&assessment=1')->assertOk()->assertSee('Pemetaan soal')->assertSee('Lihat nilai')->assertDontSee('Simpan Semua Nilai');
+     14▕         $this->get('/dosen/gradebook?course=1&component=uas')->assertOk()->assertSee('Belum ada penilaian pada komponen ini');
+     15▕         $this->get('/dosen/gradebook?course=1&component=tugas&assessment=5')->assertStatus(422);
+     16▕         $this->get('/dosen/gradebook?course=1&component=invalid')->assertStatus(422);
+
+
+  Tests:    1 failed, 120 passed (1223 assertions)
+  Duration: 2.65s
+

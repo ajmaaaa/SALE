@@ -80,4 +80,26 @@ class ClassSection extends Model
     {
         return url('/join-kelas/'.($this->enrollment_code ?? ''));
     }
+
+    /**
+     * Total bobot seluruh komponen asesmen pada kelas ini.
+     */
+    public function getTotalAssessmentWeightAttribute(): float
+    {
+        $assessments = $this->relationLoaded('assessments') ? $this->assessments : $this->assessments()->get();
+        return round((float) $assessments->sum('final_weight'), 2);
+    }
+
+    /**
+     * Mengecek apakah matriks penilaian valid (memiliki asesmen dan total tepat 100%).
+     */
+    public function isMatrixValid(): bool
+    {
+        $assessments = $this->relationLoaded('assessments') ? $this->assessments : $this->assessments()->get();
+        if ($assessments->isEmpty()) {
+            return false;
+        }
+
+        return abs($this->total_assessment_weight - 100.0) < 0.01;
+    }
 }

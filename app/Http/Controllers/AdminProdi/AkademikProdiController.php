@@ -155,8 +155,29 @@ class AkademikProdiController extends Controller
                     ->where('semester_id', $request->input('semester_id')),
             ],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'dosen_id' => ['required', 'exists:users,id'], // Dosen Ketua
-            'dosen_pendamping_id' => ['nullable', 'exists:users,id', 'different:dosen_id'], // Dosen Wakil
+            'dosen_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    $user = \App\Models\User::with('role')->find($value);
+                    if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
+                    }
+                },
+            ],
+            'dosen_pendamping_id' => [
+                'nullable',
+                'exists:users,id',
+                'different:dosen_id',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $user = \App\Models\User::with('role')->find($value);
+                        if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                            $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        }
+                    }
+                },
+            ],
         ], [
             'section_code.unique' => 'Kelas dengan kode seksi ini sudah ada untuk mata kuliah dan semester yang dipilih.',
             'dosen_id.required' => 'Dosen Ketua (Koordinator) wajib ditetapkan.',
@@ -186,8 +207,29 @@ class AkademikProdiController extends Controller
                     ->ignore($section->id),
             ],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'dosen_id' => ['required', 'exists:users,id'],
-            'dosen_pendamping_id' => ['nullable', 'exists:users,id', 'different:dosen_id'],
+            'dosen_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    $user = \App\Models\User::with('role')->find($value);
+                    if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
+                    }
+                },
+            ],
+            'dosen_pendamping_id' => [
+                'nullable',
+                'exists:users,id',
+                'different:dosen_id',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $user = \App\Models\User::with('role')->find($value);
+                        if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                            $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        }
+                    }
+                },
+            ],
         ], [
             'section_code.unique' => 'Kode kelas ini sudah ada.',
             'dosen_pendamping_id.different' => 'Dosen Wakil tidak boleh sama dengan Dosen Ketua.',

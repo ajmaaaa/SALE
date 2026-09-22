@@ -22,15 +22,13 @@ class EnsureAdminProdiAuth
                         ->orWhere('nim_nidn', $sessionUser['number'] ?? '');
                 })
                 ->first();
+            if ($user && ($user->hasRole(Role::ADMIN_PRODI) || $user->hasRole(Role::ADMIN))) {
+                \Illuminate\Support\Facades\Auth::login($user);
+            }
         }
 
         if (! $user) {
-            $user = User::with('role')->whereHas('role', fn ($q) => $q->whereIn('name', [Role::ADMIN_PRODI, Role::ADMIN]))->first();
-            if ($user) {
-                \Illuminate\Support\Facades\Auth::login($user);
-            } else {
-                return redirect()->route('login');
-            }
+            return redirect()->route('login');
         }
 
         if (! $user->hasRole(Role::ADMIN_PRODI) && ! $user->hasRole(Role::ADMIN)) {

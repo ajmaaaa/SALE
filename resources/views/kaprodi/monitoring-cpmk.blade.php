@@ -27,7 +27,7 @@
             <select id="section_id" name="section_id" onchange="this.form.submit()" class="w-full sm:w-auto flex-1 rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none">
                 @forelse($sections as $sec)
                     <option value="{{ $sec->id }}" {{ $activeSection && $activeSection->id === $sec->id ? 'selected' : '' }}>
-                        {{ $sec->mataKuliah->code }} - {{ $sec->mataKuliah->name }} (Kelas {{ $sec->name }}) &middot; Dosen: {{ $sec->dosen->name ?? '—' }}
+                        {{ $sec->mataKuliah->code }} - {{ $sec->mataKuliah->name }} (Kelas {{ $sec->name }}) - Dosen: {{ $sec->dosen->name ?? '—' }}
                     </option>
                 @empty
                     <option value="">Belum ada kelas aktif di semester ini</option>

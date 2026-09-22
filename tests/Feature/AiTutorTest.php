@@ -52,6 +52,19 @@ class AiTutorTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    public function test_quick_demo_ai_login_provisions_account_and_access(): void
+    {
+        $this->post('/ai/login', [
+            'assignment' => 1,
+            'email' => 'demo.ai@sale.test',
+            'password' => 'password123456',
+        ])->assertRedirect(route('mahasiswa.assignment.code', 1));
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', ['email' => 'demo.ai@sale.test']);
+        $this->assertDatabaseHas('ai_access', ['task_id' => 1]);
+    }
+
     public function test_tutor_uses_authoritative_task_and_accounts_for_all_three_calls(): void
     {
         $user = $this->student();

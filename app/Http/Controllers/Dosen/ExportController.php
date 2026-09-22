@@ -64,7 +64,7 @@ class ExportController extends Controller
                 $predicate = $this->obe->predicate($final['score']);
                 $status = $final['coverage'] < 100 ? 'Provisional' : ($final['score'] !== null ? 'Final' : 'Belum dinilai');
 
-                $row = [$i + 1, $student->nim_nidn ?? '', $student->name];
+                $row = [$i + 1, $this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
                 foreach ($cpmks as $cpmk) {
                     $row[] = $cpmkScores[$cpmk->id] !== null ? number_format($cpmkScores[$cpmk->id], 2) : '';
                 }
@@ -108,7 +108,7 @@ class ExportController extends Controller
             foreach ($students as $i => $student) {
                 $scores = $this->obe->cpmkScoresFor($cpmks, $student->id, $section->id);
 
-                $row = [$i + 1, $student->nim_nidn ?? '', $student->name];
+                $row = [$i + 1, $this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
                 foreach ($cpmks as $cpmk) {
                     $row[] = $scores[$cpmk->id] !== null ? number_format($scores[$cpmk->id], 2) : '';
                 }
@@ -146,7 +146,7 @@ class ExportController extends Controller
             foreach ($students as $i => $student) {
                 $scores = $this->obe->cplScoresFor($cpls, $student->id, $section->id);
 
-                $row = [$i + 1, $student->nim_nidn ?? '', $student->name];
+                $row = [$i + 1, $this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
                 foreach ($cpls as $cpl) {
                     $score = $scores[$cpl->id] ?? null;
                     $row[] = $score !== null ? number_format($score, 2) : '';
@@ -291,5 +291,14 @@ class ExportController extends Controller
         }
 
         abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+    }
+
+    private function sanitizeCsv(mixed $value): string
+    {
+        $str = (string) $value;
+        if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $str;
+        }
+        return $str;
     }
 }

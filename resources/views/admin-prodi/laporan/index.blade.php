@@ -50,7 +50,7 @@
         </form>
 
         <div class="text-xs text-muted">
-            Periode: <strong class="text-ink">{{ $activeSemester?->name }}</strong> &middot; Prodi: <strong class="text-ink">{{ $activeProdi?->name }}</strong>
+            Periode: <strong class="text-ink">{{ $activeSemester?->name }}</strong>, Prodi: <strong class="text-ink">{{ $activeProdi?->name }}</strong>
         </div>
     </div>
 
@@ -100,7 +100,7 @@
                 <p class="text-xs text-muted">Evaluasi ketercapaian nilai dan penugasan Dosen Ketua / Wakil di semester {{ $activeSemester?->name }}</p>
             </div>
             <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="text-xs font-semibold text-brand hover:underline">
-                Unduh Data CSV &rarr;
+                Unduh Data CSV
             </a>
         </div>
 

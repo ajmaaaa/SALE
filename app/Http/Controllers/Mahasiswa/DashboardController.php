@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\LearningPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -59,10 +60,17 @@ class DashboardController extends Controller
             }
         }
 
+        $activeItems = collect(LearningPreview::items())
+            ->filter(fn ($item) => in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
+            ->reject(fn ($item) => session("learning.submissions.{$item['id']}"))
+            ->sortBy('due')
+            ->values();
+
         return view('mahasiswa.dashboard', [
             'student' => $user,
             'enrolledSections' => $enrolledSections,
             'courses' => $courses,
+            'activeItems' => $activeItems,
         ]);
     }
 }

@@ -9,14 +9,14 @@
     $prodiCount = count(array_filter($academic, fn($a) => $a['type'] === 'prodi'));
     $semesterCount = count(array_filter($academic, fn($a) => $a['type'] === 'semester'));
 
-    $mahasiswaCount = count(array_filter($users, fn($u) => $u['role'] === 'mahasiswa'));
-    $mahasiswaAktif = count(array_filter($users, fn($u) => $u['role'] === 'mahasiswa' && $u['status'] === 'aktif'));
+    $mahasiswaCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'mahasiswa')));
+    $mahasiswaAktif = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'mahasiswa') && $u['status'] === 'aktif'));
 
-    $dosenCount = count(array_filter($users, fn($u) => $u['role'] === 'dosen'));
-    $dosenAktif = count(array_filter($users, fn($u) => $u['role'] === 'dosen' && $u['status'] === 'aktif'));
+    $dosenCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'dosen')));
+    $dosenAktif = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'dosen') && $u['status'] === 'aktif'));
 
-    $adminCount = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
-    $adminAktif = count(array_filter($users, fn($u) => $u['role'] === 'admin' && $u['status'] === 'aktif'));
+    $adminCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'admin')));
+    $adminAktif = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'admin') && $u['status'] === 'aktif'));
 
     $logs = session('admin.logs', []);
 @endphp
@@ -41,7 +41,7 @@
         <div class="surface p-5 border border-line/60">
             <p class="text-xs font-semibold text-muted">TOTAL PENGGUNA</p>
             <p class="mt-2 text-2xl font-bold text-ink">{{ count($users) }}</p>
-            <p class="mt-1 text-xs text-muted">{{ $mahasiswaCount }} mahasiswa · {{ $dosenCount }} dosen</p>
+            <p class="mt-1 text-xs text-muted">{{ $mahasiswaCount }} mahasiswa, {{ $dosenCount }} dosen</p>
         </div>
         <div class="surface p-5 border border-line/60">
             <p class="text-xs font-semibold text-muted">STRUKTUR AKADEMIK</p>
@@ -68,7 +68,7 @@
                 <p class="text-xs text-muted mt-0.5">Master data yang dikelola oleh administrator institusi.</p>
             </div>
             <a href="{{ route('admin.page', 'akademik') }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
-                Kelola data akademik →
+                Kelola data akademik
             </a>
         </div>
 
@@ -114,7 +114,7 @@
                 <p class="text-xs text-muted mt-0.5">Ringkasan penggunaan token AI bulan berjalan dan estimasi kuota.</p>
             </div>
             <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
-                Panel monitoring AI →
+                Panel monitoring AI
             </a>
         </div>
 
@@ -182,7 +182,7 @@
                 <p class="text-xs text-muted mt-0.5">Rasio keaktifan akun berdasarkan peran dalam ekosistem akademik.</p>
             </div>
             <a href="{{ route('admin.page', 'pengguna') }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
-                Kelola pengguna →
+                Kelola pengguna
             </a>
         </div>
 
@@ -253,7 +253,7 @@
                 <p class="text-xs text-muted mt-0.5">Catatan aktivitas dan perubahan konfigurasi sistem terbaru.</p>
             </div>
             <a href="{{ route('admin.page', 'aktivitas') }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
-                Buka semua log →
+                Buka semua log
             </a>
         </div>
 

@@ -319,9 +319,16 @@ class ObeRumusVerificationTest extends TestCase
             ->assertSee('Input Nilai')
             ->assertDontSee('<th>Rubrik</th>')
             ->assertDontSee('Rubrik Nilai')
-            ->assertSee('Penilaian OBE')
+            ->assertSee('1 kelas belum selesai dinilai')
             ->assertDontSee('Penilaian tugas')
             ->assertDontSee('Rekap nilai & CPMK');
+
+        $dashboard = $this->followingRedirects()->actingAs($this->dosen)
+            ->get(route('dosen.penilaian.dashboard', $this->section->id));
+
+        $dashboard->assertOk()
+            ->assertSee('aria-current="page"', false)
+            ->assertSee('1 kelas belum selesai dinilai');
     }
 
     /**
@@ -839,4 +846,3 @@ class ObeRumusVerificationTest extends TestCase
         ]);
     }
 }
-

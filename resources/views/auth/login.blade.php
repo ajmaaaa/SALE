@@ -57,11 +57,12 @@
                     </button>
                 </div>
             </form>
+
         </div>
     </main>
 
     <footer class="border-t border-line/50 bg-white px-6 py-4 text-center text-xs text-muted">
-        SALE · Smart Academic Learning Ecosystem
+        SALE - Smart Academic Learning Ecosystem
     </footer>
 </body>
 </html>

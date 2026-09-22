@@ -19,13 +19,13 @@ class PenilaianController extends Controller
     public function __construct(private ObeCalculationService $obe) {}
 
     /**
-     * Halaman 2 — Dashboard Penilaian Kelas (Langkah 1: Matriks Bobot).
+     * Dashboard Penilaian Kelas — langsung mengarah ke Daftar Asesmen.
      */
     public function dashboard(ClassSection $section): RedirectResponse
     {
         $this->authorizeOwnership($section);
 
-        return redirect()->route('dosen.penilaian.matriks', $section);
+        return redirect()->route('dosen.penilaian.asesmen', $section);
     }
 
     /**
@@ -149,47 +149,75 @@ class PenilaianController extends Controller
     {
         $this->authorizeOwnership($section);
 
+        $request->validate([
+            'matrix' => ['required', 'array'],
+            'matrix.*' => ['array'],
+            'matrix.*.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+
         $matrix = $request->input('matrix', []);
         $assessments = $section->assessments()->get();
         $cpmks = $this->cpmksFor($section);
         $cpmkIds = $cpmks->pluck('id');
 
         $grandTotal = 0.0;
+        $prepared = [];
 
-        DB::transaction(function () use ($matrix, $assessments, $cpmkIds, &$grandTotal) {
-            foreach ($assessments as $assessment) {
-                $colSum = 0.0;
-                $syncData = [];
+        foreach ($assessments as $assessment) {
+            $colSum = 0.0;
+            $syncData = [];
 
-                if (isset($matrix[$assessment->id]) && is_array($matrix[$assessment->id])) {
-                    foreach ($matrix[$assessment->id] as $cpmkId => $val) {
-                        $cpmkId = (int) $cpmkId;
-                        if (! $cpmkIds->contains($cpmkId)) {
-                            continue;
-                        }
+            if (isset($matrix[$assessment->id]) && is_array($matrix[$assessment->id])) {
+                foreach ($matrix[$assessment->id] as $cpmkId => $val) {
+                    $cpmkId = (int) $cpmkId;
+                    if (! $cpmkIds->contains($cpmkId)) {
+                        continue;
+                    }
 
-                        $weight = ($val !== null && $val !== '') ? (float) $val : 0.0;
-                        if ($weight > 0) {
-                            $colSum += $weight;
-                            $syncData[$cpmkId] = ['weight' => $weight];
-                        }
+                    $weight = ($val !== null && $val !== '') ? (float) $val : 0.0;
+                    if ($weight < 0) {
+                        return back()->withErrors(['matrix' => 'Bobot pada matriks tidak boleh bernilai negatif.'])->withInput();
+                    }
+                    if ($weight > 0) {
+                        $colSum += $weight;
+                        $syncData[$cpmkId] = ['weight' => $weight];
                     }
                 }
+            }
 
-                $assessment->update(['final_weight' => round($colSum, 2)]);
-                $assessment->cpmks()->sync($syncData);
-                $grandTotal += $colSum;
+            $prepared[] = [
+                'assessment' => $assessment,
+                'final_weight' => round($colSum, 2),
+                'sync_data' => $syncData,
+            ];
+            $grandTotal += $colSum;
+        }
+
+        $grandTotal = round($grandTotal, 2);
+        $grandTotalFormatted = rtrim(rtrim(number_format($grandTotal, 2), '0'), '.');
+
+        // Opsi 1 (Sangat Ketat): Matriks hanya boleh disimpan jika total tepat 100%
+        if (abs($grandTotal - 100.0) > 0.01) {
+            $diff = round(abs($grandTotal - 100.0), 2);
+            $diffFormatted = rtrim(rtrim(number_format($diff, 2), '0'), '.');
+            $detail = $grandTotal > 100.0
+                ? "kelebihan {$diffFormatted}%"
+                : "kurang {$diffFormatted}%";
+
+            return back()->withErrors([
+                'matrix' => "Total bobot matriks penilaian harus tepat 100% (saat ini {$grandTotalFormatted}%, {$detail}). Matriks tidak dapat disimpan sebelum total tepat 100%."
+            ])->withInput();
+        }
+
+        DB::transaction(function () use ($prepared) {
+            foreach ($prepared as $item) {
+                $item['assessment']->update(['final_weight' => $item['final_weight']]);
+                $item['assessment']->cpmks()->sync($item['sync_data']);
             }
         });
 
-        $grandTotalFormatted = rtrim(rtrim(number_format($grandTotal, 2), '0'), '.');
-        if (abs($grandTotal - 100) < 0.1) {
-            return redirect()->route('dosen.penilaian.matriks', $section->id)
-                ->with('notice', "Matriks penilaian valid (Total Bobot: {$grandTotalFormatted}%). Matriks telah terkunci dan Anda dapat melanjutkan ke Input Nilai.");
-        }
-
         return redirect()->route('dosen.penilaian.matriks', $section->id)
-            ->with('notice', "Matriks bobot berhasil disimpan (Total saat ini: {$grandTotalFormatted}% / 100%). Pastikan grand total mencapai tepat 100%.");
+            ->with('notice', "Matriks penilaian valid (Total Bobot: {$grandTotalFormatted}%). Matriks telah terkunci dan Anda dapat melanjutkan ke Input Nilai.");
     }
 
     /**
@@ -339,6 +367,6 @@ class PenilaianController extends Controller
             $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
     }
 }

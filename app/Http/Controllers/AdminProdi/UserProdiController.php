@@ -171,9 +171,10 @@ class UserProdiController extends Controller
         $request->validate([
             'prodi_id' => ['required', 'exists:prodis,id'],
             'role_type' => ['required', Rule::in(['dosen', 'mahasiswa'])],
-            'file' => ['required', 'file', 'max:4096'],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
         ], [
             'file.required' => 'Pilih file Excel/CSV yang akan diimpor.',
+            'file.mimes' => 'File yang diunggah harus berformat CSV atau TXT.',
         ]);
 
         $prodiId = $request->integer('prodi_id');

@@ -1,0 +1,28 @@
+PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.5.10
+Configuration: /home/ajmaaa/Projects/SALE/phpunit.xml
+
+................                                                  16 / 16 (100%)
+
+Time: 00:00.317, Memory: 50.50 MB
+
+Audit Reproduction (Tests\Audit\AuditReproduction)
+ ✔ Guest is automatically authenticated as database admin
+ ✔ Public role switch authenticates real account and exposes ai history
+ ✔ Database user can login without their password
+ ✔ Admin prodi can reset another programs system admin password
+ ✔ Guest can read enrollment code from sequential class id
+ ✔ Database course card opens unrelated preview course
+ ✔ Assistant sees class but cannot open its assessment dashboard
+ ✔ Quiz submission can be replaced after ui says locked
+ ✔ Randomized quiz validates answers against original position
+ ✔ Grade for another student is saved under student one
+ ✔ Cpmk without section uses first enrollment even for retake
+ ✔ Admin can assign student as lecturer
+ ✔ Partial cpmk score is counted as full coverage
+ ✔ Removing scored rubric criterion silently leaves weight above 100
+ ✔ Csv export contains unescaped formula cell
+ ✔ Logout keeps previous personas submission in session
+
+OK (16 tests, 52 assertions)

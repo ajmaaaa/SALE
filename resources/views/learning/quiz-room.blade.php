@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#ffffff">
-    <title>{{ $item['title'] }} · Ruang Ujian | SALE</title>
+    <title>{{ $item['title'] }} - Ruang Ujian | SALE</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         .match-canvas-container {
@@ -67,7 +67,7 @@
                         <span>Kembali ke Course</span>
                     </a>
                     <span class="text-slate-300">|</span>
-                    <span class="text-xs font-bold text-slate-700 truncate">{{ $course['code'] }} · {{ $item['title'] }}</span>
+                    <span class="text-xs font-bold text-slate-700 truncate">{{ $course['code'] }} - {{ $item['title'] }}</span>
                 </div>
                 <span class="status font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                     <svg class="h-3.5 w-3.5 text-slate-500 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -152,7 +152,7 @@
                 <div class="min-w-0">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-semibold text-slate-500">{{ $course['code'] }}</span>
-                        <span class="text-slate-300">·</span>
+                        <span class="text-slate-300">/</span>
                         <span class="text-xs text-slate-500 truncate hidden sm:inline">{{ $course['title'] }}</span>
                     </div>
                     <h1 class="truncate text-sm font-bold text-slate-900 leading-tight">{{ $item['title'] }}</h1>
@@ -235,7 +235,7 @@
                                 </div>
                                 <div class="flex items-center gap-1.5 text-xs text-slate-500">
                                     <span class="font-semibold text-slate-700">{{ $q['points'] }} Poin</span>
-                                    <span>·</span>
+                                    <span class="text-slate-300">/</span>
                                     <span class="text-slate-500">{{ $q['cpmk'] }}</span>
                                 </div>
                             </div>
@@ -312,7 +312,7 @@
                                             </span>
                                             <span class="flex items-center gap-3 text-slate-400">
                                                 <span id="code-chars-{{ $qIdx }}">0 karakter</span>
-                                                <span>UTF-8 · 4 Spasi</span>
+                                                <span>UTF-8, 4 Spasi</span>
                                             </span>
                                         </div>
                                     </section>
@@ -334,7 +334,7 @@
                                                     </div>
                                                     <div class="flex items-center gap-1.5 text-slate-300">
                                                         <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                                                        <span class="text-xs font-mono text-slate-300 font-medium">Output Python · Terminal</span>
+                                                        <span class="text-xs font-mono text-slate-300 font-medium">Output Python (Terminal)</span>
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center gap-2">
@@ -373,9 +373,9 @@
                                     }
                                     if (empty($pairs)) {
                                         $pairs = [
-                                            ['left' => 'Pre-order', 'right' => 'Akar → Kiri → Kanan'],
-                                            ['left' => 'In-order', 'right' => 'Kiri → Akar → Kanan'],
-                                            ['left' => 'Post-order', 'right' => 'Kiri → Kanan → Akar'],
+                                            ['left' => 'Pre-order', 'right' => 'Akar - Kiri - Kanan'],
+                                            ['left' => 'In-order', 'right' => 'Kiri - Akar - Kanan'],
+                                            ['left' => 'Post-order', 'right' => 'Kiri - Kanan - Akar'],
                                         ];
                                     }
                                     $colors = ['#1d4ed8', '#047857', '#b45309', '#6d28d9', '#0f766e', '#be123c', '#4338ca'];

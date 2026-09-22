@@ -6,7 +6,7 @@
     <p class="mt-2 text-xs leading-5 text-muted">Satu baris untuk setiap request yang selesai menghasilkan respons. Input adalah token yang dikirim; output adalah token jawaban AI.</p>
     <div tabindex="0" role="region" aria-label="Riwayat token per request AI" class="mt-4 max-h-96 overflow-auto rounded-xl border border-line/60 focus-visible:outline-2 focus-visible:outline-brand">
         <table class="admin-table w-full">
-            <caption class="sr-only">Pemakaian token per request, terbaru terlebih dahulu{{ $demo ? ' · Data simulasi' : '' }}</caption>
+            <caption class="sr-only">Pemakaian token per request, terbaru terlebih dahulu{{ $demo ? ' (Data simulasi)' : '' }}</caption>
             <thead class="sticky top-0 z-10 bg-canvas"><tr><th>Model</th><th class="whitespace-nowrap">Token input</th><th class="whitespace-nowrap">Token output</th><th>Waktu selesai</th></tr></thead>
             <tbody>
                 @if($demo)

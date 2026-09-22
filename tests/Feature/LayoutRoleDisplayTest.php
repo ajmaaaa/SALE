@@ -27,9 +27,21 @@ class LayoutRoleDisplayTest extends TestCase
         $response->assertOk();
         // Pastikan tidak ada raw json role di render
         $response->assertDontSee('{"id":');
-        $response->assertSee('Budi Santoso, M.Kom.');
-        $response->assertSee('198501012010121001 · Dosen');
-        $response->assertSee('Beralih Peran Cepat (5 Role)');
+        $response->assertSee('Beralih Peran (Dosen & Kaprodi)');
+        $response->assertDontSee('Mahasiswa (Ahmad Maulana)');
+
+        // Mahasiswa tidak melihat opsi switch role sama sekali
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $mhs = User::create([
+            'name' => 'Ahmad Maulana',
+            'email' => 'ahmad@example.test',
+            'nim_nidn' => '231011401234',
+            'password' => 'secret',
+            'role_id' => $mhsRole->id,
+        ]);
+        $mhsResponse = $this->actingAs($mhs)->get(route('mahasiswa.dashboard'));
+        $mhsResponse->assertOk();
+        $mhsResponse->assertDontSee('Beralih Peran');
     }
 
     public function test_can_switch_to_all_5_roles(): void

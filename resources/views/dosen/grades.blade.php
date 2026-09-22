@@ -10,7 +10,7 @@
     <div id="sync-toast" hidden class="surface p-4 border-l-4 border-brand text-xs text-ink shadow-sm">
         <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-brand">✓ Perubahan Tersimpan:</span>
+                <span class="font-bold text-brand">Perubahan Tersimpan:</span>
                 <span class="text-muted" id="toast-message">Data nilai dan capaian CPMK kelas telah diperbarui.</span>
             </div>
             <button type="button" onclick="document.getElementById('sync-toast').setAttribute('hidden', '')" class="text-xs text-muted hover:text-ink">Tutup</button>

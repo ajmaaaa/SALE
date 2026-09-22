@@ -18,7 +18,11 @@ class AssignmentController extends Controller
     public function code(int $assignment): View
     {
         $item = LearningPreview::items()[$assignment] ?? null;
-        abort_unless($item && $item['type'] === 'coding', 404);
+        $isCodingContent = $item && (
+            $item['type'] === 'coding'
+            || ($item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding')
+        );
+        abort_unless($isCodingContent, 404);
 
         if (Schema::hasTable('ai_tasks')) {
             $aiTask = DB::table('ai_tasks')->where('id', $assignment)->first();

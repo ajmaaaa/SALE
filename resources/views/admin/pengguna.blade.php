@@ -23,9 +23,9 @@
 
     {{-- Summary Stat Cards: Total Mahasiswa, Total Dosen, Administrator, Pengguna Aktif --}}
     @php
-        $mahasiswaCount = count(array_filter($users, fn($u) => $u['role'] === 'mahasiswa'));
-        $dosenCount = count(array_filter($users, fn($u) => $u['role'] === 'dosen'));
-        $adminCount = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
+        $mahasiswaCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'mahasiswa')));
+        $dosenCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'dosen')));
+        $adminCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'admin')));
         $aktifCount = count(array_filter($users, fn($u) => $u['status'] === 'aktif'));
     @endphp
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -52,7 +52,7 @@
                 <p class="text-xs font-semibold text-muted">ADMINISTRATOR &amp; PRODI</p>
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <p class="mt-2.5 text-2xl font-bold text-ink">{{ count(array_filter($users, fn($u) => in_array($u['role'], ['admin', 'admin_prodi', 'kaprodi']))) }}</p>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ count(array_filter($users, fn($u) => collect(['admin', 'admin_prodi', 'kaprodi'])->contains(fn($role) => \App\Support\AdminPreview::hasRole($u, $role)))) }}</p>
             <p class="mt-1 text-xs text-muted">Pengelola sistem &amp; kaprodi</p>
         </div>
 
@@ -124,12 +124,14 @@
                     <input class="field" id="email" name="email" type="email" required placeholder="nama@kampus.ac.id" value="{{ old('email', $record['email'] ?? '') }}">
                 </div>
                 <div>
-                    <label class="form-label" for="role">Peran Akses</label>
-                    <select class="field" id="role" name="role">
+                    <span class="form-label">Peran akses</span>
+                    @php($selectedRoles = old('roles', $record['roles'] ?? (isset($record['role']) ? [$record['role']] : ['mahasiswa'])))
+                    <div class="grid grid-cols-2 gap-2 rounded-lg border border-line bg-white p-3">
                         @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'] as $key => $label)
-                            <option value="{{ $key }}" @selected(old('role', $record['role'] ?? '') === $key)>{{ $label }}</option>
+                            <label class="flex cursor-pointer items-center gap-2 text-xs text-ink"><input type="checkbox" name="roles[]" value="{{ $key }}" class="rounded border-line text-brand" @checked(in_array($key, $selectedRoles, true))><span>{{ $label }}</span></label>
                         @endforeach
-                    </select>
+                    </div>
+                    <p class="mt-1.5 text-xs text-muted">Satu identitas dapat memiliki beberapa peran tanpa membuat akun baru.</p>
                 </div>
                 <div>
                     <label class="form-label" for="status">Status Akun</label>
@@ -188,7 +190,9 @@
                             {{ $user['email'] }}
                         </td>
                         <td>
-                            {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'][$user['role']] ?? ucfirst($user['role']) }}
+                            @foreach($user['roles'] ?? [$user['role']] as $role)
+                                {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'][$role] ?? ucfirst($role) }}@if(!$loop->last), @endif
+                            @endforeach
                         </td>
                         <td>
                             {{ ucfirst($user['status']) }}

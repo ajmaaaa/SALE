@@ -42,7 +42,7 @@
                 </div>
             </div>
             <a href="{{ route('admin.page', 'akademik') }}?edit={{ $existingFakultas['id'] }}" class="text-xs font-semibold text-brand hover:text-brand-dark shrink-0">
-                Edit Fakultas →
+                Edit Fakultas
             </a>
         </div>
     @endif

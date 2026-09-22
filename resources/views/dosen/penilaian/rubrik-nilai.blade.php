@@ -19,7 +19,7 @@
             <div>
                 <h2 class="section-heading">Input Nilai Rubrik: {{ $assessment->name }}</h2>
                 <p class="mt-1 text-sm text-muted">
-                    {{ $rubric->name }} · {{ $criteria->count() }} kriteria
+                    {{ $rubric->name }} ({{ $criteria->count() }} kriteria)
                 </p>
             </div>
             <div class="flex gap-2">

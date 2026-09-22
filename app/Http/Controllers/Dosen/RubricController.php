@@ -175,7 +175,7 @@ class RubricController extends Controller
         $criteria = $rubric->criteria()->orderBy('id')->get();
         $criteriaById = $criteria->keyBy('id');
         $enrolledIds = $section->students()->pluck('users.id');
-        $dosenId = Auth::guard('web')->id();
+        $dosenId = $this->getCurrentDosenId();
 
         $request->validate([
             'rubric_scores' => ['required', 'array'],
@@ -260,5 +260,18 @@ class RubricController extends Controller
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void
     {
         abort_unless($assessment->class_section_id === $section->id, 404);
+    }
+
+    private function getCurrentDosenId(): ?int
+    {
+        $currentUserId = Auth::guard('web')->id();
+        if (! $currentUserId && is_array(session('auth_user'))) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+            $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
+        }
+        return $currentUserId;
     }
 }

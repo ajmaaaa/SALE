@@ -2,16 +2,35 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Storage;
+
 class LearningPreview
 {
     public static function courses(): array
     {
-        return session('learning.courses', [
-            1 => ['id' => 1, 'code' => 'IF204', 'title' => 'Struktur Data dan Algoritma', 'lecturer' => 'Dr. Budi Santoso, M.Kom.', 'description' => 'Struktur data fundamental, analisis kompleksitas, dan penerapannya dalam penyelesaian masalah komputasi.', 'cover' => null, 'video' => null],
+        $courses = session('learning.courses', [
+            1 => ['id' => 1, 'code' => 'IF204', 'title' => 'Struktur Data dan Algoritma', 'lecturer' => 'Dr. Budi Santoso, M.Kom.', 'description' => 'Struktur data fundamental, analisis kompleksitas, dan penerapannya dalam penyelesaian masalah komputasi.', 'cover' => null, 'video' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', 'video_type' => 'url', 'video_title' => 'Contoh video pengantar'],
             2 => ['id' => 2, 'code' => 'IF218', 'title' => 'Interaksi Manusia dan Komputer', 'lecturer' => 'Dr. Ratna Prameswari, M.Ds.', 'description' => 'Merancang dan mengevaluasi antarmuka yang mudah digunakan melalui pendekatan berpusat pada pengguna.', 'cover' => null, 'video' => null],
             3 => ['id' => 3, 'code' => 'IF221', 'title' => 'Kecerdasan Buatan Terapan', 'lecturer' => 'Prof. Nadia Rahman, Ph.D.', 'description' => 'Membangun model pembelajaran mesin dan memilih metode evaluasi yang sesuai.', 'cover' => null, 'video' => null],
             4 => ['id' => 4, 'code' => 'IF230', 'title' => 'Rekayasa Perangkat Lunak', 'lecturer' => 'Ir. Fajar Nugroho, M.T.', 'description' => 'Dari analisis kebutuhan sampai pengujian perangkat lunak dalam proyek tim.', 'cover' => null, 'video' => null],
         ]);
+
+        $samplePath = 'testing/big-buck-bunny-720p-10s.mp4';
+        $sampleId = '00000000-0000-4000-8000-000000000001';
+        if (Storage::disk('local')->exists($samplePath)) {
+            session(["learning.files.$sampleId" => [
+                'path' => $samplePath,
+                'name' => 'big-buck-bunny-720p-10s.mp4',
+                'mime' => 'video/mp4',
+            ]]);
+            if (isset($courses[1])) {
+                $courses[1]['video'] = $sampleId;
+                $courses[1]['video_type'] = 'file';
+                $courses[1]['video_title'] = 'Contoh Big Buck Bunny MP4';
+            }
+        }
+
+        return $courses;
     }
 
     public static function items(): array
@@ -152,6 +171,34 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         return self::courses()[$id];
     }
 
+    public static function youtubeEmbedUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $host = preg_replace('/^www\./', '', $host);
+        $videoId = null;
+
+        if (in_array($host, ['youtube.com', 'm.youtube.com'], true)) {
+            if (($parts['path'] ?? '') === '/watch') {
+                parse_str((string) ($parts['query'] ?? ''), $query);
+                $videoId = $query['v'] ?? null;
+            } elseif (preg_match('#^/(?:embed|shorts)/([A-Za-z0-9_-]{6,})#', (string) ($parts['path'] ?? ''), $matches)) {
+                $videoId = $matches[1];
+            }
+        } elseif ($host === 'youtu.be') {
+            $videoId = trim((string) ($parts['path'] ?? ''), '/');
+        }
+
+        return $videoId && preg_match('/^[A-Za-z0-9_-]{6,}$/', $videoId)
+            ? 'https://www.youtube-nocookie.com/embed/'.$videoId.'?rel=0'
+            : null;
+    }
+
     public static function resource(int $course, int $item): array
     {
         self::course($course);
@@ -165,9 +212,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
     {
         $examples = [
             1 => [
-                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Selamat datang di perkuliahan Struktur Data dan Algoritma. Silakan ajukan pertanyaan seputar materi atau praktikum kuis di forum kelas ini.', 'time' => '10 Sep, 08:00', 'timestamp' => 1788915600, 'role' => 'dosen'],
+                ['author' => 'Budi Santoso, M.Kom.', 'message' => 'Selamat datang di perkuliahan Struktur Data dan Algoritma. Silakan ajukan pertanyaan seputar materi atau praktikum kuis di forum kelas ini.', 'time' => '10 Sep, 08:00', 'timestamp' => 1788915600, 'role' => 'dosen'],
                 ['author' => 'Ahmad Maulana', 'message' => 'Pak, untuk praktikum Binary Tree apakah implementasi delete node juga akan diuji pada kuis akhir nanti?', 'time' => '11 Sep, 14:20', 'timestamp' => 1789024800, 'role' => 'mahasiswa'],
-                ['author' => 'Dr. Budi Santoso, M.Kom.', 'message' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu.', 'time' => '11 Sep, 15:05', 'timestamp' => 1789027500, 'role' => 'dosen'],
+                ['author' => 'Budi Santoso, M.Kom.', 'message' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu.', 'time' => '11 Sep, 15:05', 'timestamp' => 1789027500, 'role' => 'dosen'],
             ],
             2 => [
                 ['author' => 'Prof. Dr. Ir. Rian Saputra, S.T., M.Kom.', 'message' => 'Forum diskusi kelas Interaksi Manusia dan Komputer telah dibuka. Anda dapat berdiskusi mengenai prinsip evaluasi usability dan desain antarmuka di sini.', 'time' => '09 Sep, 09:15', 'timestamp' => 1788832500, 'role' => 'dosen'],
@@ -179,6 +226,66 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         ];
 
         return session("learning.course_discussions.$course", $examples[$course] ?? []);
+    }
+
+    public static function unreadDiscussionCount(?int $course = null): int
+    {
+        return count(self::unreadDiscussions($course));
+    }
+
+    public static function unreadDiscussions(?int $course = null): array
+    {
+        $courses = $course === null ? self::courses() : [$course => self::course($course)];
+        $viewer = self::discussionViewer();
+        $messages = [];
+
+        foreach ($courses as $courseId => $courseData) {
+            $courseMessages = self::courseDiscussions((int) $courseId);
+            $read = (int) session("learning.discussion_reads.$courseId", 0);
+
+            foreach (array_slice($courseMessages, $read) as $message) {
+                $isOwnMessage = isset($message['sender_key'])
+                    ? hash_equals($viewer['key'], (string) $message['sender_key'])
+                    : trim((string) ($message['author'] ?? '')) === $viewer['name'];
+
+                if ($isOwnMessage) {
+                    continue;
+                }
+
+                $messages[] = $message + [
+                    'course' => (int) $courseId,
+                    'course_title' => $courseData['title'],
+                    'timestamp' => $message['timestamp'] ?? 0,
+                ];
+            }
+        }
+
+        usort($messages, fn ($a, $b) => ($b['timestamp'] ?? 0) <=> ($a['timestamp'] ?? 0));
+
+        return $messages;
+    }
+
+    public static function pendingTaskCount(): int
+    {
+        return collect(self::items())
+            ->filter(fn ($item) => in_array($item['type'] ?? '', ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
+            ->reject(fn ($item) => session("learning.submissions.{$item['id']}"))
+            ->count();
+    }
+
+    private static function discussionViewer(): array
+    {
+        $user = auth()->user();
+        $sessionUser = session('auth_user', []);
+        $role = $user?->role?->name ?? ($sessionUser['role'] ?? 'mahasiswa');
+        $name = trim((string) ($user?->name ?? ($sessionUser['name'] ?? 'Ahmad Maulana')));
+        $identifier = $user?->getAuthIdentifier()
+            ?? ($sessionUser['id'] ?? $sessionUser['number'] ?? $sessionUser['email'] ?? 1);
+
+        return [
+            'key' => $user ? 'user:'.$identifier : 'preview:'.$role.':'.$identifier,
+            'name' => $name,
+        ];
     }
 
     public static function discussions(int $item): array
@@ -199,7 +306,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 $messages[] = $message + [
                     'course' => $course['id'],
                     'course_title' => $course['title'],
-                    'item' => 1,
                     'timestamp' => $message['timestamp'] ?? 0,
                 ];
             }
@@ -211,6 +317,30 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function labels(): array
     {
-        return ['materi' => 'Materi', 'tugas' => 'Tugas', 'coding' => 'Tugas coding', 'kuis' => 'Kuis', 'pengumuman' => 'Pengumuman'];
+        return [
+            'materi' => 'Materi',
+            'tugas' => 'Tugas',
+            'coding' => 'Tugas coding',
+            'kuis' => 'Kuis',
+            'pengumuman' => 'Pengumuman',
+            'lainnya' => 'Lainnya',
+        ];
+    }
+
+    public static function label(?string $type): string
+    {
+        if (! $type) {
+            return 'Konten';
+        }
+
+        $normalized = mb_strtolower($type);
+        if ($normalized === 'uts') {
+            return 'UTS';
+        }
+        if ($normalized === 'uas') {
+            return 'UAS';
+        }
+
+        return self::labels()[$type] ?? self::labels()[$normalized] ?? $type;
     }
 }

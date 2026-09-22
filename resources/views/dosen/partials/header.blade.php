@@ -1,16 +1,21 @@
 @php
-    $mainTabs = [
+    $isOnMatriks = request()->routeIs('dosen.penilaian.matriks');
+    $mainTabs = $isOnMatriks ? [
         'dosen.penilaian.matriks' => '1. Matriks Penilaian',
         'dosen.penilaian.asesmen' => '2. Input Nilai',
         'dosen.penilaian.rekap'   => '3. Rekap CPMK',
         'dosen.penilaian.cpl'     => '4. Rekap CPL',
+    ] : [
+        'dosen.penilaian.asesmen' => '1. Asesmen',
+        'dosen.penilaian.rekap'   => '2. Rekap CPMK',
+        'dosen.penilaian.cpl'     => '3. Rekap CPL',
     ];
 @endphp
 
 <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-            <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Daftar Kelas</a>
+            <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Penilaian</a>
             <span>/</span>
             <span class="text-ink font-semibold">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
         </nav>

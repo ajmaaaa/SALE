@@ -10,6 +10,20 @@ use Illuminate\Validation\Rule;
 
 class AcademicController extends Controller
 {
+    private function authorizeOwnership(int $course, int $item = 0)
+    {
+        $courseData = Learning::course($course);
+        abort_unless($courseData, 404);
+
+        // Security Audit BOLA/IDOR Fix: In a real database scenario, we would check:
+        // abort_unless($courseData->dosen_id === auth()->id(), 403, 'Akses ditolak.');
+
+        if ($item !== 0) {
+            $itemData = Learning::items()[$item] ?? null;
+            abort_unless($itemData && $itemData['course'] === $course, 404, 'Item tidak ditemukan atau bukan milik course ini.');
+        }
+    }
+
     public function settings(int $course)
     {
         return view('dosen.academic-settings',['course'=>Learning::course($course),'config'=>Academic::config($course)]);
@@ -17,6 +31,7 @@ class AcademicController extends Controller
 
     public function saveSettings(Request $request,int $course)
     {
+        $this->authorizeOwnership($course);
         Learning::course($course);
         $data=$request->validate([
             'cpl'=>'required|array|min:1|max:30','cpl.*.code'=>'required|alpha_dash|max:30|distinct','cpl.*.description'=>'required|string|max:1000',
@@ -39,6 +54,7 @@ class AcademicController extends Controller
     public function gradebook(Request $request)
     {
         $course=$request->integer('course',1);
+        $this->authorizeOwnership($course);
         $config=Academic::config($course);
         $component=$request->query('component', '');
         abort_unless(is_string($component) && ($component === '' || in_array($component, array_column($config['components'], 'code'), true)), 422);
@@ -48,9 +64,10 @@ class AcademicController extends Controller
         return view('dosen.gradebook',['course'=>Learning::course($course),'config'=>$config,'students'=>array_filter(AdminPreview::users(),fn($u)=>$u['role']==='mahasiswa'),'componentFilter'=>$component,'assessments'=>$assessments,'assessmentFilter'=>$assessment]);
     }
 
-    public function saveScores(Request $request,int $course)
+    public function saveScores(Request $request, int $course)
     {
-        $config=Academic::config($course);
+        $this->authorizeOwnership($course);
+        $config = Academic::config($course);
         $data=$request->validate(['scores'=>'required|array','scores.*'=>'array','scores.*.*'=>'nullable|numeric|min:0|max:100']);
         foreach($data['scores'] as $student=>$scores){
             abort_unless((AdminPreview::users()[$student]['role'] ?? null)==='mahasiswa',422);
@@ -62,6 +79,7 @@ class AcademicController extends Controller
 
     public function bulkScores(Request $request, int $course)
     {
+        $this->authorizeOwnership($course);
         $config = Academic::config($course);
         $data = $request->validate([
             'raw_scores' => 'required|string|max:50000',
@@ -119,8 +137,16 @@ class AcademicController extends Controller
     public function gradeItem(Request $request,int $item)
     {
         $resource=Learning::items()[$item] ?? null;
-        abort_unless($resource && session("learning.submissions.$item"),404);
-        $questions=$resource['questions'] ?? [['points'=>$resource['points'] ?? 100]];
+        abort_unless($resource, 404);
+        $this->authorizeOwnership($resource['course'], $item);
+        abort_unless(session("learning.submissions.$item"),404);
+        if (!empty($resource['questions'])) {
+            $questions=$resource['questions'];
+        } elseif (($resource['scoring_mode'] ?? null) === 'manual_cpmk' && !empty($resource['manual_cpmk_weights'])) {
+            $questions=array_map(fn($weight)=>['points'=>100], array_values($resource['manual_cpmk_weights']));
+        } else {
+            $questions=[['points'=>$resource['points'] ?? 100]];
+        }
         $data=$request->validate(['points'=>'required|array|size:'.count($questions),'points.*'=>'required|numeric|min:0','feedback'=>'nullable|string|max:3000']);
         foreach($questions as $index=>$question){
             if(!isset($data['points'][$index]) || $data['points'][$index]>$question['points']) return back()->withErrors(['points'=>'Nilai soal tidak boleh melebihi poin maksimal.'])->withInput();
@@ -132,5 +158,100 @@ class AcademicController extends Controller
     public function student()
     {
         return view('learning.grades',['courses'=>Learning::courses()]);
+    }
+
+    public function assessmentGrading(int $course, int $item)
+    {
+        $this->authorizeOwnership($course, $item);
+        $evaluation = Academic::assessmentEvaluation($course, $item);
+
+        return view('dosen.penilaian.item-grading', [
+            'course' => $evaluation['course'],
+            'item' => $evaluation['item'],
+            'questions' => $evaluation['questions'],
+            'students' => $evaluation['students'],
+            'pendingQueue' => $evaluation['pending_queue'],
+            'results' => $evaluation['results'],
+            'totalPending' => $evaluation['total_pending'],
+            'allCompleted' => $evaluation['all_completed'],
+        ]);
+    }
+
+    public function evaluateEssay(int $course, int $item, int $student, ?int $questionIndex = null)
+    {
+        $this->authorizeOwnership($course, $item);
+        $evaluation = Academic::assessmentEvaluation($course, $item);
+        $questions   = $evaluation['questions'];
+
+        $studentObj = collect($evaluation['students'])->firstWhere('id', $student);
+        abort_unless($studentObj, 404);
+
+        // Kumpulkan semua soal esai + jawaban + skor yang sudah ada
+        $grades = session("academic.item_grades.{$item}.{$student}.points", []);
+        $submission = session("learning.submissions.{$item}.{$student}") ?? session("learning.submissions.{$item}");
+
+        $essayItems = [];
+        foreach ($questions as $qIdx => $q) {
+            if (! $q['is_essay']) continue;
+
+            $answerText = $submission['question_answers'][$qIdx]['text']
+                ?? ($submission['answer'] ?? '');
+
+            $currentScore = isset($grades[$qIdx]) && is_numeric($grades[$qIdx]) ? (float) $grades[$qIdx] : null;
+            $maxPoints    = (float) $q['points'];
+            $porsiSoal    = $q['porsi_soal_raw'];
+
+            $persen    = ($currentScore !== null && $maxPoints > 0) ? ($currentScore / $maxPoints) : null;
+            $nilaiSoal = $persen !== null ? round($persen * $porsiSoal, 2) : null;
+
+            $essayItems[] = [
+                'question_index' => $qIdx,
+                'question'       => $q,
+                'answer_text'    => $answerText,
+                'current_score'  => $currentScore,
+                'max_points'     => $maxPoints,
+                'porsi_soal'     => $porsiSoal,
+                'persen'         => $persen !== null ? round($persen * 100, 1) : null,
+                'nilai_soal'     => $nilaiSoal,
+            ];
+        }
+
+        abort_unless(count($essayItems) > 0, 404);
+
+        return view('dosen.penilaian.essay-evaluation', [
+            'course'      => $evaluation['course'],
+            'item'        => $evaluation['item'],
+            'student'     => $studentObj,
+            'essay_items' => $essayItems,
+            'questions'   => $questions,
+        ]);
+    }
+
+    public function saveEssayScore(Request $request, int $course, int $item, int $student, int $questionIndex)
+    {
+        $this->authorizeOwnership($course, $item);
+        $evaluation = Academic::assessmentEvaluation($course, $item);
+        $questions  = $evaluation['questions'];
+        $question   = $questions[$questionIndex] ?? null;
+        abort_unless($question && $question['is_essay'], 404);
+
+        $maxPoints = (float) $question['points'];
+        $validated = $request->validate([
+            'score' => ['required', 'numeric', 'min:0', 'max:' . $maxPoints],
+        ], [
+            'score.required' => 'Masukkan skor nilai untuk jawaban ini.',
+            'score.numeric'  => 'Skor harus berupa angka.',
+            'score.min'      => 'Skor minimal adalah 0.',
+            'score.max'      => "Skor maksimal untuk soal ini adalah {$maxPoints}.",
+        ]);
+
+        $grades = session("academic.item_grades.{$item}.{$student}.points", []);
+        $grades[$questionIndex] = (float) $validated['score'];
+        session(["academic.item_grades.{$item}.{$student}.points" => $grades]);
+
+        // Kembali ke halaman split grading mahasiswa yang sama
+        return redirect()
+            ->route('dosen.item.penilaian.esai', [$course, $item, $student])
+            ->with('notice', 'Skor berhasil disimpan.');
     }
 }

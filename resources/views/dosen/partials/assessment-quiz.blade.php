@@ -3,12 +3,12 @@
 {{-- ========================================================= --}}
 @php
     $quizStudents = [
-        ['no' => '01', 'initials' => 'AP', 'name' => 'Andi Pratama', 'number' => '2024081001', 'score' => 85, 'cpmk1' => 86, 'cpmk2' => 84, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '02', 'initials' => 'BS', 'name' => 'Budi Santoso', 'number' => '2024081002', 'score' => 70, 'cpmk1' => 72, 'cpmk2' => 68, 'status_key' => 'evaluasi', 'status_label' => '⚠️ Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
-        ['no' => '03', 'initials' => 'CL', 'name' => 'Citra Lestari', 'number' => '2024081003', 'score' => 92, 'cpmk1' => 94, 'cpmk2' => 90, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '04', 'initials' => 'DS', 'name' => 'Dedi Saputra', 'number' => '2024081004', 'score' => 58, 'cpmk1' => 60, 'cpmk2' => 54, 'status_key' => 'belum', 'status_label' => '✕ Belum Memenuhi', 'status_class' => 'text-danger bg-rose-50 border-rose-200'],
-        ['no' => '05', 'initials' => 'EW', 'name' => 'Eka Wahyuni', 'number' => '2024081005', 'score' => 88, 'cpmk1' => 90, 'cpmk2' => 86, 'status_key' => 'memenuhi', 'status_label' => '✓ Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
-        ['no' => '06', 'initials' => 'FM', 'name' => 'Fajar Maulana', 'number' => '2024081006', 'score' => 76, 'cpmk1' => 78, 'cpmk2' => 74, 'status_key' => 'evaluasi', 'status_label' => '⚠️ Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
+        ['no' => '01', 'initials' => 'AP', 'name' => 'Andi Pratama', 'number' => '2024081001', 'score' => 85.0, 'cpmk1' => 86, 'cpmk2' => 84, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '02', 'initials' => 'BS', 'name' => 'Budi Santoso', 'number' => '2024081002', 'score' => 70.0, 'cpmk1' => 72, 'cpmk2' => 68, 'status_key' => 'evaluasi', 'status_label' => 'Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
+        ['no' => '03', 'initials' => 'CL', 'name' => 'Citra Lestari', 'number' => '2024081003', 'score' => 92.0, 'cpmk1' => 94, 'cpmk2' => 90, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '04', 'initials' => 'DS', 'name' => 'Dedi Saputra', 'number' => '2024081004', 'score' => 57.0, 'cpmk1' => 60, 'cpmk2' => 54, 'status_key' => 'belum', 'status_label' => 'Belum Memenuhi', 'status_class' => 'text-danger bg-rose-50 border-rose-200'],
+        ['no' => '05', 'initials' => 'EW', 'name' => 'Eka Wahyuni', 'number' => '2024081005', 'score' => 88.0, 'cpmk1' => 90, 'cpmk2' => 86, 'status_key' => 'memenuhi', 'status_label' => 'Memenuhi Target', 'status_class' => 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+        ['no' => '06', 'initials' => 'FM', 'name' => 'Fajar Maulana', 'number' => '2024081006', 'score' => 76.0, 'cpmk1' => 78, 'cpmk2' => 74, 'status_key' => 'evaluasi', 'status_label' => 'Evaluasi CPMK-02', 'status_class' => 'text-amber-700 bg-amber-50 border-amber-200'],
     ];
 @endphp
 
@@ -19,35 +19,52 @@
         <div class="space-y-2 flex-1">
             <div class="flex items-center gap-2">
                 <span class="status font-bold text-brand bg-brand-soft border-brand-soft uppercase text-[11px]">KUIS PERIODIK</span>
-                <span class="status font-semibold text-muted bg-canvas text-[11px]">Bobot: 10%</span>
+                <span class="status font-semibold text-muted bg-canvas text-[11px]">Bobot Mata Kuliah: 10%</span>
             </div>
             <h2 class="text-xl font-bold text-ink">Kuis 1: Evaluasi Usability &amp; Model</h2>
             <p class="text-xs text-muted leading-relaxed max-w-2xl">
-                Kuis singkat pilihan ganda dan mencocokkan untuk mengevaluasi pemahaman teori antarmuka pengguna, heuristic evaluation, serta metrik usability ISO 9241-11.
+                Kuis singkat pilihan ganda &amp; benar-salah untuk mengukur indikator capaian CPMK 01 dan CPMK 02 dengan rumus porsi otomatis terdistribusi.
             </p>
             <div class="assessment-meta flex flex-wrap items-center gap-4 pt-1 text-xs text-muted">
                 <span class="flex items-center gap-1.5">
                     <svg class="h-4 w-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
-                    Format: <strong class="text-ink font-semibold">Pilihan Ganda &amp; Mencocokkan</strong>
+                    Format: <strong class="text-ink font-semibold">Pilihan Ganda &amp; Benar / Salah</strong>
                 </span>
                 <span class="flex items-center gap-1.5">
                     <svg class="h-4 w-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 12 3 3 7-7"/></svg>
-                    CPMK Terukur: <strong class="text-ink font-semibold">CPMK 01, CPMK 02</strong>
+                    Total Soal: <strong class="text-ink font-semibold">4 Butir (CPMK 01 &amp; CPMK 02)</strong>
                 </span>
             </div>
         </div>
 
-        {{-- Target CPMK boxes --}}
+        {{-- Target CPMK & Bobot Distribusi Boxes (desain 1.md) --}}
         <div class="assessment-targets flex flex-wrap items-center gap-3 shrink-0">
-            <div class="assessment-target rounded-lg p-3 text-center min-w-[120px]">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-muted">Target CPMK-01</p>
-                <p class="text-xs font-semibold text-ink mt-0.5">Skor ≥ 60</p>
+            <div class="assessment-target rounded-xl border border-brand/20 bg-brand-soft/40 p-3 text-center min-w-[140px] shadow-2xs">
+                <div class="flex items-center justify-center gap-1">
+                    <span class="font-mono text-xs font-bold text-brand">CPMK-01</span>
+                    <span class="text-[10px] font-bold text-brand bg-white px-1.5 py-0.5 rounded">50%</span>
+                </div>
+                <p class="text-[11px] font-semibold text-ink mt-1">2 Soal · Porsi 50,00</p>
+                <p class="text-[10px] text-muted">Target Skor ≥ 60</p>
             </div>
-            <div class="assessment-target rounded-lg p-3 text-center min-w-[130px]">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Target CPMK-02 (Ketat)</p>
-                <p class="text-xs font-semibold text-amber-900 mt-0.5">Skor ≥ 80</p>
+            <div class="assessment-target rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-center min-w-[140px] shadow-2xs">
+                <div class="flex items-center justify-center gap-1">
+                    <span class="font-mono text-xs font-bold text-amber-900">CPMK-02</span>
+                    <span class="text-[10px] font-bold text-amber-900 bg-white px-1.5 py-0.5 rounded">50%</span>
+                </div>
+                <p class="text-[11px] font-semibold text-ink mt-1">2 Soal · Porsi 50,00</p>
+                <p class="text-[10px] text-amber-800">Target Skor ≥ 80</p>
             </div>
         </div>
+    </div>
+
+    {{-- Formula Banner --}}
+    <div class="rounded-lg bg-canvas p-3 border border-line/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+            <span class="rounded bg-brand text-white font-bold px-1.5 py-0.5 text-[10px] font-mono">FORMULA</span>
+            <span class="text-muted font-mono">Nilai Kuis = (Nilai CPMK-01 × 50%) + (Nilai CPMK-02 × 50%)</span>
+        </div>
+        <span class="text-[11px] text-muted font-medium">Nilai per CPMK maks 100 · Porsi soal = 100/n</span>
     </div>
 </div>
 
@@ -92,15 +109,28 @@
             <tr>
                 <th scope="col" class="w-12 text-center">NO</th>
                 <th scope="col" class="min-w-[200px]">MAHASISWA</th>
-                <th scope="col" class="text-center min-w-[130px]">NILAI QUIZ <span class="block font-normal mt-1">(BOBOT 10%)</span></th>
-                <th scope="col" class="text-center min-w-[140px]">CAPAIAN CPMK-01 <span class="block font-normal mt-1">(≥60)</span></th>
-                <th scope="col" class="text-center min-w-[140px]">CAPAIAN CPMK-02 <span class="block font-normal mt-1">(≥80)</span></th>
+                <th scope="col" class="text-center min-w-[140px]">
+                    NILAI KUIS
+                    <span class="block text-[10px] font-normal text-muted mt-0.5">(Skala 0–100)</span>
+                </th>
+                <th scope="col" class="text-center min-w-[150px]">
+                    CAPAIAN CPMK-01
+                    <span class="block text-[10px] font-normal text-muted mt-0.5">(Bobot 50% · ≥60)</span>
+                </th>
+                <th scope="col" class="text-center min-w-[150px]">
+                    CAPAIAN CPMK-02
+                    <span class="block text-[10px] font-normal text-muted mt-0.5">(Bobot 50% · ≥80)</span>
+                </th>
+                <th scope="col" class="text-center min-w-[130px]">RINCIAN SOAL</th>
                 <th scope="col" class="min-w-[170px]">WAKTU PENGUMPULAN</th>
                 <th scope="col" class="text-center min-w-[110px]">AKSI DOKUMEN</th>
             </tr>
         </thead>
         <tbody>
             @foreach($quizStudents as $stu)
+                @php
+                    $calculatedScore = round(($stu['cpmk1'] * 0.5) + ($stu['cpmk2'] * 0.5), 2);
+                @endphp
                 <tr class="student-row" data-name="{{ strtolower($stu['name']) }}" data-number="{{ $stu['number'] }}" data-status="{{ $stu['status_key'] }}">
                     <td class="text-center font-mono text-xs text-muted align-middle">
                         {{ $stu['no'] }}
@@ -116,33 +146,45 @@
                             </div>
                         </div>
                     </td>
-                    {{-- Nilai Quiz: READONLY, dihitung otomatis dari rata-rata CPMK --}}
+                    {{-- Nilai Quiz: Dihitung otomatis dari Σ (nilai_cpmk * bobot_cpmk) --}}
                     <td class="text-center align-middle">
-                        <span class="font-mono text-sm font-bold text-ink score-display" id="score-{{ $stu['number'] }}">{{ $stu['score'] }}</span>
+                        <span class="font-mono text-sm font-extrabold text-brand score-display" id="score-{{ $stu['number'] }}">
+                            {{ number_format($calculatedScore, 2, ',', '.') }}
+                        </span>
+                        <span class="block text-[10px] text-muted">dari 100</span>
                     </td>
-                    {{-- Capaian CPMK-01: EDITABLE --}}
+                    {{-- Capaian CPMK-01 (Bobot 50%) --}}
                     <td class="text-center align-middle">
-                        <input type="number" min="0" max="100" step="0.5"
+                        <input type="number" min="0" max="100" step="0.01"
                                value="{{ $stu['cpmk1'] }}"
-                               class="field text-center font-mono text-xs font-bold py-1 px-1.5 w-16 mx-auto block border border-line bg-white shadow-none
+                               class="field text-center font-mono text-xs font-bold py-1 px-1.5 w-20 mx-auto block border border-line bg-white shadow-none
                                       {{ $stu['cpmk1'] >= 60 ? 'text-emerald-700' : 'text-danger' }}"
                                data-student="{{ $stu['number'] }}"
                                data-cpmk="cpmk1"
+                               data-cpmk-weight="50"
                                data-threshold="60"
                                onchange="recalcScore(this)"
                                aria-label="Capaian CPMK-01 {{ $stu['name'] }}">
                     </td>
-                    {{-- Capaian CPMK-02: EDITABLE --}}
+                    {{-- Capaian CPMK-02 (Bobot 50%) --}}
                     <td class="text-center align-middle">
-                        <input type="number" min="0" max="100" step="0.5"
+                        <input type="number" min="0" max="100" step="0.01"
                                value="{{ $stu['cpmk2'] }}"
-                               class="field text-center font-mono text-xs font-bold py-1 px-1.5 w-16 mx-auto block border border-line bg-white shadow-none
+                               class="field text-center font-mono text-xs font-bold py-1 px-1.5 w-20 mx-auto block border border-line bg-white shadow-none
                                       {{ $stu['cpmk2'] >= 80 ? 'text-emerald-700' : 'text-danger' }}"
                                data-student="{{ $stu['number'] }}"
                                data-cpmk="cpmk2"
+                               data-cpmk-weight="50"
                                data-threshold="80"
                                onchange="recalcScore(this)"
                                aria-label="Capaian CPMK-02 {{ $stu['name'] }}">
+                    </td>
+                    {{-- Tombol Lihat Rincian Butir Soal Mahasiswa (Section 10 desain 1.md) --}}
+                    <td class="text-center align-middle">
+                        <button type="button" onclick="openStudentBreakdownModal('{{ $stu['name'] }}', '{{ $stu['number'] }}', {{ $stu['cpmk1'] }}, {{ $stu['cpmk2'] }}, {{ $calculatedScore }})"
+                                class="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px] font-semibold text-ink transition">
+                            <span>4 Soal</span>
+                        </button>
                     </td>
                     {{-- Waktu Pengumpulan --}}
                     <td class="align-middle whitespace-nowrap">
@@ -157,7 +199,7 @@
         </tbody>
     </table>
     </div>
-    <div class="assessment-count flex flex-wrap items-center justify-between gap-4">
+    <div class="assessment-count flex flex-wrap items-center justify-between gap-4 p-4 border-t border-line/60">
         <p class="text-xs text-muted" id="student-count-text">
             Menampilkan <strong class="text-ink">{{ count($quizStudents) }}</strong> dari <strong class="text-ink">{{ count($quizStudents) }}</strong> mahasiswa terdaftar
         </p>
@@ -167,11 +209,11 @@
 <div class="surface assessment-savebar p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div class="flex items-center gap-3 text-xs text-muted">
         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand font-bold" aria-hidden="true">
-            i
+            ∑
         </span>
         <div>
-            <p class="font-bold text-ink">Kalkulasi Otomatis OBE (Quiz)</p>
-            <p class="text-muted">Nilai Quiz berkontribusi 10% pada kalkulasi akhir CPMK 01 dan CPMK 02.</p>
+            <p class="font-bold text-ink">Kalkulasi Otomatis Berbasis CPMK (desain 1.md)</p>
+            <p class="text-muted">Nilai kuis dihitung otomatis dari akumulasi: Nilai CPMK × (Jumlah Soal CPMK / Total Soal).</p>
         </div>
     </div>
 
@@ -188,23 +230,142 @@
 
 </div>
 
-{{-- Script: Hitung ulang Nilai Quiz dari rata-rata CPMK --}}
+{{-- Modal Rincian Butir Soal (Transparansi Perhitungan Bagian 10 desain 1.md) --}}
+<div id="breakdown-modal" hidden class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div class="surface max-w-4xl w-full rounded-2xl shadow-xl border border-line/60 overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-line/60 flex items-center justify-between bg-canvas/30">
+            <div>
+                <span class="text-[11px] font-bold text-brand uppercase tracking-wider">Rincian Perhitungan Butir Soal (OBE)</span>
+                <h3 class="text-base font-bold text-ink" id="modal-student-name">Nama Mahasiswa</h3>
+                <p class="text-xs text-muted font-mono" id="modal-student-nim">NIM: 2024081001</p>
+            </div>
+            <button type="button" onclick="document.getElementById('breakdown-modal').setAttribute('hidden', '')" class="h-8 w-8 rounded-lg bg-canvas text-muted hover:text-ink font-bold flex items-center justify-center">×</button>
+        </div>
+        <div class="p-5 overflow-y-auto space-y-4 text-xs">
+            <p class="text-muted leading-relaxed">
+                Tabel di bawah memperlihatkan bagaimana skor mentah tiap butir soal dikonversi menjadi persentase skor, dikalikan porsi soal di dalam CPMK (50,00 per soal), hingga membentuk Nilai CPMK dan Nilai Kuis total.
+            </p>
+            <div class="overflow-x-auto border border-line/60 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-canvas/50 border-b border-line/60 text-muted text-[11px]">
+                            <th class="py-2.5 px-3">Soal</th>
+                            <th class="py-2.5 px-3">Tipe Soal</th>
+                            <th class="py-2.5 px-3 text-center">CPMK</th>
+                            <th class="py-2.5 px-3 text-center">Poin Dosen</th>
+                            <th class="py-2.5 px-3 text-center">Jawaban</th>
+                            <th class="py-2.5 px-3 text-center">Skor</th>
+                            <th class="py-2.5 px-3 text-center">Persen</th>
+                            <th class="py-2.5 px-3 text-center">Porsi (100/n)</th>
+                            <th class="py-2.5 px-3 text-right">Nilai Soal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line/40">
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 font-semibold text-ink">Soal 1</td>
+                            <td class="py-2 px-3 text-muted">Pilihan Ganda</td>
+                            <td class="py-2 px-3 text-center font-mono font-bold text-brand">CPMK 1</td>
+                            <td class="py-2 px-3 text-center font-mono">10</td>
+                            <td class="py-2 px-3 text-center text-emerald-700 font-medium">Benar</td>
+                            <td class="py-2 px-3 text-center font-mono font-semibold">10</td>
+                            <td class="py-2 px-3 text-center font-mono">100%</td>
+                            <td class="py-2 px-3 text-center font-mono text-muted">50,00</td>
+                            <td class="py-2 px-3 text-right font-mono font-bold text-ink">50,00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 font-semibold text-ink">Soal 2</td>
+                            <td class="py-2 px-3 text-muted">Benar / Salah</td>
+                            <td class="py-2 px-3 text-center font-mono font-bold text-brand">CPMK 1</td>
+                            <td class="py-2 px-3 text-center font-mono">10</td>
+                            <td class="py-2 px-3 text-center text-emerald-700 font-medium">Benar</td>
+                            <td class="py-2 px-3 text-center font-mono font-semibold">10</td>
+                            <td class="py-2 px-3 text-center font-mono">100%</td>
+                            <td class="py-2 px-3 text-center font-mono text-muted">50,00</td>
+                            <td class="py-2 px-3 text-right font-mono font-bold text-ink">50,00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 font-semibold text-ink">Soal 3</td>
+                            <td class="py-2 px-3 text-muted">Pilihan Ganda</td>
+                            <td class="py-2 px-3 text-center font-mono font-bold text-amber-800">CPMK 2</td>
+                            <td class="py-2 px-3 text-center font-mono">10</td>
+                            <td class="py-2 px-3 text-center text-emerald-700 font-medium">Benar</td>
+                            <td class="py-2 px-3 text-center font-mono font-semibold">10</td>
+                            <td class="py-2 px-3 text-center font-mono">100%</td>
+                            <td class="py-2 px-3 text-center font-mono text-muted">50,00</td>
+                            <td class="py-2 px-3 text-right font-mono font-bold text-ink">50,00</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 font-semibold text-ink">Soal 4</td>
+                            <td class="py-2 px-3 text-muted">Benar / Salah</td>
+                            <td class="py-2 px-3 text-center font-mono font-bold text-amber-800">CPMK 2</td>
+                            <td class="py-2 px-3 text-center font-mono">10</td>
+                            <td class="py-2 px-3 text-center text-danger font-medium">Salah</td>
+                            <td class="py-2 px-3 text-center font-mono font-semibold">0</td>
+                            <td class="py-2 px-3 text-center font-mono">0%</td>
+                            <td class="py-2 px-3 text-center font-mono text-muted">50,00</td>
+                            <td class="py-2 px-3 text-right font-mono font-bold text-ink">0,00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-3 pt-2">
+                <div class="rounded-xl border border-brand/20 bg-brand-soft/40 p-3">
+                    <span class="text-[10px] font-bold text-brand uppercase">Nilai CPMK 1 (Maks 100)</span>
+                    <p class="text-base font-extrabold text-brand mt-0.5">100,00</p>
+                    <p class="text-[10px] text-muted">50,00 + 50,00 · Bobot 50%</p>
+                </div>
+                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                    <span class="text-[10px] font-bold text-amber-800 uppercase">Nilai CPMK 2 (Maks 100)</span>
+                    <p class="text-base font-extrabold text-amber-900 mt-0.5">50,00</p>
+                    <p class="text-[10px] text-muted">50,00 + 0,00 · Bobot 50%</p>
+                </div>
+                <div class="rounded-xl border border-line/60 bg-white p-3 shadow-2xs">
+                    <span class="text-[10px] font-bold text-ink uppercase">Nilai Asesmen Kuis</span>
+                    <p class="text-base font-extrabold text-ink mt-0.5" id="modal-assessment-score">75,00</p>
+                    <p class="text-[10px] text-muted">(100 × 0,5) + (50 × 0,5)</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t border-line/60 flex justify-end bg-canvas/30">
+            <button type="button" onclick="document.getElementById('breakdown-modal').setAttribute('hidden', '')" class="button-secondary text-xs">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Script: Hitung ulang Nilai Kuis berdasarkan bobot CPMK (desain 1.md) --}}
 <script>
 function recalcScore(inputEl) {
     const studentId = inputEl.dataset.student;
-    const row       = inputEl.closest('tr');
+    const row = inputEl.closest('tr');
     const cpmkInputs = row.querySelectorAll('input[data-cpmk]');
-    let total = 0;
-    cpmkInputs.forEach(inp => { total += parseFloat(inp.value) || 0; });
-    const avg     = cpmkInputs.length > 0 ? (total / cpmkInputs.length) : 0;
-    const rounded = Math.round(avg * 10) / 10;
-    const scoreEl = document.getElementById('score-' + studentId);
-    if (scoreEl) scoreEl.textContent = rounded;
+    let assessmentTotal = 0;
+
     cpmkInputs.forEach(inp => {
-        const threshold = parseFloat(inp.dataset.threshold) || 0;
         const val = parseFloat(inp.value) || 0;
+        const weight = (parseFloat(inp.dataset.cpmkWeight) || 50) / 100;
+        assessmentTotal += val * weight;
+
+        const threshold = parseFloat(inp.dataset.threshold) || 0;
         inp.classList.toggle('text-emerald-700', val >= threshold);
-        inp.classList.toggle('text-danger',       val <  threshold);
+        inp.classList.toggle('text-danger', val < threshold);
     });
+
+    const rounded = Math.round(assessmentTotal * 100) / 100;
+    const scoreEl = document.getElementById('score-' + studentId);
+    if (scoreEl) {
+        scoreEl.textContent = rounded.toFixed(2).replace('.', ',');
+    }
+}
+
+function openStudentBreakdownModal(name, nim, cpmk1, cpmk2, score) {
+    const modal = document.getElementById('breakdown-modal');
+    if (!modal) return;
+    document.getElementById('modal-student-name').textContent = name;
+    document.getElementById('modal-student-nim').textContent = 'NIM: ' + nim;
+    document.getElementById('modal-assessment-score').textContent = typeof score === 'number' ? score.toFixed(2).replace('.', ',') : score;
+    modal.removeAttribute('hidden');
 }
 </script>

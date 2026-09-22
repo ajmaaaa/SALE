@@ -16,7 +16,7 @@
             <span class="text-ink font-semibold">Import CSV</span>
         </nav>
         <h2 class="section-heading">Import Nilai: {{ $assessment->name }}</h2>
-        <p class="mt-1 text-sm text-muted">{{ $assessment->code }} · {{ ucfirst($assessment->type) }}</p>
+        <p class="mt-1 text-sm text-muted">{{ $assessment->code }} ({{ ucfirst($assessment->type) }})</p>
     </header>
 
     @if($errors->any())
@@ -68,8 +68,15 @@
                         <tr>
                             <th>NIM</th>
                             <th>Nama</th>
-                            <th>Nilai</th>
-                            <th>Feedback</th>
+                            @if(($preview['mode'] ?? 'legacy') === 'cpmk')
+                                @foreach($preview['cpmk_headers'] as $hdr)
+                                    <th class="text-center font-mono">{{ $hdr['code'] }} (Maks: {{ (int)$hdr['max'] }})</th>
+                                @endforeach
+                                <th class="text-center font-bold">Total Asesmen</th>
+                            @else
+                                <th>Nilai</th>
+                                <th>Feedback</th>
+                            @endif
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -78,8 +85,19 @@
                             <tr>
                                 <td class="font-mono text-xs">{{ $row['nim'] }}</td>
                                 <td class="font-medium text-ink">{{ $row['name'] }}</td>
-                                <td>{{ $row['score'] !== null ? number_format($row['score'], 2) : '—' }}</td>
-                                <td class="text-xs text-muted">{{ $row['feedback'] ?: '—' }}</td>
+                                @if(($preview['mode'] ?? 'legacy') === 'cpmk')
+                                    @foreach($preview['cpmk_headers'] as $hdr)
+                                        <td class="text-center font-mono">
+                                            {{ isset($row['cpmk_scores'][$hdr['cpmk_id']]) && $row['cpmk_scores'][$hdr['cpmk_id']] !== null ? number_format($row['cpmk_scores'][$hdr['cpmk_id']], 1) : '—' }}
+                                        </td>
+                                    @endforeach
+                                    <td class="text-center font-mono font-bold text-ink">
+                                        {{ $row['overall_score'] !== null ? number_format($row['overall_score'], 1) : '—' }}
+                                    </td>
+                                @else
+                                    <td>{{ $row['score'] !== null ? number_format($row['score'], 2) : '—' }}</td>
+                                    <td class="text-xs text-muted">{{ $row['feedback'] ?: '—' }}</td>
+                                @endif
                                 <td>
                                     @if($row['status'] === 'valid')
                                         <span class="status bg-brand-soft text-brand">Valid</span>
@@ -106,13 +124,13 @@
         {{-- Upload form --}}
         <div class="surface p-5 space-y-4">
             <h3 class="section-heading">Upload File CSV</h3>
-            <p class="text-sm text-muted">Format file: CSV dengan delimiter titik koma (;) atau koma (,). Kolom: NIM, Nama, Nilai, Feedback.</p>
+            <p class="text-sm text-muted">Format file: CSV dengan delimiter titik koma (;) atau koma (,). Format kolom mengikuti template yang diunduh.</p>
 
             <div class="p-4 rounded-lg bg-canvas">
                 <p class="text-xs font-semibold text-ink mb-2">Alur Import:</p>
                 <ol class="text-xs text-muted space-y-1 list-decimal list-inside">
                     <li>Download template CSV dari halaman <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="text-brand hover:underline">Input Nilai</a></li>
-                    <li>Isi kolom Nilai dan Feedback pada template</li>
+                    <li>Isi nilai mahasiswa pada template sesuai kolom yang tersedia</li>
                     <li>Upload file yang sudah diisi di sini</li>
                     <li>Periksa preview data, lalu konfirmasi untuk menyimpan</li>
                 </ol>

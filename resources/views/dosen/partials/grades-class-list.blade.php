@@ -70,7 +70,7 @@
                             <a href="{{ route('dosen.grades', ['room' => 1, 'course' => $cls['course_id'], 'type' => 'uts']) }}" class="hover:text-brand">{{ $cls['name'] }}</a>
                             <span class="font-mono text-xs text-muted ml-1">{{ $cls['code'] }}</span>
                         </p>
-                        <p class="text-xs text-muted">{{ $cls['sks'] }} SKS · Semester {{ $cls['semester'] }} ·
+                        <p class="text-xs text-muted">{{ $cls['sks'] }} SKS, Semester {{ $cls['semester'] }},
                             @if($cls['note'] === 'Koordinator MK')
                                 <span class="font-semibold text-brand">{{ $cls['note'] }}</span>
                             @else

@@ -1,63 +1,79 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Input Nilai | ' . $section->display_code . ' | SALE')
-@section('header', 'Input Nilai')
+@section('title', 'Daftar Asesmen | SALE')
+@section('header', 'Daftar Asesmen')
 
 @section('content')
-<div class="space-y-5">
+<div class="space-y-6">
     @include('dosen.partials.header')
 
-    <div>
-        <h2 class="section-heading">2. Input Nilai per Komponen Asesmen</h2>
-        <p class="mt-1 text-sm text-muted">Pilih komponen asesmen untuk mengisi nilai mahasiswa.</p>
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="section-heading">2. Input Nilai per Komponen Asesmen</h2>
+            <p class="mt-1 text-sm text-muted">Pilih instrumen asesmen untuk melihat dan menginputkan nilai mahasiswa per CPMK.</p>
+        </div>
     </div>
 
     @if($assessments->isEmpty())
-        <div class="surface p-12 text-center space-y-3">
-            <h3 class="text-base font-semibold text-ink">Belum Ada Komponen Asesmen</h3>
-            <p class="text-sm text-muted">Atur bobot komponen terlebih dahulu pada matriks penilaian.</p>
-            <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="button-primary text-xs inline-flex">Ke Langkah 1: Matriks</a>
+        <div class="surface p-10 text-center">
+            <h2 class="section-heading">Belum Ada Komponen Asesmen</h2>
+            <p class="mt-2 text-sm text-muted max-w-md mx-auto">
+                Belum ada instrumen asesmen yang dibuat untuk kelas ini. Tambahkan komponen asesmen untuk memulai pengisian nilai.
+            </p>
         </div>
     @else
-        @php $obeService = $obe ?? app(\App\Services\ObeCalculationService::class); @endphp
-        <div class="surface overflow-x-auto rounded-xl border border-line">
-            <table class="w-full text-left border-collapse text-xs">
+        <div class="surface overflow-x-auto rounded-xl border border-line shadow-2xs">
+            <table class="admin-table w-full text-left">
                 <thead>
-                    <tr class="border-b border-line bg-canvas/40 text-muted font-medium">
-                        <th class="w-10 py-3 px-3 text-center">#</th>
-                        <th class="py-3 px-3 w-24">Kode</th>
-                        <th class="py-3 px-3 min-w-[140px]">Nama Asesmen</th>
-                        <th class="py-3 px-3 w-20">Jenis</th>
-                        <th class="py-3 px-3 text-center w-20">Bobot</th>
-                        <th class="py-3 px-3 min-w-[200px]">CPMK yang Diukur</th>
-                        <th class="py-3 px-3 text-right w-28"></th>
+                    <tr class="border-b border-line bg-canvas/40">
+                        <th class="py-3 px-4 text-xs font-medium text-muted">Kode</th>
+                        <th class="py-3 px-4 text-xs font-medium text-muted">Nama Asesmen</th>
+                        <th class="py-3 px-4 text-xs font-medium text-muted">Jenis</th>
+                        <th class="py-3 px-4 text-xs font-medium text-muted">CPMK yang Diukur</th>
+                        <th class="py-3 px-4 text-xs font-medium text-muted">Status Penilaian</th>
+                        <th class="py-3 px-4 text-right text-xs font-medium text-muted">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/40">
-                    @foreach($assessments as $idx => $assessment)
-                        <tr class="hover:bg-canvas/20 transition-colors">
-                            <td class="py-3 px-3 text-center text-muted/60">{{ $idx + 1 }}</td>
-                            <td class="py-3 px-3 font-semibold text-brand">{{ $assessment->code }}</td>
-                            <td class="py-3 px-3 font-semibold text-ink text-sm">{{ $assessment->name }}</td>
-                            <td class="py-3 px-3 text-muted capitalize">{{ $assessment->type }}</td>
-                            <td class="py-3 px-3 text-center font-semibold text-ink">{{ rtrim(rtrim(number_format($assessment->final_weight, 1), '0'), '.') }}%</td>
-                            <td class="py-3 px-3 text-muted">
-                                @if($assessment->cpmks->count())
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach($assessment->cpmks as $cpmk)
-                                            @php $effWeight = $obeService->assessmentCpmkEffectiveWeight($assessment, $cpmk); @endphp
-                                            <span class="inline-flex items-center gap-1 rounded bg-canvas px-2 py-0.5 text-xs font-medium text-ink border border-line/60">
-                                                <span>{{ $cpmk->code }}</span>
-                                                <span class="text-muted font-normal">({{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%)</span>
-                                            </span>
-                                        @endforeach
-                                    </div>
+                    @php $totalStudents = $section->students()->count(); @endphp
+                    @foreach($assessments as $assessment)
+                        @php
+                            $gradedCount = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+                                ->whereNotNull('score')
+                                ->count();
+                        @endphp
+                        <tr class="hover:bg-canvas/30 transition-colors">
+                            <td class="py-3 px-4 font-mono text-xs text-muted">{{ $assessment->code }}</td>
+                            <td class="py-3 px-4 font-semibold text-ink text-sm">{{ $assessment->name }}</td>
+                            <td class="py-3 px-4 capitalize text-xs text-muted">{{ $assessment->type }}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex flex-wrap gap-1.5">
+                                    @forelse($assessment->cpmks as $cpmk)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-canvas text-ink border border-line/60">
+                                            {{ $cpmk->code }}
+                                        </span>
+                                    @empty
+                                        <span class="text-xs text-muted">Belum dipetakan</span>
+                                    @endforelse
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                @if($totalStudents > 0 && $gradedCount >= $totalStudents)
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                        {{ $gradedCount }}/{{ $totalStudents }} Dinilai &bull; Selesai
+                                    </span>
+                                @elseif($gradedCount > 0)
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                        {{ $gradedCount }}/{{ $totalStudents }} Dinilai &bull; Perlu Dinilai
+                                    </span>
                                 @else
-                                    <span class="italic text-muted/60">Belum dipetakan ke CPMK</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-canvas text-muted border border-line">
+                                        0/{{ $totalStudents }} Dinilai &bull; Belum Dinilai
+                                    </span>
                                 @endif
                             </td>
-                            <td class="py-3 px-3 text-right">
-                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="button-primary text-xs py-1.5 px-3">
+                            <td class="py-3 px-4 text-right whitespace-nowrap">
+                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="button-primary inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold shadow-2xs">
                                     Input Nilai
                                 </a>
                             </td>
@@ -66,6 +82,7 @@
                 </tbody>
             </table>
         </div>
+        <p class="text-xs text-muted">Klik <strong>"Input Nilai"</strong> untuk mengisi nilai mahasiswa per CPMK yang diukur.</p>
     @endif
 </div>
 @endsection

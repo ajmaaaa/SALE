@@ -108,12 +108,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
 
-Route::get('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'settings'])->whereNumber('course')->name('dosen.academic');
-Route::post('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'saveSettings'])->whereNumber('course')->name('dosen.academic.save');
-Route::get('/dosen/gradebook', [\App\Http\Controllers\AcademicController::class,'gradebook'])->name('dosen.gradebook');
-Route::post('/dosen/gradebook/{course}', [\App\Http\Controllers\AcademicController::class,'saveScores'])->whereNumber('course')->name('dosen.scores.save');
-Route::post('/dosen/gradebook/{course}/bulk', [\App\Http\Controllers\AcademicController::class,'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
-Route::post('/dosen/penilaian/{item}', [\App\Http\Controllers\AcademicController::class,'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
+Route::middleware('dosen.auth')->group(function () {
+    Route::get('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'settings'])->whereNumber('course')->name('dosen.academic');
+    Route::post('/dosen/course/{course}/akademik', [\App\Http\Controllers\AcademicController::class,'saveSettings'])->whereNumber('course')->name('dosen.academic.save');
+    Route::get('/dosen/gradebook', [\App\Http\Controllers\AcademicController::class,'gradebook'])->name('dosen.gradebook');
+    Route::post('/dosen/gradebook/{course}', [\App\Http\Controllers\AcademicController::class,'saveScores'])->whereNumber('course')->name('dosen.scores.save');
+    Route::post('/dosen/gradebook/{course}/bulk', [\App\Http\Controllers\AcademicController::class,'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
+    Route::post('/dosen/penilaian/{item}', [\App\Http\Controllers\AcademicController::class,'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
+    Route::get('/dosen/course/{course}/item/{item}/penilaian', [\App\Http\Controllers\AcademicController::class, 'assessmentGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian');
+    Route::get('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex?}', [\App\Http\Controllers\AcademicController::class, 'evaluateEssay'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai');
+    Route::post('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex}', [\App\Http\Controllers\AcademicController::class, 'saveEssayScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai.save');
+});
+
 Route::get('/mahasiswa/nilai', [\App\Http\Controllers\AcademicController::class,'student'])->name('mahasiswa.nilai');
 
 Route::post('/ai/login', [\App\Http\Controllers\AiTutorController::class, 'login'])->middleware('throttle:10,1')->name('ai.login');

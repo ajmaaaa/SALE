@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Audit SALE — 20 September 2026</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2.5cm 2cm 2cm 2cm;
+      @top-center {
+        content: "Laporan Audit Keamanan dan Fungsionalitas SALE — 20 September 2026";
+        font-family: "Times New Roman", Times, serif;
+        font-size: 10pt;
+        color: black;
+        border-bottom: none;
+      }
+    }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      color: black;
+      background: white;
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    h1 { font-size: 16pt; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+    h2 { font-size: 14pt; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+    h3 { font-size: 13pt; font-weight: bold; margin-top: 0.8em; margin-bottom: 0.4em; }
+    h4 { font-size: 12pt; font-weight: bold; margin-top: 0.8em; margin-bottom: 0.4em; }
+
+    p { margin: 0.4em 0; text-align: justify; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.8em 0;
+      font-size: 11pt;
+    }
+
+    th, td {
+      border: none;
+      padding: 4px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-weight: bold;
+      background: none;
+      border-bottom: 1px solid black;
+    }
+
+    tr:nth-child(even) {
+      background: none;
+    }
+
+    code {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 10.5pt;
+    }
+
+    ul, ol {
+      margin: 0.4em 0 0.4em 1.5em;
+      padding: 0;
+    }
+
+    li { margin: 0.2em 0; }
+
+    strong { font-weight: bold; }
+    em { font-style: italic; }
+  </style>
+</head>
+<body>
+<h1>Catatan audit SALE — 20 September 2026</h1>
+
+<p>Project belum siap untuk data akademik nyata. Penyebab utama adalah pencampuran</p>
+<p>data pratinjau per sesi dengan data institusi di database, autentikasi persona yang</p>
+<p>menjadi autentikasi database, serta aturan nilai/kuis yang berbeda antarjalur.</p>
+
+<p>Baseline: commit <code>0ff437d</code> beserta perubahan lokal pada LearningController, route,</p>
+<p>view course/discussions/item, dan LearningWorkflowTest yang sudah ada sebelum audit.</p>
+<p>Audit tidak memperbaiki kode aplikasi. Lokasi baris mengacu pada baseline tersebut.</p>
+
+<h2>Cakupan dan batas pemeriksaan</h2>
+
+<p>Pemetaan route seluruh peran; penelusuran alur course, enrollment, konten, submission,</p>
+<p>kuis, nilai, OBE, rubrik, admin/prodi, AI dan runner; struktur repository dan panduan</p>
+<p>setup; pengujian fitur yang ada, proof-of-concept terisolasi, build, format dan</p>
+<p>dependency advisory. Inventaris awal: 289 tracked files, 28 controller, 79 Blade views.</p>
+<p>Ini audit source dan pengujian aplikasi terpilih, bukan verifikasi setiap kombinasi</p>
+<p>input atau audit deployment production. Browser E2E, beban, race condition nyata,</p>
+<p>konfigurasi server/TLS/backup, scan seluruh riwayat Git untuk secret, dan evaluasi</p>
+<p>Gemini langsung belum dilakukan. Tidak ada klaim bebas kerentanan.</p>
+
+<p>P0 = blocker penggunaan data nyata; P1 = integritas/akses penting; P2 = konsistensi dan</p>
+<p>pemeliharaan. <strong>Teruji</strong> berarti direproduksi di SQLite memory menggunakan</p>
+<p>AuditReproductionTest.php; test yang lulus</p>
+<p>justru membuktikan perilaku bermasalah masih ada. <strong>Statis</strong> berarti bukti source,</p>
+<p>belum reproduksi browser atau eksploitasi eksternal.</p>
+
+<h2>Konsistensi fitur</h2>
+
+<table>
+  <tr>
+    <th>ID / prioritas</th>
+    <th>Temuan, bukti, dan dampak</th>
+    <th>Perbaikan / kriteria penerimaan</th>
+  </tr>
+  <tr>
+    <td>F01 P1 — statis</td>
+    <td><code>LearningPreview::courses/items</code>, <code>AdminPreview::users/academic</code>, <code>AcademicPreview</code> menyimpan domain terkait di sesi, sementara model ClassSection/Assessment/User memakai DB. Course/tugas/diskusi yang dibuat dosen tidak dibagikan ke browser mahasiswa; admin institusi dan admin-prodi memakai sumber berbeda.</td>
+    <td>Pilih DB sebagai sumber utama, relasikan course–kelas–konten–submission–nilai. Test dua sesi independen: dosen membuat tugas, mahasiswa menerima, dosen melihat jawaban.</td>
+  </tr>
+  <tr>
+    <td>F02 P1 — teruji</td>
+    <td><code>LearningController.php:13,67</code> memasukkan ID ClassSection ke kartu course, tetapi detail mengambil <code>LearningPreview::course</code>. ID 1 database membuka Struktur Data pratinjau, walaupun nama kelas DB berbeda; ID di luar array menjadi 404. <code>DashboardController</code> mengulang pola ini.</td>
+    <td>Route/resource eksplisit untuk kelas DB; jangan menyamakan ID dua sumber. Klik setiap kartu harus membuka kelas yang sama, termasuk ID >4.</td>
+  </tr>
+  <tr>
+    <td>F03 P1 — teruji</td>
+    <td><code>ClassSectionController.php:52</code> menyertakan dosen pendamping; <code>PenilaianController.php:330</code>, Assessment/Export/InputNilai/Rubric ownership hanya dosen utama. Pendamping melihat kelas lalu mendapat 403.</td>
+    <td>Satu policy dengan hak pendamping yang disepakati, diterapkan pada daftar dan aksi.</td>
+  </tr>
+  <tr>
+    <td>F04 P1 — teruji</td>
+    <td><code>AcademicController.php:119</code> selalu menulis <code>academic.item_grades.{item}.1</code>; <code>LearningController.php:288</code> submission hanya keyed per item. Nilai mahasiswa lain masuk ke mahasiswa 1 dan akun berbagi browser saling menimpa submission. <code>learning/grades.blade.php:173</code> breakdown CPMK juga tidak meneruskan studentId.</td>
+    <td>Key submission dan grade berdasarkan user terautentikasi + assessment + attempt. Test minimal dua mahasiswa.</td>
+  </tr>
+  <tr>
+    <td>F05 P1 — teruji</td>
+    <td><code>LearningController.php:77</code> mengacak pertanyaan, view mengirim jawaban berdasarkan indeks tampilan; <code>submit:288</code> memvalidasi indeks urutan asli. Jawaban pilihan yang benar secara format bisa ditolak sebagai pilihan soal lain; jawaban uraian berisiko salah atribusi.</td>
+    <td>Gunakan question ID stabil, validasi terhadap attempt order server, dan uji shuffle campuran tipe.</td>
+  </tr>
+  <tr>
+    <td>F06 P1 — teruji/statis</td>
+    <td>UI <code>quiz-room.blade.php:95</code> menjanjikan terkunci, tetapi POST submission menerima overwrite setelah selesai (teruji). Timer di localStorage sekitar baris 833 tidak memiliki started_at/expires_at server (statis). Flag <code>from_quiz_room</code> juga mengizinkan jawaban kosong.</td>
+    <td>State attempt server, waktu server, finalisasi atomik dan idempotent; resubmission setelah final ditolak. Jawaban kosong boleh hanya sesuai kebijakan ujian, bukan karena flag client dipercaya.</td>
+  </tr>
+  <tr>
+    <td>F07 P1 — statis</td>
+    <td><code>quiz-room.blade.php:1151</code> tombol Run hanya menunggu 400 ms lalu menampilkan BST sukses tanpa menjalankan input. Room coding terpisah memakai runner nyata.</td>
+    <td>Pakai runner yang sama atau tandai tombol sebagai simulasi; kode invalid tidak boleh menampilkan hasil lulus.</td>
+  </tr>
+  <tr>
+    <td>F08 P1 — teruji</td>
+    <td><code>ObeProgressController.php:34,46</code> dan monitoring CPMK tidak mengirim classSectionId; <code>ObeCalculationService.php:137</code> memilih enrollment pertama. Dua kelas MK sama dengan nilai 20 dan 90 menghasilkan 20 ketika scope dihilangkan.</td>
+    <td>Teruskan section/semester eksplisit; uji pengambilan ulang MK lintas semester.</td>
+  </tr>
+  <tr>
+    <td>F09 P1 — teruji</td>
+    <td>InputNilai menyimpan total parsial, lalu <code>ObeCalculationService.php:305</code> memakai total itu sebagai fallback untuk sel CPMK NULL. Contoh bobot 50/50, nilai 40/50 dan kosong: hasil akhir 60, coverage 100%, CPMK belum dinilai diberi 40.</td>
+    <td>Bedakan tidak ada nilai rinci dengan nilai rinci yang masih NULL. Pada contoh ini coverage harus 50%, nilai provisional 80, CPMK kedua NULL.</td>
+  </tr>
+  <tr>
+    <td>F10 P1 — teruji</td>
+    <td><code>RubricController.php:49</code> melewati penghapusan kriteria yang punya nilai, tanpa menolak request atau menghitung ulang bobot akhir. Mengganti kriteria lama berbobot 100 dengan baru 100 menyisakan total 200.</td>
+    <td>Tolak perubahan yang tidak valid atau versioning rubrik; validasi bobot pada kondisi DB akhir, bukan hanya payload.</td>
+  </tr>
+  <tr>
+    <td>F11 P1 — statis</td>
+    <td><code>KaprodiMonitoringController.php:69</code> mengumpulkan nilai setiap mahasiswa di setiap kelas tanpa deduplikasi; mahasiswa yang ikut banyak kelas dihitung berulang. CPL memakai semua semester, CPMK hanya semester aktif.</td>
+    <td>Definisikan populasi unik mahasiswa/prodi/semester dan kebijakan retake, samakan filter laporan.</td>
+  </tr>
+  <tr>
+    <td>F12 P1 — teruji</td>
+    <td><code>AkademikProdiController.php:146,178</code> dosen_id hanya <code>exists:users,id</code>. Akun mahasiswa diterima sebagai pengampu kelas.</td>
+    <td>Validasi role dan scope prodi di server untuk dosen utama/pendamping; request manipulasi ID harus 422/403.</td>
+  </tr>
+  <tr>
+    <td>F13 P2 — statis</td>
+    <td>Kartu preview <code>learning/partials/course-card.blade.php:14</code> membuat kode enrollment dari kode course + tahun, sementara join mencari kode acak DB. QR preview mengarah ke kelas tidak terdaftar. Juga ada fallback layanan QR eksternal meski README menyebut frontend tanpa CDN.</td>
+    <td>Tampilkan QR hanya untuk ClassSection nyata; gunakan generator lokal yang sama.</td>
+  </tr>
+  <tr>
+    <td>F14 P2 — statis</td>
+    <td>Notifikasi selalu mengatakan Menunggu penilaian meski nilai telah diisi; grafik IP/IPK dan profil tetap contoh. Assignment coding dapat mengambil judul dari ai_tasks sementara daftar tetap LearningPreview.</td>
+    <td>Status dan identitas diambil dari domain yang sama; beri label demo yang konsisten sampai integrasi selesai.</td>
+  </tr>
+  <tr>
+    <td>F15 P1 — teruji</td>
+    <td>Dosen dapat masuk ke ruang ujian CBT mahasiswa (<code>/mahasiswa/course/{course}/item/{item}/quiz</code>) dan mengerjakan kuis dengan UI ujian lengkap (timer, navigasi soal, tombol kumpulkan kuis). Pada <code>course.blade.php</code>, tombol untuk akun dosen tetap berlabel "Kerjakan →", dan pada <code>item.blade.php:121</code> tombol "Mulai Kerjakan Kuis" tidak dibungkus <code>@if(!$isLecturer)</code>. Sebaliknya, dosen <strong>sama sekali tidak memiliki fitur edit butir soal atau edit kuis</strong> setelah konten dibuat (<code>item.store</code> ada, tetapi <code>item.edit</code>/<code>item.update</code> tidak tersedia). Teruji di PoC <code>AuditReproductionTest</code>.</td>
+    <td>Tambahkan guard peran di <code>quizRoom()</code> (<code>abort_if(dosen, 403)</code>) dan sembunyikan tombol pengerjaan kuis bagi dosen. Sediakan antarmuka manajemen/editor butir soal (<code>dosen.item.edit</code>/<code>update</code>) dan pratinjau soal (read-only) khusus dosen.</td>
+  </tr>
+  <tr>
+    <td>F16 P1 — teruji</td>
+    <td>Berkas lampiran submission tersimpan terisolasi pada sesi browser pengunggah: <code>LearningController::upload()</code> menyimpan metadata file di <code>session("learning.files.$uuid")</code>. Ketika dosen memeriksa tugas mahasiswa di browser lain, sesi dosen tidak memiliki metadata UUID tersebut, sehingga <code>LearningController::file()</code> mengembalikan 404 Not Found dan <code>SubmissionPreview::files()</code> mengembalikan daftar kosong. Dosen secara sistemik tidak dapat melihat ataupun mengunduh berkas jawaban mahasiswa. Teruji di PoC <code>AuditReproductionTest</code>.</td>
+    <td>Simpan metadata lampiran dan relasi submission di database; izinkan dosen pengampu dan mahasiswa bersangkutan mengunduh berkas; hilangkan ketergantungan metadata berkas pada sesi browser.</td>
+  </tr>
+  <tr>
+    <td>F17 P2 — statis</td>
+    <td>Terdapat tiga rute capaian/nilai mahasiswa yang terpisah dan saling bertentangan di portal mahasiswa: <code>/mahasiswa/grade</code> (redirect ke tab nilai assignment dengan data <code>LearningPreview</code>), <code>/mahasiswa/nilai</code> (menampilkan <code>AcademicPreview</code> dengan CPL/CPMK sesi), dan <code>/mahasiswa/capaian-obe</code> (menghitung pencapaian OBE dari DB lewat <code>ObeCalculationService</code>). Ketiganya menampilkan angka, status, dan riwayat yang berbeda pada akun yang sama.</td>
+    <td>Satukan navigasi transkrip/nilai mahasiswa ke satu rute kanonikal berbasis database yang selaras dengan nilai riil dari dosen dan kalkulasi OBE.</td>
+  </tr>
+  <tr>
+    <td>F18 P2 — statis</td>
+    <td>Tiga controller mahasiswa di <code>app/Http/Controllers/Mahasiswa/</code> (<code>CourseController.php</code>, <code>DiscussionController.php</code>, dan <code>GradeController.php</code>) merupakan dead code / skeleton yang tidak pernah dipanggil oleh route manapun di <code>routes/web.php</code>. Logika pembelajaran justru ditangani secara tumpang tindih di <code>LearningController.php</code> dan <code>AcademicController.php</code>. <code>CourseController::show</code> bahkan memuat batas kaku <code>abort_unless(in_array($course, [1, 2, 3, 4], true), 404)</code>.</td>
+    <td>Bersihkan atau hubungkan controller mahasiswa tersebut ke resource database yang nyata; hapus duplikasi tanggung jawab antara <code>LearningController</code> dan controller spesifik peran.</td>
+  </tr>
+</table>
+
+<h2>Keamanan</h2>
+
+<table>
+  <tr>
+    <th>ID / prioritas</th>
+    <th>Bukti dan risiko</th>
+    <th>Perbaikan / kriteria penerimaan</th>
+  </tr>
+  <tr>
+    <td>S01 P0 — teruji</td>
+    <td><code>EnsureAdminProdiAuth.php</code> otomatis <code>Auth::login</code> akun admin pertama untuk guest. <code>KaprodiMonitoringController.php:108</code> punya fallback serupa (statis).</td>
+    <td>Hapus autologin; guest ditolak/redirect. Pratinjau harus terpisah dan tidak menyentuh akun DB.</td>
+  </tr>
+  <tr>
+    <td>S02 P0 — teruji</td>
+    <td><code>AuthController.php:45,116,222</code> menerima password kosong, password literal demo, serta public switch-role ke akun DB. PoC switch dosen membuka riwayat <code>/ai/tasks/1</code> bila akun tersebut punya ai_access. Login AI yang benar tidak menutup pintu masuk lain pada guard yang sama.</td>
+    <td>Auth::attempt dengan hash password, disable persona di lingkungan data nyata, satukan identitas server. Uji semua jalur login dan akses AI tanpa password.</td>
+  </tr>
+  <tr>
+    <td>S03 P0 — teruji</td>
+    <td><code>AdminProdi/UserProdiController.php:92</code> menerima User arbitrer tanpa batas role/prodi. Admin prodi berhasil mengganti password admin sistem dari prodi lain. Scope prodi juga tidak ditegakkan hanya dengan dropdown filter.</td>
+    <td>Policy role+tenant pada query dan mutation, larang perubahan privileged user melalui endpoint dosen/mahasiswa.</td>
+  </tr>
+  <tr>
+    <td>S04 P1 — teruji</td>
+    <td>Route <code>/kelas/{id}/barcode</code> dan <code>/qr</code> publik; controller sekitar baris 233 tidak memeriksa akses. Kode enrollment bisa dibaca dari ID berurutan.</td>
+    <td>Lindungi generator QR/kode dengan policy; jangan perlakukan kode sebagai rahasia selama bisa diekstrak publik.</td>
+  </tr>
+  <tr>
+    <td>S05 P1 — teruji/statis</td>
+    <td><code>/logout</code> hanya menghapus auth_user; jawaban sesi lama tetap ada (teruji). Draf kode <code>app.js:159</code> hanya keyed assignment, tidak user; berpindah akun di browser lab dapat melihat draf lama (statis).</td>
+    <td>Invalidasi sesi dan regenerasi CSRF; namespace/pembersihan draft per akun dengan kebijakan pemulihan jelas.</td>
+  </tr>
+  <tr>
+    <td>S06 P1 — statis</td>
+    <td><code>/join-kelas/{code}</code> melakukan attach lewat GET. Pemeriksaan kapasitas dan attach tidak atomik. <code>/switch-role</code> dan logout juga menerima GET mutatif.</td>
+    <td>Enrollment POST dengan CSRF, konfirmasi user, transaksi/locking kapasitas dan uniqueness; GET hanya halaman baca. Race condition belum diuji konkuren.</td>
+  </tr>
+  <tr>
+    <td>S07 P2 — teruji</td>
+    <td>ExportController CSV dan template InputNilai menulis nama tanpa netralisasi formula. PoC nama <code>=1+1</code> keluar sebagai formula cell. AdminPreview export justru sudah menetralkannya.</td>
+    <td>Terapkan encoder CSV konsisten pada field teks; uji pembukaan spreadsheet terpisah. Audit hanya membuktikan payload diekspor, bukan eksekusi pada Excel.</td>
+  </tr>
+  <tr>
+    <td>S08 P1 — statis</td>
+    <td><code>DosenAccountSeeder.php:20</code> menggunakan updateOrCreate dan password literal demo; DatabaseSeeder selalu memanggilnya. Seed ulang bisa mereset password akun demo yang sudah diubah.</td>
+    <td>Pisahkan seeder demo dari deploy production, jangan overwrite kredensial existing; bootstrap admin melalui proses khusus.</td>
+  </tr>
+  <tr>
+    <td>S09 P1 — statis</td>
+    <td>Route grup <code>mahasiswa.<em></code>, <code>dosen.</em></code>, dan <code>kaprodi.<em></code> tidak menggunakan middleware autentikasi apapun (komentar "Public only while SALE remains a frontend prototype"). Hanya <code>admin-prodi.</em></code> yang punya <code>middleware('admin_prodi.auth')</code>. Ketika data institusi nyata dimasukkan, semua endpoint mahasiswa/dosen/kaprodi dapat diakses tanpa sesi.</td>
+    <td>Buat <code>EnsureMahasiswaAuth</code> dan terapkan ke grup <code>mahasiswa.<em></code>; terapkan <code>dosen.auth</code> ke <code>dosen.</em></code>; buat <code>EnsureKaprodiAuth</code> untuk <code>kaprodi.*</code>.</td>
+  </tr>
+  <tr>
+    <td>S10 P0 — teruji</td>
+    <td>Route grup <code>admin.*</code> (<code>routes/web.php:100</code>) dan rute aksi penilaian dosen (<code>/dosen/gradebook</code>, <code>/dosen/penilaian/{item}</code>, <code>/dosen/course/{course}/akademik</code>) <strong>tidak memiliki middleware autentikasi</strong>. <code>AdminPreviewController</code> tidak memeriksa auth sama sekali. Siapa pun dapat membuka <code>/admin/pengguna</code>, <code>/admin/akademik</code>, serta memicu POST mutatif seperti reset data akademik tanpa login. Teruji di PoC <code>AuditReproductionTest</code>.</td>
+    <td>Terapkan middleware auth dan role guard (<code>EnsureAdminAuth</code> / <code>EnsureDosenAuth</code>) pada seluruh rute admin dan aksi penilaian dosen.</td>
+  </tr>
+  <tr>
+    <td>S11 P0 — teruji</td>
+    <td><code>KaprodiMonitoringController::authorizeKaprodi()</code> mengandung autologin fallback: jika pengguna adalah guest yang tidak memiliki sesi <code>auth_user</code>, controller secara otomatis mencari kaprodi pertama di database dan memanggil <code>Auth::login()</code>. Cukup dengan mengunjungi <code>/kaprodi/monitoring/cpl</code>, siapa pun di internet otomatis di-login-kan sebagai Kaprodi institusi. Teruji di PoC <code>AuditReproductionTest</code>.</td>
+    <td>Hapus autologin fallback; kembalikan redirect login atau 403 untuk guest unauthenticated.</td>
+  </tr>
+  <tr>
+    <td>S12 P1 — statis</td>
+    <td>Route <code>GET /preview/files/{uuid}</code> tidak memiliki middleware auth. File dapat diakses siapa pun yang mengetahui UUID-nya, tanpa verifikasi hak kepemilikan submission dan tanpa masa kedaluwarsa (TTL).</td>
+    <td>Pasang middleware auth dan periksa otorisasi apakah user yang me-request adalah pengunggah atau dosen kelas terkait.</td>
+  </tr>
+  <tr>
+    <td>S13 P2 — statis</td>
+    <td><code>UserProdiController::import()</code> hanya memvalidasi <code>'file' => ['required', 'file', 'max:4096']</code> tanpa batasan ekstensi atau validasi MIME (<code>mimes:csv,txt</code>). File binary atau script arbitrer dapat diunggah ke server.</td>
+    <td>Tambahkan aturan validasi <code>mimes:csv,txt,xlsx</code> pada import akun.</td>
+  </tr>
+  <tr>
+    <td>S14 P1 — statis</td>
+    <td><code>destroyCpl</code> pada <code>KurikulumController.php:94</code> menjalankan <code>$cpl->cpmks()->detach()</code> lalu <code>$cpl->delete()</code> tanpa validasi keterkaitan dengan asesmen aktif. Sesuai skema migrasi <code>create_student_assessment_cpmk_scores_table</code>, cascade delete pada foreign key CPMK akan secara instan menghapus seluruh rekam nilai CPMK mahasiswa tanpa konfirmasi atau peringatan dampak.</td>
+    <td>Tambahkan proteksi sebelum penghapusan CPL/CPMK; tolak penghapusan bila sudah memiliki data penilaian mahasiswa.</td>
+  </tr>
+</table>
+
+<p>Kontrol yang sudah berguna: upload tervalidasi dan file privat per sesi; nosniff dan</p>
+<p>anti-framing; ownership assessment–section di jalur penilaian DB; AI access per task,</p>
+<p>rate limit dan quota; eksekusi Python browser di worker serta runner server opsional</p>
+<p>tidak menjalankan kode langsung di host Laravel. Kontrol tersebut perlu dipertahankan,</p>
+<p>tetapi tidak menutup bypass autentikasi global. Tidak ada klaim SQLi/RCE/XSS terkonfirmasi</p>
+<p>dari pemeriksaan ini.</p>
+
+<h2>Struktur repository dan serah terima</h2>
+
+<table>
+  <tr>
+    <th>ID / prioritas</th>
+    <th>Temuan</th>
+    <th>Tindakan yang disarankan</th>
+  </tr>
+  <tr>
+    <td>M01 P1</td>
+    <td>README mengatakan autentikasi/enrollment belum terhubung, tetapi sekarang ada mutation DB; docs AI menyebut persona tidak bisa mengakses AI, bertentangan dengan S02.</td>
+    <td>Buat matriks fitur demo/persisten/operasional, diagram domain dan alur auth, serta daftar keterbatasan yang sesuai source.</td>
+  </tr>
+  <tr>
+    <td>M02 P1</td>
+    <td><code>phpunit.xml</code> menunjuk tests/Unit yang tidak ada; perintah test README gagal sebelum menjalankan suite. Feature suite terpisah juga punya satu kegagalan GradebookAttainmentTest (teks "Ketercapaian CPMK" case-sensitive mismatch).</td>
+    <td>Perbaiki konfigurasi suite; ubah teks di <code>gradebook.blade.php:12</code> dari huruf kecil menjadi kapital, atau sesuaikan ekspektasi test.</td>
+  </tr>
+  <tr>
+    <td>M03 P2</td>
+    <td>app.js 1.650 baris, quiz-room 1.203, item 732, AdminLaporanService 820. Blade memuat logika domain; ownership berulang di beberapa controller.</td>
+    <td>Pisahkan modul frontend quiz/editor/tutor dan domain service + policy + FormRequest. Pecah berdasarkan tanggung jawab, bukan sekadar jumlah baris.</td>
+  </tr>
+  <tr>
+    <td>M04 P2</td>
+    <td>Dua sistem penilaian AcademicPreview dan ObeCalculationService; view/controller lama tetap ada di samping jalur baru. Contoh dashboard lama sengaja disimpan.</td>
+    <td>Inventaris route→controller→view→storage; tandai legacy/demo, tentukan migrasi sebelum menghapus. Jangan menganggap semua file lama aman dihapus.</td>
+  </tr>
+  <tr>
+    <td>M05 P2</td>
+    <td>Tidak ada tracked CI workflow, CONTRIBUTING, SECURITY, ADR atau runbook deploy/restore. composer.json menyebut MIT tetapi LICENSE tidak ditemukan.</td>
+    <td>Tambahkan onboarding, aturan PR, checks CI, matriks peran, ERD, keputusan formula OBE, backup/restore dan ownership modul; pastikan lisensi dengan pemilik project.</td>
+  </tr>
+  <tr>
+    <td>M06 P2</td>
+    <td>Pint gagal; browser test membutuhkan Playwright yang tidak ada pada manifest. Mesin audit Node 26 sedangkan engines Node 22; build sukses tidak membuktikan clean install Node 22.</td>
+    <td>Pin runtime CI sesuai .nvmrc, dokumentasikan dependency browser dan command test JS, rapikan formatting terpisah.</td>
+  </tr>
+  <tr>
+    <td>M07 P2</td>
+    <td>File upload sesi tidak punya lifecycle cleanup otomatis; log AdminPreview hanya sesi dengan actor tetap, mutation DB tidak tercakup log itu.</td>
+    <td>Retensi/cleanup lampiran dan audit log persisten untuk perubahan pengguna, enrollment dan nilai.</td>
+  </tr>
+  <tr>
+    <td>M08 P1</td>
+    <td>Halaman item dosen (<code>item.blade.php</code>) memperlakukan dosen secara tidak konsisten: untuk item <code>tugas</code> dosen melihat panel kelola, tetapi untuk <code>kuis</code> tombol "Mulai Kerjakan Kuis" tetap muncul (F15). Tombol pada course overview juga bertuliskan "Kerjakan →" bagi dosen. Lebih parah, <strong>dosen tidak memiliki fitur edit butir soal atau edit kuis sama sekali</strong> setelah pembuatan (<code>item.store</code> ada tanpa <code>item.edit</code>/<code>update</code>). Panel dosen di item mengarah ke <code>dosen.gradebook</code> yang berbasis sesi <code>AcademicPreview</code>, terputus dari penilaian OBE database.</td>
+    <td>Pisahkan route dan antarmuka pratinjau soal khusus dosen dari form ujian CBT mahasiswa. Buat antarmuka editor butir soal (<code>dosen.item.edit</code>/<code>update</code>) dan pratinjau read-only untuk pengampu.</td>
+  </tr>
+  <tr>
+    <td>M09 P2</td>
+    <td>Controller mahasiswa di <code>app/Http/Controllers/Mahasiswa/</code> (<code>CourseController.php</code>, <code>DiscussionController.php</code>, dan <code>GradeController.php</code>) dibiarkan mengendap sebagai dead code / stub tanpa didaftarkan pada routing <code>routes/web.php</code>. Semua alur tersebut ditangani tumpang tindih oleh <code>LearningController.php</code>. <code>CourseController::show</code> bahkan memuat pembatasan ID kaku <code>[1, 2, 3, 4]</code>.</td>
+    <td>Bersihkan atau aktifkan controller modular per peran yang terhubung ke model database nyata, dan hapus Controller stub yang mengaburkan arsitektur.</td>
+  </tr>
+</table>
+
+<p>Struktur Laravel dasarnya sudah sesuai konvensi. Tidak perlu rewrite framework.</p>
+<p>Prioritaskan sumber data dan policy tunggal; reorganisasi folder mengikuti keputusan itu.</p>
+
+<h2>Hasil verifikasi</h2>
+
+<table>
+  <tr>
+    <th>Pemeriksaan</th>
+    <th>Hasil</th>
+  </tr>
+  <tr>
+    <td><code>php artisan test --compact</code></td>
+    <td>Terhenti: tests/Unit tidak ditemukan</td>
+  </tr>
+  <tr>
+    <td><code>php artisan test --testsuite=Feature --compact</code></td>
+    <td>120 lulus, 1 gagal, 1.223 assertions; GradebookAttainmentTest mengharapkan teks Ketercapaian CPMK</td>
+  </tr>
+  <tr>
+    <td>PoC audit eksplisit</td>
+    <td>21 lulus, 70 assertions; membuktikan defect teruji</td>
+  </tr>
+  <tr>
+    <td><code>node --test tests/js/*.test.mjs tests/grade-import.test.js</code></td>
+    <td>4 file test lulus</td>
+  </tr>
+  <tr>
+    <td><code>npm run build</code></td>
+    <td>Berhasil</td>
+  </tr>
+  <tr>
+    <td><code>composer validate --no-check-publish</code></td>
+    <td>Valid</td>
+  </tr>
+  <tr>
+    <td><code>vendor/bin/pint --test</code></td>
+    <td>Gagal: formatting source existing dan file PoC; tidak dijalankan mode fix</td>
+  </tr>
+  <tr>
+    <td><code>composer audit --locked --format=json</code></td>
+    <td>Advisory dan abandoned kosong pada waktu audit</td>
+  </tr>
+  <tr>
+    <td><code>npm audit --json</code></td>
+    <td>0 vulnerability yang dikenal pada waktu audit</td>
+  </tr>
+  <tr>
+    <td>Strix</td>
+    <td>Setup terpisah; scan dimulai di session sebelumnya tetapi terhenti; belum ada hasil</td>
+  </tr>
+  <tr>
+    <td>Temuan tambahan (audit komprehensif)</td>
+    <td>F15–F18, S10–S14, M08–M09 ditambahkan: dosen ujian CBT tanpa fitur edit soal, isolasi file lintas sesi (404), route admin/penilaian tanpa auth, kaprodi autologin, cascade delete CPL.</td>
+  </tr>
+</table>
+
+<p>Untuk mengulangi PoC: <code>vendor/bin/phpunit -c phpunit.xml docs/audits/2026-09-20/evidence/AuditReproductionTest.php --testdox</code>.</p>
+<p>Gunakan environment testing SQLite memory, bukan database institusi. Setelah perbaikan,</p>
+<p>ubah ekspektasi PoC menjadi perilaku aman dan pindahkan ke suite regresi normal.</p>
+
+<h2>Urutan pekerjaan</h2>
+
+  <li><strong>Tutup S01, S02, S03, S10, S11 sebelum data nyata</strong> — hapus semua autologin (admin prodi & kaprodi), terapkan middleware auth di semua route grup (admin, mahasiswa, dosen, kaprodi), batasi mutasi ke peran yang berwenang.</li>
+  <li>Tambah guard role pada S09, amankan S12 (file download authorization), S13 (import MIME validation), dan S14 (proteksi cascade delete CPL/CPMK).</li>
+  <li>Tetapkan model domain DB dan policy tunggal, lalu perbaiki F01–F04 serta alur enrollment.</li>
+  <li>Perbaiki integritas attempt, penilaian, dan file submission F05–F18 dengan regresi multi-user/multi-semester.</li>
+<p>   - Termasuk F15 & M08: cegah dosen masuk CBT ujian, sediakan antarmuka edit butir soal kuis (<code>item.edit</code>/<code>update</code>), dan pratinjau soal read-only.</p>
+<p>   - Termasuk F16: migrasikan metadata berkas dan submission ke DB agar dapat diakses dosen pengampu.</p>
+<p>   - Termasuk F17 & M09: satukan halaman capaian nilai mahasiswa dan bersihkan controller skeleton yang tidak terpakai.</p>
+  <li>Sinkronkan dashboard/notifikasi/AI dan ekspor dengan sumber data yang sama.</li>
+  <li>Fix GradebookAttainmentTest (M02): ubah teks view atau sesuaikan test — 1 baris.</li>
+  <li>Jadikan test/build/format/static analysis sebagai gate CI dan lengkapi runbook handover.</li>
+  <li>Jalankan Strix pada snapshot/staging sintetis; triage hasil terhadap temuan di atas.</li>
+
+<p>Repository pelengkap yang diperiksa: OWASP ASVS untuk</p>
+<p>kerangka persyaratan keamanan, Larastan untuk</p>
+<p>analisis statis Laravel, dan Strix. ASVS/Larastan</p>
+<p>belum dijalankan sebagai checklist formal/tool; jumlah star tidak dijadikan bukti</p>
+<p>kualitas atau pengganti pengujian alur bisnis. Setup Strix ada di</p>
+<p>panduan keamanan.</p>
+
+</body>
+</html>

@@ -35,7 +35,7 @@
             <h1 class="text-lg font-bold uppercase tracking-wider text-slate-900">{{ session('admin.settings.institution', 'SMART ACADEMIC LEARNING ECOSYSTEM (SALE)') }}</h1>
             <h2 class="text-base font-semibold text-slate-800">LAPORAN AKADEMIK &amp; KELAS PERKULIAHAN PROGRAM STUDI</h2>
             <p class="text-xs text-slate-600">
-                Program Studi: <strong>{{ $activeProdi?->name }} ({{ $activeProdi?->code }})</strong> &middot; Semester: <strong>{{ $activeSemester?->name }}</strong>
+                Program Studi: <strong>{{ $activeProdi?->name }} ({{ $activeProdi?->code }})</strong>, Semester: <strong>{{ $activeSemester?->name }}</strong>
             </p>
             <p class="text-[11px] text-slate-400">Dicetak pada: {{ now()->translatedFormat('d F Y, H:i:s') }}</p>
         </div>
