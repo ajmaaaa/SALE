@@ -70,15 +70,15 @@
 
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Mahasiswa Baru (Intake)</p>
-            <p class="mt-1.5 text-2xl font-bold text-blue-600">{{ $metrics['mahasiswa_baru'] }} <span class="text-xs font-normal text-muted">Orang</span></p>
+            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['mahasiswa_baru'] }} <span class="text-xs font-normal text-muted">Orang</span></p>
             <p class="mt-1 text-[11px] text-muted">Masuk pada semester ini</p>
         </div>
 
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Rata-rata Nilai Semester</p>
             @if($metrics['average_grade'] !== null)
-                <p class="mt-1.5 text-2xl font-bold text-emerald-600">{{ number_format($metrics['average_grade'], 2) }} <span class="text-xs font-normal text-muted">/ 100</span></p>
-                <p class="mt-1 text-[11px] text-emerald-700 font-semibold">Evaluasi capaian akhir</p>
+                <p class="mt-1.5 text-2xl font-bold text-ink">{{ number_format($metrics['average_grade'], 2) }} <span class="text-xs font-normal text-muted">/ 100</span></p>
+                <p class="mt-1 text-[11px] text-muted">Evaluasi capaian akhir</p>
             @else
                 <p class="mt-1.5 text-lg font-bold text-muted">—</p>
                 <p class="mt-1 text-[11px] text-muted">Belum ada nilai diinput</p>
@@ -87,7 +87,7 @@
 
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Total Kelas Aktif</p>
-            <p class="mt-1.5 text-2xl font-bold text-brand">{{ $metrics['total_kelas'] }} <span class="text-xs font-normal text-muted">Kelas</span></p>
+            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['total_kelas'] }} <span class="text-xs font-normal text-muted">Kelas</span></p>
             <p class="mt-1 text-[11px] text-muted">Seksi perkuliahan dibuka</p>
         </div>
     </div>
@@ -108,48 +108,46 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-10 text-center">No</th>
-                        <th class="p-3">Kelas / Seksi</th>
-                        <th class="p-3">Mata Kuliah &amp; SKS</th>
-                        <th class="p-3">Dosen Ketua</th>
-                        <th class="p-3">Dosen Wakil</th>
-                        <th class="p-3 text-center">Mahasiswa Terdaftar</th>
-                        <th class="p-3 text-center">Jumlah Asesmen</th>
-                        <th class="p-3 text-center">Rata-rata Nilai Kelas</th>
+                        <th class="px-4 py-3.5 w-12 text-center !align-middle">No</th>
+                        <th class="px-4 py-3.5 w-32 !align-middle">Kelas / Seksi</th>
+                        <th class="px-4 py-3.5 !align-middle">Mata Kuliah &amp; SKS</th>
+                        <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua</th>
+                        <th class="px-4 py-3.5 w-40 !align-middle">Dosen Wakil</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Mahasiswa Terdaftar</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Jumlah Asesmen</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Rata-rata Nilai Kelas</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($classReports as $idx => $cr)
-                    <tr class="hover:bg-canvas/30">
-                        <td class="p-3 text-center text-muted">{{ $idx + 1 }}</td>
-                        <td class="p-3 font-bold text-brand font-mono">
+                    <tr class="hover:bg-canvas/30 transition-colors">
+                        <td class="px-4 py-3.5 text-center text-muted font-medium !align-middle">{{ $idx + 1 }}</td>
+                        <td class="px-4 py-3.5 font-bold text-brand font-mono !align-middle whitespace-nowrap">
                             {{ $cr['mk_code'] }}-{{ $cr['section_code'] }}
                         </td>
-                        <td class="p-3">
+                        <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cr['mk_name'] }}</span>
-                            <span class="text-[11px] text-muted">{{ $cr['sks'] }} SKS</span>
+                            <span class="text-[11px] text-muted block mt-0.5">{{ $cr['sks'] }} SKS</span>
                         </td>
-                        <td class="p-3">
-                            <span class="font-medium text-ink block">{{ $cr['dosen_ketua'] }}</span>
-                            <span class="text-[10px] font-bold text-blue-700 uppercase">Ketua</span>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-semibold text-ink block">{{ $cr['dosen_ketua'] }}</span>
                         </td>
-                        <td class="p-3">
+                        <td class="px-4 py-3.5 !align-middle">
                             @if($cr['dosen_wakil'] !== '-')
                                 <span class="font-medium text-ink block">{{ $cr['dosen_wakil'] }}</span>
-                                <span class="text-[10px] font-bold text-purple-700 uppercase">Wakil</span>
                             @else
-                                <span class="text-muted italic">—</span>
+                                <span class="text-muted italic text-[11px]">—</span>
                             @endif
                         </td>
-                        <td class="p-3 text-center font-bold text-ink">
+                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
                             {{ $cr['students_count'] }} <span class="font-normal text-muted">orang</span>
                         </td>
-                        <td class="p-3 text-center font-bold text-ink">
+                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
                             {{ $cr['assessments_count'] }} <span class="font-normal text-muted">asesmen</span>
                         </td>
-                        <td class="p-3 text-center">
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
                             @if($cr['class_average'] !== null)
-                                <span class="px-2 py-0.5 rounded font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                <span class="font-bold text-ink text-sm">
                                     {{ number_format($cr['class_average'], 2) }}
                                 </span>
                             @else
@@ -159,8 +157,13 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="p-8 text-center text-muted">
-                            Tidak ada data kelas pada semester dan program studi yang dipilih.
+                        <td colspan="8" class="py-12 text-center text-muted !align-middle">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p class="text-xs">Tidak ada data kelas pada semester dan program studi yang dipilih.</p>
+                            </div>
                         </td>
                     </tr>
                     @endforelse

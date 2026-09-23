@@ -27,26 +27,26 @@
         </div>
     </header>
 
-    <!-- Info Banner -->
-    <div class="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900 flex items-start gap-3">
-        <svg class="h-5 w-5 shrink-0 text-blue-600 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <div class="leading-relaxed">
-            <strong>Standarisasi Kurikulum OBE Berbasis Outcome:</strong> Dosen pengampu di setiap kelas hanya akan memilih CPMK yang telah didefinisikan oleh Admin Prodi di bawah ini. Hal ini menjamin konsistensi evaluasi capaian lulusan (CPL) dan akreditasi internasional/LAM-INFOKOM.
+    <!-- Info Note -->
+    <div class="rounded-xl border border-line bg-white p-4 text-xs text-muted flex items-start gap-3 shadow-2xs">
+        <svg class="h-4 w-4 shrink-0 text-brand mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div class="leading-relaxed text-ink/80">
+            <strong class="font-semibold text-ink">Standarisasi Kurikulum OBE Berbasis Outcome:</strong> Dosen pengampu di setiap kelas hanya akan memilih CPMK yang telah didefinisikan oleh Admin Prodi di bawah ini. Hal ini menjamin konsistensi evaluasi capaian lulusan (CPL) dan akreditasi internasional/LAM-INFOKOM.
         </div>
     </div>
 
     <!-- Tabs Navigation -->
     <div class="flex border-b border-line gap-2">
         <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpl']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpl' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpl' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             1. Butir CPL Prodi ({{ $cpls->count() }})
         </a>
         <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpmk' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpmk' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             2. Butir CPMK per Mata Kuliah ({{ $allCpmks->count() }})
         </a>
         <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'mapping']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'mapping' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'mapping' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             3. Matriks Pemetaan CPL &harr; CPMK
         </a>
     </div>
@@ -68,26 +68,26 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-28">Kode CPL</th>
-                        <th class="p-3">Deskripsi Capaian Pembelajaran</th>
-                        <th class="p-3 text-center w-28">CPMK Terkait</th>
-                        <th class="p-3 text-right w-36">Aksi</th>
+                        <th class="px-4 py-3.5 w-32 !align-middle">Kode CPL</th>
+                        <th class="px-4 py-3.5 !align-middle">Deskripsi Capaian Pembelajaran</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">CPMK Terkait</th>
+                        <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($cpls as $cpl)
-                    <tr class="hover:bg-canvas/30">
-                        <td class="p-3 font-bold text-brand">
-                            <span class="px-2 py-0.5 rounded bg-brand-soft text-brand font-mono">{{ $cpl->code }}</span>
+                    <tr class="hover:bg-canvas/30 transition-colors">
+                        <td class="px-4 py-3.5 font-mono font-bold text-brand !align-middle whitespace-nowrap">
+                            {{ $cpl->code }}
                         </td>
-                        <td class="p-3 font-medium text-ink leading-relaxed">
+                        <td class="px-4 py-3.5 font-medium text-ink leading-relaxed !align-middle">
                             {{ $cpl->description }}
                         </td>
-                        <td class="p-3 text-center font-bold text-ink">
-                            {{ $cpl->cpmks_count }} <span class="font-normal text-muted">CPMK</span>
+                        <td class="px-4 py-3.5 text-center font-semibold text-ink !align-middle whitespace-nowrap">
+                            {{ $cpl->cpmks_count }} CPMK
                         </td>
-                        <td class="p-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
+                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
+                            <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditCplModal({{ $cpl->id }}, '{{ addslashes($cpl->code) }}', '{{ addslashes($cpl->description) }}')" 
                                         class="button-secondary text-[11px] py-1 px-2.5">
@@ -96,7 +96,7 @@
                                 <form action="{{ route('admin-prodi.kurikulum.cpl.destroy', $cpl->id) }}" method="POST" onsubmit="return confirm('Hapus butir CPL {{ $cpl->code }}?');" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10">
+                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
                                         Hapus
                                     </button>
                                 </form>
@@ -105,8 +105,16 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="p-8 text-center text-muted">
-                            Belum ada butir CPL untuk prodi ini. Klik "+ Tambah Butir CPL" untuk mulai mendefinisikan kurikulum.
+                        <td colspan="4" class="py-12 text-center text-muted !align-middle">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p class="text-xs">Belum ada butir CPL untuk prodi ini.</p>
+                                <button type="button" onclick="openCreateCplModal()" class="button-primary text-xs mt-1">
+                                    + Tambah Butir CPL
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     @endforelse
@@ -129,12 +137,13 @@
         </div>
 
         @forelse($mataKuliahs as $mk)
-        <div class="rounded-xl border border-line/80 bg-canvas/30 p-4 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
-                <div>
-                    <span class="px-2 py-0.5 rounded bg-brand text-white font-mono text-[11px] font-bold">{{ $mk->code }}</span>
-                    <span class="ml-2 font-bold text-sm text-ink">{{ $mk->name }}</span>
-                    <span class="text-xs text-muted ml-1">({{ $mk->sks }} SKS)</span>
+        <div class="rounded-xl border border-line bg-white p-5 space-y-4 shadow-2xs">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-mono font-bold text-brand text-sm">{{ $mk->code }}</span>
+                    <span class="text-muted">•</span>
+                    <span class="font-bold text-sm text-ink">{{ $mk->name }}</span>
+                    <span class="text-xs text-muted">({{ $mk->sks }} SKS)</span>
                 </div>
                 <button type="button" onclick="openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')" class="button-secondary text-[11px] py-1 px-2.5">
                     + Tambah CPMK ke MK Ini
@@ -142,55 +151,55 @@
             </div>
 
             @if($mk->cpmks->isEmpty())
-                <p class="text-xs text-muted italic py-2">Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini. Dosen belum dapat membuat asesmen OBE untuk MK ini.</p>
+                <p class="text-xs text-muted italic py-3 text-center">Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini. Dosen belum dapat membuat asesmen OBE untuk MK ini.</p>
             @else
                 <div class="overflow-x-auto">
-                    <table class="admin-table w-full text-left text-xs bg-white rounded-lg">
+                    <table class="admin-table w-full text-left text-xs">
                         <thead>
-                            <tr class="border-b border-line bg-canvas/40 text-muted">
-                                <th class="p-2.5 w-24">Kode</th>
-                                <th class="p-2.5">Deskripsi CPMK</th>
-                                <th class="p-2.5 text-center w-24">Standar Kelulusan</th>
-                                <th class="p-2.5 w-48">CPL Terkait &amp; Bobot</th>
-                                <th class="p-2.5 text-right w-28">Aksi</th>
+                            <tr class="border-b border-line bg-canvas/60 text-muted">
+                                <th class="px-3.5 py-3 w-28 !align-middle">Kode</th>
+                                <th class="px-3.5 py-3 !align-middle">Deskripsi CPMK</th>
+                                <th class="px-3.5 py-3 text-center w-36 !align-middle">Standar Kelulusan</th>
+                                <th class="px-3.5 py-3 w-56 !align-middle">CPL Terkait &amp; Bobot</th>
+                                <th class="px-3.5 py-3 text-right w-32 !align-middle">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-line/60">
                             @foreach($mk->cpmks as $cpmk)
-                            <tr>
-                                <td class="p-2.5 font-bold text-brand">
-                                    <span class="font-mono">{{ $cpmk->code }}</span>
+                            <tr class="hover:bg-canvas/30 transition-colors">
+                                <td class="px-3.5 py-3 font-mono font-bold text-brand !align-middle whitespace-nowrap">
+                                    {{ $cpmk->code }}
                                 </td>
-                                <td class="p-2.5 font-medium text-ink leading-relaxed">
+                                <td class="px-3.5 py-3 font-medium text-ink leading-relaxed !align-middle">
                                     {{ $cpmk->description }}
                                 </td>
-                                <td class="p-2.5 text-center font-bold text-ink">
-                                    <span class="px-2 py-0.5 rounded bg-slate-100 border border-line">{{ (float)$cpmk->threshold }}%</span>
+                                <td class="px-3.5 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
+                                    {{ (float)$cpmk->threshold }}%
                                 </td>
-                                <td class="p-2.5">
+                                <td class="px-3.5 py-3 !align-middle">
                                     @if($cpmk->cpls->isEmpty())
-                                        <span class="text-amber-700 text-[11px] font-semibold">Belum dipetakan ke CPL</span>
+                                        <span class="text-muted italic text-[11px]">Belum dipetakan</span>
                                     @else
-                                        <div class="flex flex-wrap gap-1">
+                                        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                                             @foreach($cpmk->cpls as $cpl)
-                                                <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" title="Bobot kontribusi: {{ $cpl->pivot->weight }}%">
-                                                    {{ $cpl->code }} ({{ (float)$cpl->pivot->weight }}%)
+                                                <span class="text-xs text-ink" title="Bobot kontribusi: {{ $cpl->pivot->weight }}%">
+                                                    <strong class="font-mono font-bold text-brand">{{ $cpl->code }}</strong> <span class="text-muted text-[11px]">({{ (float)$cpl->pivot->weight }}%)</span>
                                                 </span>
                                             @endforeach
                                         </div>
                                     @endif
                                 </td>
-                                <td class="p-2.5 text-right">
-                                    <div class="flex items-center justify-end gap-1">
+                                <td class="px-3.5 py-3 text-right !align-middle whitespace-nowrap">
+                                    <div class="inline-flex items-center justify-end gap-1.5">
                                         <button type="button" 
                                                 onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})" 
-                                                class="button-secondary text-[10px] py-1 px-2">
+                                                class="button-secondary text-[11px] py-1 px-2.5">
                                             Ubah
                                         </button>
                                         <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="button-secondary text-[10px] py-1 px-2 text-danger hover:bg-danger/10">
+                                            <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
                                                 Hapus
                                             </button>
                                         </form>
@@ -204,7 +213,7 @@
             @endif
         </div>
         @empty
-        <div class="p-8 text-center text-muted">
+        <div class="py-12 text-center text-muted">
             Belum ada mata kuliah yang terdaftar pada program studi ini. Tambahkan mata kuliah di menu Mata Kuliah terlebih dahulu.
         </div>
         @endforelse
@@ -221,8 +230,9 @@
         </div>
 
         @if($allCpmks->isEmpty() || $cpls->isEmpty())
-            <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-                Pastikan Anda telah mengisi butir CPL dan CPMK pada Tab 1 dan Tab 2 sebelum mengatur matriks pemetaan.
+            <div class="rounded-xl border border-line bg-white p-4 text-xs text-muted flex items-center gap-2">
+                <svg class="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span>Pastikan Anda telah mengisi butir CPL dan CPMK pada Tab 1 dan Tab 2 sebelum mengatur matriks pemetaan.</span>
             </div>
         @else
             <form action="{{ route('admin-prodi.kurikulum.mapping.update') }}" method="POST" class="space-y-4">
@@ -232,35 +242,35 @@
                 <div class="overflow-x-auto border border-line rounded-xl">
                     <table class="admin-table w-full text-left text-xs">
                         <thead>
-                            <tr class="border-b border-line bg-canvas/80 text-muted">
-                                <th class="p-3 sticky left-0 bg-white border-r border-line z-10 w-64">Mata Kuliah &amp; CPMK</th>
+                            <tr class="border-b border-line bg-canvas/60 text-muted">
+                                <th class="px-4 py-3 sticky left-0 bg-canvas border-r border-line z-10 w-72 !align-middle">Mata Kuliah &amp; CPMK</th>
                                 @foreach($cpls as $cpl)
-                                    <th class="p-3 text-center min-w-[100px]" title="{{ $cpl->description }}">
-                                        <span class="font-mono font-bold text-brand block">{{ $cpl->code }}</span>
+                                    <th class="px-3 py-3 text-center min-w-[110px] !align-middle" title="{{ $cpl->description }}">
+                                        <span class="font-mono font-bold text-brand block text-xs">{{ $cpl->code }}</span>
                                     </th>
                                 @endforeach
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-line/60">
                             @foreach($allCpmks as $cpmk)
-                            <tr class="hover:bg-canvas/30">
-                                <td class="p-3 sticky left-0 bg-white border-r border-line z-10">
-                                    <span class="font-bold text-ink">{{ $cpmk->code }}</span>
-                                    <span class="text-[11px] text-muted block truncate max-w-xs">{{ $cpmk->mataKuliah->code }} - {{ $cpmk->description }}</span>
+                            <tr class="hover:bg-canvas/30 transition-colors">
+                                <td class="px-4 py-3.5 sticky left-0 bg-white border-r border-line z-10 !align-middle">
+                                    <span class="font-mono font-bold text-brand block">{{ $cpmk->code }}</span>
+                                    <span class="text-[11px] text-muted block truncate max-w-xs mt-0.5">{{ $cpmk->mataKuliah->code }} — {{ $cpmk->description }}</span>
                                 </td>
                                 @foreach($cpls as $cpl)
                                     @php
                                         $currentWeight = $cpmk->cpls->firstWhere('id', $cpl->id)?->pivot->weight;
                                     @endphp
-                                    <td class="p-2 text-center">
-                                        <div class="inline-flex items-center gap-1 justify-center">
+                                    <td class="px-3 py-3 text-center !align-middle">
+                                        <div class="inline-flex items-center gap-1.5 justify-center">
                                             <input type="number" 
                                                    name="matrix[{{ $cpmk->id }}][{{ $cpl->id }}]" 
                                                    value="{{ $currentWeight ? (float)$currentWeight : '' }}" 
                                                    placeholder="—"
                                                    min="0" max="100" step="1"
-                                                   class="field text-center text-xs font-bold w-16 p-1.5 focus:border-brand">
-                                            <span class="text-[10px] text-muted">%</span>
+                                                   class="h-8 w-16 rounded-md border border-line bg-white text-center text-xs font-bold text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                                            <span class="text-[11px] text-muted font-medium">%</span>
                                         </div>
                                     </td>
                                 @endforeach

@@ -23,63 +23,74 @@
 
     <!-- Stat Cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div class="surface p-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Mata Kuliah &amp; Kelas</p>
-            <p class="mt-1.5 text-2xl font-bold text-brand">{{ $stats['total_matakuliah'] }} <span class="text-xs font-normal text-muted">MK</span>, {{ $stats['total_kelas'] }} <span class="text-xs font-normal text-muted">Kelas</span></p>
-            <a href="{{ route('admin-prodi.akademik.kelas') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Daftar kelas &amp; barcode</a>
-        </div>
-        <div class="surface p-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Dosen &amp; Mahasiswa</p>
-            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $stats['total_dosen'] }} <span class="text-xs font-normal text-muted">Dosen</span>, {{ $stats['total_mahasiswa'] }} <span class="text-xs font-normal text-muted">Mhs</span></p>
-            <a href="{{ route('admin-prodi.users.index') }}" class="mt-3 inline-block text-xs font-semibold text-brand hover:underline">Impor / input data</a>
-        </div>
-        <div class="surface p-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Standar Mutu OBE</p>
-            <p class="mt-1.5 text-2xl font-bold text-emerald-600">{{ $stats['total_cpl'] }} <span class="text-xs font-normal text-muted">CPL</span>, {{ $stats['total_cpmk'] }} <span class="text-xs font-normal text-muted">CPMK</span></p>
-            <a href="{{ route('admin-prodi.kurikulum.index') }}" class="mt-3 inline-block text-xs font-semibold text-emerald-700 hover:underline">Matriks pemetaan</a>
-        </div>
-    </div>
-
-    <!-- Quick Navigation Modules -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <a href="{{ route('admin-prodi.kurikulum.index') }}" class="surface p-5 hover:border-brand transition-all flex flex-col justify-between group">
+        <!-- Mata Kuliah & Kelas -->
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
             <div>
-                <div class="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg mb-3">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted">Mata Kuliah &amp; Kelas</p>
+                <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
+                    <div>
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_matakuliah'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">Mata Kuliah</span>
+                    </div>
+                    <div class="pl-3 sm:pl-4">
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_kelas'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">Kelas</span>
+                    </div>
                 </div>
-                <h3 class="text-base font-bold text-ink group-hover:text-brand">1. Kurikulum CPL &amp; CPMK</h3>
-                <p class="mt-1 text-xs text-muted leading-relaxed">
-                    Tetapkan butir Capaian Pembelajaran Lulusan (CPL) dan CPMK per mata kuliah secara terpusat agar dosen pengampu tinggal memilih saat membuat asesmen tugas/kuis/ujian.
-                </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kurikulum</span>
-        </a>
+            <div class="mt-4 pt-3 border-t border-line/40">
+                <a href="{{ route('admin-prodi.akademik.kelas') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
+                    <span>Daftar kelas &amp; barcode</span>
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                </a>
+            </div>
+        </div>
 
-        <a href="{{ route('admin-prodi.akademik.kelas') }}" class="surface p-5 hover:border-brand transition-all flex flex-col justify-between group">
+        <!-- Dosen & Mahasiswa -->
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
             <div>
-                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg mb-3">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted">Dosen &amp; Mahasiswa</p>
+                <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
+                    <div>
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_dosen'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">Dosen</span>
+                    </div>
+                    <div class="pl-3 sm:pl-4">
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_mahasiswa'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">Mahasiswa</span>
+                    </div>
                 </div>
-                <h3 class="text-base font-bold text-ink group-hover:text-brand">2. Kelas, Dosen Ketua/Wakil &amp; Barcode</h3>
-                <p class="mt-1 text-xs text-muted leading-relaxed">
-                    Bentuk kelas perkuliahan, tetapkan Dosen Ketua (Koordinator) dan Dosen Wakil (Pendamping), serta dapatkan Kode Unik Masuk &amp; Barcode/QR Code untuk mahasiswa join kelas.
-                </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Kelas Perkuliahan</span>
-        </a>
+            <div class="mt-4 pt-3 border-t border-line/40">
+                <a href="{{ route('admin-prodi.users.index') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
+                    <span>Impor / input data</span>
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                </a>
+            </div>
+        </div>
 
-        <a href="{{ route('admin-prodi.laporan.index') }}" class="surface p-5 hover:border-brand transition-all flex flex-col justify-between group">
+        <!-- Standar Mutu OBE -->
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
             <div>
-                <div class="h-10 w-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg mb-3">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted">Standar Mutu OBE</p>
+                <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
+                    <div>
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_cpl'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">CPL</span>
+                    </div>
+                    <div class="pl-3 sm:pl-4">
+                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_cpmk'] }}</span>
+                        <span class="block text-xs font-medium text-muted mt-0.5">CPMK</span>
+                    </div>
                 </div>
-                <h3 class="text-base font-bold text-ink group-hover:text-brand">3. Laporan Semester &amp; Ekspor</h3>
-                <p class="mt-1 text-xs text-muted leading-relaxed">
-                    Pantau metrik spesifik prodi: jumlah dosen/mahasiswa, intake mahasiswa baru per semester, rata-rata nilai hasil evaluasi kelas, dan ekspor ke Excel/CSV siap cetak.
-                </p>
             </div>
-            <span class="mt-4 text-xs font-bold text-brand flex items-center gap-1">Buka Laporan Prodi</span>
-        </a>
+            <div class="mt-4 pt-3 border-t border-line/40">
+                <a href="{{ route('admin-prodi.kurikulum.index') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
+                    <span>Matriks pemetaan</span>
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Kelas Aktif Terbaru -->
@@ -96,48 +107,48 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3">Kode / Kelas</th>
-                        <th class="p-3">Mata Kuliah</th>
-                        <th class="p-3">Dosen Ketua (Koordinator)</th>
-                        <th class="p-3">Dosen Wakil (Pendamping)</th>
-                        <th class="p-3 text-center">Kode Masuk</th>
-                        <th class="p-3 text-center">Mahasiswa</th>
-                        <th class="p-3 text-right">Aksi</th>
+                        <th class="px-4 py-3.5 w-32 !align-middle">Kode / Kelas</th>
+                        <th class="px-4 py-3.5 !align-middle">Mata Kuliah</th>
+                        <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua (Koordinator)</th>
+                        <th class="px-4 py-3.5 w-44 !align-middle">Dosen Wakil (Pendamping)</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Kode Masuk</th>
+                        <th class="px-4 py-3.5 text-center w-28 !align-middle">Mahasiswa</th>
+                        <th class="px-4 py-3.5 text-right w-28 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($recentClasses as $rc)
-                    <tr class="hover:bg-canvas/30">
-                        <td class="p-3 font-bold text-brand">{{ $rc->display_code }}</td>
-                        <td class="p-3">
-                            <span class="font-semibold text-ink">{{ $rc->mataKuliah->name }}</span>
-                            <span class="block text-[11px] text-muted">{{ $rc->mataKuliah->prodi->name ?? '-' }} ({{ $rc->mataKuliah->sks }} SKS)</span>
+                    <tr class="hover:bg-canvas/30 transition-colors">
+                        <td class="px-4 py-3.5 font-bold text-brand font-mono !align-middle whitespace-nowrap">{{ $rc->display_code }}</td>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-semibold text-ink block">{{ $rc->mataKuliah->name }}</span>
+                            <span class="block text-[11px] text-muted mt-0.5">{{ $rc->mataKuliah->prodi->name ?? '-' }} ({{ $rc->mataKuliah->sks }} SKS)</span>
                         </td>
-                        <td class="p-3">
-                            <span class="font-medium text-ink">{{ $rc->dosen?->name ?? 'Belum ditentukan' }}</span>
-                            <span class="block text-[10px] text-blue-700 font-semibold uppercase">Dosen Ketua</span>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-medium text-ink block">{{ $rc->dosen?->name ?? 'Belum ditentukan' }}</span>
                         </td>
-                        <td class="p-3">
+                        <td class="px-4 py-3.5 !align-middle">
                             @if($rc->dosenPendamping)
-                                <span class="font-medium text-ink">{{ $rc->dosenPendamping->name }}</span>
-                                <span class="block text-[10px] text-purple-700 font-semibold uppercase">Dosen Wakil</span>
+                                <span class="font-medium text-ink block">{{ $rc->dosenPendamping->name }}</span>
                             @else
-                                <span class="text-muted italic">— Tidak ada —</span>
+                                <span class="text-muted italic text-[11px]">— Tidak ada —</span>
                             @endif
                         </td>
-                        <td class="p-3 text-center">
-                            <code class="px-2 py-0.5 rounded bg-slate-100 font-mono font-bold text-ink border border-line">{{ $rc->enrollment_code }}</code>
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
+                            <span class="font-mono font-bold tracking-wider text-ink text-xs">{{ $rc->enrollment_code }}</span>
                         </td>
-                        <td class="p-3 text-center font-bold text-ink">
-                            {{ $rc->students_count }} <span class="font-normal text-muted">/ {{ $rc->capacity ?? '∞' }}</span>
+                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
+                            {{ $rc->students_count }} <span class="font-normal text-muted text-[11px]">/ {{ $rc->capacity ?? '∞' }}</span>
                         </td>
-                        <td class="p-3 text-right">
+                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <a href="{{ route('admin-prodi.akademik.kelas') }}" class="button-secondary text-[11px] py-1 px-2.5">Kelola</a>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="p-6 text-center text-muted">Belum ada kelas yang dibuat. Buat kelas di menu Kelas &amp; Dosen Pengampu.</td>
+                        <td colspan="7" class="py-12 text-center text-muted !align-middle">
+                            <p class="text-xs">Belum ada kelas yang dibuat. Buat kelas di menu Kelas &amp; Dosen Pengampu.</p>
+                        </td>
                     </tr>
                     @endforelse
                 </tbody>

@@ -55,69 +55,57 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-10 text-center">No</th>
-                        <th class="p-3">Kode Kelas</th>
-                        <th class="p-3">Mata Kuliah &amp; SKS</th>
-                        <th class="p-3">Dosen Ketua (Koordinator)</th>
-                        <th class="p-3">Dosen Wakil (Pendamping)</th>
-                        <th class="p-3 text-center">Kode Masuk &amp; Barcode</th>
-                        <th class="p-3 text-center">Kapasitas</th>
-                        <th class="p-3 text-right">Aksi</th>
+                        <th class="px-4 py-3.5 text-center w-12 !align-middle">No</th>
+                        <th class="px-4 py-3.5 w-32 !align-middle">Kode Kelas</th>
+                        <th class="px-4 py-3.5 !align-middle">Mata Kuliah &amp; SKS</th>
+                        <th class="px-4 py-3.5 w-52 !align-middle">Dosen Ketua (Koordinator)</th>
+                        <th class="px-4 py-3.5 w-44 !align-middle">Dosen Wakil (Pendamping)</th>
+                        <th class="px-4 py-3.5 text-center w-40 !align-middle">Kode Masuk &amp; Barcode</th>
+                        <th class="px-4 py-3.5 text-center w-28 !align-middle">Kapasitas</th>
+                        <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($classes as $index => $cls)
-                    <tr class="hover:bg-canvas/30">
-                        <td class="p-3 text-center text-muted">{{ $index + 1 }}</td>
-                        <td class="p-3">
-                            <span class="font-bold text-brand block font-mono text-sm">{{ $cls->display_code }}</span>
-                            <span class="text-[11px] text-muted">Seksi {{ $cls->section_code }}</span>
+                    <tr class="hover:bg-canvas/30 transition-colors">
+                        <td class="px-4 py-3.5 text-center text-muted font-medium !align-middle">{{ $index + 1 }}</td>
+                        <td class="px-4 py-3.5 !align-middle whitespace-nowrap">
+                            <span class="font-mono font-bold text-brand block">{{ $cls->display_code }}</span>
+                            <span class="text-[11px] text-muted block mt-0.5">Seksi {{ $cls->section_code }}</span>
                         </td>
-                        <td class="p-3">
-                            <span class="font-semibold text-ink block text-xs">{{ $cls->mataKuliah->name }}</span>
-                            <span class="text-[11px] text-muted">{{ $cls->mataKuliah->sks }} SKS, {{ $cls->semester->name }}</span>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-semibold text-ink block">{{ $cls->mataKuliah->name }}</span>
+                            <span class="text-[11px] text-muted block mt-0.5">{{ $cls->mataKuliah->sks }} SKS, {{ $cls->semester->name }}</span>
                         </td>
-                        <td class="p-3">
-                            <div class="flex items-center gap-2">
-                                <span class="h-6 w-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px] shrink-0">K</span>
-                                <div>
-                                    <span class="font-semibold text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Dosen Ketua</span>
-                                </div>
-                            </div>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-semibold text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
                         </td>
-                        <td class="p-3">
+                        <td class="px-4 py-3.5 !align-middle">
                             @if($cls->dosenPendamping)
-                            <div class="flex items-center gap-2">
-                                <span class="h-6 w-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-[10px] shrink-0">W</span>
-                                <div>
-                                    <span class="font-semibold text-ink block">{{ $cls->dosenPendamping->name }}</span>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Dosen Wakil</span>
-                                </div>
-                            </div>
+                                <span class="font-medium text-ink block">{{ $cls->dosenPendamping->name }}</span>
                             @else
-                            <span class="text-muted italic text-[11px]">— Tanpa Wakil —</span>
+                                <span class="text-muted italic text-[11px]">— Tanpa Wakil —</span>
                             @endif
                         </td>
-                        <td class="p-3 text-center">
-                            <div class="inline-flex flex-col items-center gap-1.5">
-                                <code class="px-2 py-0.5 rounded bg-slate-100 font-mono font-bold text-ink border border-line text-xs">
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
+                            <div class="inline-flex flex-col items-center gap-1">
+                                <span class="font-mono font-bold text-ink tracking-wider text-xs">
                                     {{ $cls->enrollment_code }}
-                                </code>
+                                </span>
                                 <button type="button" 
                                         onclick="showBarcodeModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}', '{{ route('kelas.barcode', $cls->id) }}')"
-                                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline">
-                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
-                                    Tampilkan Barcode
+                                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline transition-colors">
+                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
+                                    <span>Tampilkan Barcode</span>
                                 </button>
                             </div>
                         </td>
-                        <td class="p-3 text-center">
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
                             <span class="font-bold text-ink text-xs">{{ $cls->students_count }}</span>
                             <span class="text-muted text-[11px]">/ {{ $cls->capacity ?? '∞' }} mhs</span>
                         </td>
-                        <td class="p-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
+                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
+                            <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id }}, {{ $cls->dosen_pendamping_id ?? 'null' }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
@@ -126,7 +114,7 @@
                                 <form action="{{ route('admin-prodi.akademik.kelas.destroy', $cls->id) }}" method="POST" onsubmit="return confirm('Hapus kelas {{ $cls->display_code }}?');" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10">
+                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
                                         Hapus
                                     </button>
                                 </form>
@@ -135,8 +123,16 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="p-8 text-center text-muted">
-                            Belum ada kelas yang dibuka untuk program studi dan semester ini. Klik tombol "+ Buka Kelas Baru" di atas.
+                        <td colspan="8" class="py-12 text-center text-muted !align-middle">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <p class="text-xs">Belum ada kelas yang dibuka untuk program studi dan semester ini.</p>
+                                <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs mt-1">
+                                    + Buka Kelas Baru
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     @endforelse
@@ -189,7 +185,7 @@
             <!-- Dosen Ketua & Wakil -->
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
-                    <label for="create_dosen_id" class="block text-xs font-bold text-blue-900 mb-1">
+                    <label for="create_dosen_id" class="block text-xs font-bold text-ink mb-1">
                         Dosen Ketua (Koordinator Mata Kuliah) <span class="text-danger">*</span>
                     </label>
                     <select name="dosen_id" id="create_dosen_id" required class="field text-xs font-semibold">
@@ -202,7 +198,7 @@
                 </div>
 
                 <div>
-                    <label for="create_dosen_wakil" class="block text-xs font-bold text-purple-900 mb-1">
+                    <label for="create_dosen_wakil" class="block text-xs font-bold text-ink mb-1">
                         Dosen Wakil (Pendamping / Team-Teaching) <span class="text-muted font-normal">(Opsional)</span>
                     </label>
                     <select name="dosen_pendamping_id" id="create_dosen_wakil" class="field text-xs font-semibold">
@@ -246,7 +242,7 @@
 
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
-                    <label for="edit_dosen_id" class="block text-xs font-bold text-blue-900 mb-1">Dosen Ketua (Koordinator)</label>
+                    <label for="edit_dosen_id" class="block text-xs font-bold text-ink mb-1">Dosen Ketua (Koordinator)</label>
                     <select name="dosen_id" id="edit_dosen_id" required class="field text-xs font-semibold">
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
@@ -255,7 +251,7 @@
                 </div>
 
                 <div>
-                    <label for="edit_dosen_wakil" class="block text-xs font-bold text-purple-900 mb-1">Dosen Wakil (Pendamping)</label>
+                    <label for="edit_dosen_wakil" class="block text-xs font-bold text-ink mb-1">Dosen Wakil (Pendamping)</label>
                     <select name="dosen_pendamping_id" id="edit_dosen_wakil" class="field text-xs font-semibold">
                         <option value="">-- Tanpa Dosen Wakil --</option>
                         @foreach($dosens as $dsn)
@@ -282,7 +278,7 @@
         </div>
 
         <div>
-            <span id="barcode_class_code" class="text-xs font-bold text-brand font-mono px-2 py-0.5 rounded bg-brand-soft"></span>
+            <span id="barcode_class_code" class="text-sm font-bold text-brand font-mono"></span>
             <h3 id="barcode_mk_name" class="font-bold text-base text-ink mt-1"></h3>
             <p class="text-xs text-muted">Mahasiswa dapat bergabung ke kelas ini dengan memindai barcode QR Code atau membuka link langsung di bawah ini.</p>
         </div>

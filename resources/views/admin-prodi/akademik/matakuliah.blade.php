@@ -30,12 +30,17 @@
     </header>
 
     <div class="surface p-5">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <div class="flex items-center gap-2">
-                <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-semibold w-72">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div class="relative w-72 max-w-full">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                </div>
+                <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-medium w-full pl-9">
             </div>
-            <div class="text-xs text-muted">
-                Total terdaftar di {{ $activeProdi?->name }}: <strong class="text-ink" id="mk-count">{{ $mataKuliahs->count() }}</strong> mata kuliah
+            <div class="text-xs text-muted whitespace-nowrap">
+                Total terdaftar di <span class="font-semibold text-ink">{{ $activeProdi?->name }}</span>: <strong class="text-ink font-bold" id="mk-count">{{ $mataKuliahs->count() }}</strong> mata kuliah
             </div>
         </div>
 
@@ -43,40 +48,40 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-12 text-center">No</th>
-                        <th class="p-3">Kode MK</th>
-                        <th class="p-3">Nama Mata Kuliah</th>
-                        <th class="p-3 text-center">Bobot SKS</th>
-                        <th class="p-3 text-center">Kelas Terbuka</th>
-                        <th class="p-3 text-center">CPMK Terdefinisi</th>
-                        <th class="p-3 text-right">Aksi</th>
+                        <th class="px-4 py-3.5 text-center w-14 !align-middle">No</th>
+                        <th class="px-4 py-3.5 w-32 !align-middle">Kode MK</th>
+                        <th class="px-4 py-3.5 !align-middle">Nama Mata Kuliah</th>
+                        <th class="px-4 py-3.5 text-center w-28 !align-middle">Bobot SKS</th>
+                        <th class="px-4 py-3.5 text-center w-32 !align-middle">Kelas Terbuka</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">CPMK Terdefinisi</th>
+                        <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($mataKuliahs as $index => $mk)
-                    <tr class="hover:bg-canvas/30 mk-row" data-search="{{ strtolower($mk->code . ' ' . $mk->name) }}">
-                        <td class="p-3 text-center text-muted">{{ $index + 1 }}</td>
-                        <td class="p-3 font-bold text-brand">
-                            <span class="px-2 py-0.5 rounded bg-brand-soft text-brand font-mono">{{ $mk->code }}</span>
+                    <tr class="hover:bg-canvas/30 transition-colors mk-row" data-search="{{ strtolower($mk->code . ' ' . $mk->name) }}">
+                        <td class="px-4 py-3.5 text-center text-muted font-medium !align-middle">{{ $index + 1 }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-brand !align-middle whitespace-nowrap">
+                            {{ $mk->code }}
                         </td>
-                        <td class="p-3 font-semibold text-ink">
+                        <td class="px-4 py-3.5 font-semibold text-ink !align-middle">
                             {{ $mk->name }}
                         </td>
-                        <td class="p-3 text-center font-bold text-ink">
-                            <span class="px-2 py-0.5 rounded bg-slate-100 border border-line">{{ $mk->sks }} SKS</span>
+                        <td class="px-4 py-3.5 text-center font-medium text-ink !align-middle whitespace-nowrap">
+                            {{ $mk->sks }} SKS
                         </td>
-                        <td class="p-3 text-center">
-                            <a href="{{ route('admin-prodi.akademik.kelas', ['prodi_id' => $mk->prodi_id]) }}" class="font-bold text-ink hover:text-brand">
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
+                            <a href="{{ route('admin-prodi.akademik.kelas', ['prodi_id' => $mk->prodi_id]) }}" class="font-semibold text-ink hover:text-brand hover:underline transition-colors">
                                 {{ $mk->class_sections_count }} Kelas
                             </a>
                         </td>
-                        <td class="p-3 text-center">
-                            <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $mk->prodi_id, 'tab' => 'cpmk']) }}" class="font-bold text-ink hover:text-brand">
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
+                            <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $mk->prodi_id, 'tab' => 'cpmk']) }}" class="font-semibold text-ink hover:text-brand hover:underline transition-colors">
                                 {{ $mk->cpmks_count }} CPMK
                             </a>
                         </td>
-                        <td class="p-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
+                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
+                            <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }})" 
                                         class="button-secondary text-[11px] py-1 px-2.5">
@@ -85,7 +90,7 @@
                                 <form action="{{ route('admin-prodi.akademik.matakuliah.destroy', $mk->id) }}" method="POST" onsubmit="return confirm('Hapus mata kuliah {{ $mk->name }}?');" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10">
+                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
                                         Hapus
                                     </button>
                                 </form>
@@ -94,8 +99,16 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="p-8 text-center text-muted">
-                            Belum ada mata kuliah untuk program studi ini. Klik "+ Tambah Mata Kuliah" di atas.
+                        <td colspan="7" class="py-12 text-center text-muted !align-middle">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                                <p class="text-xs">Belum ada mata kuliah untuk program studi ini.</p>
+                                <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs mt-1">
+                                    + Tambah Mata Kuliah
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     @endforelse

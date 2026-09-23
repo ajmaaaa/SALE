@@ -41,11 +41,11 @@
     <!-- Tabs Nav -->
     <div class="flex border-b border-line gap-2">
         <a href="{{ route('admin-prodi.users.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'dosen']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'dosen' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'dosen' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             Data Dosen Pengampu ({{ $dosens->count() }})
         </a>
         <a href="{{ route('admin-prodi.users.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'mahasiswa']) }}" 
-           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'mahasiswa' ? 'border-brand text-brand bg-brand-soft/40' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'mahasiswa' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             Data Mahasiswa ({{ $mahasiswas->total() }})
         </a>
     </div>
@@ -75,27 +75,25 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-12 text-center">No</th>
-                        <th class="p-3">NIDN / NIP</th>
-                        <th class="p-3">Nama Lengkap &amp; Gelar</th>
-                        <th class="p-3">Email Institusi</th>
-                        <th class="p-3">Program Studi</th>
-                        <th class="p-3 text-right">Aksi</th>
+                        <th class="px-4 py-3.5 w-12 text-center !align-middle">No</th>
+                        <th class="px-4 py-3.5 w-48 !align-middle">NIDN / NIP</th>
+                        <th class="px-4 py-3.5 !align-middle">Nama Lengkap &amp; Gelar</th>
+                        <th class="px-4 py-3.5 w-60 !align-middle">Email Institusi</th>
+                        <th class="px-4 py-3.5 w-36 !align-middle">Program Studi</th>
+                        <th class="px-4 py-3.5 w-36 text-right !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($dosens as $idx => $d)
                     <tr class="hover:bg-canvas/30">
-                        <td class="p-3 text-center text-muted">{{ $idx + 1 }}</td>
-                        <td class="p-3 font-mono font-bold text-ink">{{ $d->nim_nidn ?? '—' }}</td>
-                        <td class="p-3 font-semibold text-ink">{{ $d->name }}</td>
-                        <td class="p-3 text-muted">{{ $d->email }}</td>
-                        <td class="p-3">
-                            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold text-[11px]">
-                                {{ $d->prodi?->code ?? 'Semua Prodi' }}
-                            </span>
+                        <td class="px-4 py-3.5 text-center text-muted !align-middle">{{ $idx + 1 }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $d->nim_nidn ?? '—' }}</td>
+                        <td class="px-4 py-3.5 font-semibold text-ink !align-middle">{{ $d->name }}</td>
+                        <td class="px-4 py-3.5 text-muted !align-middle">{{ $d->email }}</td>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-medium text-ink text-xs">{{ $d->prodi?->code ?? 'Semua Prodi' }}</span>
                         </td>
-                        <td class="p-3 text-right">
+                        <td class="px-4 py-3.5 text-right !align-middle">
                             <div class="flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditUserModal({{ $d->id }}, '{{ addslashes($d->name) }}', '{{ addslashes($d->email) }}', '{{ addslashes($d->nim_nidn ?? '') }}', {{ $d->prodi_id ?? 'null' }}, 'dosen')"
@@ -114,7 +112,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-muted">Belum ada dosen yang terdaftar. Gunakan tombol di atas untuk menambah atau mengimpor data.</td>
+                        <td colspan="6" class="p-8 text-center text-muted !align-middle">Belum ada dosen yang terdaftar. Gunakan tombol di atas untuk menambah atau mengimpor data.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -147,27 +145,25 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="p-3 w-12 text-center">No</th>
-                        <th class="p-3">NIM</th>
-                        <th class="p-3">Nama Mahasiswa</th>
-                        <th class="p-3">Email Mahasiswa</th>
-                        <th class="p-3">Program Studi</th>
-                        <th class="p-3 text-right">Aksi</th>
+                        <th class="px-4 py-3.5 w-12 text-center !align-middle">No</th>
+                        <th class="px-4 py-3.5 w-44 !align-middle">NIM</th>
+                        <th class="px-4 py-3.5 !align-middle">Nama Mahasiswa</th>
+                        <th class="px-4 py-3.5 w-60 !align-middle">Email Mahasiswa</th>
+                        <th class="px-4 py-3.5 w-48 !align-middle">Program Studi</th>
+                        <th class="px-4 py-3.5 w-36 text-right !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
                     @forelse($mahasiswas as $idx => $m)
                     <tr class="hover:bg-canvas/30">
-                        <td class="p-3 text-center text-muted">{{ $mahasiswas->firstItem() + $idx }}</td>
-                        <td class="p-3 font-mono font-bold text-ink">{{ $m->nim_nidn ?? '—' }}</td>
-                        <td class="p-3 font-semibold text-ink">{{ $m->name }}</td>
-                        <td class="p-3 text-muted">{{ $m->email }}</td>
-                        <td class="p-3">
-                            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold text-[11px]">
-                                {{ $m->prodi?->name ?? 'Teknik Informatika' }}
-                            </span>
+                        <td class="px-4 py-3.5 text-center text-muted !align-middle">{{ $mahasiswas->firstItem() + $idx }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $m->nim_nidn ?? '—' }}</td>
+                        <td class="px-4 py-3.5 font-semibold text-ink !align-middle">{{ $m->name }}</td>
+                        <td class="px-4 py-3.5 text-muted !align-middle">{{ $m->email }}</td>
+                        <td class="px-4 py-3.5 !align-middle">
+                            <span class="font-medium text-ink text-xs">{{ $m->prodi?->name ?? 'Teknik Informatika' }}</span>
                         </td>
-                        <td class="p-3 text-right">
+                        <td class="px-4 py-3.5 text-right !align-middle">
                             <div class="flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditUserModal({{ $m->id }}, '{{ addslashes($m->name) }}', '{{ addslashes($m->email) }}', '{{ addslashes($m->nim_nidn ?? '') }}', {{ $m->prodi_id ?? 'null' }}, 'mahasiswa')"
@@ -186,7 +182,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-muted">Belum ada mahasiswa terdaftar pada program studi ini.</td>
+                        <td colspan="6" class="p-8 text-center text-muted !align-middle">Belum ada mahasiswa terdaftar pada program studi ini.</td>
                     </tr>
                     @endforelse
                 </tbody>
