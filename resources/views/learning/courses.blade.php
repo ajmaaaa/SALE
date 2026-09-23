@@ -10,15 +10,13 @@
             <h1 class="page-heading">Course</h1>
             <p class="page-description">Kelas aktif yang telah ditetapkan oleh program studi pada semester ini.</p>
         </div>
-        <div class="flex items-center gap-2.5">
-            @if(request()->is('dosen*'))
-                <a class="button-primary" href="{{ route('dosen.course.create') }}">+ Tambah course</a>
-            @else
+        @unless(request()->is('dosen*'))
+            <div class="flex items-center gap-2.5">
                 <button type="button" onclick="document.getElementById('join-class-modal').showModal()" class="button-secondary text-xs font-semibold">
                     + Gabung Kelas
                 </button>
-            @endif
-        </div>
+            </div>
+        @endunless
     </header>
 
     <form class="flex flex-col gap-3 sm:flex-row" action="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" method="GET">

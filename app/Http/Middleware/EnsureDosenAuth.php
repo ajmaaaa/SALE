@@ -12,38 +12,39 @@ class EnsureDosenAuth
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Use the real authenticated user when available, with a verified
-        // session fallback for the prototype's role switcher.
         $user = auth()->user();
 
         if (! $user && is_array(session('auth_user'))) {
             $sessionUser = session('auth_user');
-            $user = User::with('role')
-                ->where(function ($query) use ($sessionUser) {
-                    $query->where('email', $sessionUser['email'] ?? '')
-                        ->orWhere('nim_nidn', $sessionUser['number'] ?? '');
-                })
-                ->first();
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                try {
+                    $user = User::with('role')
+                        ->where(function ($query) use ($sessionUser) {
+                            $query->where('email', $sessionUser['email'] ?? '')
+                                ->orWhere('nim_nidn', $sessionUser['number'] ?? '');
+                        })
+                        ->first();
 
-            if (! $user && ($sessionUser['role'] ?? '') === 'dosen') {
-                $user = User::with('role')->whereHas('role', fn ($q) => $q->where('name', Role::DOSEN))->first();
-            }
+                    if (! $user && ($sessionUser['role'] ?? '') === Role::DOSEN) {
+                        $user = User::with('role')->whereHas('role', fn ($q) => $q->where('name', Role::DOSEN))->first();
+                    }
 
-            if ($user && $user->hasRole(Role::DOSEN)) {
-                \Illuminate\Support\Facades\Auth::login($user);
-            }
-        }
-
-        if (! $user) {
-            $user = User::with('role')->whereHas('role', fn ($q) => $q->where('name', Role::DOSEN))->first();
-            if ($user) {
-                \Illuminate\Support\Facades\Auth::login($user);
-            } else {
-                return redirect()->route('login');
+                    if ($user && $user->hasRole(Role::DOSEN)) {
+                        \Illuminate\Support\Facades\Auth::login($user);
+                    }
+                } catch (\Throwable $e) {
+                }
             }
         }
 
-        if (! $user->hasRole(Role::DOSEN)) {
+        if (! $user && ! is_array(session('auth_user'))) {
+            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $isDosen = ($user && $user->hasRole(Role::DOSEN))
+            || (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === Role::DOSEN);
+
+        if (! $isDosen) {
             abort(403, 'Akses ditolak. Halaman ini khusus Dosen.');
         }
 

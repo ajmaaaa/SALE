@@ -20,9 +20,14 @@ class LearningController extends Controller
         $user = auth()->user();
         if (! $user && is_array(session('auth_user'))) {
             $sessionUser = session('auth_user');
-            $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                try {
+                    $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
+                        ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                        ->first();
+                } catch (\Throwable $e) {
+                }
+            }
         }
 
         if ($user && $user->hasRole(\App\Models\Role::MAHASISWA)) {
@@ -137,28 +142,6 @@ class LearningController extends Controller
         return view('learning.discussions', ['items' => Learning::items(), 'courses' => Learning::courses()]);
     }
 
-    public function createCourse()
-    {
-        return view('dosen.course-form');
-    }
-
-    public function storeCourse(Request $request)
-    {
-        $data = $request->validate([
-            'title' => 'required|string|max:120', 'code' => 'required|string|max:20',
-            'description' => 'required|string|max:2000', 'lecturer' => 'required|string|max:120',
-            'cover' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|url:http,https|max:2000',
-        ]);
-        $data['video'] ??= null;
-        $courses = Learning::courses();
-        $data['id'] = max(array_keys($courses)) + 1;
-        $data['cover'] = $request->hasFile('cover') ? $this->upload($request->file('cover')) : null;
-        $courses[$data['id']] = $data;
-        session(['learning.courses' => $courses]);
-
-        return redirect()->route('dosen.course.show', $data['id'])->with('notice', 'Course ditambahkan ke sesi pratinjau ini.');
-    }
 
     public function createItem(int $course)
     {

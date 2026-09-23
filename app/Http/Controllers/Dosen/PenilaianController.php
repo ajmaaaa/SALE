@@ -35,88 +35,121 @@ class PenilaianController extends Controller
     {
         $this->authorizeOwnership($section);
 
-        $cpmks = $this->cpmksFor($section);
-        $students = $section->students()->orderBy('name')->get();
-        $studentIds = $students->pluck('id');
+        $cpmks       = $this->cpmksFor($section);
+        $students    = $section->students()->orderBy('name')->get();
+        $studentIds  = $students->pluck('id');
         $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
         $assessmentIds = $assessments->pluck('id');
 
-        // Pre-fetch raw scores untuk efisiensi
-        $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)->get()
-            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->mahasiswa_id);
+        // Pre-fetch semua skor sekaligus
+        $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)
+            ->get()
+            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->mahasiswa_id);
 
-        $rawCpmkScores = \App\Models\StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)->get()
-            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->cpmk_id . '_' . $row->mahasiswa_id);
+        $rawCpmkScores = \App\Models\StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)
+            ->get()
+            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->cpmk_id . '_' . $r->mahasiswa_id);
 
-        $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
+        $cpmkWeights    = $this->obe->cpmkWeightsFor($cpmks, $section);
         $totalCpmkWeight = (float) $cpmkWeights->sum();
 
-        // Siapkan kartu mandiri untuk setiap CPMK
-        $cpmkCards = [];
-        foreach ($cpmks as $cpmk) {
-            $weight = (float) ($cpmkWeights[$cpmk->id] ?? 0);
-
-            // Komponen asesmen pembentuk CPMK ini
-            $components = [];
-            foreach ($assessments as $asmt) {
+        // ----------------------------------------------------------------
+        // Susun kolom: setiap asesmen beserta sub-CPMK yang diukurnya
+        // ----------------------------------------------------------------
+        $columns = [];   // [ { assessment, cpmk_cols: [ {cpmk, weight} ] } ]
+        foreach ($assessments as $asmt) {
+            $cpmkCols = [];
+            foreach ($cpmks as $cpmk) {
                 $w = $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk);
                 if ($w > 0) {
-                    $components[] = [
-                        'assessment' => $asmt,
-                        'weight' => $w,
-                        'weight_formatted' => rtrim(rtrim(number_format($w, 1), '0'), '.'),
-                        'max_score' => $this->obe->assessmentCpmkMaxScore($asmt, $cpmk),
+                    $cpmkCols[] = [
+                        'cpmk'            => $cpmk,
+                        'weight'          => $w,
+                        'weight_fmt'      => rtrim(rtrim(number_format($w, 1), '0'), '.'),
                     ];
                 }
             }
-
-            // Agregat kelas untuk CPMK ini
-            $agg = $this->obe->cpmkClassAggregate($cpmk, $studentIds, $section->id);
-
-            // Data mahasiswa beserta skor per komponen penyusun dan skor akhir CPMK
-            $cardStudents = [];
-            foreach ($students as $student) {
-                $scores = [];
-                foreach ($components as $comp) {
-                    $asmtId = $comp['assessment']->id;
-                    $cpmkScoreKey = $asmtId . '_' . $cpmk->id . '_' . $student->id;
-                    $asmtScoreKey = $asmtId . '_' . $student->id;
-
-                    $cpmkSpecific = $rawCpmkScores->get($cpmkScoreKey)?->first();
-                    if ($cpmkSpecific !== null && $cpmkSpecific->score !== null) {
-                        $scores[$asmtId] = (float) $cpmkSpecific->score;
-                    } else {
-                        $asmtRow = $rawAssessmentScores->get($asmtScoreKey)?->first();
-                        $scores[$asmtId] = $asmtRow?->score !== null ? (float) $asmtRow->score : null;
-                    }
-                }
-
-                $cpmkScore = $this->obe->cpmkScore($cpmk, $student->id, $section->id);
-
-                $cardStudents[] = [
-                    'student' => $student,
-                    'scores' => $scores,
-                    'cpmk_score' => $cpmkScore,
+            if (count($cpmkCols) > 0) {
+                $columns[] = [
+                    'assessment' => $asmt,
+                    'cpmk_cols'  => $cpmkCols,
                 ];
             }
+        }
 
-            $cpmkCards[] = [
-                'cpmk' => $cpmk,
-                'weight' => $weight,
-                'weight_formatted' => rtrim(rtrim(number_format($weight, 1), '0'), '.'),
-                'components' => $components,
-                'aggregate' => $agg,
-                'students' => $cardStudents,
+        // ----------------------------------------------------------------
+        // Susun baris: setiap mahasiswa dengan nilai per (asesmen × CPMK)
+        // dan nilai CPMK final per CPMK
+        // ----------------------------------------------------------------
+        $rows = [];
+        foreach ($students as $student) {
+            // Nilai per sel: keyed "asmtId_cpmkId"
+            $cells   = [];
+            $statuses = []; // keyed "asmtId_cpmkId": 'scored'|'pending'|'no_submission'
+
+            foreach ($columns as $col) {
+                $asmtId      = $col['assessment']->id;
+                $asmtScoreKey = $asmtId . '_' . $student->id;
+                $asmtRow      = $rawAssessmentScores->get($asmtScoreKey)?->first();
+
+                foreach ($col['cpmk_cols'] as $cc) {
+                    $cpmk       = $cc['cpmk'];
+                    $cellKey    = $asmtId . '_' . $cpmk->id;
+                    $cpmkKey    = $asmtId . '_' . $cpmk->id . '_' . $student->id;
+                    $cpmkSpecific = $rawCpmkScores->get($cpmkKey)?->first();
+
+                    if ($cpmkSpecific !== null && $cpmkSpecific->score !== null) {
+                        $cells[$cellKey]    = (float) $cpmkSpecific->score;
+                        $statuses[$cellKey] = 'scored';
+                    } elseif ($asmtRow === null) {
+                        $cells[$cellKey]    = null;
+                        $statuses[$cellKey] = 'no_submission';
+                    } elseif ($asmtRow->score !== null) {
+                        $cells[$cellKey]    = (float) $asmtRow->score;
+                        $statuses[$cellKey] = 'scored';
+                    } else {
+                        // Record ada tapi score null → MENUNGGU (desain-flow-penilaian.md §4)
+                        $cells[$cellKey]    = null;
+                        $statuses[$cellKey] = 'pending';
+                    }
+                }
+            }
+
+            // Nilai CPMK final per CPMK
+            $cpmkFinals = [];
+            foreach ($cpmks as $cpmk) {
+                $cpmkFinals[$cpmk->id] = $this->obe->cpmkScore($cpmk, $student->id, $section->id);
+            }
+
+            // Apakah ada sel yang masih pending untuk baris ini?
+            $hasPending = in_array('pending', $statuses, true);
+
+            $rows[] = [
+                'student'     => $student,
+                'cells'       => $cells,
+                'statuses'    => $statuses,
+                'cpmk_finals' => $cpmkFinals,
+                'has_pending' => $hasPending,
             ];
         }
 
+        // ----------------------------------------------------------------
+        // Agregat per CPMK (rata-rata kelas, pass rate)
+        // ----------------------------------------------------------------
+        $cpmkAggregates = [];
+        foreach ($cpmks as $cpmk) {
+            $cpmkAggregates[$cpmk->id] = $this->obe->cpmkClassAggregate($cpmk, $studentIds, $section->id);
+        }
+
         return view('dosen.rekap', [
-            'section' => $this->withHeaderCounts($section, null, $cpmks),
-            'cpmks' => $cpmks,
-            'cpmkWeights' => $cpmkWeights,
+            'section'         => $this->withHeaderCounts($section, null, $cpmks),
+            'cpmks'           => $cpmks,
+            'cpmkWeights'     => $cpmkWeights,
             'totalCpmkWeight' => $totalCpmkWeight,
-            'cpmkCards' => $cpmkCards,
-            'obe' => $this->obe,
+            'columns'         => $columns,
+            'rows'            => $rows,
+            'cpmkAggregates'  => $cpmkAggregates,
+            'obe'             => $this->obe,
         ]);
     }
 

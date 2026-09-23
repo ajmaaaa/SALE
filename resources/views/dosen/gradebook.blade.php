@@ -19,9 +19,6 @@
             <button type="button" onclick="document.getElementById('bulk-score-section').toggleAttribute('hidden')" class="button-secondary">
                 Input Nilai Massal
             </button>
-            <a class="button-secondary" href="{{ route('dosen.academic', $course['id']) }}">
-                Atur Bobot &amp; CPMK
-            </a>
         </div>
     </header>
 
@@ -416,7 +413,7 @@
                 Nilai sementara dihitung dari bobot komponen yang sudah dinilai. Nilai komponen manual tidak menjadi bukti ketercapaian CPMK. Buka filter penilaian untuk melihat rincian soal.
             </p>
             <div class="flex items-center gap-3">
-                <a href="{{ route('dosen.grades') }}" class="quiet-link text-xs">
+                <a href="{{ route('dosen.penilaian.index') }}" class="quiet-link text-xs">
                     Tinjau pengumpulan tugas
                 </a>
                 <button type="submit" class="button-primary text-xs py-2.5 px-5 font-bold shadow-2xs">

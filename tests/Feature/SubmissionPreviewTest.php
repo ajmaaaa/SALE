@@ -24,8 +24,6 @@ class SubmissionPreviewTest extends TestCase
         $this->assertSame([], SubmissionPreview::files(1, 'tugas', '2024081001'));
         $this->assertSame([], SubmissionPreview::files(2, 'uas', '2024081001'));
         $this->assertSame([], SubmissionPreview::files(2, 'tugas', '2024081002'));
-        $this->get(route('dosen.grades', ['course' => 2, 'type' => 'tugas']))
-            ->assertOk()->assertSee('laporan.pdf')->assertSee('id="submission-preview"', false);
 
         session()->forget('learning.submissions.4.student_number');
         $this->assertSame([], SubmissionPreview::files(2, 'tugas', '2024081001'));

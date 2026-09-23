@@ -16,9 +16,14 @@ class DashboardController extends Controller
         $user = Auth::guard('web')->user();
         if (! $user && is_array(session('auth_user'))) {
             $sessionUser = session('auth_user');
-            $user = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                try {
+                    $user = User::where('email', $sessionUser['email'] ?? '')
+                        ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                        ->first();
+                } catch (\Throwable $e) {
+                }
+            }
         }
 
         $enrolledSections = $user

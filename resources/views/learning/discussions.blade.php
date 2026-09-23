@@ -7,6 +7,8 @@
 @php
     $selectedCourseId = request('course');
     $courseMap = collect($courses)->keyBy('id');
+    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa'));
+    $role = in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->is('dosen*') ? 'dosen' : 'mahasiswa';
 
     // Filter non-announcement items
     $discussionItems = collect($items)->filter(fn($i) => ($i['type'] ?? '') !== 'pengumuman');
@@ -25,7 +27,7 @@
         </div>
 
         {{-- Filter Mata Kuliah (Minimalis) --}}
-        <form method="get" action="{{ route('mahasiswa.discussion.index') }}" class="flex items-center gap-2">
+        <form method="get" action="{{ route($role.'.discussion.index') }}" class="flex items-center gap-2">
             <label for="course-filter" class="sr-only">Filter Mata Kuliah</label>
             <select id="course-filter" name="course" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 sm:w-64">
                 <option value="">Semua Mata Kuliah ({{ count($courses) }})</option>
@@ -36,7 +38,7 @@
                 @endforeach
             </select>
             @if($selectedCourseId)
-                <a href="{{ route('mahasiswa.discussion.index') }}" class="button-secondary py-1.5 text-xs">Reset</a>
+                <a href="{{ route($role.'.discussion.index') }}" class="button-secondary py-1.5 text-xs">Reset</a>
             @endif
         </form>
     </header>
@@ -51,9 +53,10 @@
         @forelse($courses as $c)
             @if(!$selectedCourseId || (string)$selectedCourseId === (string)$c['id'])
                 @php
-                    $msgCount = \App\Support\LearningPreview::unreadDiscussionCount($c['id']);
+                    $room = \Illuminate\Support\Facades\Schema::hasTable('rooms') ? \App\Models\Room::where('course_id', $c['id'])->first() : null;
+                    $msgCount = $room ? $room->messages()->count() : \App\Support\LearningPreview::unreadDiscussionCount($c['id']);
                 @endphp
-                <a href="{{ route('mahasiswa.course.show', $c['id']) }}#diskusi-kelas"
+                <a href="{{ route($role.'.course.show', $c['id']) }}#diskusi-kelas"
                    class="group flex items-center justify-between gap-3 px-5 py-4 hover:bg-canvas transition">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">

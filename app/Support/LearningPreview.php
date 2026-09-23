@@ -246,7 +246,8 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             foreach (array_slice($courseMessages, $read) as $message) {
                 $isOwnMessage = isset($message['sender_key'])
                     ? hash_equals($viewer['key'], (string) $message['sender_key'])
-                    : trim((string) ($message['author'] ?? '')) === $viewer['name'];
+                    : (trim((string) ($message['author'] ?? '')) === $viewer['name']
+                       || str_starts_with(trim((string) ($message['author'] ?? '')), $viewer['name']));
 
                 if ($isOwnMessage) {
                     continue;

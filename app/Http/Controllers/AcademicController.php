@@ -24,32 +24,6 @@ class AcademicController extends Controller
         }
     }
 
-    public function settings(int $course)
-    {
-        return view('dosen.academic-settings',['course'=>Learning::course($course),'config'=>Academic::config($course)]);
-    }
-
-    public function saveSettings(Request $request,int $course)
-    {
-        $this->authorizeOwnership($course);
-        Learning::course($course);
-        $data=$request->validate([
-            'cpl'=>'required|array|min:1|max:30','cpl.*.code'=>'required|alpha_dash|max:30|distinct','cpl.*.description'=>'required|string|max:1000',
-            'cpmk'=>'required|array|min:1|max:50','cpmk.*.code'=>'required|alpha_dash|max:30|distinct','cpmk.*.cpl'=>['required',Rule::in(array_column($request->input('cpl',[]),'code'))],'cpmk.*.description'=>'required|string|max:1000',
-            'components'=>'required|array|min:1|max:20','components.*.code'=>'required|alpha_dash|max:30|distinct','components.*.name'=>'required|string|max:80','components.*.weight'=>'required|numeric|min:0|max:100',
-            'cpmk.*.threshold'=>'sometimes|required|numeric|min:0|max:100',
-        ]);
-        if(abs(array_sum(array_column($data['components'],'weight'))-100)>0.001) return back()->withErrors(['components'=>'Total bobot harus tepat 100%.'])->withInput();
-        foreach(Learning::items() as $item){
-            if($item['course']!==$course) continue;
-            foreach($item['questions'] ?? [] as $question){
-                if(!in_array($question['cpmk'],array_column($data['cpmk'],'code'))) return back()->withErrors(['cpmk'=>'CPMK yang sudah digunakan pada soal tidak dapat dihapus.'])->withInput();
-            }
-            if(isset($item['component']) && !in_array($item['component'],array_column($data['components'],'code'))) return back()->withErrors(['components'=>'Komponen yang dipakai tugas tidak dapat dihapus.'])->withInput();
-        }
-        session(["academic.config.$course"=>$data]);
-        return back()->with('notice','CPL, CPMK, dan bobot penilaian disimpan.');
-    }
 
     public function gradebook(Request $request)
     {
@@ -254,4 +228,137 @@ class AcademicController extends Controller
             ->route('dosen.item.penilaian.esai', [$course, $item, $student])
             ->with('notice', 'Skor berhasil disimpan.');
     }
+
+    /**
+     * Halaman penilaian Tugas Biasa — menampilkan daftar mahasiswa
+     * dan status pengumpulan masing-masing.
+     * Sesuai desain-tugas.md: satu skor per mahasiswa per pengumpulan.
+     */
+    public function tugasGrading(int $course, int $item)
+    {
+        $this->authorizeOwnership($course, $item);
+        $itemData = Learning::items()[$item] ?? null;
+        abort_unless($itemData && in_array($itemData['type'], ['tugas', 'coding'], true), 404);
+
+        $courseData = Learning::course($course);
+        $poinTugas  = (float) ($itemData['points'] ?? 100);
+        $manualWeights = $itemData['manual_cpmk_weights'] ?? [];
+
+        // Daftar mahasiswa demo
+        $baseStudents = array_values(array_filter(\App\Support\AdminPreview::users(), fn ($u) => ($u['role'] ?? '') === 'mahasiswa'));
+        $extraStudents = [
+            ['id' => 4, 'name' => 'Dewi Anggraini',  'email' => 'dewi@example.test',  'number' => '231011401235', 'role' => 'mahasiswa'],
+            ['id' => 5, 'name' => 'Fajar Ramadhan',  'email' => 'fajar@example.test', 'number' => '231011401238', 'role' => 'mahasiswa'],
+            ['id' => 6, 'name' => 'Rizky Pratama',   'email' => 'rizky@example.test', 'number' => '231011401239', 'role' => 'mahasiswa'],
+            ['id' => 7, 'name' => 'Siti Nurhaliza',  'email' => 'siti@example.test',  'number' => '231011401240', 'role' => 'mahasiswa'],
+        ];
+        $students = $baseStudents;
+        foreach ($extraStudents as $extra) {
+            if (!collect($students)->contains('id', $extra['id'])) {
+                $students[] = $extra;
+            }
+        }
+
+        $pendingQueue = [];
+        $results      = [];
+
+        foreach ($students as $stu) {
+            $stuId      = $stu['id'];
+            $submission = session("learning.submissions.{$item}.{$stuId}") ?? session("learning.submissions.{$item}");
+            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
+                $submission = null;
+            }
+            $hasSubmitted = !empty($submission);
+
+            // Skor tunggal yang sudah diinput dosen
+            $skorRaw   = session("academic.item_grades.{$item}.{$stuId}.skor_tugas");
+            $skorValue = is_numeric($skorRaw) ? (float) $skorRaw : null;
+
+            // nilai_tugas = skor / poin_tugas × 100  (desain-tugas.md §4.2)
+            $nilaiTugas = ($skorValue !== null && $poinTugas > 0)
+                ? round($skorValue / $poinTugas * 100, 2)
+                : null;
+
+            // Distribusi ke CPMK: nilai_cpmk[k] = nilai_tugas × bobot_cpmk[k] / 100
+            $nilaiCpmk = [];
+            foreach ($manualWeights as $cCode => $bobot) {
+                $nilaiCpmk[$cCode] = $nilaiTugas !== null ? round($nilaiTugas * $bobot / 100, 2) : null;
+            }
+
+            $statusKey = 'belum_dikerjakan';
+            if ($hasSubmitted) {
+                $statusKey = $skorValue !== null ? 'selesai' : 'menunggu';
+            }
+
+            $row = [
+                'student'      => $stu,
+                'has_submitted' => $hasSubmitted,
+                'skor'         => $skorValue,
+                'poin_tugas'   => $poinTugas,
+                'nilai_tugas'  => $nilaiTugas,
+                'nilai_cpmk'   => $nilaiCpmk,
+                'status_key'   => $statusKey,
+            ];
+
+            if ($statusKey === 'menunggu') {
+                $pendingQueue[] = $row;
+            }
+            $results[] = $row;
+        }
+
+        return view('dosen.penilaian.tugas-grading', [
+            'course'        => $courseData,
+            'item'          => $itemData,
+            'poinTugas'     => $poinTugas,
+            'manualWeights' => $manualWeights,
+            'pendingQueue'  => $pendingQueue,
+            'results'       => $results,
+            'totalPending'  => count($pendingQueue),
+        ]);
+    }
+
+    /**
+     * Simpan satu skor tugas biasa untuk satu mahasiswa.
+     * Hitung nilai_tugas dan distribusi nilai_cpmk[k] sesuai bobot manual.
+     * Sesuai desain-tugas.md §4.2.
+     */
+    public function saveTugasScore(Request $request, int $course, int $item, int $student)
+    {
+        $this->authorizeOwnership($course, $item);
+        $itemData = Learning::items()[$item] ?? null;
+        abort_unless($itemData && in_array($itemData['type'], ['tugas', 'coding'], true), 404);
+
+        $poinTugas = (float) ($itemData['points'] ?? 100);
+
+        $validated = $request->validate([
+            'skor' => ['required', 'numeric', 'min:0', 'max:' . $poinTugas],
+        ], [
+            'skor.required' => 'Masukkan skor tugas.',
+            'skor.numeric'  => 'Skor harus berupa angka.',
+            'skor.min'      => 'Skor minimal adalah 0.',
+            'skor.max'      => "Skor maksimal adalah {$poinTugas}.",
+        ]);
+
+        $skor = (float) $validated['skor'];
+
+        // Hitung nilai_tugas dan distribusi CPMK (desain-tugas.md §4.2)
+        $nilaiTugas = $poinTugas > 0 ? round($skor / $poinTugas * 100, 2) : 0;
+        $manualWeights = $itemData['manual_cpmk_weights'] ?? [];
+        $nilaiCpmk = [];
+        foreach ($manualWeights as $cCode => $bobot) {
+            $nilaiCpmk[$cCode] = round($nilaiTugas * $bobot / 100, 2);
+        }
+
+        // Simpan ke session
+        session([
+            "academic.item_grades.{$item}.{$student}.skor_tugas"   => $skor,
+            "academic.item_grades.{$item}.{$student}.nilai_tugas"   => $nilaiTugas,
+            "academic.item_grades.{$item}.{$student}.nilai_cpmk"    => $nilaiCpmk,
+        ]);
+
+        return redirect()
+            ->route('dosen.item.penilaian.tugas', [$course, $item])
+            ->with('notice', "Skor tugas disimpan. Nilai tugas: " . number_format($nilaiTugas, 2, ',', '.') . " dari 100.");
+    }
 }
+

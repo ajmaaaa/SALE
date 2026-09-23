@@ -39,7 +39,7 @@
                 <p class="text-sm text-muted">Penilaian Belum Dinilai</p>
                 <p class="mt-0.5 text-xl font-semibold text-ink">{{ $pendingCount }} <span class="text-sm font-normal text-muted">kelas</span></p>
             </div>
-            <a href="{{ route('dosen.grades') }}" class="button-secondary text-xs shrink-0">Lihat Penilaian</a>
+            <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs shrink-0">Lihat Penilaian</a>
         </div>
     </div>
 

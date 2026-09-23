@@ -7,6 +7,12 @@ use Tests\TestCase;
 
 class StudentFrontendTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        session(['auth_user' => ['id' => 1, 'role' => 'mahasiswa', 'name' => 'Ahmad', 'email' => 'ahmad@example.test']]);
+    }
+
     public function test_the_application_redirects_to_the_student_dashboard(): void
     {
         $response = $this->get('/');
@@ -14,9 +20,9 @@ class StudentFrontendTest extends TestCase
         $response->assertRedirect(route('mahasiswa.dashboard'));
     }
 
-    public function test_public_prototype_pages_are_available_with_security_headers(): void
+    public function test_pages_are_available_with_security_headers(): void
     {
-        $routes = [
+        $mahasiswaRoutes = [
             route('mahasiswa.dashboard'),
             route('mahasiswa.course.index'),
             route('mahasiswa.course.show', 1),
@@ -24,19 +30,31 @@ class StudentFrontendTest extends TestCase
             route('mahasiswa.assignment.code', 1),
             route('mahasiswa.assignment.index', ['tab' => 'nilai']),
             route('mahasiswa.course.item', [1, 3]),
-            route('dosen.dashboard'),
-            route('dosen.course.index'),
-            route('dosen.course.create'),
-            route('dosen.course.show', 1),
-            route('dosen.item.create', 1),
-            route('dosen.grades'),
             route('mahasiswa.notifications'),
             route('mahasiswa.discussion.index'),
             route('mahasiswa.profile.index'),
         ];
 
-        foreach ($routes as $route) {
-            $this->get($route)
+        foreach ($mahasiswaRoutes as $route) {
+            $this->withSession(['auth_user' => ['id' => 1, 'role' => 'mahasiswa', 'name' => 'Ahmad']])
+                ->get($route)
+                ->assertOk()
+                ->assertHeader('Content-Security-Policy', "frame-ancestors 'none'")
+                ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+                ->assertHeader('X-Content-Type-Options', 'nosniff')
+                ->assertHeader('X-Frame-Options', 'DENY');
+        }
+
+        $dosenRoutes = [
+            route('dosen.dashboard'),
+            route('dosen.course.index'),
+            route('dosen.course.show', 1),
+            route('dosen.item.create', 1),
+        ];
+
+        foreach ($dosenRoutes as $route) {
+            $this->withSession(['auth_user' => ['id' => 2, 'role' => 'dosen', 'name' => 'Budi']])
+                ->get($route)
                 ->assertOk()
                 ->assertHeader('Content-Security-Policy', "frame-ancestors 'none'")
                 ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -61,7 +79,8 @@ class StudentFrontendTest extends TestCase
             ->assertDontSee('Tenggat terdekat')
             ->assertDontSee('Nilai tersedia');
 
-        $dosenDash = $this->get(route('dosen.dashboard'));
+        $dosenDash = $this->withSession(['auth_user' => ['id' => 2, 'role' => 'dosen', 'name' => 'Budi']])
+            ->get(route('dosen.dashboard'));
         $dosenDash->assertOk()
             ->assertSee('Jumlah Course (Matkul)')
             ->assertSee('Pesan belum dibaca')
