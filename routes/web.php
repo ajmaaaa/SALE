@@ -60,6 +60,8 @@ Route::middleware('role:mahasiswa')->group(function () {
     Route::post('/mahasiswa/course/{course}/item/{item}/submission/cancel', [LearningController::class, 'cancelSubmission'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submission.cancel');
     Route::get('/mahasiswa/notifikasi', [LearningController::class, 'notifications'])->name('mahasiswa.notifications');
     Route::match(['get', 'post'], '/mahasiswa/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('mahasiswa.notifications.read');
+    Route::post('/mahasiswa/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('mahasiswa.notifications.clear');
+    Route::post('/mahasiswa/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('mahasiswa.notifications.delete');
 });
 Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen')->whereUuid('file')->name('preview.file');
 

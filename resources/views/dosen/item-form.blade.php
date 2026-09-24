@@ -144,10 +144,27 @@
                     <input id="link" name="link" type="url" class="field" value="{{ old('link') }}" placeholder="https://">
                 </div>
 
-                <label data-pin-video-option class="flex cursor-pointer items-start gap-3 rounded-lg border border-line/60 bg-white p-3 text-xs" hidden>
-                    <input type="checkbox" name="pin_video" value="1" class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video'))>
-                    <span><span class="block font-semibold text-ink">Pin video ke bagian atas course</span><span class="mt-0.5 block text-muted">Gunakan untuk tautan YouTube atau lampiran MP4 agar bisa diputar langsung di halaman course.</span></span>
-                </label>
+                <div data-pin-video-option class="rounded-xl border border-line/70 bg-white p-3.5 text-xs space-y-2.5" hidden>
+                    <label class="flex cursor-pointer items-start gap-3">
+                        <input type="checkbox" name="pin_video" value="1" data-pin-toggle class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video'))>
+                        <span class="flex-1">
+                            <span class="block font-semibold text-ink flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5M9 2h6M12 2v7M5 8l14 0M7 8l2 9h6l2-9"/></svg>
+                                Pin Media (Video / Foto) ke Beranda Kelas
+                            </span>
+                            <span class="mt-0.5 block text-muted leading-relaxed">Pilih tautan YouTube, berkas video MP4, atau foto materi agar disematkan langsung di bagian atas beranda course.</span>
+                        </span>
+                    </label>
+
+                    {{-- Target Selector ketika berkas media lebih dari satu --}}
+                    <div data-pin-target-container class="pt-2 border-t border-line/50 space-y-1.5" hidden>
+                        <label class="font-semibold text-slate-700 block text-[11px]" for="pin_media_target">Pilih media yang ingin disematkan sebagai pin utama:</label>
+                        <select name="pin_media_target" id="pin_media_target" data-pin-target-select class="field text-xs py-1.5 bg-canvas/30">
+                            <option value="auto">Otomatis (Media pertama yang ditemukan)</option>
+                        </select>
+                        <p class="text-[11px] text-muted">Jika melampirkan lebih dari satu video/foto, Anda dapat menentukan berkas spesifik yang ingin ditampilkan di header kelas.</p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -349,26 +366,28 @@
                     {{-- Mencocokkan / Menjodohkan --}}
                     <div data-q-matching class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         {{-- Mode Selector Pasangan --}}
-                        <div class="p-3 rounded-lg bg-white border border-line/40 space-y-2 text-xs">
+                        <div class="p-3 rounded-xl bg-white border border-line/60 shadow-2xs space-y-2.5">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="font-semibold text-slate-800">Format Pasangan Menjodohkan:</span>
-                                <span class="text-[11px] text-muted" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <svg class="h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><path d="m14 10-4 4m0-4 4 4"/></svg>
+                                    Format Pasangan Menjodohkan:
+                                </span>
+                                <span class="text-[11px] text-muted font-medium" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>
                             </div>
-                            <div class="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
-                                    <input type="radio" data-pair-mode value="text" checked class="text-brand">
+                            <div class="inline-flex flex-wrap p-1 bg-slate-100 rounded-xl border border-slate-200/80 gap-1 text-xs" data-pair-mode-group>
+                                <label class="pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none bg-white text-brand shadow-xs">
+                                    <input type="radio" data-pair-mode value="text" checked class="sr-only">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
                                     <span>Teks ↔ Teks</span>
                                 </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
-                                    <input type="radio" data-pair-mode value="image_text" class="text-brand">
-                                    <span>Gambar ↔ Teks</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
-                                    <input type="radio" data-pair-mode value="text_image" class="text-brand">
+                                <label class="pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none text-slate-600 hover:text-slate-900 hover:bg-white/60">
+                                    <input type="radio" data-pair-mode value="text_image" class="sr-only">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
                                     <span>Teks ↔ Gambar</span>
                                 </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
-                                    <input type="radio" data-pair-mode value="image_image" class="text-brand">
+                                <label class="pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none text-slate-600 hover:text-slate-900 hover:bg-white/60">
+                                    <input type="radio" data-pair-mode value="image_image" class="sr-only">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                     <span>Gambar ↔ Gambar</span>
                                 </label>
                             </div>

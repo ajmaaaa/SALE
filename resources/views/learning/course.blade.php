@@ -38,7 +38,7 @@
     $courseVideo = $course['video'] ?? null;
     $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
     $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
-    $courseVideoMeta = $courseVideoType === 'file' && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
+    $courseVideoMeta = in_array($courseVideoType, ['file', 'image'], true) && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
 @endphp
 
 <div class="space-y-0">
@@ -116,11 +116,24 @@
         {{-- KOLOM KIRI: Video Pengantar & Modul Terpisah (Materi & Tugas) --}}
         <div class="min-w-0 space-y-5">
 
-            {{-- 16:9 Video Player Card: hanya tampil jika course memiliki video yang dipasang. --}}
+            {{-- 16:9 Media Banner / Player Card: hanya tampil jika course memiliki video atau foto yang dipasang. --}}
             @if(!empty($courseVideo))
+                @php
+                    $isImageMedia = ($course['media_kind'] ?? '') === 'image'
+                        || $courseVideoType === 'image'
+                        || str_starts_with($courseVideoMeta['mime'] ?? '', 'image/');
+                @endphp
                 <section aria-labelledby="video-heading">
                     <div id="course-video-card" class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
-                    @if($youtubeEmbed)
+                    @if($isImageMedia)
+                        <div class="relative h-full w-full flex items-center justify-center bg-slate-900 overflow-hidden">
+                            <img id="video-heading" src="{{ route('preview.file', $courseVideo) }}" alt="{{ $course['video_title'] ?? $course['title'] }}" class="h-full w-full object-contain">
+                            <div class="absolute bottom-3 left-3 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur-sm flex items-center gap-2">
+                                <svg class="h-4 w-4 text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+                                <span>Media Foto Utama &bull; {{ $courseVideoMeta['name'] ?? ($course['video_title'] ?? '') }}</span>
+                            </div>
+                        </div>
+                    @elseif($youtubeEmbed)
                         <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubeEmbed }}" title="Video {{ $course['title'] }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
                         <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? $course['title'] }}">

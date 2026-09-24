@@ -971,6 +971,63 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
     const list = input.parentElement.querySelector('[data-file-list]');
     let files = [];
     let urls = [];
+
+    const syncPinMedia = () => {
+        const pinContainer = document.querySelector('[data-pin-video-option]');
+        if (!pinContainer) return;
+        const targetContainer = pinContainer.querySelector('[data-pin-target-container]');
+        const targetSelect = pinContainer.querySelector('[data-pin-target-select]');
+        const linkInp = document.querySelector('#link');
+        const linkVal = linkInp?.value?.trim() || '';
+
+        const candidates = [];
+        if (linkVal) {
+            candidates.push({ type: 'link', value: 'link', label: 'Tautan: ' + (linkVal.length > 35 ? linkVal.slice(0, 35) + '...' : linkVal) });
+        }
+        files.forEach((f) => {
+            const ext = f.name.split('.').pop()?.toLowerCase() || '';
+            const isImg = f.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
+            const isVid = f.type.startsWith('video/') || ['mp4', 'webm'].includes(ext);
+            if (isImg) {
+                candidates.push({ type: 'foto', value: f.name, label: `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)` });
+            } else if (isVid) {
+                candidates.push({ type: 'video', value: f.name, label: `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)` });
+            }
+        });
+
+        const contentTypeEl = document.querySelector('[data-content-type]');
+        const category = parseCategory(contentTypeEl?.value);
+        const showMaterialMode = category === 'materi';
+
+        if (!showMaterialMode || candidates.length === 0) {
+            pinContainer.hidden = true;
+            if (targetContainer) targetContainer.hidden = true;
+            return;
+        }
+
+        pinContainer.hidden = false;
+        if (candidates.length > 1 && targetContainer && targetSelect) {
+            targetContainer.hidden = false;
+            const currentSelected = targetSelect.value;
+            targetSelect.replaceChildren();
+            const autoOpt = document.createElement('option');
+            autoOpt.value = 'auto';
+            autoOpt.textContent = `Otomatis (${candidates[0].label})`;
+            targetSelect.appendChild(autoOpt);
+            candidates.forEach(cand => {
+                const opt = document.createElement('option');
+                opt.value = cand.value;
+                opt.textContent = `[${cand.type.toUpperCase()}] ${cand.label}`;
+                if (currentSelected === cand.value) opt.selected = true;
+                targetSelect.appendChild(opt);
+            });
+        } else if (targetContainer) {
+            targetContainer.hidden = true;
+        }
+    };
+
+    document.querySelector('#link')?.addEventListener('input', syncPinMedia);
+
     const render = () => {
         const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); input.files = transfer.files;
         input.setCustomValidity(files.length > 5 || files.some(file => file.size > 20*1024*1024) ? 'Maksimal 5 berkas, masing-masing 20 MB.' : '');
@@ -979,23 +1036,46 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
         list.replaceChildren();
         files.forEach((file,index)=>{
             const row=document.createElement('div'); row.className='flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm';
-            if (['image/jpeg','image/png','image/webp'].includes(file.type)) {
+            const ext = file.name.split('.').pop()?.toLowerCase() || '';
+            const isImage = ['image/jpeg','image/png','image/webp'].includes(file.type) || ['jpg','jpeg','png','webp'].includes(ext);
+            const isVideo = file.type.startsWith('video/') || ext === 'mp4' || ext === 'webm';
+
+            if (isImage) {
                 const img=document.createElement('img'); const url=URL.createObjectURL(file);urls.push(url);img.src=url;img.alt='';img.className='h-12 w-12 shrink-0 rounded object-cover';row.append(img);
             } else {
-                const extension = file.name.split('.').pop()?.toUpperCase() || 'FILE';
+                const extension = ext.toUpperCase() || 'FILE';
                 const badge = document.createElement('span');
                 const isPdf = extension === 'PDF';
                 const isWord = ['DOC', 'DOCX'].includes(extension);
                 const isSlides = ['PPT', 'PPTX'].includes(extension);
-                const isVideo = extension === 'MP4';
                 badge.className = `flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${isPdf ? 'bg-rose-50 text-rose-700' : isWord ? 'bg-blue-50 text-blue-700' : isSlides ? 'bg-orange-50 text-orange-700' : isVideo ? 'bg-violet-50 text-violet-700' : 'bg-slate-100 text-slate-600'}`;
                 badge.textContent = extension.slice(0, 4);
                 row.append(badge);
             }
             const name=document.createElement('span');name.className='min-w-0 flex-1 break-all text-xs';name.textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;
-            const remove=document.createElement('button');remove.type='button';remove.className='p-2 text-sm text-muted';remove.textContent='×';remove.setAttribute('aria-label',`Hapus ${file.name}`);remove.addEventListener('click',()=>{files.splice(index,1);render();});
-            row.append(name,remove);list.append(row);
+            row.append(name);
+
+            if (isImage || isVideo) {
+                const pinBtn = document.createElement('button');
+                pinBtn.type = 'button';
+                pinBtn.className = 'px-2 py-1 text-[11px] font-semibold text-brand hover:bg-brand/10 rounded border border-line/60 transition shrink-0';
+                pinBtn.textContent = '📌 Jadikan Pin';
+                pinBtn.title = 'Jadikan berkas ini sebagai media utama di header kelas';
+                pinBtn.addEventListener('click', () => {
+                    const pinToggle = document.querySelector('[data-pin-toggle]');
+                    if (pinToggle) pinToggle.checked = true;
+                    syncPinMedia();
+                    const targetSelect = document.querySelector('[data-pin-target-select]');
+                    if (targetSelect) targetSelect.value = file.name;
+                });
+                row.append(pinBtn);
+            }
+
+            const remove=document.createElement('button');remove.type='button';remove.className='p-2 text-sm text-muted shrink-0';remove.textContent='×';remove.setAttribute('aria-label',`Hapus ${file.name}`);remove.addEventListener('click',()=>{files.splice(index,1);render();});
+            row.append(remove);
+            list.append(row);
         });
+        syncPinMedia();
     };
     input.addEventListener('change',()=>{
         for(const file of input.files) if(!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) files.push(file);
@@ -1975,22 +2055,28 @@ if (builder) {
             return (l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/')) &&
                    (r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/'));
         });
-        const isImgText = !isImgImg && pairs.some(p => {
+        const hasAnyImg = !isImgImg && pairs.some(p => {
             const l = p.left || '';
-            return l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/');
-        });
-        const isTextImg = !isImgImg && !isImgText && pairs.some(p => {
             const r = p.right || '';
-            return r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/');
+            return l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/') ||
+                   r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/');
         });
 
         const modeRadios = row.querySelectorAll('[data-pair-mode]');
         let currentMode = 'text';
         modeRadios.forEach(radio => {
             if (isImgImg && radio.value === 'image_image') radio.checked = true;
-            else if (isImgText && (radio.value === 'image_text' || radio.value === 'image')) radio.checked = true;
-            else if (isTextImg && radio.value === 'text_image') radio.checked = true;
+            else if (hasAnyImg && radio.value === 'text_image') radio.checked = true;
             if (radio.checked) currentMode = radio.value;
+        });
+
+        row.querySelectorAll('.pair-mode-pill').forEach(pill => {
+            const input = pill.querySelector('[data-pair-mode]');
+            if (input && input.checked) {
+                pill.className = 'pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none bg-white text-brand shadow-xs';
+            } else {
+                pill.className = 'pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none text-slate-600 hover:text-slate-900 hover:bg-white/60';
+            }
         });
 
         const hint = row.querySelector('[data-pair-mode-hint]');
@@ -1998,10 +2084,8 @@ if (builder) {
         if (hint) {
             if (currentMode === 'image_image') {
                 hint.textContent = 'Format Gambar ↔ Gambar: Unggah gambar di kiri dan gambar pasangan di kanan';
-            } else if (currentMode === 'image_text' || currentMode === 'image') {
-                hint.textContent = 'Format Gambar ↔ Teks: Unggah gambar di kiri, ketik nama/label di kanan';
             } else if (currentMode === 'text_image') {
-                hint.textContent = 'Format Teks ↔ Gambar: Ketik istilah di kiri, unggah gambar di kanan';
+                hint.textContent = 'Format Teks ↔ Gambar: Premis teks di kiri dan gambar pasangan di kanan';
             } else {
                 hint.textContent = 'Format Teks ↔ Teks: Ketik istilah di kiri dan penjelasan di kanan';
             }
@@ -2009,8 +2093,6 @@ if (builder) {
         if (instruction) {
             if (currentMode === 'image_image') {
                 instruction.textContent = 'Setiap baris mencocokkan gambar stimulus di kiri dengan gambar jawaban di kanan.';
-            } else if (currentMode === 'image_text' || currentMode === 'image') {
-                instruction.textContent = 'Setiap baris mencocokkan gambar di sisi kiri dengan teks pilihan di sisi kanan.';
             } else if (currentMode === 'text_image') {
                 instruction.textContent = 'Setiap baris mencocokkan teks premis di sisi kiri dengan gambar di sisi kanan.';
             } else {
@@ -2392,6 +2474,14 @@ if (builder) {
         if (!row) return;
 
         if (event.target.matches('[data-pair-mode]')) {
+            row.querySelectorAll('.pair-mode-pill').forEach(pill => {
+                const inp = pill.querySelector('[data-pair-mode]');
+                if (inp && inp.checked) {
+                    pill.className = 'pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none bg-white text-brand shadow-xs';
+                } else {
+                    pill.className = 'pair-mode-pill flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition select-none text-slate-600 hover:text-slate-900 hover:bg-white/60';
+                }
+            });
             const list = row.querySelector('[data-pair-list]');
             const existingPairs = [];
             list.querySelectorAll('[data-pair-item]').forEach(item => {

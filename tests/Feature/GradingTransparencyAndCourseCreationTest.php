@@ -199,6 +199,21 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
     public function test_database_demo_courses_keep_pushed_youtube_and_mp4_examples(): void
     {
+        Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'MATERI-YOUTUBE',
+            'name' => 'Video Pengantar',
+            'type' => 'materi',
+            'final_weight' => 0,
+            'learning_payload' => [
+                'pin_video' => true,
+                'video' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+                'video_type' => 'url',
+                'video_title' => 'Video Pengantar: Struktur Data dan Algoritma (YouTube)',
+            ],
+            'status' => 'published',
+        ]);
+
         $youtubeCourse = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $this->section));
         $youtubeCourse->assertOk()
             ->assertSee('youtube-nocookie.com/embed/aqz-KE-bpKQ', false);
@@ -219,10 +234,45 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         ]);
         $secondSection->students()->attach($this->student->id);
 
+        Assessment::create([
+            'class_section_id' => $secondSection->id,
+            'code' => 'MATERI-MP4',
+            'name' => 'Video Materi Perkuliahan (.mp4)',
+            'type' => 'materi',
+            'final_weight' => 0,
+            'learning_payload' => [
+                'pin_video' => true,
+                'video' => '00000000-0000-4000-8000-000000000001',
+                'video_type' => 'file',
+                'video_title' => 'Video Materi Perkuliahan (.mp4)',
+            ],
+            'status' => 'published',
+        ]);
+
         $mp4Course = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $secondSection));
         $mp4Course->assertOk()
             ->assertSee('<video', false)
             ->assertSee('video-pembelajaran-kuliah.mp4');
+
+        // Course baru tanpa materi TIDAK boleh memiliki video
+        $emptyCourse = MataKuliah::create([
+            'prodi_id' => $this->section->mataKuliah->prodi_id,
+            'code' => 'IF300',
+            'name' => 'Mata Kuliah Baru Tanpa Materi',
+            'sks' => 3,
+        ]);
+        $emptySection = ClassSection::create([
+            'mata_kuliah_id' => $emptyCourse->id,
+            'semester_id' => $this->section->semester_id,
+            'dosen_id' => $this->dosen->id,
+            'section_code' => 'A',
+            'capacity' => 40,
+            'enrollment_code' => 'TESTEMPTY',
+        ]);
+        $emptySection->students()->attach($this->student->id);
+        $emptyView = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $emptySection));
+        $emptyView->assertOk()
+            ->assertDontSee('id="course-video-card"', false);
     }
 
     public function test_forum_discussion_renders_without_missing_lecturer_key_error(): void
@@ -447,14 +497,14 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
             ->assertDontSee('bg-slate-50 text-slate-700 border-line/80" data-total-points-badge', false);
     }
 
-    public function test_matching_question_builder_has_all_four_formats_and_course_discussion_aside_is_sticky(): void
+    public function test_matching_question_builder_has_three_clean_formats_and_randomized_answers(): void
     {
         $this->actingAs($this->dosen);
         $form = $this->get(route('dosen.item.create', $this->section->id));
         $form->assertOk()
             ->assertSee('Format Pasangan Menjodohkan:')
             ->assertSee('Teks ↔ Teks')
-            ->assertSee('Gambar ↔ Teks')
+            ->assertDontSee('Gambar ↔ Teks')
             ->assertSee('Teks ↔ Gambar')
             ->assertSee('Gambar ↔ Gambar')
             ->assertSee('data-pair-mode', false);
@@ -463,5 +513,76 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $coursePage->assertOk()
             ->assertSee('lg:sticky lg:top-20 z-20 self-start w-full', false)
             ->assertSee('id="diskusi-kelas"', false);
+    }
+
+    public function test_lecturer_can_pin_photo_to_course_and_student_sees_it(): void
+    {
+        Storage::fake('local');
+        $imageFile = UploadedFile::fake()->image('diagram-arsitektur.png', 800, 600);
+
+        $this->actingAs($this->dosen)->post(route('dosen.item.store', $this->section->id), [
+            'type' => 'materi',
+            'title' => 'Diagram Arsitektur Sistem',
+            'module' => 'Minggu 1 · Pengantar',
+            'body' => 'Pelajari diagram arsitektur sistem berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['file', 'image'],
+            'pin_video' => '1',
+            'attachments' => [$imageFile],
+        ])->assertRedirect(route('dosen.course.show', $this->section->id));
+
+        $coursePage = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $this->section->id));
+        $coursePage->assertOk()
+            ->assertSee('id="course-video-card"', false)
+            ->assertSee('Media Foto Utama')
+            ->assertSee('diagram-arsitektur.png');
+    }
+
+    public function test_matching_choices_differ_between_students(): void
+    {
+        $task = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-MATCH-TEST',
+            'name' => 'Latihan Menjodohkan Beragam',
+            'type' => 'tugas',
+            'final_weight' => 10,
+            'learning_payload' => [
+                'module' => 'Minggu 2',
+                'body' => 'Jodohkan istilah berikut.',
+                'questions' => [[
+                    'type' => 'mencocokkan',
+                    'prompt' => 'Jodohkan istilah struktur data dengan definisinya:',
+                    'points' => 30,
+                    'options' => "Stack = LIFO (Last In First Out)\nQueue = FIFO (First In First Out)\nTree = Struktur Data Hierarkis Non-Linear\nGraph = Kumpulan Simpul dan Sisi\nArray = Elemen Kontigu Berindeks",
+                ]],
+            ],
+            'status' => 'published',
+        ]);
+
+        $secondStudent = User::create([
+            'name' => 'Budi Santoso',
+            'email' => 'budi.santoso@student.test',
+            'password' => Hash::make('password'),
+            'role_id' => Role::where('name', Role::MAHASISWA)->first()->id,
+            'nim_nidn' => '231011409999',
+        ]);
+        $this->section->students()->attach($secondStudent->id);
+
+        $resp1 = $this->actingAs($this->student)->get(route('mahasiswa.course.item', [$this->section->id, $task->id]));
+        $resp1->assertOk();
+        $html1 = $resp1->getContent();
+        $resp2 = $this->actingAs($secondStudent)->get(route('mahasiswa.course.item', [$this->section->id, $task->id]));
+        $resp2->assertOk();
+        $html2 = $resp2->getContent();
+
+        // Extract option order in dropdown for both students
+        preg_match_all('/<option\s+value="([^"]+)"[^>]*>/i', $html1, $matches1);
+        preg_match_all('/<option\s+value="([^"]+)"[^>]*>/i', $html2, $matches2);
+
+        $this->assertNotEmpty($matches1[1]);
+        $this->assertNotEmpty($matches2[1]);
+        // The first non-empty option should not just be the un-shuffled first premise
+        $this->assertNotEquals($matches1[1], $matches2[1]);
     }
 }

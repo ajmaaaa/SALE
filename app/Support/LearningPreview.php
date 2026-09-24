@@ -230,8 +230,12 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
     public static function databaseCourse(ClassSection $section): array
     {
         $customVideo = session("learning.course_video.{$section->id}");
-        if (! $customVideo && $section->relationLoaded('assessments')) {
-            $pinned = $section->assessments
+        $assessments = $section->relationLoaded('assessments')
+            ? $section->assessments
+            : $section->assessments()->get();
+
+        if (! $customVideo) {
+            $pinned = $assessments
                 ->where('type', 'materi')
                 ->filter(fn ($asm) => ! empty($asm->learning_payload['pin_video']))
                 ->last();
@@ -240,27 +244,14 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     'video' => $pinned->learning_payload['video'],
                     'video_type' => $pinned->learning_payload['video_type'] ?? 'url',
                     'video_title' => $pinned->learning_payload['video_title'] ?? $pinned->name,
+                    'media_kind' => $pinned->learning_payload['media_kind'] ?? 'video',
                 ];
             }
         }
-        $defaultVideo = null;
-        $defaultVideoType = 'url';
-        $defaultVideoTitle = null;
 
-        // Keep the demo media from the last pushed version available on
-        // database-backed sample classes unless a lecturer pins a replacement.
-        if (app()->environment(['local', 'testing'])) {
-            $courseCode = strtoupper((string) $section->mataKuliah?->code);
-
-            if ($courseCode === 'IF204') {
-                $defaultVideo = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
-                $defaultVideoTitle = 'Video Pengantar: Struktur Data dan Algoritma (YouTube)';
-            } elseif ($courseCode === 'IF218' && Storage::disk('local')->exists('testing/big-buck-bunny-720p-10s.mp4')) {
-                $defaultVideo = '00000000-0000-4000-8000-000000000001';
-                $defaultVideoType = 'file';
-                $defaultVideoTitle = 'Video Materi Perkuliahan (.mp4)';
-            }
-        }
+        // Hanya tampilkan media jika course memiliki materi pembelajaran dengan media yang di-pin
+        $hasMaterials = $assessments->where('type', 'materi')->isNotEmpty();
+        $mediaConfig = ($hasMaterials && ! empty($customVideo)) ? $customVideo : null;
 
         return [
             'id' => $section->id,
@@ -271,9 +262,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'dosen_wakil' => $section->dosenPendamping?->name,
             'description' => 'Perkuliahan '.$section->mataKuliah->name.' kelas '.$section->section_code.' semester '.($section->semester?->name ?? 'aktif').'.',
             'cover' => null,
-            'video' => $customVideo['video'] ?? $defaultVideo,
-            'video_type' => $customVideo['video_type'] ?? $defaultVideoType,
-            'video_title' => $customVideo['video_title'] ?? $defaultVideoTitle,
+            'video' => $mediaConfig['video'] ?? null,
+            'video_type' => $mediaConfig['video_type'] ?? 'url',
+            'video_title' => $mediaConfig['video_title'] ?? null,
+            'media_kind' => $mediaConfig['media_kind'] ?? 'video',
             'sks' => ($section->mataKuliah->sks ?? 0).' SKS',
             'semester' => $section->semester?->name ?? 'Semester aktif',
             'section_code' => $section->section_code,
@@ -487,6 +479,49 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             ->count();
     }
 
+    public static function formatNotificationTime(int|string|Carbon|null $timestamp): string
+    {
+        if (! $timestamp) {
+            return 'Baru saja';
+        }
+
+        try {
+            $carbon = is_numeric($timestamp)
+                ? Carbon::createFromTimestamp((int) $timestamp)
+                : ($timestamp instanceof Carbon ? $timestamp : Carbon::parse($timestamp));
+        } catch (\Throwable) {
+            return 'Baru saja';
+        }
+
+        $now = Carbon::now();
+        $diffMin = (int) floor(abs($carbon->diffInMinutes($now, false)));
+
+        // Waktu dekat (< 60 menit): e.g. "2 menit lalu", "Baru saja"
+        if ($diffMin < 60) {
+            if ($diffMin < 1) {
+                return 'Baru saja';
+            }
+            return "{$diffMin} menit lalu";
+        }
+
+        // Cukup lama di hari yang sama: pakai jam (misal 14:35)
+        if ($carbon->isToday()) {
+            return $carbon->format('H:i');
+        }
+
+        // Kemarin: pakai jam atau Kemarin
+        if ($carbon->isYesterday()) {
+            return 'Kemarin, '.$carbon->format('H:i');
+        }
+
+        // Tanggal sebelumnya: pakai tanggal (dan jam jika tahun sama)
+        if ($carbon->year === $now->year) {
+            return $carbon->translatedFormat('d M, H:i');
+        }
+
+        return $carbon->translatedFormat('d M Y');
+    }
+
     public static function notifications(?User $user = null): array
     {
         if (! $user) {
@@ -501,6 +536,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
         $readNotifs = session('learning.read_notifications', []);
         $allRead = in_array('all', $readNotifs, true);
+        $clearedNotifs = session('learning.cleared_notifications', []);
+        $allCleared = in_array('all', $clearedNotifs, true);
+        $clearedTimestamp = session('learning.notifications_cleared_at');
+
         $notifications = [];
         $courses = [];
         $items = [];
@@ -541,6 +580,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                             'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project']) ? (in_array($asm->type, ['pbl', 'project']) ? 'tugas' : $asm->type) : 'tugas',
                             'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
                             'points' => 100,
+                            'created_at' => $asm->created_at,
                         ];
                     }
                 }
@@ -584,12 +624,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
             if ($isGraded) {
                 $notifKey = "grade_{$id}";
-                $scoreTime = 'Terbit baru saja';
-                $scoreTimestamp = now()->timestamp - 100;
+                $scoreTimestamp = now()->subHours(2)->timestamp;
                 $feedbackMsg = '';
 
                 if ($hasDbScore && $studentScores[$id]->updated_at) {
-                    $scoreTime = $studentScores[$id]->updated_at->diffForHumans();
                     $scoreTimestamp = $studentScores[$id]->updated_at->timestamp;
                     if (! empty($studentScores[$id]->feedback)) {
                         $feedbackMsg = ' Catatan dosen: "'.Str::limit($studentScores[$id]->feedback, 80).'"';
@@ -600,9 +638,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     'id' => $notifKey,
                     'title' => "Nilai Terbit: {$item['title']} ({$courseCode})",
                     'message' => 'Hasil evaluasi pengerjaan Anda telah dinilai oleh dosen pengampu dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg,
-                    'time' => $scoreTime,
+                    'time' => self::formatNotificationTime($scoreTimestamp),
                     'timestamp' => $scoreTimestamp,
-                    'icon_type' => 'check',
+                    'icon_type' => 'grade',
                     'link' => $targetUrl,
                     'action_label' => 'Lihat Hasil Nilai',
                     'category' => 'nilai',
@@ -610,12 +648,13 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 ];
             } elseif ($isSubmitted) {
                 $notifKey = "submit_{$id}";
+                $submitTimestamp = session("learning.submissions.{$id}.timestamp", now()->subHours(5)->timestamp);
                 $notifications[] = [
                     'id' => $notifKey,
                     'title' => "Jawaban Terkirim: {$item['title']} ({$courseCode})",
                     'message' => 'Berkas pengerjaan Anda berhasil diunggah ke sistem dan sedang menunggu proses penilaian dosen.',
-                    'time' => session("learning.submissions.{$id}.time", 'Hari ini'),
-                    'timestamp' => now()->timestamp - 200,
+                    'time' => self::formatNotificationTime($submitTimestamp),
+                    'timestamp' => $submitTimestamp,
                     'icon_type' => 'check',
                     'link' => $targetUrl,
                     'action_label' => 'Lihat Detail Submission',
@@ -628,15 +667,18 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 $hasDue = ! empty($item['due']);
                 $dueCarbon = $hasDue ? Carbon::parse($item['due']) : null;
                 $dueText = $dueCarbon ? $dueCarbon->translatedFormat('d M Y, H:i') : 'Tanpa batas tenggat';
-                $timeText = $dueCarbon ? ($dueCarbon->isPast() ? 'Lewat tenggat' : $dueCarbon->diffForHumans()) : 'Aktif';
+
+                $entryTimestamp = isset($item['created_at']) && $item['created_at']
+                    ? Carbon::parse($item['created_at'])->timestamp
+                    : (now()->timestamp - (($id % 5 + 1) * 3600));
 
                 $notifications[] = [
                     'id' => $notifKey,
                     'title' => ($isQuiz ? 'Kuis Tersedia: ' : 'Penugasan: ')."{$item['title']} ({$courseCode})",
                     'message' => "Mata Kuliah {$courseTitle}. Batas tenggat: {$dueText}. Pastikan mempelajari materi pendukung sebelum mengerjakan.",
-                    'time' => $timeText,
-                    'timestamp' => $dueCarbon ? $dueCarbon->timestamp : now()->timestamp,
-                    'icon_type' => 'alert',
+                    'time' => self::formatNotificationTime($entryTimestamp),
+                    'timestamp' => $entryTimestamp,
+                    'icon_type' => $isQuiz ? 'quiz' : 'alert',
                     'link' => $targetUrl,
                     'action_label' => $isQuiz ? 'Mulai Kerjakan Kuis' : 'Buka Lembar Tugas',
                     'category' => 'tugas',
@@ -650,13 +692,14 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $unreadCount = self::unreadDiscussionCount($cId);
             if ($unreadCount > 0 && ! empty($discussions)) {
                 $lastMsg = end($discussions);
-                $notifKey = "discuss_{$cId}_{$lastMsg['timestamp']}";
+                $msgTimestamp = $lastMsg['timestamp'] ?? (now()->subMinutes(25)->timestamp);
+                $notifKey = "discuss_{$cId}_{$msgTimestamp}";
                 $notifications[] = [
                     'id' => $notifKey,
                     'title' => "Diskusi Baru: {$cMeta['code']} - {$cMeta['title']}",
                     'message' => "{$lastMsg['author']}: \"".Str::limit($lastMsg['message'], 100).'"',
-                    'time' => $lastMsg['time'] ?? 'Baru saja',
-                    'timestamp' => $lastMsg['timestamp'] ?? now()->timestamp,
+                    'time' => self::formatNotificationTime($msgTimestamp),
+                    'timestamp' => $msgTimestamp,
                     'icon_type' => 'chat',
                     'link' => route('mahasiswa.course.show', $cId).'#diskusi-kelas',
                     'action_label' => 'Buka Forum Diskusi',
@@ -664,6 +707,62 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     'is_read' => $allRead || in_array($notifKey, $readNotifs, true),
                 ];
             }
+        }
+
+        // Notifikasi Sistem
+        $systemNotifs = [
+            [
+                'id' => 'system_ai_ready',
+                'title' => 'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
+                'message' => 'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
+                'timestamp' => now()->subMinutes(2)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.assignment.index'),
+                'action_label' => 'Buka Lab Coding',
+                'category' => 'sistem',
+            ],
+            [
+                'id' => 'system_sync_krs',
+                'title' => 'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
+                'message' => 'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
+                'timestamp' => now()->subHours(4)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.obe.progress'),
+                'action_label' => 'Lihat Pemetaan OBE',
+                'category' => 'sistem',
+            ],
+            [
+                'id' => 'system_calendar_update',
+                'title' => 'Pembaruan Kalender Akademik & Jadwal Kuliah',
+                'message' => 'Jadwal tatap muka, batas submisi tugas, dan periode evaluasi tengah semester telah diperbarui oleh Program Studi.',
+                'timestamp' => now()->subDays(1)->setHour(9)->setMinute(30)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.dashboard'),
+                'action_label' => 'Lihat Jadwal Kuliah',
+                'category' => 'sistem',
+            ],
+        ];
+
+        foreach ($systemNotifs as $sys) {
+            $notifKey = $sys['id'];
+            $sys['time'] = self::formatNotificationTime($sys['timestamp']);
+            $sys['is_read'] = $allRead || in_array($notifKey, $readNotifs, true);
+            $notifications[] = $sys;
+        }
+
+        if (! empty($clearedNotifs) || $clearedTimestamp) {
+            $notifications = array_values(array_filter($notifications, function ($n) use ($clearedNotifs, $allCleared, $clearedTimestamp) {
+                if ($allCleared) {
+                    return false;
+                }
+                if (in_array($n['id'], $clearedNotifs, true)) {
+                    return false;
+                }
+                if ($clearedTimestamp && ($n['timestamp'] ?? 0) <= $clearedTimestamp) {
+                    return false;
+                }
+                return true;
+            }));
         }
 
         usort($notifications, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);

@@ -38,6 +38,10 @@ class DemoLearningContentSeeder extends Seeder
                         'attachments' => [self::MATERIAL_PDF],
                         'question_image' => self::MATERIAL_IMAGE,
                         'image_alt' => 'Diagram ringkasan alur pembelajaran dan struktur konsep',
+                        'pin_video' => true,
+                        'video' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+                        'video_type' => 'url',
+                        'video_title' => 'Video Pengantar: Struktur Data dan Algoritma (YouTube)',
                         'formats' => [],
                         'points' => 0,
                     ],
@@ -48,6 +52,34 @@ class DemoLearningContentSeeder extends Seeder
                     'allow_late' => true,
                 ]
             );
+
+            $if218 = $sections->first(fn (ClassSection $section) => $section->mataKuliah?->code === 'IF218');
+            if ($if218 && Storage::disk('local')->exists('testing/big-buck-bunny-720p-10s.mp4')) {
+                Assessment::updateOrCreate(
+                    ['class_section_id' => $if218->id, 'code' => 'MATERI-DEMO-MP4'],
+                    [
+                        'name' => 'Video Materi Perkuliahan (.mp4)',
+                        'type' => 'materi',
+                        'description' => 'Tonton video materi perkuliahan interaktif berikut.',
+                        'learning_payload' => [
+                            'module' => 'Minggu 1 · Video Perkuliahan',
+                            'body' => 'Video materi perkuliahan format MP4 lokal yang disematkan langsung di course.',
+                            'attachments' => ['00000000-0000-4000-8000-000000000001'],
+                            'pin_video' => true,
+                            'video' => '00000000-0000-4000-8000-000000000001',
+                            'video_type' => 'file',
+                            'video_title' => 'Video Materi Perkuliahan (.mp4)',
+                            'formats' => [],
+                            'points' => 0,
+                        ],
+                        'final_weight' => 0,
+                        'uses_rubric' => false,
+                        'status' => Assessment::STATUS_PUBLISHED,
+                        'due_at' => null,
+                        'allow_late' => true,
+                    ]
+                );
+            }
             Assessment::updateOrCreate(
                 ['class_section_id' => $if204->id, 'code' => 'TGS-LAMPIRAN'],
                 [

@@ -178,16 +178,21 @@
                                 </div>
                             @endif
 
-                            {{-- Lampiran Berkas Dokumen / PDF / Gambar Tambahan --}}
+                            {{-- Lampiran Berkas Dokumen / PDF / Gambar / Video / Slide Tambahan --}}
                             @foreach($item['attachments'] ?? [] as $file)
                                 @php
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($file);
-                                    $isPdf = ($fileMeta['mime'] ?? '') === 'application/pdf';
-                                    $isImage = str_starts_with($fileMeta['mime'] ?? '', 'image/');
+                                    $fileMime = $fileMeta['mime'] ?? '';
                                     $fileName = $fileMeta['name'] ?? 'Berkas lampiran';
-                                    $fileExt = pathinfo($fileName, PATHINFO_EXTENSION) ?: ($isPdf ? 'pdf' : ($isImage ? 'png' : 'file'));
-                                    $previewType = $isPdf ? 'pdf' : ($isImage ? 'image' : 'file');
-                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => $isPdf ? 1 : null]);
+                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: 'file');
+                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf';
+                                    $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp'], true);
+                                    $isVideo = str_starts_with($fileMime, 'video/') || in_array($fileExt, ['mp4', 'webm', 'ogg'], true);
+                                    $isSlides = in_array($fileExt, ['ppt', 'pptx'], true);
+                                    $isWord = in_array($fileExt, ['doc', 'docx'], true);
+
+                                    $previewType = $isVideo ? 'video' : ($isPdf ? 'pdf' : ($isImage ? 'image' : ($isSlides ? 'slides' : ($isWord ? 'word' : 'file'))));
+                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isVideo) ? 1 : null]);
                                     $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1]);
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
@@ -203,6 +208,38 @@
                                             </div>
                                             <span class="rounded bg-rose-100/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
                                         </a>
+                                    @elseif($isVideo)
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'video', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-slate-900 to-[#172633] text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white shadow-md group-hover:scale-110 transition">
+                                                <svg class="h-5 w-5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M8 5v14l11-7z"/>
+                                                </svg>
+                                            </div>
+                                            <span class="rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 uppercase">Video {{ strtoupper($fileExt) }}</span>
+                                        </a>
+                                    @elseif($isSlides)
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'slides', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-amber-50/80 to-slate-50 cursor-pointer group hover:from-amber-50 transition" title="Slide presentasi {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 shadow-2xs group-hover:scale-105 transition">
+                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                    <rect width="18" height="14" x="3" y="3" rx="2"/>
+                                                    <path d="M3 9h18"/>
+                                                    <path d="m8 21 4-4 4 4"/>
+                                                </svg>
+                                            </div>
+                                            <span class="rounded bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Slide {{ strtoupper($fileExt) }}</span>
+                                        </a>
+                                    @elseif($isWord)
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'word', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-blue-50/70 to-slate-50 cursor-pointer group hover:from-blue-50 transition" title="Dokumen {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 shadow-2xs group-hover:scale-105 transition">
+                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                    <polyline points="14 2 14 8 20 8"/>
+                                                    <path d="M8 13h8"/>
+                                                    <path d="M8 17h6"/>
+                                                </svg>
+                                            </div>
+                                            <span class="rounded bg-blue-100/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-blue-700 uppercase">Dokumen Word</span>
+                                        </a>
                                     @elseif($isImage)
                                         <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'image', ext: '{{ strtoupper($fileExt) }}' })" class="block aspect-video w-full overflow-hidden border-b border-line bg-slate-50 cursor-pointer" title="{{ $fileName }}">
                                             <img src="{{ $fileUrl }}" alt="{{ $fileName }}" class="h-full w-full object-contain">
@@ -217,6 +254,10 @@
                                         <div class="flex min-w-0 flex-1 items-center gap-1.5">
                                             @if($isImage)
                                                 <svg class="h-3.5 w-3.5 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+                                            @elseif($isVideo)
+                                                <svg class="h-3.5 w-3.5 shrink-0 text-brand" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                            @elseif($isSlides)
+                                                <svg class="h-3.5 w-3.5 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="14" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg>
                                             @else
                                                 <svg class="h-3.5 w-3.5 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                             @endif
@@ -300,16 +341,35 @@
                                             }
                                         }
                                         $allRights = array_column($pairs, 'right');
+                                        // Randomize target order deterministically per student so that:
+                                        // 1) Different students see different positions (beda orang beda susunan)
+                                        // 2) The choices in the dropdown are NOT in the same line/order as the premises (tidak sebaris)
+                                        $userSeed = auth()->id() ?? (session('auth_user.id') ?? (session('auth_user.number') ? crc32((string) session('auth_user.number')) : 1));
+                                        $seed = (int) ($item['id'] ?? 1) * 37 + (int) $userSeed * 19 + ($qIdx + 1) * 11;
+                                        mt_srand($seed);
+                                        $shuffledRights = $allRights;
+                                        shuffle($shuffledRights);
+                                        mt_srand();
                                     @endphp
                                     <div class="space-y-3 pt-1">
                                         @foreach($pairs as $pIdx => $pair)
+                                            @php
+                                                $isLeftImg = str_starts_with($pair['left'], 'http') || str_starts_with($pair['left'], 'data:image') || str_starts_with($pair['left'], '/');
+                                            @endphp
                                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg bg-canvas border border-line/50">
-                                                <span class="text-xs font-medium text-ink">{{ $pair['left'] }}</span>
+                                                <div class="min-w-0 flex-1">
+                                                    <span class="text-[11px] font-bold text-muted block mb-1">Premis {{ $pIdx + 1 }}</span>
+                                                    @if($isLeftImg)
+                                                        <img src="{{ $pair['left'] }}" alt="Premis {{ $pIdx + 1 }}" class="h-14 max-w-xs object-contain rounded border border-line/60 bg-white p-1">
+                                                    @else
+                                                        <span class="text-xs font-medium text-ink">{{ $pair['left'] }}</span>
+                                                    @endif
+                                                </div>
                                                 <select name="question_answers[{{ $qIdx }}][matching][{{ $pIdx }}]" class="field text-xs sm:w-64" @disabled($submission || $isLocked)>
                                                     <option value="">-- Pilih Pasangan --</option>
-                                                    @foreach($allRights as $target)
+                                                    @foreach($shuffledRights as $target)
                                                         <option value="{{ $target }}" @selected(old("question_answers.$qIdx.matching.$pIdx", $submission['question_answers'][$qIdx]['matching'][$pIdx] ?? '') === $target)>
-                                                            {{ $target }}
+                                                            {{ str_starts_with($target, 'data:image') ? 'Gambar Pasangan' : $target }}
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -612,7 +672,14 @@
 
         bodyEl.innerHTML = '';
 
-        if (fileData.type === 'pdf') {
+        if (fileData.type === 'video') {
+            const vid = document.createElement('video');
+            vid.src = fileData.url;
+            vid.controls = true;
+            vid.autoplay = true;
+            vid.className = 'max-h-[75vh] max-w-full rounded-lg shadow-md bg-black';
+            bodyEl.appendChild(vid);
+        } else if (fileData.type === 'pdf') {
             const frame = document.createElement('iframe');
             frame.src = fileData.url;
             frame.title = `Pratinjau ${fileData.title}`;
@@ -629,14 +696,16 @@
             });
             bodyEl.appendChild(img);
         } else {
+            const isSlides = fileData.type === 'slides';
+            const isWord = fileData.type === 'word';
             const card = document.createElement('div');
             card.className = 'text-center p-8 bg-white rounded-xl shadow-xs border border-line max-w-md w-full';
             card.innerHTML = `
-                <div class="h-12 w-12 rounded-full bg-slate-100 text-muted flex items-center justify-center mx-auto mb-3">
-                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div class="h-12 w-12 rounded-full ${isSlides ? 'bg-amber-100 text-amber-600' : (isWord ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-muted')} flex items-center justify-center mx-auto mb-3">
+                    ${isSlides ? '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="14" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="m8 21 4-4 4 4"/></svg>' : (isWord ? '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>' : '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>')}
                 </div>
                 <h4 class="text-sm font-bold text-ink mb-1">${fileData.title}</h4>
-                <p class="text-xs text-muted mb-4">Pratinjau langsung tidak didukung oleh browser untuk tipe berkas ini. Silakan unduh untuk membukanya.</p>
+                <p class="text-xs text-muted mb-4">${isSlides ? 'Slide presentasi dapat dibuka menggunakan aplikasi PowerPoint atau Google Slides setelah diunduh.' : (isWord ? 'Dokumen Word dapat dibuka menggunakan aplikasi pengolah kata setelah diunduh.' : 'Pratinjau langsung tidak didukung oleh browser untuk tipe berkas ini. Silakan unduh untuk membukanya.')}</p>
                 <a href="${fileData.downloadUrl || fileData.url}" class="button-primary text-xs py-2 px-4 inline-flex items-center gap-1.5" download>
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
                     <span>Unduh Berkas</span>

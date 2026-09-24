@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
+use App\Models\Cpmk;
 use App\Models\CourseDiscussion;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
@@ -636,8 +637,11 @@ class LearningController extends Controller
         $data['pin_video'] = $request->boolean('pin_video');
 
         if ($data['pin_video'] && $category === 'materi') {
-            $videoAttachment = collect($data['attachments'])->first(function ($file) {
+            $videoAttachments = collect($data['attachments'])->filter(function ($file) {
                 return str_starts_with((string) session("learning.files.$file.mime", ''), 'video/');
+            });
+            $imageAttachments = collect($data['attachments'])->filter(function ($file) {
+                return str_starts_with((string) session("learning.files.$file.mime", ''), 'image/');
             });
             $videoLink = trim((string) ($data['link'] ?? ''));
             $playableLink = $videoLink !== '' && (
@@ -645,21 +649,71 @@ class LearningController extends Controller
                 || (bool) preg_match('/\.(?:mp4|webm|ogg)(?:[?#].*)?$/i', $videoLink)
             );
 
-            if (! $videoAttachment && ! $playableLink) {
-                return back()->withErrors(['pin_video' => 'Pilih tautan YouTube/video atau lampirkan berkas video MP4 terlebih dahulu.'])->withInput();
+            $target = $request->input('pin_media_target', 'auto');
+            $pinnedVal = null;
+            $pinnedType = 'url';
+            $mediaKind = 'video';
+
+            if ($target === 'link' && $playableLink) {
+                $pinnedVal = $videoLink;
+                $pinnedType = 'url';
+                $mediaKind = 'video';
+            } elseif ($target !== 'auto' && $target !== 'link') {
+                $matchedFile = collect($data['attachments'])->first(function ($file) use ($target) {
+                    $name = session("learning.files.$file.name", '');
+                    return $name === $target || $file === $target;
+                });
+                if ($matchedFile) {
+                    $mime = (string) session("learning.files.$matchedFile.mime", '');
+                    $isVid = str_starts_with($mime, 'video/');
+                    $pinnedVal = $matchedFile;
+                    $pinnedType = $isVid ? 'file' : 'image';
+                    $mediaKind = $isVid ? 'video' : 'image';
+                }
             }
+
+            if (! $pinnedVal) {
+                if ($playableLink) {
+                    $pinnedVal = $videoLink;
+                    $pinnedType = 'url';
+                    $mediaKind = 'video';
+                } elseif ($videoAttachments->isNotEmpty()) {
+                    $pinnedVal = $videoAttachments->first();
+                    $pinnedType = 'file';
+                    $mediaKind = 'video';
+                } elseif ($imageAttachments->isNotEmpty()) {
+                    $pinnedVal = $imageAttachments->first();
+                    $pinnedType = 'image';
+                    $mediaKind = 'image';
+                } elseif (! empty($data['question_image'])) {
+                    $pinnedVal = $data['question_image'];
+                    $pinnedType = 'image';
+                    $mediaKind = 'image';
+                }
+            }
+
+            if (! $pinnedVal) {
+                return back()->withErrors(['pin_video' => 'Pilih tautan video, berkas video MP4, atau foto materi terlebih dahulu untuk disematkan.'])->withInput();
+            }
+
+            $data['video'] = $pinnedVal;
+            $data['video_type'] = $pinnedType;
+            $data['video_title'] = $data['title'];
+            $data['media_kind'] = $mediaKind;
 
             $courses = Learning::courses();
             $courseData = $courses[$course] ?? Learning::course($course);
-            $courseData['video'] = $playableLink ? $videoLink : $videoAttachment;
-            $courseData['video_type'] = $playableLink ? 'url' : 'file';
+            $courseData['video'] = $pinnedVal;
+            $courseData['video_type'] = $pinnedType;
             $courseData['video_title'] = $data['title'];
+            $courseData['media_kind'] = $mediaKind;
             $courses[$course] = $courseData;
             session(['learning.courses' => $courses]);
             session(["learning.course_video.{$course}" => [
-                'video' => $courseData['video'],
-                'video_type' => $courseData['video_type'],
-                'video_title' => $courseData['video_title'],
+                'video' => $pinnedVal,
+                'video_type' => $pinnedType,
+                'video_title' => $data['title'],
+                'media_kind' => $mediaKind,
             ]]);
         }
         $data['points'] = $data['points'] ?? 100;
@@ -1080,17 +1134,38 @@ class LearningController extends Controller
             'all' => count($allNotifications),
             'tugas' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
             'nilai' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'nilai')),
+            'sistem' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'sistem')),
             'diskusi' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
         ];
 
         $category = $request->query('category');
         $notifications = $allNotifications;
-        if ($category && in_array($category, ['tugas', 'nilai', 'diskusi'])) {
+        if ($category && in_array($category, ['tugas', 'nilai', 'sistem', 'diskusi'])) {
             $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
         }
 
+        $groupedNotifications = collect($notifications)->groupBy(function ($notif) {
+            $ts = $notif['timestamp'] ?? time();
+            try {
+                $carbon = is_numeric($ts)
+                    ? \Carbon\Carbon::createFromTimestamp((int) $ts)
+                    : \Carbon\Carbon::parse($ts);
+            } catch (\Throwable) {
+                $carbon = \Carbon\Carbon::now();
+            }
+
+            if ($carbon->isToday()) {
+                return 'Hari Ini';
+            }
+            if ($carbon->isYesterday()) {
+                return 'Kemarin';
+            }
+            return $carbon->translatedFormat('d F Y');
+        });
+
         return view('learning.notifications', [
             'notifications' => $notifications,
+            'groupedNotifications' => $groupedNotifications,
             'selectedCategory' => $category,
             'courses' => Learning::courses(),
             'categoryCounts' => $categoryCounts,
@@ -1122,5 +1197,40 @@ class LearningController extends Controller
         }
 
         return back();
+    }
+
+    public function clearNotifications(Request $request)
+    {
+        $category = $request->input('category');
+        $cleared = session('learning.cleared_notifications', []);
+
+        if ($category && in_array($category, ['tugas', 'nilai', 'sistem', 'diskusi'])) {
+            $user = auth()->user();
+            $all = Learning::notifications($user);
+            $catIds = array_column(array_filter($all, fn ($n) => ($n['category'] ?? '') === $category), 'id');
+            $cleared = array_merge($cleared, $catIds);
+        } else {
+            $cleared[] = 'all';
+            session(['learning.notifications_cleared_at' => now()->timestamp]);
+        }
+
+        session(['learning.cleared_notifications' => array_values(array_unique($cleared))]);
+
+        return back()->with('success', 'Semua notifikasi berhasil dibersihkan.');
+    }
+
+    public function deleteNotification(Request $request, string $id)
+    {
+        $cleared = session('learning.cleared_notifications', []);
+        if ($id === 'all') {
+            $cleared[] = 'all';
+            session(['learning.notifications_cleared_at' => now()->timestamp]);
+        } else {
+            $cleared[] = $id;
+        }
+
+        session(['learning.cleared_notifications' => array_values(array_unique($cleared))]);
+
+        return back()->with('success', 'Notifikasi berhasil dihapus.');
     }
 }

@@ -794,7 +794,8 @@
                                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">Kolom Jawaban</p>
                                                 @php
                                                     $targets = array_column($pairs, 'right');
-                                                    $seed = (int) ($item['id'] ?? 1) * 31 + (int) session('auth_user.id', 1) + $qIdx;
+                                                    $userSeed = auth()->id() ?? (session('auth_user.id') ?? (session('auth_user.number') ? crc32((string) session('auth_user.number')) : 1));
+                                                    $seed = (int) ($item['id'] ?? 1) * 31 + (int) $userSeed * 17 + ($qIdx + 1) * 7;
                                                     mt_srand($seed);
                                                     shuffle($targets);
                                                     mt_srand();
