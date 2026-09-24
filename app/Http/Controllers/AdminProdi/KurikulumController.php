@@ -7,6 +7,7 @@ use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
+use App\Models\StudentAssessmentCpmkScore;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,8 @@ class KurikulumController extends Controller
 
         $cpls = $activeProdi ? $activeProdi->cpls()->withCount('cpmks')->orderBy('code')->get() : collect();
 
-        $mataKuliahs = $activeProdi 
-            ? $activeProdi->mataKuliahs()->with(['cpmks.cpls'])->orderBy('code')->get() 
+        $mataKuliahs = $activeProdi
+            ? $activeProdi->mataKuliahs()->with(['cpmks.cpls'])->orderBy('code')->get()
             : collect();
 
         $allCpmks = Cpmk::whereIn('mata_kuliah_id', $mataKuliahs->pluck('id'))
@@ -91,9 +92,8 @@ class KurikulumController extends Controller
         $prodiId = $cpl->prodi_id;
         $code = $cpl->code;
 
-        // S14: Cegah penghapusan CPL jika CPMK-CPMK terkait sudah memiliki data penilaian mahasiswa aktif.
         $linkedCpmkIds = $cpl->cpmks()->pluck('cpmks.id');
-        $hasActiveScores = \App\Models\StudentAssessmentCpmkScore::whereIn('cpmk_id', $linkedCpmkIds)->exists();
+        $hasActiveScores = StudentAssessmentCpmkScore::whereIn('cpmk_id', $linkedCpmkIds)->exists();
         if ($hasActiveScores) {
             return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'cpl'])
                 ->withErrors([
@@ -136,7 +136,6 @@ class KurikulumController extends Controller
                 'threshold' => $validated['threshold'],
             ]);
 
-            // Sync CPL jika dipilih
             $cplIds = $request->input('cpl_ids', []);
             $weights = $request->input('weights', []);
             $syncData = [];
@@ -221,7 +220,6 @@ class KurikulumController extends Controller
         $matrix = $request->input('matrix', []);
 
         DB::transaction(function () use ($matrix, $prodiId) {
-            // Dapatkan semua CPMK di bawah prodi ini
             $mkIds = MataKuliah::where('prodi_id', $prodiId)->pluck('id');
             $cpmks = Cpmk::whereIn('mata_kuliah_id', $mkIds)->get();
 

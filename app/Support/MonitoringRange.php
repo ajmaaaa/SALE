@@ -18,6 +18,7 @@ class MonitoringRange
             if (! is_string($value) || ! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $parts) || ! checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
                 return null;
             }
+
             return CarbonImmutable::parse($value)->startOfDay();
         };
         $monthInput = $request->query('bulan');
@@ -42,12 +43,18 @@ class MonitoringRange
             default => [$today->startOfMonth(), $today, 'day'],
         };
         $buckets = [];
-        for ($cursor = $step === 'month' ? $start->startOfMonth() : $start; $cursor->lte($end); $cursor = match ($step) { 'minute' => $cursor->addMinute(), 'hour' => $cursor->addHour(), 'month' => $cursor->addMonth(), default => $cursor->addDay() }) {
+        for ($cursor = $step === 'month' ? $start->startOfMonth() : $start; $cursor->lte($end); $cursor = match ($step) {
+            'minute' => $cursor->addMinute(), 'hour' => $cursor->addHour(), 'month' => $cursor->addMonth(), default => $cursor->addDay()
+        }) {
             $buckets[] = $cursor;
         }
         $caption = $range === 'realtime' ? '30 menit terakhir' : ($range === 'today' ? $today->translatedFormat('d F Y') : $start->translatedFormat('d M Y').' – '.$end->translatedFormat('d M Y'));
-        $granularity = match ($step) { 'minute' => 'Per menit', 'hour' => 'Per jam', 'month' => 'Per bulan', default => 'Per hari' };
-        $label = fn ($date) => match ($step) { 'minute', 'hour' => $date->format('H:i'), 'month' => $date->translatedFormat('M Y'), default => $date->format('d M') };
+        $granularity = match ($step) {
+            'minute' => 'Per menit', 'hour' => 'Per jam', 'month' => 'Per bulan', default => 'Per hari'
+        };
+        $label = fn ($date) => match ($step) {
+            'minute', 'hour' => $date->format('H:i'), 'month' => $date->translatedFormat('M Y'), default => $date->format('d M')
+        };
 
         return compact('choices', 'range', 'start', 'end', 'step', 'buckets', 'caption', 'granularity', 'label', 'notice', 'month', 'from', 'to');
     }

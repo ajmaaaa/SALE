@@ -1,14 +1,48 @@
 @php
+    $passedRole = $role ?? null;
+    $currentRole = $passedRole ?: (request()->is('dosen*') ? 'dosen' : (auth()->user()?->role?->name ?? session('auth_user.role') ?? 'mahasiswa'));
+    $isDosen = ($passedRole === 'dosen') || request()->is('dosen*') || in_array($currentRole, ['dosen', 'kaprodi'], true);
+
     $contents = collect(\App\Support\LearningPreview::items())->where('course', $course['id']);
-    $next = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
+    if ($contents->isEmpty() && \Illuminate\Support\Facades\Schema::hasTable('assessments')) {
+        $dbAssessments = \App\Models\Assessment::where('class_section_id', $course['id'])
+            ->where('status', 'published')
+            ->whereNotNull('due_at')
+            ->orderBy('due_at')
+            ->get();
+        if ($dbAssessments->isNotEmpty()) {
+            $contents = $dbAssessments->map(function ($a) {
+                return [
+                    'id' => $a->id,
+                    'course' => $a->class_section_id,
+                    'type' => match ($a->type) {
+                        'pbl', 'case', 'project', 'proyek' => 'tugas',
+                        default => $a->type,
+                    },
+                    'title' => $a->name,
+                    'due' => $a->due_at?->format('Y-m-d\TH:i'),
+                ];
+            });
+        }
+    }
+    
+    // Untuk mahasiswa: cek apakah ada tugas/kuis aktif yang belum diserahkan
+    $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])
+        ->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))
+        ->sortBy('due')
+        ->first();
+
+    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
+
     $sks = $course['sks'] ?? '3 SKS';
     $studentsCount = $course['students_count'] ?? (count($course['students'] ?? [1, 2, 3, 4, 5]));
     $assessmentsCount = $course['assessments_count'] ?? $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->count();
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
-    $due = $course['due'] ?? (!empty($next['due']) ? \Carbon\Carbon::parse($next['due'])->translatedFormat('d M, H:i') : '');
-    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? ($role ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa')));
-    $isDosen = (in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
+    $rawDue = $next['due'] ?? null;
+    $dueFormatted = !empty($rawDue) ? \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i') : '';
+    $hasPendingTask = $isDosen ? !empty($rawDue) : !empty($uncompletedTask);
+
     $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
     $targetUrl = route($targetRole . '.course.show', $course['id']);
     $enrollmentCode = $course['enrollment_code'] ?? ($course['code'] . '-2026');
@@ -71,12 +105,26 @@
         <a href="{{ $targetUrl }}" class="block">
             <p class="text-xs font-semibold leading-4 text-brand">{{ $type }}</p>
             <p class="mt-1 min-h-10 text-sm font-medium leading-5 text-ink line-clamp-2">{{ $work }}</p>
-            {{-- Baris jam + QR sejajar --}}
+            {{-- Baris jam (tenggat merah jika ada tugas yang harus dikumpulkan) + QR sejajar --}}
             <div class="mt-2 flex items-center justify-between gap-2">
-                @if($due)
-                    <p class="text-xs font-medium leading-5 {{ ($isFirst ?? false) ? 'text-danger' : 'text-muted' }}">{{ $due }}</p>
+                @if($hasPendingTask && !empty($dueFormatted))
+                    <p class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
+                        <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>Tenggat: {{ $dueFormatted }} WIB</span>
+                    </p>
+                @elseif(!empty($dueFormatted))
+                    <p class="text-xs font-medium leading-5 text-muted flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>{{ $dueFormatted }} WIB</span>
+                    </p>
                 @else
-                    <span></span>
+                    <span class="text-xs text-muted">Tidak ada tenggat</span>
                 @endif
                 @if($isDosen && !empty($enrollmentCode))
                     <button type="button"

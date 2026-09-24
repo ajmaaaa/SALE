@@ -9,18 +9,25 @@
 
 @section('content')
 <div class="space-y-6">
-    <header>
-        <h1 class="page-heading">{{ $isRekap ? 'Rekap Nilai OBE' : 'Penilaian' }}</h1>
-        <p class="page-description">
-            {{ $isRekap ? 'Pantau dan evaluasi rekapitulasi ketercapaian CPMK serta CPL mahasiswa untuk setiap kelas yang Anda ampu.' : 'Kelola penilaian berbasis OBE untuk setiap kelas yang Anda ampu pada semester berjalan.' }}
-        </p>
+    <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h1 class="page-heading">{{ $isRekap ? 'Rekap Nilai OBE' : 'Penilaian' }}</h1>
+            <p class="page-description">
+                {{ $isRekap ? 'Pantau dan evaluasi rekapitulasi ketercapaian CPMK serta CPL mahasiswa untuk setiap kelas yang Anda ampu.' : 'Kelola penilaian berbasis OBE untuk setiap kelas yang Anda ampu pada semester berjalan.' }}
+            </p>
+        </div>
+        @unless($isRekap)
+            <button type="button" onclick="document.getElementById('join-class-modal').showModal()" class="button-secondary shrink-0 text-xs font-semibold">
+                + Gabung Kelas
+            </button>
+        @endunless
     </header>
 
     @if($sections->isEmpty())
         <div class="surface p-10 text-center">
             <h2 class="section-heading">Belum ada kelas yang diampu</h2>
             <p class="mt-2 text-sm text-muted max-w-md mx-auto">
-                Kelas yang ditugaskan kepada Anda oleh Admin Prodi akan muncul di sini beserta status penilaiannya.
+                Kelas yang ditugaskan Admin Prodi atau Anda masuki melalui kode akan muncul di sini.
             </p>
         </div>
     @else
@@ -89,4 +96,12 @@
         </div>
     @endif
 </div>
+
+@unless($isRekap)
+    @include('learning.partials.join-class-dialog', [
+        'joinAsDosen' => true,
+        'joinDialogId' => 'join-class-modal',
+        'joinInputId' => 'dosen-join-code',
+    ])
+@endunless
 @endsection

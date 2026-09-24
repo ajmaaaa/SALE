@@ -17,11 +17,11 @@ class AcademicAndAuthEnhancementTest extends TestCase
 
     public function test_login_with_nim_and_email_credentials(): void
     {
-        $res1 = $this->post('/login', ['login_id' => '231011401234', 'password' => 'secret']);
+        $res1 = $this->post('/login', ['login_id' => '231011401234', 'password' => 'password']);
         $res1->assertRedirect(route('mahasiswa.dashboard'));
         $this->assertEquals(1, session('auth_user.id'));
 
-        $res2 = $this->post('/login', ['login_id' => 'budi@example.test', 'password' => 'secret']);
+        $res2 = $this->post('/login', ['login_id' => 'budi@example.test', 'password' => 'password']);
         $res2->assertRedirect(route('dosen.dashboard'));
         $this->assertEquals(2, session('auth_user.id'));
     }
@@ -35,26 +35,28 @@ class AcademicAndAuthEnhancementTest extends TestCase
         $this->assertEquals('dosen', session('auth_user.role'));
 
         // Switch role to admin
-        $switchResponse = $this->get('/switch-role/admin');
+        $switchResponse = $this->post('/switch-role/admin');
         $switchResponse->assertRedirect(route('admin.page', 'dashboard'));
         $this->assertEquals('admin', session('auth_user.role'));
 
         // Logout
-        $logoutResponse = $this->get('/logout');
+        $logoutResponse = $this->post('/logout');
         $logoutResponse->assertRedirect(route('login'));
         $this->assertNull(session('auth_user'));
     }
 
     public function test_admin_users_table_shows_nim_column_and_supports_bulk_import(): void
     {
+        $this->post('/switch-role/admin')->assertRedirect();
+
         $response = $this->get('/admin/pengguna');
         $response->assertOk();
         $response->assertSee('NIM / NIDN / NIP');
         $response->assertSee('231011401234');
 
         // Test bulk import
-        $bulkInput = "231011409001, Rani Kartika, rani@example.test, mahasiswa, aktif\n" .
-                     "231011409002, Doni Saputra, doni@example.test, mahasiswa, aktif";
+        $bulkInput = "231011409001, Rani Kartika, rani@example.test, mahasiswa, aktif\n".
+                     '231011409002, Doni Saputra, doni@example.test, mahasiswa, aktif';
 
         $postResponse = $this->post('/admin/pengguna/bulk', [
             'raw_users' => $bulkInput,
@@ -67,6 +69,8 @@ class AcademicAndAuthEnhancementTest extends TestCase
 
     public function test_lecturer_academic_settings_requires_100_percent_weight(): void
     {
+        $this->post('/switch-role/dosen')->assertRedirect();
+
         $payload = [
             'cpl' => [
                 ['code' => 'CPL-01', 'description' => 'Mampu menganalisis masalah'],
@@ -91,7 +95,9 @@ class AcademicAndAuthEnhancementTest extends TestCase
 
     public function test_lecturer_can_bulk_import_student_scores(): void
     {
-        $bulkScores = "231011401234, 90, 85, 95, 88, 92, 100";
+        $this->post('/switch-role/dosen')->assertRedirect();
+
+        $bulkScores = '231011401234, 90, 85, 95, 88, 92, 100';
 
         $response = $this->post(route('dosen.scores.bulk', 1), [
             'raw_scores' => $bulkScores,
@@ -105,6 +111,8 @@ class AcademicAndAuthEnhancementTest extends TestCase
 
     public function test_student_grades_page_renders_transparent_components(): void
     {
+        $this->post('/switch-role/mahasiswa')->assertRedirect();
+
         $response = $this->get(route('mahasiswa.nilai'));
         $response->assertOk();
         $response->assertSee('Transkrip Nilai');

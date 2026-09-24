@@ -20,13 +20,21 @@ class ObeReportingAndRoleAuditTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $otherDosen;
+
     private User $kaprodi;
+
     private User $student1;
+
     private User $student2;
+
     private ClassSection $section;
+
     private Assessment $assessment;
+
     private Cpmk $cpmk;
+
     private Cpl $cpl;
 
     protected function setUp(): void

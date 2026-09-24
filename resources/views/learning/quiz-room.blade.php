@@ -35,17 +35,7 @@
     @php
         $questions = $item['questions'] ?? [];
         if (empty($questions)) {
-            $questions = [
-                [
-                    'id' => 1,
-                    'type' => $item['question_type'] ?? 'uraian',
-                    'prompt' => $item['body'] ?? 'Jawab pertanyaan berikut.',
-                    'options' => $item['options'] ?? '',
-                    'points' => $item['points'] ?? 100,
-                    'cpmk' => $item['cpmk'] ?? 'CPMK-01',
-                    'cpl' => 'CPL-01',
-                ]
-            ];
+            $questions = \App\Support\LearningPreview::defaultQuizQuestions();
         }
         $totalQuestions = count($questions);
         $totalPoints = array_sum(array_column($questions, 'points'));
@@ -56,8 +46,112 @@
 
     @if($hasCompleted)
         {{-- ================================================================= --}}
-        {{-- LAYAR SUKSES PURNA-PENGUMPULAN KUIS (TERKUNCI DENGAN CENTANG KHUSUS) --}}
+        {{-- LAYAR EVALUASI PURNA-PENGUMPULAN KUIS: NILAI & PEMERIKSAAN JAWABAN --}}
         {{-- ================================================================= --}}
+        @php
+            $evaluations = [];
+            $totalCorrect = 0;
+            $totalWrong = 0;
+            $totalPending = 0;
+            $computedScore = 0;
+
+            foreach ($questions as $qIdx => $q) {
+                $qType = $q['type'] ?? 'pilihan';
+                $qPoints = (float) ($q['points'] ?? 25);
+                $ans = $submission['question_answers'][$qIdx] ?? [];
+                if (empty($ans) && $totalQuestions === 1) {
+                    $ans = [
+                        'choices' => $submission['choices'] ?? [],
+                        'boolean_choice' => $submission['boolean_choice'] ?? null,
+                        'matching' => $submission['matching'] ?? [],
+                        'text' => $submission['answer'] ?? null,
+                    ];
+                }
+
+                $status = 'wrong';
+                $earned = 0;
+                $pairResults = [];
+
+                if ($qType === 'pilihan') {
+                    $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => $v !== ''));
+                    $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ($options[0] ?? '')));
+                    $userChoice = $ans['choices'][0] ?? null;
+                    if ($userChoice !== null && $userChoice === $correct) {
+                        $status = 'correct';
+                        $earned = $qPoints;
+                        $totalCorrect++;
+                    } else {
+                        $status = 'wrong';
+                        $totalWrong++;
+                    }
+                } elseif ($qType === 'benar_salah') {
+                    $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
+                    $userChoice = $ans['boolean_choice'] ?? null;
+                    if ($userChoice !== null && $userChoice === $correct) {
+                        $status = 'correct';
+                        $earned = $qPoints;
+                        $totalCorrect++;
+                    } else {
+                        $status = 'wrong';
+                        $totalWrong++;
+                    }
+                } elseif ($qType === 'kompleks') {
+                    $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => $v !== ''));
+                    $correct = $q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'];
+                    $userChoices = $ans['choices'] ?? [];
+                    $uSorted = $userChoices;
+                    $cSorted = $correct;
+                    sort($uSorted);
+                    sort($cSorted);
+                    if (! empty($uSorted) && $uSorted === $cSorted) {
+                        $status = 'correct';
+                        $earned = $qPoints;
+                        $totalCorrect++;
+                    } else {
+                        $status = 'wrong';
+                        $totalWrong++;
+                    }
+                } elseif ($qType === 'mencocokkan') {
+                    $matching = $ans['matching'] ?? [];
+                    $pairs = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => str_contains($v, '='));
+                    $totalPairs = count($pairs);
+                    $matchedCount = 0;
+                    foreach (array_values($pairs) as $pIdx => $pairStr) {
+                        [$term, $def] = array_map('trim', explode('=', $pairStr, 2));
+                        $uMatch = $matching[$pIdx] ?? null;
+                        $isMatchCorrect = ($uMatch !== null && $uMatch === $def);
+                        if ($isMatchCorrect) $matchedCount++;
+                        $pairResults[] = [
+                            'term' => $term,
+                            'user' => $uMatch,
+                            'expected' => $def,
+                            'is_correct' => $isMatchCorrect,
+                        ];
+                    }
+                    if ($totalPairs > 0 && $matchedCount === $totalPairs) {
+                        $status = 'correct';
+                        $earned = $qPoints;
+                        $totalCorrect++;
+                    } elseif ($matchedCount > 0) {
+                        $status = 'partial';
+                        $earned = ($matchedCount / $totalPairs) * $qPoints;
+                        $totalWrong++;
+                    } else {
+                        $status = 'wrong';
+                        $totalWrong++;
+                    }
+                } else {
+                    $status = 'pending';
+                    $totalPending++;
+                }
+
+                $computedScore += $earned;
+                $evaluations[$qIdx] = compact('status', 'earned', 'pairResults', 'q');
+            }
+
+            $finalScore = $scoreValue !== null ? $scoreValue : $computedScore;
+        @endphp
+
         <div class="h-screen w-screen flex flex-col bg-slate-100/90 overflow-y-auto">
             {{-- Top Header Minimalis --}}
             <header class="h-14 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
@@ -75,60 +169,306 @@
                 </span>
             </header>
 
-            {{-- Center Content Box --}}
-            <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
-                <div class="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl p-8 sm:p-10 text-center space-y-6">
-                    
-                    {{-- SIMBOL CENTANG BERSIH (Neutral Solid Icon Circle) --}}
-                    <div class="mx-auto h-16 w-16 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-sm">
-                        <svg class="h-8 w-8 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m5 13 4 4L19 7"/>
-                        </svg>
+            {{-- Main Content: Ringkasan Nilai & Pemeriksaan Jawaban Soal --}}
+            <main class="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-4xl mx-auto space-y-7">
+
+                    {{-- Card Ringkasan & Tanda Terima Kuis --}}
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-slate-100 pb-5">
+                                <h1 class="text-xl sm:text-2xl font-bold text-slate-900">{{ $item['title'] }}</h1>
+                                <p class="text-xs text-slate-500 mt-1">{{ $course['title'] }} ({{ $course['code'] }})</p>
+                            </div>
+
+                            {{-- Nilai Kuis (Tampil di Kanan) --}}
+                            <div class="flex sm:flex-col items-center sm:items-end justify-between bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-200">
+                                <span class="text-xs font-medium text-slate-500">Nilai Perolehan Kuis:</span>
+                                <div class="flex items-baseline gap-1 mt-0.5">
+                                    <span class="text-3xl font-extrabold text-slate-900 font-mono tracking-tight">{{ number_format($finalScore, 0) }}</span>
+                                    <span class="text-sm font-semibold text-slate-400">/ {{ $totalPoints }} Poin</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1.5 text-xs text-slate-600">
+                                    <span class="font-medium text-slate-700">{{ $totalCorrect }} Benar</span>
+                                    @if($totalWrong > 0)
+                                        <span class="text-slate-300">·</span>
+                                        <span class="font-medium text-slate-700">{{ $totalWrong }} Salah</span>
+                                    @endif
+                                    @if($totalPending > 0)
+                                        <span class="text-slate-300">·</span>
+                                        <span class="font-medium text-slate-700">{{ $totalPending }} Uraian</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Metadata Bukti Tanda Terima --}}
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                            <div>
+                                <span class="text-slate-400 font-medium block">Waktu Pengumpulan</span>
+                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ $submission['time'] ?? now()->format('d M Y, H:i') }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 font-medium block">Mahasiswa</span>
+                                <span class="font-bold text-slate-800 truncate mt-0.5 block">{{ session('auth_user.name', 'Ahmad Maulana') }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 font-medium block">NIM / Identitas</span>
+                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ session('auth_user.number', '230101001') }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 font-medium block">Jumlah Butir Soal</span>
+                                <span class="font-bold text-slate-800 mt-0.5 block">{{ $totalQuestions }} Butir Soal</span>
+                            </div>
+                        </div>
+
+                        {{-- Tombol Navigasi --}}
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                            <p class="text-xs text-slate-500">Periksa hasil koreksi jawaban pada daftar butir soal di bawah.</p>
+                            <div class="flex items-center gap-2.5">
+                                <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2 px-4 font-semibold">
+                                    Lihat Rincian Tugas
+                                </a>
+                                <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
+                                    ← Kembali ke Course
+                                </a>
+                            </div>
+                        </div>
                     </div>
 
-                    {{-- Status & Deskripsi --}}
-                    <div class="space-y-2">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-muted">
-                            Lembar Jawaban Terkumpul
-                        </span>
-                        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Kuis Telah Berhasil Dikumpulkan!</h1>
-                        <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                            Seluruh jawaban Anda telah tersimpan dengan aman pada sistem akademik SALE. Kuis ini telah dikunci dan tidak dapat dikerjakan ulang.
-                        </p>
-                    </div>
+                    {{-- Daftar Rincian Soal: Hasil Jawaban Mahasiswa vs Kunci Jawaban Benar --}}
+                    <div class="space-y-5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Hasil Pemeriksaan Lembar Jawaban</h2>
+                                <p class="text-xs text-slate-500 mt-0.5">Sistem telah mencocokkan jawaban yang Anda serahkan dengan kunci jawaban evaluasi.</p>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-500">{{ $totalQuestions }} Butir Soal</span>
+                        </div>
 
-                    {{-- Bukti Tanda Terima Kuis --}}
-                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-5 text-left text-xs space-y-3 shadow-2xs">
-                        <div class="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                            <span class="text-slate-500 font-medium">Waktu Pengumpulan:</span>
-                            <span class="font-bold text-slate-900 font-mono">{{ $submission['time'] ?? now()->format('d M Y, H:i') }}</span>
-                        </div>
-                        <div class="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                            <span class="text-slate-500 font-medium">Mata Kuliah:</span>
-                            <span class="font-semibold text-slate-800">{{ $course['title'] }} ({{ $course['code'] }})</span>
-                        </div>
-                        <div class="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                            <span class="text-slate-500 font-medium">Jumlah Butir Soal:</span>
-                            <span class="font-semibold text-slate-800">{{ $totalQuestions }} Butir Soal</span>
-                        </div>
-                        <div class="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                            <span class="text-slate-500 font-medium">Total Bobot Evaluasi:</span>
-                            <span class="font-semibold text-ink">{{ $totalPoints }} Poin</span>
-                        </div>
-                        <div class="flex items-center justify-between pt-0.5">
-                            <span class="text-slate-500 font-medium">Mahasiswa Pengumpul:</span>
-                            <span class="font-semibold text-slate-800">{{ session('auth_user.name', 'Ahmad Maulana') }} (NIM: {{ session('auth_user.number', '230101001') }})</span>
-                        </div>
-                    </div>
+                        <div class="space-y-4">
+                            @foreach($questions as $qIdx => $q)
+                                @php
+                                    $eval = $evaluations[$qIdx] ?? [];
+                                    $status = $eval['status'] ?? 'wrong';
+                                    $qType = $q['type'] ?? 'pilihan';
+                                    $ans = $submission['question_answers'][$qIdx] ?? [];
+                                    if (empty($ans) && $totalQuestions === 1) {
+                                        $ans = [
+                                            'choices' => $submission['choices'] ?? [],
+                                            'boolean_choice' => $submission['boolean_choice'] ?? null,
+                                            'matching' => $submission['matching'] ?? [],
+                                            'text' => $submission['answer'] ?? null,
+                                        ];
+                                    }
+                                @endphp
+                                <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-4">
+                                    {{-- Header Soal --}}
+                                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="h-6 w-6 rounded bg-slate-100 text-slate-800 text-xs font-bold font-mono flex items-center justify-center">
+                                                {{ $qIdx + 1 }}
+                                            </span>
+                                            <div>
+                                                <span class="text-xs font-bold text-slate-800">
+                                                    @if($qType === 'pilihan') Pilihan Ganda
+                                                    @elseif($qType === 'kompleks') Pilihan Ganda Kompleks
+                                                    @elseif($qType === 'benar_salah') Benar / Salah
+                                                    @elseif($qType === 'mencocokkan') Menjodohkan Pasangan
+                                                    @elseif($qType === 'coding') Praktikum Coding
+                                                    @else Uraian / Essay
+                                                    @endif
+                                                </span>
+                                                <span class="text-slate-300 mx-1">·</span>
+                                                <span class="text-xs text-slate-500">{{ $q['points'] }} Poin</span>
+                                                @if(!empty($q['cpmk']))
+                                                    <span class="text-slate-300 mx-1">·</span>
+                                                    <span class="text-xs font-medium text-slate-500">{{ $q['cpmk'] }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
 
-                    {{-- Tombol Tindakan Purna-Ujian --}}
-                    <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="button-primary w-full sm:w-auto py-2.5 px-6 font-bold shadow-xs">
-                            ← Kembali ke Halaman Course
-                        </a>
-                        <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="button-secondary w-full sm:w-auto py-2.5 px-5 font-semibold">
-                            Lihat Rincian Tugas
-                        </a>
+                                        {{-- Status Benar/Salah (Teks Bersih Tanpa Label Pudar) --}}
+                                        <div>
+                                            @if($status === 'correct')
+                                                <span class="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                                    <span>Benar (+{{ $q['points'] }} Poin)</span>
+                                                </span>
+                                            @elseif($status === 'partial')
+                                                <span class="text-xs font-bold text-slate-700">
+                                                    <span>Sebagian Tepat (+{{ number_format($eval['earned'], 1) }} Poin)</span>
+                                                </span>
+                                            @elseif($status === 'pending')
+                                                <span class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                                                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                    <span>Tersimpan (Dinilai Pengampu)</span>
+                                                </span>
+                                            @else
+                                                <span class="text-xs font-bold text-rose-700 flex items-center gap-1.5">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                                    <span>Salah (0 Poin)</span>
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    {{-- Pertanyaan --}}
+                                    <div class="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-line">
+                                        {{ $q['prompt'] }}
+                                    </div>
+
+                                    @if(!empty($q['image']))
+                                        <div class="pt-1">
+                                            <div class="rounded-xl border border-slate-200 p-2 bg-slate-50 max-w-md">
+                                                <img src="{{ route('preview.file', $q['image']) }}" alt="{{ $q['alt'] ?? 'Gambar soal' }}" class="max-h-52 mx-auto object-contain">
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    {{-- Opsi Pilihan Ganda & Kompleks --}}
+                                    @if(in_array($qType, ['pilihan', 'kompleks']))
+                                        @php
+                                            $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($v) => $v !== ''));
+                                            $correctList = $qType === 'kompleks'
+                                                ? ($q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'])
+                                                : [$q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ($options[0] ?? '')))];
+                                            $userChoices = $ans['choices'] ?? [];
+                                        @endphp
+                                        <div class="space-y-2 pt-1">
+                                            @foreach($options as $opt)
+                                                @php
+                                                    $isUserPicked = in_array($opt, $userChoices, true);
+                                                    $isOptCorrect = in_array($opt, $correctList, true);
+                                                @endphp
+                                                <div class="flex items-center justify-between gap-3 p-3 rounded-lg border text-xs {{ $isUserPicked ? 'border-slate-300 bg-slate-50/80 font-medium text-slate-900' : ($isOptCorrect ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-white text-slate-600') }}">
+                                                    <div class="flex items-center gap-2.5 min-w-0">
+                                                        <span class="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[10px] {{ $isUserPicked && $isOptCorrect ? 'bg-emerald-600 text-white font-bold' : ($isUserPicked && !$isOptCorrect ? 'bg-rose-600 text-white font-bold' : ($isOptCorrect ? 'border border-emerald-500 text-emerald-700 font-bold' : 'border border-slate-300 text-slate-400')) }}">
+                                                            @if($isUserPicked && $isOptCorrect) ✓
+                                                            @elseif($isUserPicked && !$isOptCorrect) ✕
+                                                            @elseif($isOptCorrect) ✓
+                                                            @endif
+                                                        </span>
+                                                        <span class="break-words leading-relaxed">{{ $opt }}</span>
+                                                    </div>
+                                                    <div class="shrink-0 flex items-center gap-1.5">
+                                                        @if($isUserPicked && $isOptCorrect)
+                                                            <span class="text-xs font-semibold text-emerald-700">✓ Jawaban Anda (Benar)</span>
+                                                        @elseif($isUserPicked && !$isOptCorrect)
+                                                            <span class="text-xs font-semibold text-rose-700">✕ Jawaban Anda (Salah)</span>
+                                                        @elseif($isOptCorrect)
+                                                            <span class="text-xs font-medium text-emerald-700">✓ Kunci Jawaban Benar</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                    {{-- Opsi Benar / Salah --}}
+                                    @elseif($qType === 'benar_salah')
+                                        @php
+                                            $correctChoice = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
+                                            $userChoice = $ans['boolean_choice'] ?? null;
+                                        @endphp
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                            @foreach(['Benar', 'Salah'] as $opt)
+                                                @php
+                                                    $isUserPicked = ($userChoice === $opt);
+                                                    $isOptCorrect = ($correctChoice === $opt);
+                                                @endphp
+                                                <div class="flex items-center justify-between gap-3 p-3 rounded-lg border text-xs {{ $isUserPicked ? 'border-slate-300 bg-slate-50/80 font-medium text-slate-900' : ($isOptCorrect ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-white text-slate-600') }}">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[10px] {{ $isUserPicked && $isOptCorrect ? 'bg-emerald-600 text-white font-bold' : ($isUserPicked && !$isOptCorrect ? 'bg-rose-600 text-white font-bold' : ($isOptCorrect ? 'border border-emerald-500 text-emerald-700 font-bold' : 'border border-slate-300 text-slate-400')) }}">
+                                                            @if($isUserPicked && $isOptCorrect) ✓
+                                                            @elseif($isUserPicked && !$isOptCorrect) ✕
+                                                            @elseif($isOptCorrect) ✓
+                                                            @endif
+                                                        </span>
+                                                        <span class="font-bold">{{ $opt }}</span>
+                                                    </div>
+                                                    <div class="shrink-0 flex items-center gap-1.5">
+                                                        @if($isUserPicked && $isOptCorrect)
+                                                            <span class="text-xs font-semibold text-emerald-700">✓ Jawaban Anda (Benar)</span>
+                                                        @elseif($isUserPicked && !$isOptCorrect)
+                                                            <span class="text-xs font-semibold text-rose-700">✕ Jawaban Anda (Salah)</span>
+                                                        @elseif($isOptCorrect)
+                                                            <span class="text-xs font-medium text-emerald-700">✓ Kunci Jawaban Benar</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                    {{-- Menjodohkan Pasangan --}}
+                                    @elseif($qType === 'mencocokkan')
+                                        @php
+                                            $pairResults = $eval['pairResults'] ?? [];
+                                        @endphp
+                                        <div class="space-y-2.5 pt-1">
+                                            @foreach($pairResults as $res)
+                                                <div class="p-3.5 rounded-lg border border-slate-200 bg-white text-xs space-y-2">
+                                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                        <div class="font-semibold text-slate-800 flex items-center gap-2">
+                                                            @if(str_starts_with($res['term'], 'data:image'))
+                                                                <img src="{{ $res['term'] }}" alt="Item visual" class="h-10 border border-slate-200 rounded p-1 bg-white">
+                                                            @else
+                                                                <span>{{ $res['term'] }}</span>
+                                                            @endif
+                                                        </div>
+                                                        <div>
+                                                            @if($res['is_correct'])
+                                                                <span class="text-xs font-semibold text-emerald-700">✓ Pasangan Tepat</span>
+                                                            @else
+                                                                <span class="text-xs font-semibold text-rose-700">✕ Pasangan Salah</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100 text-[11px]">
+                                                        <div>
+                                                            <span class="text-slate-400 block font-medium">Pilihan Anda:</span>
+                                                            @if(!empty($res['user']) && (str_starts_with($res['user'], 'data:image') || str_starts_with($res['user'], 'http') || str_starts_with($res['user'], '/')))
+                                                                <img src="{{ $res['user'] }}" alt="Pilihan Anda" class="h-10 border border-slate-200 rounded p-1 bg-white mt-1">
+                                                            @else
+                                                                <span class="font-semibold {{ $res['is_correct'] ? 'text-emerald-800' : 'text-rose-800' }}">{{ $res['user'] ?? '(Tidak dijawab)' }}</span>
+                                                            @endif
+                                                        </div>
+                                                        @if(!$res['is_correct'])
+                                                            <div>
+                                                                <span class="text-emerald-700 block font-medium">Kunci yang Benar:</span>
+                                                                @if(!empty($res['expected']) && (str_starts_with($res['expected'], 'data:image') || str_starts_with($res['expected'], 'http') || str_starts_with($res['expected'], '/')))
+                                                                    <img src="{{ $res['expected'] }}" alt="Kunci Benar" class="h-10 border border-slate-200 rounded p-1 bg-white mt-1">
+                                                                @else
+                                                                    <span class="font-bold text-emerald-900">{{ $res['expected'] }}</span>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                    {{-- Uraian --}}
+                                    @elseif($qType === 'uraian')
+                                        <div class="space-y-2 pt-1">
+                                            <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-xs font-normal text-slate-800 whitespace-pre-line leading-relaxed">
+                                                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Jawaban Anda:</span>
+                                                {{ $ans['text'] ?? '(Tidak ada jawaban tertulis)' }}
+                                            </div>
+                                            <p class="text-[11px] text-slate-500 italic">* Jawaban uraian tersimpan di sistem dan dinilai secara manual oleh dosen pengampu.</p>
+                                        </div>
+
+                                    {{-- Coding --}}
+                                    @elseif($qType === 'coding')
+                                        <div class="space-y-2 pt-1">
+                                            <div class="rounded-lg bg-slate-900 text-slate-100 p-4 text-xs font-mono overflow-x-auto">
+                                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 font-sans">Kode Program Anda:</span>
+                                                <code>{{ $ans['text'] ?? '# Tidak ada kode yang dikirim' }}</code>
+                                            </div>
+                                            <p class="text-[11px] text-slate-500 italic">* Kode program Anda telah tersimpan dan siap ditinjau oleh pengampu praktikum.</p>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
 
                 </div>
@@ -212,12 +552,19 @@
                         {{-- PANEL KIRI: SOAL & INSTRUKSI --}}
                         <section class="h-full flex flex-col rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
                             {{-- Header Panel Kiri --}}
-                            <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <div class="flex items-center gap-2">
-                                    <span class="h-6 w-6 rounded bg-slate-900 text-white text-xs font-bold flex items-center justify-center">
+                            @php
+                                $cpmkRaw = $q['cpmk'] ?? '';
+                                $cpmkCode = $cpmkRaw ? trim(explode(':', $cpmkRaw)[0]) : '';
+                                if (empty($cpmkCode) && !empty($q['cpl'])) {
+                                    $cpmkCode = trim(explode(':', $q['cpl'])[0]);
+                                }
+                            @endphp
+                            <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold text-xs">
                                         {{ $qIdx + 1 }}
                                     </span>
-                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-600">
+                                    <span class="text-xs font-semibold text-ink">
                                         @if($q['type'] === 'coding')
                                             Pemrograman
                                         @elseif($q['type'] === 'mencocokkan')
@@ -229,14 +576,19 @@
                                         @elseif($q['type'] === 'benar_salah')
                                             Benar / Salah
                                         @else
-                                            Uraian / Essay
+                                            Uraian / Esai
                                         @endif
                                     </span>
                                 </div>
-                                <div class="flex items-center gap-1.5 text-xs text-slate-500">
-                                    <span class="font-semibold text-slate-700">{{ $q['points'] }} Poin</span>
-                                    <span class="text-slate-300">/</span>
-                                    <span class="text-slate-500">{{ $q['cpmk'] }}</span>
+                                <div class="flex items-center gap-2">
+                                    @if(!empty($cpmkCode))
+                                        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
+                                            {{ $cpmkCode }}
+                                        </span>
+                                    @endif
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-white border border-line/70 text-ink shadow-2xs">
+                                        {{ $q['points'] ?? 15 }} Poin
+                                    </span>
                                 </div>
                             </div>
 
@@ -440,7 +792,13 @@
                                             {{-- Kolom Kanan: Pasangan Jawaban --}}
                                             <div class="space-y-4" id="match-right-col-{{ $qIdx }}">
                                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">Kolom Jawaban</p>
-                                                @php $targets = array_column($pairs, 'right'); @endphp
+                                                @php
+                                                    $targets = array_column($pairs, 'right');
+                                                    $seed = (int) ($item['id'] ?? 1) * 31 + (int) session('auth_user.id', 1) + $qIdx;
+                                                    mt_srand($seed);
+                                                    shuffle($targets);
+                                                    mt_srand();
+                                                @endphp
                                                 @foreach($targets as $tIdx => $target)
                                                     @php
                                                         $isTargetImg = str_starts_with($target, 'http') || str_starts_with($target, 'data:image') || str_starts_with($target, '/');
@@ -901,7 +1259,7 @@
                         const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
                         if (hiddenInp && hiddenInp.value) {
                             const val = hiddenInp.value;
-                            const matchedRight = container.querySelector(`[data-match-right-card][data-target-val="${CSS.escape(val)}"]`);
+                            const matchedRight = [...container.querySelectorAll('[data-match-right-card]')].find(c => c.dataset.targetVal === val);
                             if (matchedRight) {
                                 const rDot = matchedRight.querySelector('[data-dot-side="right"]');
                                 if (rDot) {

@@ -6,6 +6,12 @@ use Tests\TestCase;
 
 class AdminPreviewTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_admin_pages_render_and_unknown_sections_are_rejected(): void
     {
         foreach (['dashboard', 'akademik', 'pengguna', 'aktivitas', 'monitoring', 'laporan', 'pengaturan'] as $page) {

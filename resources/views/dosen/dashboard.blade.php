@@ -12,8 +12,8 @@
 
     {{-- Simple Dashboard: Only 2 Main Stat Cards --}}
     @php
-        $allCourses = \App\Support\LearningPreview::courses();
-        $totalCourses = count($allCourses);
+        $allCourses = collect($courses);
+        $totalCourses = $allCourses->count();
         
         $classesList = [
             ['data_status' => 'belum_selesai'],
@@ -54,9 +54,11 @@
                 <a href="{{ route('dosen.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                @foreach($allCourses as $course)
+                @forelse($allCourses as $course)
                     @include('learning.partials.course-card', ['course' => $course, 'role' => 'dosen', 'isFirst' => $loop->first])
-                @endforeach
+                @empty
+                    <p class="col-span-full py-2 text-xs text-muted">Belum ada kelas.</p>
+                @endforelse
             </div>
         </section>
 

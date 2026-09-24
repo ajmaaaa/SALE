@@ -11,12 +11,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(RoleSeeder::class);
+
+        if (! config('app.demo_mode') || ! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         $this->call([
-            RoleSeeder::class,
             DosenAccountSeeder::class,
             AcademicDemoSeeder::class,
             ObeExampleSeeder::class,
+            DemoLearningContentSeeder::class,
             StudentScoreExampleSeeder::class,
+            RpsSimulationSeeder::class,
         ]);
 
         // Register further domain seeders here as more persistent SALE

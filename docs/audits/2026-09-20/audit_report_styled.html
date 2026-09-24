@@ -125,7 +125,7 @@ input atau audit deployment production. Browser E2E, beban, race condition nyata
 konfigurasi server/TLS/backup, scan seluruh riwayat Git untuk secret, dan evaluasi
 Gemini langsung belum dilakukan. Tidak ada klaim bebas kerentanan.</p>
 <p>P0 = blocker penggunaan data nyata; P1 = integritas/akses penting; P2 = konsistensi dan
-pemeliharaan. <strong>Teruji</strong> berarti direproduksi di SQLite memory menggunakan
+pemeliharaan. <strong>Teruji</strong> berarti direproduksi di database pengujian terisolasi menggunakan
 <a href="evidence/AuditReproductionTest.php">AuditReproductionTest.php</a>; test yang lulus
 justru membuktikan perilaku bermasalah masih ada. <strong>Statis</strong> berarti bukti source,
 belum reproduksi browser atau eksploitasi eksternal.</p>
@@ -434,7 +434,7 @@ Prioritaskan sumber data dan policy tunggal; reorganisasi folder mengikuti keput
 </tbody>
 </table>
 <p>Untuk mengulangi PoC: <code>vendor/bin/phpunit -c phpunit.xml docs/audits/2026-09-20/evidence/AuditReproductionTest.php --testdox</code>.
-Gunakan environment testing SQLite memory, bukan database institusi. Setelah perbaikan,
+Gunakan database MySQL testing terisolasi, bukan database institusi. Setelah perbaikan,
 ubah ekspektasi PoC menjadi perilaku aman dan pindahkan ke suite regresi normal.</p>
 <h2>Urutan pekerjaan</h2>
 <ol>

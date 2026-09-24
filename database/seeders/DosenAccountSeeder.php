@@ -17,9 +17,7 @@ class DosenAccountSeeder extends Seeder
         $adminRole = Role::where('name', Role::ADMIN)->first();
         $mahasiswaRole = Role::where('name', Role::MAHASISWA)->first();
 
-        // S08: Gunakan firstOrCreate (bukan updateOrCreate) agar seeder tidak pernah
-        // menimpa password atau data user yang sudah ada di database produksi.
-        // Kolom selain 'email' hanya diisi saat user pertama kali dibuat.
+        // firstOrCreate preserves credentials and profile data on existing accounts.
 
         $repairDemoRole = static function (string $email, ?int $roleId): void {
             if (! $roleId) {
@@ -87,6 +85,26 @@ class DosenAccountSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'role_id' => $adminRole?->id,
                 'nim_nidn' => 'ADM001',
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => '2401020071@student.umrah.ac.id'],
+            [
+                'name' => 'Auriel Lifta Ekeriana G, S. T',
+                'password' => Hash::make('password123'),
+                'role_id' => $dosenRole?->id,
+                'nim_nidn' => '2401020071',
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => '2401020070@student.umrah.ac.id'],
+            [
+                'name' => 'Meyky Ajmariadi',
+                'password' => Hash::make('password123'),
+                'role_id' => $dosenRole?->id,
+                'nim_nidn' => '2401020070',
             ]
         );
     }

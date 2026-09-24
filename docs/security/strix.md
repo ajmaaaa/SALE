@@ -25,8 +25,8 @@ python3 scripts/security-scan.py scan --budget 2
 yang sedang berjalan dan ketidakakuratan perhitungan harga dapat melampaui batas.
 Mode awal `quick`, batas 60 putaran per agent. Hasil quick scan bukan audit menyeluruh.
 
-Scan selalu membuat snapshot baru dari file source tracked, termasuk perubahan yang
-belum commit. File baru yang belum tracked tidak ikut. `.env` asli, storage, database,
+Scan selalu membuat snapshot baru dari file source tracked dan file source baru yang
+belum di-track tetapi tidak diabaikan Git. Perubahan yang belum commit ikut. `.env` asli, storage, database,
 Git history, API key, dan dependency host tidak disalin. Strix bekerja pada snapshot,
 karena target direktori Strix dapat ditulis oleh agent. Source yang disalin dapat
 dikirim ke Gemini sebagai konteks analisis. Runtime aplikasi dan data sintetis, jika
@@ -56,6 +56,19 @@ Referensi: [Strix CLI](https://docs.strix.ai/usage/cli),
 [Gemini melalui LiteLLM](https://docs.litellm.ai/docs/providers/gemini).
 
 Setup tidak otomatis menjalankan scan. API key masih harus diisi oleh pemilik akun.
+
+## Ollama lokal (eksperimental)
+
+Percobaan aktual memakai `qwen3:8b` pada laptop RAM 16 GB tidak menghasilkan audit
+yang valid. Prompt awal Strix 1.6.2 terukur 55.359 token dan dipotong menjadi 8.194
+token oleh Ollama. Jangan menganggap keluaran 0 temuan sebagai kondisi aman bila log
+memuat `truncating input prompt` atau coverage tetap nol. Bukti lengkap tersedia di
+[`docs/audits/2026-09-23/strix-local-ollama.md`](../audits/2026-09-23/strix-local-ollama.md).
+
+Launcher `scripts/security-scan.py` tetap dikunci ke Gemini agar konfigurasi lokal
+yang belum valid tidak dijalankan tanpa sadar sebagai audit resmi. Integrasi Ollama
+baru boleh dijadikan jalur baku setelah prompt tidak terpotong, structured tool call
+terbukti pada scan sebenarnya, dan sandbox memakai jaringan terisolasi.
 
 ## Verifikasi setup 20 September 2026
 

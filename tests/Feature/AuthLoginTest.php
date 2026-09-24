@@ -146,10 +146,47 @@ class AuthLoginTest extends TestCase
         $roles = ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'];
 
         foreach ($roles as $role) {
-            $response = $this->get("/switch-role/{$role}");
+            $response = $this->post("/switch-role/{$role}");
             $response->assertRedirect();
             $this->assertAuthenticated();
             $this->assertEquals($role, session('auth_user.role'));
         }
+    }
+
+    public function test_demo_user_cannot_enter_another_role_area_by_changing_the_path(): void
+    {
+        $this->post('/login', [
+            'login_id' => '231011401234',
+            'password' => 'password',
+        ])->assertRedirect('/mahasiswa/dashboard');
+
+        $this->get('/mahasiswa/dashboard')->assertOk();
+        $this->get('/dosen/dashboard')->assertForbidden();
+        $this->get('/admin/dashboard')->assertForbidden();
+        $this->get('/kaprodi/monitoring/cpmk')->assertForbidden();
+        $this->get('/admin-prodi/dashboard')->assertForbidden();
+        $this->get('/switch-role/admin')->assertMethodNotAllowed();
+    }
+
+    public function test_demo_guest_cannot_open_role_paths_directly(): void
+    {
+        foreach ([
+            '/mahasiswa/dashboard',
+            '/dosen/dashboard',
+            '/admin/dashboard',
+            '/kaprodi/monitoring/cpmk',
+            '/admin-prodi/dashboard',
+        ] as $path) {
+            $this->get($path)->assertRedirect(route('login'));
+        }
+    }
+
+    public function test_login_page_renders_password_visibility_toggle(): void
+    {
+        $response = $this->get('/login');
+        $response->assertOk();
+        $response->assertSee('id="toggle-password"', false);
+        $response->assertSee('id="eye-icon"', false);
+        $response->assertSee('id="eye-off-icon"', false);
     }
 }

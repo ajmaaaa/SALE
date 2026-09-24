@@ -2,13 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
-use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use App\Support\AdminPreview;
 use App\Support\LearningPreview;
@@ -30,6 +28,7 @@ class AdminLaporanService
 
         if ($hasDb) {
             $prodis = Prodi::query()->orderBy('code')->get();
+
             return $prodis->map(fn ($p) => [
                 'id' => $p->id,
                 'code' => $p->code,
@@ -304,10 +303,10 @@ class AdminLaporanService
             $mahasiswaQuery = User::query()
                 ->where(function ($q) use ($studentIds, $prodi) {
                     $q->whereIn('id', $studentIds)
-                      ->orWhere(function ($sub) use ($prodi) {
-                          $sub->where('prodi_id', $prodi->id)
-                              ->whereHas('role', fn ($rq) => $rq->where('name', Role::MAHASISWA));
-                      });
+                        ->orWhere(function ($sub) use ($prodi) {
+                            $sub->where('prodi_id', $prodi->id)
+                                ->whereHas('role', fn ($rq) => $rq->where('name', Role::MAHASISWA));
+                        });
                 });
 
             // Jika belum ada mahasiswa spesifik prodi, ambil dari role mahasiswa sebagai sampel
@@ -650,7 +649,7 @@ class AdminLaporanService
             'status' => 'Aktif',
         ]);
 
-        $prodiDetails = collect($prodiDefs)->map(function ($pDef) use ($courses, $previewClasses, $dosenList) {
+        $prodiDetails = collect($prodiDefs)->map(function ($pDef) use ($courses, $dosenList) {
             $prodiCourses = collect($courses)->filter(fn ($c) => in_array($c['id'], $pDef['course_ids']));
             $mataKuliahs = $prodiCourses->map(fn ($c) => [
                 'id' => $c['id'],

@@ -64,8 +64,8 @@ function environmentValue(string $contents, string $name, ?string $default = nul
 
 $connection = environmentValue($environment, 'DB_CONNECTION', 'mysql');
 
-if ($connection !== 'mysql' && $connection !== 'mariadb') {
-    fwrite(STDERR, "DB_CONNECTION harus mysql atau mariadb untuk setup ini.\n");
+if ($connection !== 'mysql') {
+    fwrite(STDERR, "DB_CONNECTION harus mysql untuk setup ini.\n");
     exit(1);
 }
 
@@ -74,10 +74,13 @@ $port = environmentValue($environment, 'DB_PORT', '3306');
 $database = environmentValue($environment, 'DB_DATABASE', 'sale');
 $username = environmentValue($environment, 'DB_USERNAME', 'root');
 $password = environmentValue($environment, 'DB_PASSWORD', '');
+$testDatabase = environmentValue($environment, 'DB_TEST_DATABASE', 'test_sale');
 
-if (! preg_match('/^[A-Za-z0-9_-]+$/', (string) $database)) {
-    fwrite(STDERR, "DB_DATABASE hanya boleh berisi huruf, angka, garis bawah, atau tanda hubung.\n");
-    exit(1);
+foreach (['DB_DATABASE' => $database, 'DB_TEST_DATABASE' => $testDatabase] as $name => $databaseName) {
+    if (! preg_match('/^[A-Za-z0-9_-]+$/', (string) $databaseName)) {
+        fwrite(STDERR, "{$name} hanya boleh berisi huruf, angka, garis bawah, atau tanda hubung.\n");
+        exit(1);
+    }
 }
 
 $options = [
@@ -86,29 +89,44 @@ $options = [
 ];
 
 try {
-    new PDO(
-        "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4",
-        $username,
-        $password,
-        $options,
-    );
+    foreach ([$database, $testDatabase] as $databaseName) {
+        try {
+            new PDO(
+                "mysql:host={$host};port={$port};dbname={$databaseName};charset=utf8mb4",
+                $username,
+                $password,
+                $options,
+            );
 
-    fwrite(STDOUT, "Database MySQL `{$database}` sudah tersedia.\n");
-} catch (PDOException) {
-    try {
+            fwrite(STDOUT, "Database MySQL `{$databaseName}` sudah tersedia.\n");
+
+            continue;
+        } catch (PDOException $exception) {
+            $mysqlErrorCode = (int) ($exception->errorInfo[1] ?? 0);
+
+            if ($mysqlErrorCode !== 1049) {
+                throw $exception;
+            }
+        }
+
         $pdo = new PDO(
             "mysql:host={$host};port={$port};charset=utf8mb4",
             $username,
             $password,
             $options,
         );
-        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-
-        fwrite(STDOUT, "Database MySQL `{$database}` berhasil dibuat.\n");
-    } catch (PDOException $exception) {
-        fwrite(STDERR, "Gagal terhubung atau membuat database MySQL `{$database}`.\n");
-        fwrite(STDERR, "Pastikan service MySQL aktif dan DB_HOST, DB_PORT, DB_USERNAME, serta DB_PASSWORD di .env sudah benar.\n");
-        fwrite(STDERR, "Detail: {$exception->getMessage()}\n");
-        exit(1);
+        $pdo->exec("CREATE DATABASE `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        fwrite(STDOUT, "Database MySQL `{$databaseName}` siap digunakan.\n");
     }
+} catch (PDOException $exception) {
+    fwrite(STDERR, "Gagal terhubung atau membuat database MySQL `{$database}` dan `{$testDatabase}`.\n");
+    fwrite(STDERR, "Pastikan service MySQL aktif dan DB_HOST, DB_PORT, DB_USERNAME, serta DB_PASSWORD di .env sudah benar.\n");
+
+    if ((int) ($exception->errorInfo[1] ?? 0) === 1698 && $username === 'root') {
+        fwrite(STDERR, "\nMariaDB Linux menolak root karena akun tersebut memakai autentikasi unix_socket.\n");
+        fwrite(STDERR, "Buat user aplikasi satu kali mengikuti bagian 'MariaDB Linux: error 1698' di README, lalu ubah DB_USERNAME dan DB_PASSWORD di .env.\n");
+    }
+
+    fwrite(STDERR, "Detail: {$exception->getMessage()}\n");
+    exit(1);
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
+use App\Models\Role;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -44,12 +45,12 @@ class ClassSectionController extends Controller
                 ->first();
         }
 
-        abort_unless($dosen?->hasRole(\App\Models\Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
+        abort_unless($dosen?->hasRole(Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
 
         $sections = ClassSection::query()
             ->where(function ($q) use ($dosen) {
                 $q->where('dosen_id', $dosen->id)
-                  ->orWhere('dosen_pendamping_id', $dosen->id);
+                    ->orWhere('dosen_pendamping_id', $dosen->id);
             })
             ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
             ->withCount('students')
@@ -62,6 +63,10 @@ class ClassSectionController extends Controller
         // Grading progress per section: how many (assessment × enrolled
         // student) score slots have actually been graded.
         $sections->each(function (ClassSection $section) {
+            if (! $section->enrollment_code) {
+                $section->update(['enrollment_code' => ClassSection::generateUniqueEnrollmentCode()]);
+            }
+
             $expectedSlots = $section->assessments_count * $section->students_count;
 
             if ($expectedSlots === 0) {

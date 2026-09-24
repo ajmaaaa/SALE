@@ -22,6 +22,33 @@ document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setSidebar(false);
 });
 
+if (sidebar) {
+    sidebar.addEventListener('wheel', (e) => {
+        const nav = sidebar.querySelector('nav');
+        if (!nav) {
+            e.preventDefault();
+            return;
+        }
+        const isScrollable = nav.scrollHeight > nav.clientHeight;
+        if (!isScrollable) {
+            e.preventDefault();
+            return;
+        }
+        const atTop = nav.scrollTop <= 0 && e.deltaY < 0;
+        const atBottom = nav.scrollTop + nav.clientHeight >= nav.scrollHeight - 1 && e.deltaY > 0;
+        if (atTop || atBottom) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    sidebar.addEventListener('touchmove', (e) => {
+        const nav = sidebar.querySelector('nav');
+        if (!nav || nav.scrollHeight <= nav.clientHeight) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
 const editorMount = document.querySelector('[data-code-editor]');
 const editorSource = document.querySelector('[data-code-files-json]');
 
@@ -234,6 +261,16 @@ updateCounter();
         });
         updateCounter();
 
+        window.setWorkbenchCode = (newCode) => {
+            if (editor && files && files[active]) {
+                editor.dispatch({
+                    changes: { from: 0, to: editor.state.doc.length, insert: newCode }
+                });
+                files[active].code = newCode;
+                updateCounter();
+            }
+        };
+
         const refreshLanguageBadge = () => {
             const key = String(files[active].name).split('.').pop().toLowerCase();
             const meta = FILE_ICONS[key];
@@ -321,7 +358,7 @@ updateCounter();
                 renameBtn.title = 'Ubah nama berkas';
                 renameBtn.setAttribute('aria-label', `Ubah nama ${file.name}`);
                 renameBtn.className = 'px-0.5 leading-none text-muted opacity-60 hover:text-ink group-hover:opacity-100';
-                renameBtn.textContent = '✎';
+                renameBtn.textContent = 'Ubah';
                 renameBtn.addEventListener('click', () => startRename(index));
                 const deleteBtn = document.createElement('button');
                 deleteBtn.type = 'button';
@@ -845,7 +882,7 @@ updateCounter();
             const pre = btn.closest('.ai-code-wrap')?.querySelector('pre');
             if (!pre) return;
             navigator.clipboard.writeText(pre.textContent.trimEnd()).then(() => {
-                btn.textContent = '✓ Tersalin';
+                btn.textContent = 'Tersalin';
                 btn.classList.add('ai-copy-btn--done');
                 setTimeout(() => { btn.textContent = 'Salin'; btn.classList.remove('ai-copy-btn--done'); }, 2000);
             }).catch(() => { btn.textContent = 'Gagal'; setTimeout(() => { btn.textContent = 'Salin'; }, 1500); });
@@ -1106,9 +1143,6 @@ if (contentType) {
 
     let previousType = contentType.value;
     const resetFormContent = () => {
-        if (moduleInput) moduleInput.value = '';
-        if (titleInput) titleInput.value = '';
-        if (bodyInput) bodyInput.value = '';
         if (customTypeInput) customTypeInput.value = '';
         document.querySelector('[data-image-remove]')?.click();
         const altInput = document.querySelector('#image_alt');
@@ -1120,43 +1154,12 @@ if (contentType) {
         }
         const linkInput = document.querySelector('#link');
         if (linkInput) linkInput.value = '';
-        const rows = questionBuilder?.querySelector('[data-question-rows]');
-        if (rows) rows.replaceChildren();
-        const total = questionBuilder?.querySelector('[data-question-total]');
-        if (total) total.textContent = '0 soal';
-        if (questionType) questionType.value = 'uraian';
         const regularTask = document.querySelector('[data-task-mode][value="regular"]');
         if (regularTask) regularTask.checked = true;
         const regularMaterial = document.querySelector('[data-material-mode][value="regular"]');
         if (regularMaterial) regularMaterial.checked = true;
         const points = document.querySelector('#points');
         if (points) points.value = '100';
-        const taskDue = document.querySelector('#task_due');
-        if (taskDue) taskDue.value = '';
-        const dueToggle = document.querySelector('[data-due-toggle]');
-        if (dueToggle) dueToggle.checked = false;
-        const dueOptions = document.querySelector('[data-due-options]');
-        if (dueOptions) dueOptions.hidden = true;
-        if (taskDue) taskDue.disabled = true;
-        const quizDue = document.querySelector('#quiz_due');
-        if (quizDue) quizDue.value = '';
-        const quizDueToggle = document.querySelector('[data-quiz-due-toggle]');
-        if (quizDueToggle) quizDueToggle.checked = false;
-        const quizDueOptions = document.querySelector('[data-quiz-due-options]');
-        if (quizDueOptions) quizDueOptions.hidden = true;
-        if (quizDue) quizDue.disabled = true;
-        const allowLate = document.querySelector('input[name="allow_late"][value="1"]');
-        if (allowLate) allowLate.checked = true;
-        const options = document.querySelector('#options');
-        if (options) options.value = '';
-        const durationMode = document.querySelector('#duration_mode');
-        if (durationMode) durationMode.value = 'disabled';
-        const durationToggle = document.querySelector('[data-duration-toggle]');
-        if (durationToggle) durationToggle.checked = false;
-        const durationOptions = document.querySelector('[data-duration-options]');
-        if (durationOptions) durationOptions.hidden = true;
-        const durationMinutes = document.querySelector('#duration_minutes');
-        if (durationMinutes) durationMinutes.value = '60';
     };
 
     contentType.addEventListener('change', () => {
@@ -1186,40 +1189,39 @@ if (contentForm) {
     const typeInput = contentForm.querySelector('[data-content-type]');
     const setup = contentForm.querySelector('[data-content-setup]');
     const builder = contentForm.querySelector('[data-question-builder]');
+    const durationSettings = contentForm.querySelector('[data-quiz-duration-settings]');
     const legacySettings = contentForm.querySelector('[data-legacy-question-settings]');
     const progress = contentForm.querySelector('[data-content-progress]');
     const nextButton = contentForm.querySelector('[data-next-to-questions]');
     const backButton = contentForm.querySelector('[data-back-to-setup]');
     const submitButton = contentForm.querySelector('[data-submit-content]');
+    const formErrorEl = contentForm.querySelector('[data-form-error]');
     const isQuiz = () => ['kuis', 'uts', 'uas'].includes(parseCategory(typeInput?.value));
-    const setButtonState = (button, enabled) => {
-        if (!button) return;
-        button.disabled = !enabled;
-        button.classList.toggle('opacity-50', !enabled);
-        button.classList.toggle('cursor-not-allowed', !enabled);
-    };
-    const updatePrimaryAction = () => {
-        const baseReady = !!typeInput?.value
-            && !!contentForm.querySelector('#module')?.value.trim()
-            && !!contentForm.querySelector('#body')?.value.trim();
-        const questionReady = [...contentForm.querySelectorAll('[data-question-row]')].length > 0
-            && [...contentForm.querySelectorAll('[data-question-row]')].every(row =>
-                !!row.querySelector('[data-q-field="prompt"]')?.value.trim()
-                && !!row.querySelector('[data-q-field="cpmk"]')?.value
-            );
-        const codingRows = [...contentForm.querySelectorAll('[data-coding-step-row]')].filter(row => !row.querySelector('[data-step-field]')?.disabled);
-        const codingReady = codingRows.length === 0 || codingRows.every(row =>
-            !!row.querySelector('[data-step-field="title"]')?.value.trim()
-            && !!row.querySelector('[data-step-field="body"]')?.value.trim()
-            && !!row.querySelector('[data-step-field="cpmk"]')?.value
-        );
-        const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')].filter(input => !input.disabled);
-        const manualReady = manualWeights.length === 0 || Math.abs(manualWeights.reduce((sum, input) => sum + Number(input.value || 0), 0) - 100) < 0.01;
-        setButtonState(nextButton, baseReady);
-        setButtonState(submitButton, baseReady && codingReady && manualReady && (!isQuiz() || questionReady));
+
+    // Submit button is never permanently disabled
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    const showFormError = (msg) => {
+        if (!formErrorEl) return;
+        if (msg) {
+            formErrorEl.textContent = msg;
+            formErrorEl.classList.remove('hidden');
+        } else {
+            formErrorEl.textContent = '';
+            formErrorEl.classList.add('hidden');
+        }
     };
 
-    const paintProgress = step => {
+    const clearHighlights = () => {
+        contentForm.querySelectorAll('.ring-2').forEach(el => {
+            el.classList.remove('ring-2', 'ring-danger/40', 'border-danger');
+        });
+    };
+
+    const paintProgress = (step) => {
         contentForm.querySelectorAll('[data-step-indicator]').forEach(indicator => {
             const active = indicator.dataset.stepIndicator === step;
             indicator.classList.toggle('text-brand', active);
@@ -1233,42 +1235,99 @@ if (contentForm) {
         });
     };
 
-    const showStep = step => {
-        if (!isQuiz()) step = 'setup';
+    const showStep = (step) => {
+        const quizActive = isQuiz();
+        if (!quizActive) step = 'setup';
         contentForm.dataset.step = step;
         const questionsStep = step === 'questions';
+
         if (setup) setup.hidden = questionsStep;
         if (builder) {
-            builder.hidden = !questionsStep;
-            builder.style.opacity = questionsStep ? '1' : '0';
-            builder.style.transform = questionsStep ? 'translateY(0)' : 'translateY(6px)';
+            builder.hidden = !questionsStep || !quizActive;
+            if (questionsStep && quizActive) {
+                builder.style.opacity = '1';
+                builder.style.transform = 'translateY(0)';
+            }
         }
+        if (durationSettings) durationSettings.hidden = !quizActive;
         if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding'].includes(parseCategory(typeInput?.value));
-        if (progress) progress.hidden = !isQuiz();
-        if (nextButton) nextButton.hidden = questionsStep || !isQuiz();
-        if (backButton) backButton.hidden = !questionsStep;
-        if (submitButton) submitButton.hidden = isQuiz() && !questionsStep;
+        if (progress) progress.hidden = !quizActive;
+        if (nextButton) nextButton.hidden = questionsStep || !quizActive;
+        if (backButton) backButton.hidden = !questionsStep || !quizActive;
+        if (submitButton) submitButton.hidden = quizActive && !questionsStep;
+
         paintProgress(step);
-        updatePrimaryAction();
-        if (questionsStep) builder?.querySelector('textarea,select,input')?.focus();
+
+        if (questionsStep && builder) {
+            const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
+            firstInput?.focus();
+        }
     };
 
-    const setupFields = () => [
-        ...setup.querySelectorAll('input,select,textarea'),
-    ].filter(field => !field.disabled);
+    typeInput?.addEventListener('change', () => {
+        showStep('setup');
+        clearHighlights();
+        showFormError('');
+    });
+    typeInput?.addEventListener('input', () => {
+        showStep('setup');
+    });
 
     nextButton?.addEventListener('click', () => {
-        const invalid = setupFields().find(field => !field.checkValidity());
-        if (invalid) {
-            invalid.reportValidity();
-            invalid.focus();
+        clearHighlights();
+        showFormError('');
+
+        const category = parseCategory(typeInput?.value);
+        const moduleInput = contentForm.querySelector('#module');
+        const bodyInput = contentForm.querySelector('#body');
+
+        // 1. Jenis Konten
+        if (!typeInput?.value) {
+            typeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            typeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            typeInput?.focus();
+            showFormError('Pilih jenis konten terlebih dahulu.');
             return;
         }
+
+        if (typeInput.value === 'lainnya') {
+            const customTypeInput = contentForm.querySelector('#custom_type');
+            const customVal = customTypeInput?.value.trim().toUpperCase() || '';
+            if (!['UTS', 'UAS'].includes(customVal)) {
+                customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                customTypeInput?.focus();
+                showFormError('Nama jenis konten kustom harus diisi "UTS" atau "UAS".');
+                return;
+            }
+        }
+
+        // 2. Modul / Topik
+        if (!moduleInput?.value.trim()) {
+            moduleInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            moduleInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            moduleInput?.focus();
+            showFormError('Isi nama modul / topik pembelajaran.');
+            return;
+        }
+
+        // 3. Materi / Instruksi
+        if (!bodyInput?.value.trim()) {
+            bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            bodyInput?.focus();
+            showFormError('Isi materi, instruksi, atau stimulus soal.');
+            return;
+        }
+
         showStep('questions');
         contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    backButton?.addEventListener('click', () => showStep('setup'));
-    typeInput?.addEventListener('change', () => showStep('setup'));
+
+    backButton?.addEventListener('click', () => {
+        showStep('setup');
+        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 
     contentForm.querySelectorAll('[data-content-addon]').forEach(button => {
         button.addEventListener('click', () => {
@@ -1331,7 +1390,207 @@ if (contentForm) {
     quizDueToggle?.addEventListener('change', syncQuizDue);
     syncQuizDue();
 
-    contentForm.addEventListener('submit', () => {
+    contentForm.addEventListener('submit', (e) => {
+        clearHighlights();
+        showFormError('');
+
+        const category = parseCategory(typeInput?.value);
+        const moduleInput = contentForm.querySelector('#module');
+        const bodyInput = contentForm.querySelector('#body');
+
+        // 1. Jenis Konten
+        if (!typeInput?.value) {
+            showStep('setup');
+            typeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            typeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            typeInput?.focus();
+            showFormError('Pilih jenis konten terlebih dahulu.');
+            e.preventDefault();
+            return false;
+        }
+
+        if (typeInput.value === 'lainnya') {
+            const customTypeInput = contentForm.querySelector('#custom_type');
+            const customVal = customTypeInput?.value.trim().toUpperCase() || '';
+            if (!['UTS', 'UAS'].includes(customVal)) {
+                showStep('setup');
+                customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                customTypeInput?.focus();
+                showFormError('Nama jenis konten kustom harus diisi "UTS" atau "UAS".');
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // 2. Modul / Topik
+        if (!moduleInput?.value.trim()) {
+            showStep('setup');
+            moduleInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            moduleInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            moduleInput?.focus();
+            showFormError('Isi nama modul / topik pembelajaran.');
+            e.preventDefault();
+            return false;
+        }
+
+        // 3. Materi / Instruksi
+        if (!bodyInput?.value.trim()) {
+            showStep('setup');
+            bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            bodyInput?.focus();
+            showFormError('Isi materi, instruksi, atau stimulus soal.');
+            e.preventDefault();
+            return false;
+        }
+
+        // 4. Khusus Kuis / UTS / UAS
+        if (['kuis', 'uts', 'uas'].includes(category)) {
+            const questionRows = [...contentForm.querySelectorAll('[data-question-row]')];
+            if (questionRows.length === 0) {
+                showStep('questions');
+                builder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showFormError('Tambahkan minimal 1 soal.');
+                e.preventDefault();
+                return false;
+            }
+
+            for (let idx = 0; idx < questionRows.length; idx++) {
+                const row = questionRows[idx];
+                const promptInput = row.querySelector('[data-q-field="prompt"]');
+                const cpmkSelect = row.querySelector('[data-q-field="cpmk"]');
+                const pointsInput = row.querySelector('input[data-q-field="points"]');
+                const qType = row.querySelector('[data-q-field="type"]')?.value || 'uraian';
+                const pts = pointsInput ? (parseInt(pointsInput.value) || 0) : 0;
+
+                if (!promptInput?.value.trim()) {
+                    showStep('questions');
+                    const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                    tabs?.[idx]?.click();
+                    promptInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    promptInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    promptInput?.focus();
+                    showFormError(`Soal ${idx + 1}: Tuliskan pertanyaan atau stimulus soal.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!cpmkSelect?.value) {
+                    showStep('questions');
+                    const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                    tabs?.[idx]?.click();
+                    cpmkSelect?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    cpmkSelect?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    cpmkSelect?.focus();
+                    showFormError(`Soal ${idx + 1}: Pilih target CPMK.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (pts <= 0) {
+                    showStep('questions');
+                    const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                    tabs?.[idx]?.click();
+                    pointsInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    pointsInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    pointsInput?.focus();
+                    showFormError(`Soal ${idx + 1}: Skor poin harus lebih dari 0.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (['pilihan', 'kompleks'].includes(qType)) {
+                    const choices = [...row.querySelectorAll('[data-choice-item-input]')].map(i => i.value.trim()).filter(Boolean);
+                    if (choices.length < 2) {
+                        showStep('questions');
+                        const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                        tabs?.[idx]?.click();
+                        const firstChoice = row.querySelector('[data-choice-item-input]');
+                        firstChoice?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                        firstChoice?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        firstChoice?.focus();
+                        showFormError(`Soal ${idx + 1}: Masukkan minimal 2 pilihan jawaban.`);
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    const checkedKeys = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+                    if (checkedKeys.length === 0) {
+                        showStep('questions');
+                        const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                        tabs?.[idx]?.click();
+                        const firstOption = row.querySelector('[data-choice-correct-input]');
+                        firstOption?.focus();
+                        showFormError(`Soal ${idx + 1}: Tentukan kunci jawaban yang benar dengan memilih tombol ${qType === 'kompleks' ? 'checklist' : 'radio'}.`);
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+
+                if (qType === 'mencocokkan') {
+                    const pairs = [...row.querySelectorAll('[data-pair-item]')];
+                    const incomplete = pairs.some(p => !p.querySelector('[data-pair-left]')?.value.trim() || !p.querySelector('[data-pair-right]')?.value.trim());
+                    if (pairs.length === 0 || incomplete) {
+                        showStep('questions');
+                        const tabs = builder?.querySelectorAll('[data-question-tabs] button');
+                        tabs?.[idx]?.click();
+                        row.querySelector('[data-pair-left], [data-pair-right]')?.focus();
+                        showFormError(`Soal ${idx + 1}: Lengkapi pasangan premis dan jawaban mencocokkan.`);
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+            }
+
+            const totalPoints = questionRows.reduce((sum, r) => sum + (parseInt(r.querySelector('input[data-q-field="points"]')?.value) || 0), 0);
+            if (totalPoints !== 100) {
+                showStep('questions');
+                builder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const badge = builder?.querySelector('[data-total-points-badge]');
+                badge?.classList.add('ring-2', 'ring-danger/50');
+                setTimeout(() => badge?.classList.remove('ring-2', 'ring-danger/50'), 3000);
+                showFormError(`Total skor adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Klik "Bagi Rata (100 / n)" di toolbar atau sesuaikan skor agar pas 100.`);
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // 5. Khusus Tugas / Coding / CPMK Manual
+        const codingRows = [...contentForm.querySelectorAll('[data-coding-step-row]')].filter(row => !row.querySelector('[data-step-field]')?.disabled);
+        for (let idx = 0; idx < codingRows.length; idx++) {
+            const row = codingRows[idx];
+            const titleInp = row.querySelector('[data-step-field="title"]');
+            const bodyInp = row.querySelector('[data-step-field="body"]');
+            if (!titleInp?.value.trim()) {
+                titleInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                titleInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                titleInp?.focus();
+                showFormError(`Tahap ${idx + 1}: Judul tahap belum diisi.`);
+                e.preventDefault();
+                return false;
+            }
+            if (!bodyInp?.value.trim()) {
+                bodyInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                bodyInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                bodyInp?.focus();
+                showFormError(`Tahap ${idx + 1}: Materi / instruksi tahap belum diisi.`);
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')].filter(input => !input.disabled);
+        if (manualWeights.length > 0) {
+            const sum = manualWeights.reduce((s, input) => s + Number(input.value || 0), 0);
+            if (Math.abs(sum - 100) >= 0.01) {
+                showFormError(`Total bobot CPMK tugas saat ini ${sum}%. Pastikan tepat 100%.`);
+                contentForm.querySelector('[data-manual-weight-total]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                e.preventDefault();
+                return false;
+            }
+        }
+
         const title = contentForm.querySelector('#title')?.value.trim();
         const imageAlt = contentForm.querySelector('#image_alt');
         if (imageAlt && !imageAlt.value.trim()) imageAlt.value = title ? `Gambar pendukung untuk ${title}` : 'Gambar pendukung materi';
@@ -1341,8 +1600,15 @@ if (contentForm) {
             if (alt && !alt.value.trim()) alt.value = (prompt ? `Gambar pendukung untuk ${prompt}` : 'Gambar pendukung soal').slice(0, 300);
         });
     });
-    contentForm.addEventListener('input', updatePrimaryAction);
-    contentForm.addEventListener('change', updatePrimaryAction);
+
+    contentForm.addEventListener('input', (e) => {
+        e.target.classList.remove('ring-2', 'ring-danger/40', 'border-danger');
+        showFormError('');
+    });
+    contentForm.addEventListener('change', (e) => {
+        e.target.classList.remove('ring-2', 'ring-danger/40', 'border-danger');
+        showFormError('');
+    });
 
     const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')];
     const syncManualWeight = () => {
@@ -1362,7 +1628,8 @@ if (contentForm) {
     contentForm.addEventListener('change', () => requestAnimationFrame(syncManualWeight));
     syncManualWeight();
 
-    showStep(contentForm.dataset.step);
+    const initialStep = contentForm.dataset.step || 'setup';
+    showStep(initialStep);
 }
 
 // Tahapan tutorial/tugas pemrograman menggunakan pola satu tahap per layar.
@@ -1574,23 +1841,55 @@ if (builder) {
 
     const syncChoices = (row) => {
         const textarea = row.querySelector('textarea[data-q-field="options"]');
-        if (!textarea) return;
+        const correctInput = row.querySelector('input[data-q-field="correct_answer"]');
         const inputs = row.querySelectorAll('[data-choice-item-input]');
         const values = [...inputs].map(i => i.value.trim()).filter(Boolean);
-        textarea.value = values.join('\n');
+        if (textarea) textarea.value = values.join('\n');
+
+        if (correctInput) {
+            const checkedInputs = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+            const checkedLetters = checkedInputs.map(inp => inp.value);
+            correctInput.value = checkedLetters.join(', ');
+        }
     };
 
-    const renderChoices = (row, choices = []) => {
+    const renderChoices = (row, choices = [], correctVal = null) => {
         const list = row.querySelector('[data-choice-list]');
         if (!list) return;
         list.innerHTML = '';
         const items = choices.length ? choices : ['', '', '', ''];
+        const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
+        const isComplex = qType === 'kompleks';
+        const inputType = isComplex ? 'checkbox' : 'radio';
+
+        const rowIndex = [...rows.children].indexOf(row);
+        const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : Math.random().toString(36).substring(2, 7)}`;
+
+        const correctInput = row.querySelector('input[data-q-field="correct_answer"]');
+        const currentCorrect = (correctVal !== null && correctVal !== undefined)
+            ? String(correctVal)
+            : (correctInput?.value || (isComplex ? 'A' : 'A'));
+        const correctArray = currentCorrect.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+
+        const hintEl = row.querySelector('[data-q-options-hint]');
+        if (hintEl) {
+            hintEl.textContent = isComplex
+                ? 'Centang checklist pada opsi yang merupakan jawaban benar (bisa lebih dari satu).'
+                : 'Pilih tombol radio pada opsi yang merupakan jawaban benar (satu jawaban).';
+        }
+
         items.forEach((val, idx) => {
+            const letter = letters[idx] || String(idx + 1);
+            const isChecked = correctArray.includes(letter.toUpperCase()) || (!isComplex && idx === 0 && correctArray.length === 0);
             const item = document.createElement('div');
-            item.className = 'flex items-center gap-2';
+            item.className = 'flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50/70 transition';
             item.innerHTML = `
-                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letters[idx] || (idx + 1)}</span>
-                <input type="text" class="field text-xs py-1.5 flex-1" value="${val.replace(/"/g, '&quot;')}" placeholder="Pilihan ${letters[idx] || (idx + 1)}..." data-choice-item-input>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs shrink-0 select-none border border-line/60" title="${isComplex ? 'Centang jika opsi ini adalah jawaban benar' : 'Pilih opsi ini sebagai kunci jawaban benar'}">
+                    <input type="${inputType}" ${!isComplex ? `name="${radioName}"` : ''} value="${letter}" data-choice-correct-input class="text-brand h-3.5 w-3.5 ${isComplex ? 'rounded' : ''}" ${isChecked ? 'checked' : ''}>
+                    <span class="text-[11px] font-semibold text-slate-700">Kunci</span>
+                </label>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letter}</span>
+                <input type="text" class="field text-xs py-1.5 flex-1" value="${val.replace(/"/g, '&quot;')}" placeholder="Pilihan ${letter}..." data-choice-item-input>
                 <button type="button" class="h-7 w-7 rounded-md text-muted hover:text-danger hover:bg-rose-50 flex items-center justify-center text-sm" data-remove-choice title="Hapus pilihan">×</button>
             `;
             list.appendChild(item);
@@ -1617,8 +1916,8 @@ if (builder) {
         item.setAttribute('data-pair-item', '');
         item.className = 'flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-lg bg-white border border-line/40';
 
-        const isLeftImg = mode === 'image' || mode === 'image_image';
-        const isRightImg = mode === 'image_image';
+        const isLeftImg = mode === 'image' || mode === 'image_text' || mode === 'image_image';
+        const isRightImg = mode === 'text_image' || mode === 'image_image';
         const hasLeftImg = isLeftImg && left && (left.startsWith('http') || left.startsWith('data:image') || left.startsWith('/'));
         const hasRightImg = isRightImg && right && (right.startsWith('http') || right.startsWith('data:image') || right.startsWith('/'));
 
@@ -1632,6 +1931,7 @@ if (builder) {
                 <input type="text" class="field text-xs py-1.5 flex-1 min-w-0" value="${(left || '').replace(/"/g, '&quot;')}" placeholder="URL / Data Gambar Kiri..." data-pair-left>
                 <div class="relative shrink-0 ${hasLeftImg ? '' : 'hidden'}" data-pair-preview-box="left">
                     <img src="${left}" class="h-7 w-10 object-contain rounded border border-line/60 bg-slate-50" data-pair-preview="left" alt="Pratinjau Kiri">
+                    <button type="button" data-pair-clear-img="left" class="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center font-bold hover:bg-rose-700 shadow cursor-pointer" title="Hapus gambar">×</button>
                 </div>
             </div>
         ` : `
@@ -1648,6 +1948,7 @@ if (builder) {
                 <input type="text" class="field text-xs py-1.5 flex-1 min-w-0" value="${(right || '').replace(/"/g, '&quot;')}" placeholder="URL / Data Gambar Kanan..." data-pair-right>
                 <div class="relative shrink-0 ${hasRightImg ? '' : 'hidden'}" data-pair-preview-box="right">
                     <img src="${right}" class="h-7 w-10 object-contain rounded border border-line/60 bg-slate-50" data-pair-preview="right" alt="Pratinjau Kanan">
+                    <button type="button" data-pair-clear-img="right" class="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center font-bold hover:bg-rose-700 shadow cursor-pointer" title="Hapus gambar">×</button>
                 </div>
             </div>
         ` : `
@@ -1678,12 +1979,17 @@ if (builder) {
             const l = p.left || '';
             return l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/');
         });
+        const isTextImg = !isImgImg && !isImgText && pairs.some(p => {
+            const r = p.right || '';
+            return r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/');
+        });
 
         const modeRadios = row.querySelectorAll('[data-pair-mode]');
         let currentMode = 'text';
         modeRadios.forEach(radio => {
             if (isImgImg && radio.value === 'image_image') radio.checked = true;
-            else if (isImgText && radio.value === 'image') radio.checked = true;
+            else if (isImgText && (radio.value === 'image_text' || radio.value === 'image')) radio.checked = true;
+            else if (isTextImg && radio.value === 'text_image') radio.checked = true;
             if (radio.checked) currentMode = radio.value;
         });
 
@@ -1691,18 +1997,22 @@ if (builder) {
         const instruction = row.querySelector('[data-pair-instruction]');
         if (hint) {
             if (currentMode === 'image_image') {
-                hint.textContent = 'Unggah/masukkan gambar di kiri dan gambar pasangan di kanan';
-            } else if (currentMode === 'image') {
-                hint.textContent = 'Unggah gambar/URL di kiri, ketik nama/label di kanan';
+                hint.textContent = 'Format Gambar ↔ Gambar: Unggah gambar di kiri dan gambar pasangan di kanan';
+            } else if (currentMode === 'image_text' || currentMode === 'image') {
+                hint.textContent = 'Format Gambar ↔ Teks: Unggah gambar di kiri, ketik nama/label di kanan';
+            } else if (currentMode === 'text_image') {
+                hint.textContent = 'Format Teks ↔ Gambar: Ketik istilah di kiri, unggah gambar di kanan';
             } else {
-                hint.textContent = 'Ketik istilah di kiri dan penjelasan di kanan';
+                hint.textContent = 'Format Teks ↔ Teks: Ketik istilah di kiri dan penjelasan di kanan';
             }
         }
         if (instruction) {
             if (currentMode === 'image_image') {
                 instruction.textContent = 'Setiap baris mencocokkan gambar stimulus di kiri dengan gambar jawaban di kanan.';
-            } else if (currentMode === 'image') {
+            } else if (currentMode === 'image_text' || currentMode === 'image') {
                 instruction.textContent = 'Setiap baris mencocokkan gambar di sisi kiri dengan teks pilihan di sisi kanan.';
+            } else if (currentMode === 'text_image') {
+                instruction.textContent = 'Setiap baris mencocokkan teks premis di sisi kiri dengan gambar di sisi kanan.';
             } else {
                 instruction.textContent = 'Isi item premis di sebelah kiri dan pasangan jawaban di sebelah kanan.';
             }
@@ -1720,7 +2030,15 @@ if (builder) {
 
     const renderPagination = () => {
         const total = rows.children.length;
-        if (total === 0) return;
+        const paginationHeader = builder.querySelector('[data-question-pagination-header]');
+        if (paginationHeader) {
+            paginationHeader.hidden = (total === 0);
+        }
+        if (total === 0) {
+            const tabsContainer = builder.querySelector('[data-question-tabs]');
+            if (tabsContainer) tabsContainer.replaceChildren();
+            return;
+        }
         activePageIndex = Math.max(0, Math.min(activePageIndex, total - 1));
 
         [...rows.children].forEach((row, index) => {
@@ -1731,13 +2049,16 @@ if (builder) {
         if (tabsContainer) {
             tabsContainer.replaceChildren();
             for (let index = 0; index < total; index++) {
+                const row = rows.children[index];
+                const ptsInput = row?.querySelector('input[data-q-field="points"]');
+                const pts = ptsInput ? (parseInt(ptsInput.value) || 0) : 0;
                 const tab = document.createElement('button');
                 const isActive = index === activePageIndex;
                 tab.type = 'button';
                 tab.className = isActive
-                    ? 'px-3 py-1.5 text-xs font-bold rounded-lg bg-brand text-white shadow-2xs transition'
-                    : 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-line/60 text-ink hover:bg-slate-100 transition';
-                tab.textContent = `Soal ${index + 1}`;
+                    ? 'px-2.5 py-1 text-xs font-bold rounded-md bg-brand text-white shadow-2xs transition shrink-0'
+                    : 'px-2.5 py-1 text-xs font-medium rounded-md bg-slate-50 border border-line/60 text-ink hover:bg-slate-100 transition shrink-0';
+                tab.textContent = pts > 0 ? `Soal ${index + 1} (${pts}p)` : `Soal ${index + 1}`;
                 tab.addEventListener('click', () => {
                     activePageIndex = index;
                     renderPagination();
@@ -1772,12 +2093,40 @@ if (builder) {
             templateCodingOption.disabled = hideCoding;
         }
 
+        const summaryPanel = builder.querySelector('[data-cpmk-summary-panel]');
+        const summaryRows = summaryPanel?.querySelector('[data-cpmk-summary-rows]');
+        const statEl = builder.querySelector('[data-cpmk-summary-stat]');
+        const totalPointsBadge = builder.querySelector('[data-total-points-badge]');
+        const countInput = builder.querySelector('[data-target-question-count]');
+        const cpmkCounts = {};
+        const cpmkPoints = {};
+        const cpmkLabels = {};
+        const totalSoal = rows.children.length;
+        let totalPoints = 0;
+
         [...rows.children].forEach((row, index) => {
             const numBadge = row.querySelector('[data-question-number-badge]');
             if (numBadge) numBadge.textContent = `${index + 1}`;
             const number = row.querySelector('[data-question-number]');
             if (number) number.textContent = `Soal ${index + 1}`;
             row.querySelectorAll('[data-q-field]').forEach(input => input.name = `questions[${index}][${input.dataset.qField}]`);
+
+            const radioName = `correct_choice_${index}`;
+            row.querySelectorAll('[data-choice-correct-input][type="radio"]').forEach(inp => {
+                inp.name = radioName;
+            });
+            row.querySelectorAll('[data-pair-mode]').forEach(inp => {
+                inp.name = `pair_mode_${index}`;
+            });
+
+            const pointsInput = row.querySelector('input[data-q-field="points"]');
+            const pts = pointsInput ? (parseInt(pointsInput.value) || 0) : 0;
+            totalPoints += pts;
+
+            const pointShare = row.querySelector('[data-q-point-share]');
+            if (pointShare) {
+                pointShare.textContent = `${pts} / 100`;
+            }
 
             const qTypeSelect = row.querySelector('select[data-q-field="type"]');
             const codingOption = qTypeSelect?.querySelector('option[value="coding"]');
@@ -1792,15 +2141,110 @@ if (builder) {
             if (b) b.hidden = qType !== 'benar_salah';
             const m = row.querySelector('[data-q-matching]');
             if (m) m.hidden = qType !== 'mencocokkan';
+
+            const scoreModeContainer = row.querySelector('[data-q-score-mode-container]');
+            if (scoreModeContainer) scoreModeContainer.hidden = qType !== 'kompleks';
+
+            const essayInfo = row.querySelector('[data-q-essay-info]');
+            if (essayInfo) essayInfo.hidden = qType !== 'uraian';
+
+            const essayEl = row.querySelector('[data-q-essay]');
+            if (essayEl) essayEl.hidden = qType !== 'uraian';
+
+            const cpmkSelect = row.querySelector('select[data-q-field="cpmk"]');
+            const cpmkBadge = row.querySelector('[data-q-cpmk-badge]');
+            const cpmkCode = cpmkSelect?.value || 'CPMK';
+            if (cpmkBadge) cpmkBadge.textContent = cpmkCode;
+
+            if (cpmkCode) {
+                cpmkCounts[cpmkCode] = (cpmkCounts[cpmkCode] || 0) + 1;
+                cpmkPoints[cpmkCode] = (cpmkPoints[cpmkCode] || 0) + pts;
+                if (cpmkSelect && cpmkSelect.selectedIndex >= 0) {
+                    cpmkLabels[cpmkCode] = cpmkSelect.options[cpmkSelect.selectedIndex].text;
+                }
+            }
         });
+
+        // Update Live Total Point Summary (n / 100)
+        if (totalPointsBadge) {
+            totalPointsBadge.className = 'text-xs font-semibold text-slate-700';
+            if (totalPoints === 100) {
+                totalPointsBadge.textContent = 'Total Skor: 100 / 100';
+            } else if (totalPoints < 100) {
+                totalPointsBadge.textContent = `Total Skor: ${totalPoints} / 100 (Kurang ${100 - totalPoints})`;
+            } else {
+                totalPointsBadge.textContent = `Total Skor: ${totalPoints} / 100 (Lebih +${totalPoints - 100})`;
+            }
+        }
+
+        const emptyState = builder.querySelector('[data-question-empty-state]');
+        if (emptyState) emptyState.hidden = (rows.children.length > 0);
+
+        // Update Live CPMK Summary Panel
+        if (summaryPanel && summaryRows) {
+            const uniqueCpmkCodes = Object.keys(cpmkCounts);
+            if (statEl) {
+                statEl.textContent = `Ringkasan CPMK (${uniqueCpmkCodes.length})`;
+            }
+            if (totalSoal === 0) {
+                summaryRows.innerHTML = '<tr><td colspan="4" class="py-2.5 px-3 text-center text-muted italic">Tambahkan soal untuk melihat ringkasan</td></tr>';
+            } else {
+                summaryRows.innerHTML = '';
+                uniqueCpmkCodes.forEach(code => {
+                    const count = cpmkCounts[code];
+                    const bobot = totalSoal > 0 ? (count / totalSoal * 100) : 0;
+                    const porsi = count > 0 ? (100 / count) : 0;
+                    const label = cpmkLabels[code] || code;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/70 transition';
+                    tr.innerHTML = `
+                        <td class="py-2 px-3">
+                            <span class="font-bold text-ink">${code}</span>
+                            <span class="block text-[11px] text-muted line-clamp-1">${label}</span>
+                        </td>
+                        <td class="py-2 px-3 text-center font-mono font-medium text-ink">${count} soal</td>
+                        <td class="py-2 px-3 text-center">
+                            <span class="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs bg-brand/10 text-brand">
+                                ${bobot.toFixed(1).replace(/\.0$/, '')}%
+                            </span>
+                            <span class="text-[10px] text-muted font-normal block mt-0.5">(${count}/${totalSoal})</span>
+                        </td>
+                        <td class="py-2 px-3 text-center font-mono font-bold text-slate-800">
+                            ${porsi.toFixed(2).replace(/\.00$/, '')}
+                            <span class="text-[10px] text-muted font-normal block mt-0.5">(100 / ${count})</span>
+                        </td>
+                    `;
+                    summaryRows.appendChild(tr);
+                });
+            }
+        }
+
+        if (countInput && document.activeElement !== countInput && rows.children.length > 0) {
+            countInput.value = rows.children.length;
+        }
 
         builder.querySelector('[data-question-total]').textContent = `${rows.children.length} soal`;
         renderPagination();
     };
 
     const add = (data = {}, setAsActive = true) => {
-        if (rows.children.length >= 30) return;
         const row = template.content.firstElementChild.cloneNode(true);
+
+        // Smart point calculation if points not provided in data
+        if (data.points === undefined) {
+            const currentTotal = [...rows.children].reduce((sum, r) => {
+                const p = r.querySelector('input[data-q-field="points"]');
+                return sum + (p ? (parseInt(p.value) || 0) : 0);
+            }, 0);
+            if (rows.children.length === 0) {
+                data.points = 20;
+            } else if (100 - currentTotal > 0) {
+                data.points = 100 - currentTotal;
+            } else {
+                data.points = 20;
+            }
+        }
 
         row.querySelectorAll('[data-q-field]').forEach(input => {
             if (input.type !== 'file' && data[input.dataset.qField] !== undefined) {
@@ -1813,7 +2257,7 @@ if (builder) {
         const qType = data.type || row.querySelector('[data-q-field="type"]').value;
         if (['pilihan', 'kompleks'].includes(qType)) {
             const choices = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
-            renderChoices(row, choices);
+            renderChoices(row, choices, data.correct_answer);
         } else {
             renderChoices(row, []);
         }
@@ -1835,8 +2279,69 @@ if (builder) {
         update();
     };
 
+    const countInput = builder.querySelector('[data-target-question-count]');
+
+    const setQuestionCount = (targetCount) => {
+        targetCount = Math.max(1, parseInt(targetCount) || 1);
+        const currentCount = rows.children.length;
+        if (targetCount > currentCount) {
+            for (let i = currentCount; i < targetCount; i++) {
+                add({}, false);
+            }
+        } else if (targetCount < currentCount) {
+            while (rows.children.length > targetCount) {
+                rows.lastElementChild.remove();
+            }
+        }
+        // Auto-distribute 100 points evenly across all targetCount questions
+        const base = Math.floor(100 / targetCount);
+        const remainder = 100 - (base * targetCount);
+        [...rows.children].forEach((row, idx) => {
+            const input = row.querySelector('input[data-q-field="points"]');
+            if (input) {
+                input.value = idx < remainder ? (base + 1) : base;
+            }
+        });
+        if (countInput) countInput.value = targetCount;
+        activePageIndex = 0;
+        update();
+    };
+
+    builder.querySelector('[data-apply-question-count]')?.addEventListener('click', () => {
+        const target = parseInt(countInput?.value) || 5;
+        setQuestionCount(target);
+    });
+
+    builder.querySelector('[data-toggle-cpmk-summary]')?.addEventListener('click', () => {
+        const panel = builder.querySelector('[data-cpmk-summary-panel]');
+        if (panel) panel.hidden = !panel.hidden;
+    });
+
+    countInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const target = parseInt(countInput.value) || 5;
+            setQuestionCount(target);
+        }
+    });
+
     builder.querySelectorAll('[data-add-question]').forEach(button => {
         button.addEventListener('click', () => add({}, true));
+    });
+    builder.querySelectorAll('[data-auto-distribute-points]').forEach(button => {
+        button.addEventListener('click', () => {
+            const count = rows.children.length;
+            if (count === 0) return;
+            const base = Math.floor(100 / count);
+            const remainder = 100 - (base * count);
+            [...rows.children].forEach((row, idx) => {
+                const input = row.querySelector('input[data-q-field="points"]');
+                if (input) {
+                    input.value = idx < remainder ? (base + 1) : base;
+                }
+            });
+            update();
+        });
     });
     builder.querySelectorAll('[data-prev-question]').forEach(button => {
         button.addEventListener('click', () => {
@@ -1918,10 +2423,16 @@ if (builder) {
             return;
         }
 
+        if (event.target.matches('[data-choice-correct-input]')) {
+            syncChoices(row);
+        }
+
         if (event.target.dataset.qField === 'type') {
             const qType = event.target.value;
             if (['pilihan', 'kompleks'].includes(qType)) {
-                renderChoices(row);
+                const existingChoices = [...row.querySelectorAll('[data-choice-item-input]')].map(i => i.value);
+                const currentCorrect = row.querySelector('input[data-q-field="correct_answer"]')?.value;
+                renderChoices(row, existingChoices, currentCorrect);
             } else if (qType === 'mencocokkan') {
                 renderPairs(row);
             }
@@ -1956,15 +2467,26 @@ if (builder) {
         if (event.target.closest('[data-add-choice-btn]')) {
             const list = row.querySelector('[data-choice-list]');
             const count = list.children.length;
+            const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
+            const isComplex = qType === 'kompleks';
+            const inputType = isComplex ? 'checkbox' : 'radio';
+            const rowIndex = [...rows.children].indexOf(row);
+            const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : '0'}`;
+            const letter = letters[count] || String(count + 1);
+
             const item = document.createElement('div');
-            item.className = 'flex items-center gap-2';
+            item.className = 'flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50/70 transition';
             item.innerHTML = `
-                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letters[count] || (count + 1)}</span>
-                <input type="text" class="field text-xs py-1.5 flex-1" placeholder="Pilihan ${letters[count] || (count + 1)}..." data-choice-item-input>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs shrink-0 select-none border border-line/60" title="${isComplex ? 'Centang jika opsi ini adalah jawaban benar' : 'Pilih opsi ini sebagai kunci jawaban benar'}">
+                    <input type="${inputType}" ${!isComplex ? `name="${radioName}"` : ''} value="${letter}" data-choice-correct-input class="text-brand h-3.5 w-3.5 ${isComplex ? 'rounded' : ''}">
+                    <span class="text-[11px] font-semibold text-slate-700">Kunci</span>
+                </label>
+                <span class="flex h-7 w-7 items-center justify-center rounded-md bg-canvas text-xs font-bold text-ink shrink-0 border border-line/50" data-choice-letter>${letter}</span>
+                <input type="text" class="field text-xs py-1.5 flex-1" placeholder="Pilihan ${letter}..." data-choice-item-input>
                 <button type="button" class="h-7 w-7 rounded-md text-muted hover:text-danger hover:bg-rose-50 flex items-center justify-center text-sm" data-remove-choice title="Hapus pilihan">×</button>
             `;
             list.appendChild(item);
-            item.querySelector('input').focus();
+            item.querySelector('input[data-choice-item-input]').focus();
             syncChoices(row);
             return;
         }
@@ -1976,7 +2498,12 @@ if (builder) {
                 event.target.closest('div').remove();
                 [...list.children].forEach((child, idx) => {
                     const l = child.querySelector('[data-choice-letter]');
-                    if (l) l.textContent = letters[idx] || (idx + 1);
+                    const letter = letters[idx] || String(idx + 1);
+                    if (l) l.textContent = letter;
+                    const correctInp = child.querySelector('[data-choice-correct-input]');
+                    if (correctInp) correctInp.value = letter;
+                    const textInp = child.querySelector('[data-choice-item-input]');
+                    if (textInp) textInp.placeholder = `Pilihan ${letter}...`;
                 });
                 syncChoices(row);
             }
@@ -2006,6 +2533,23 @@ if (builder) {
                 });
                 syncPairs(row);
             }
+            return;
+        }
+
+        // Clear pair image button
+        if (event.target.closest('[data-pair-clear-img]')) {
+            const btn = event.target.closest('[data-pair-clear-img]');
+            const side = btn.dataset.pairClearImg;
+            const item = event.target.closest('[data-pair-item]');
+            const inp = item?.querySelector(side === 'right' ? '[data-pair-right]' : '[data-pair-left]');
+            const preview = item?.querySelector(`[data-pair-preview="${side}"]`);
+            const previewBox = item?.querySelector(`[data-pair-preview-box="${side}"]`);
+            const fileInp = item?.querySelector(`[data-pair-file="${side}"]`);
+            if (inp) inp.value = '';
+            if (fileInp) fileInp.value = '';
+            if (preview) preview.removeAttribute('src');
+            if (previewBox) previewBox.classList.add('hidden');
+            syncPairs(row);
             return;
         }
 
@@ -2053,8 +2597,6 @@ if (builder) {
         const savedQuestions = categoryQuestionsMap[newCategory];
         if (savedQuestions?.length) {
             savedQuestions.forEach((question, index) => add(question, index === 0));
-        } else {
-            add({}, true);
         }
         activePageIndex = 0;
         update();
@@ -2064,8 +2606,6 @@ if (builder) {
     if (old.length) {
         if (activeCategory) categoryQuestionsMap[activeCategory] = old;
         old.forEach((question, index) => add(question, index === 0));
-    } else {
-        add({}, true);
     }
 
     const sync = () => {

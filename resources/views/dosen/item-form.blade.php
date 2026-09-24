@@ -1,23 +1,55 @@
 @extends('layouts.mahasiswa')
 @section('header', 'Tambah konten course')
 @section('content')
-<div class="mx-auto w-full max-w-6xl">
-    <a class="button-secondary inline-flex items-center gap-2 px-3 py-2 text-xs" href="{{ route('dosen.course.show', $course['id']) }}">
-        <span aria-hidden="true">←</span><span>Kembali ke course</span>
-    </a>
-    <h1 class="page-heading mt-5">Tambah konten</h1>
-    <p class="page-description">Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.</p>
+<div class="w-full space-y-6">
+    <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('dosen.course.index') }}">
+            <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+            <span>Course Dosen</span>
+        </a>
+        <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ route('dosen.course.show', $course['id']) }}">
+            {{ $course['code'] }}
+        </a>
+        <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        <span class="font-semibold text-slate-800" aria-current="page">
+            Tambah Konten
+        </span>
+    </nav>
 
-    <form class="surface mt-7 space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}">
+    <div>
+        <h1 class="page-heading">Tambah konten</h1>
+        <p class="page-description">Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.</p>
+    </div>
+
+    <form class="surface space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}" novalidate>
         @csrf
-        <div class="flex items-center gap-3 border-b border-line/60 pb-4" data-content-progress>
+
+        @if($errors->any())
+            <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs shadow-2xs">
+                <div class="flex items-center gap-2 font-bold text-rose-800 text-sm">
+                    <svg class="h-4 w-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Terdapat kesalahan pada formulir:</span>
+                </div>
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-rose-700">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- Progress Bar Stepper (Khusus Kuis, UTS, UAS) --}}
+        <div class="flex items-center gap-3 border-b border-line/60 pb-4" data-content-progress hidden>
             <div class="flex items-center gap-2 text-xs font-bold text-brand" data-step-indicator="setup">
-                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white">1</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white font-bold">1</span>
                 <span>Informasi konten</span>
             </div>
             <span class="h-px flex-1 bg-line/70"></span>
             <div class="flex items-center gap-2 text-xs font-semibold text-muted" data-step-indicator="questions">
-                <span class="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-white">2</span>
+                <span class="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-white font-bold">2</span>
                 <span>Susun soal</span>
             </div>
         </div>
@@ -25,7 +57,7 @@
         <div class="space-y-6" data-content-setup>
         <div class="border-b border-line/60 pb-3">
             <h2 class="text-base font-bold text-ink">Informasi Konten</h2>
-            <p class="text-xs text-muted">Siapkan judul, instruksi, dan kebutuhan pendukung. Untuk kuis, soal disusun pada langkah berikutnya.</p>
+            <p class="text-xs text-muted">Lengkapi data konten pembelajaran, kuis, atau tugas untuk course ini.</p>
         </div>
 
         <div class="grid gap-5 sm:grid-cols-2">
@@ -33,14 +65,13 @@
                 <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
                 <select id="type" name="type" class="field" data-content-type required>
                     <option value="" disabled @selected(!old('type') && !request('type'))>-- Pilih jenis konten --</option>
-                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
+                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('type', request('type')) === $value || ($value === 'tugas' && old('type') === 'coding'))>{{ $label }}</option>
                     @endforeach
                 </select>
                 <div data-custom-type-container hidden class="mt-2.5 space-y-1">
-                    <label class="form-label text-xs" for="custom_type">Nama jenis konten (Lainnya)</label>
-                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik UTS atau UAS..." data-custom-type value="{{ old('custom_type') }}" maxlength="10">
-                    <p class="text-[11px] text-muted">Hanya dapat diisi <strong>UTS</strong> atau <strong>UAS</strong>.</p>
+                    <label class="form-label text-xs" for="custom_type">Nama jenis konten kustom</label>
+                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik jenis konten..." data-custom-type value="{{ old('custom_type') }}" maxlength="20">
                 </div>
             </div>
             <div>
@@ -157,86 +188,110 @@
         </section>
         </div>
 
-        {{-- Paket Soal Campuran / Multi-Question Builder --}}
-        <section data-question-builder class="rounded-xl bg-canvas p-4 sm:p-5 transition-all duration-300 ease-out" hidden>
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
-                <div>
-                    <h2 class="section-heading" data-assessment-title-label>Susun Soal</h2>
-                    <p class="mt-1 text-xs text-muted">Satu soal ditampilkan dalam satu waktu agar penyusunan tetap fokus.</p>
+        {{-- Paket Soal Asesmen (Kuis, UTS, UAS) --}}
+        <section data-question-builder class="space-y-4" hidden>
+            {{-- Toolbar Soal --}}
+            <div class="rounded-xl border border-line/80 bg-white p-4 shadow-2xs space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <h2 class="text-sm font-bold text-ink" data-assessment-title-label>Susun Soal</h2>
+                        <span class="text-xs font-semibold text-slate-700" data-total-points-badge>
+                            Total Skor: 0 / 100
+                        </span>
+                        <span class="text-xs text-muted font-medium" data-question-total>0 soal</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-question>+ Tambah Soal</button>
+                    </div>
                 </div>
-                <button type="button" class="button-primary text-xs font-semibold py-2 px-4 shadow-xs hover:shadow transition" data-add-question>+ Tambah Soal</button>
-            </div>
 
-            <div class="mt-4">
-                <label class="form-label text-xs" for="component">Komponen Nilai dalam Rencana Evaluasi</label>
-                <select class="field text-xs py-2 bg-white" id="component" name="component">
-                    @foreach(\App\Support\AcademicPreview::config($course['id'])['components'] as $component)
-                        <option value="{{ $component['code'] }}">{{ $component['name'] }} (Bobot {{ $component['weight'] }}%)</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div data-question-pagination-header class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line/60 bg-white p-3 shadow-2xs">
-                <div class="flex flex-wrap items-center gap-1.5" data-question-tabs></div>
-                <div class="flex items-center gap-2">
-                    <button type="button" data-prev-question class="button-secondary text-xs py-1.5 px-3 font-semibold">← Sebelumnya</button>
-                    <button type="button" data-next-question class="button-secondary text-xs py-1.5 px-3 font-semibold">Selanjutnya →</button>
+                {{-- Baris Pengaturan: Target Jumlah Soal & Bagi Rata --}}
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/40 pt-3 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-muted font-medium">Target Jumlah Soal:</span>
+                        <input type="number" min="1" max="500" value="" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-target-question-count placeholder="5">
+                        <button type="button" class="button-secondary py-1 px-2.5 text-xs font-semibold" data-apply-question-count>Atur</button>
+                        <button type="button" data-auto-distribute-points class="button-secondary py-1 px-2.5 text-xs font-semibold text-brand hover:text-brand-dark" title="Bagi rata total 100 poin ke seluruh soal">Bagi Rata (100 / n)</button>
+                    </div>
                 </div>
             </div>
 
-            <div data-question-rows class="mt-4"></div>
-
-            <div class="mt-4 border-t border-line/60 pt-4">
-                <p class="text-sm font-semibold" data-question-total>0 soal</p>
+            {{-- Navigasi Tab Soal --}}
+            <div data-question-pagination-header class="flex items-center justify-between gap-3 rounded-xl border border-line/70 bg-white px-3 py-2 shadow-2xs">
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 max-w-full min-w-0 flex-1" data-question-tabs></div>
+                <div class="flex items-center gap-1.5 shrink-0 pl-2 border-l border-line/60">
+                    <button type="button" data-prev-question class="button-secondary text-xs py-1 px-2.5 font-medium">Sebelumnya</button>
+                    <button type="button" data-next-question class="button-secondary text-xs py-1 px-2.5 font-medium">Selanjutnya</button>
+                </div>
             </div>
-            <p class="mt-2 text-xs text-muted">Maksimal 30 soal. Nilai tiap CPMK selalu 100 dan dibagi rata berdasarkan jumlah soal pada CPMK tersebut; kontribusi CPMK mengikuti proporsi jumlah soalnya.</p>
+
+            <div data-question-empty-state class="rounded-xl border border-dashed border-line/80 bg-slate-50/50 p-8 text-center text-xs text-muted" hidden>
+                <p class="font-medium text-ink">Belum ada butir soal yang disusun.</p>
+                <p class="mt-1 text-slate-500">Klik tombol <strong>+ Tambah Soal</strong> atau tentukan target jumlah soal di atas.</p>
+                <div class="mt-3">
+                    <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-question>+ Tambah Soal Pertama</button>
+                </div>
+            </div>
+
+            <div data-question-rows></div>
 
             {{-- Template Baris Soal --}}
             <template data-question-template>
                 <section data-question-row class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4">
-                    {{-- Header soal mengikuti pola branch frontend Brodhii. --}}
-                    <div class="flex items-center justify-between border-b border-line/60 pb-3">
-                        <h3 data-question-number class="text-sm font-bold text-ink">Soal 1</h3>
-                        <button type="button" data-remove-question class="text-xs font-semibold text-danger hover:underline">Hapus soal</button>
+                    {{-- Header soal --}}
+                    <div class="flex items-center justify-between border-b border-line/50 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-700 text-xs font-bold font-mono" data-question-number-badge>1</span>
+                            <h3 data-question-number class="text-sm font-bold text-ink">Soal 1</h3>
+                        </div>
+                        <button type="button" data-remove-question class="text-xs font-medium text-danger hover:underline">Hapus soal</button>
                     </div>
 
-                    {{-- Jenis Soal & Bobot Nilai --}}
-                    <div class="grid gap-3 sm:grid-cols-2">
+                    {{-- Jenis Soal, Poin Soal & CPMK --}}
+                    <div class="grid gap-3 sm:grid-cols-3">
                         <div>
                             <label class="form-label text-xs">Jenis Soal</label>
-                            <select data-q-field="type" class="field text-xs py-2 bg-white">
-                                <option value="uraian">Essay / Uraian Terbuka</option>
+                            <select data-q-field="type" class="field text-xs py-2 bg-white font-medium">
                                 <option value="pilihan">Pilihan Ganda (Satu Jawaban)</option>
                                 <option value="kompleks">Pilihan Ganda Kompleks (Banyak Jawaban)</option>
+                                <option value="uraian">Uraian / Esai</option>
                                 <option value="benar_salah">Benar / Salah</option>
-                                <option value="mencocokkan">Mencocokkan (Premis &amp; Pasangan Jawaban)</option>
-                                <option value="coding">Pemrograman / Coding</option>
+                                <option value="mencocokkan">Menjodohkan</option>
                             </select>
                         </div>
-                        <div class="rounded-lg border border-line/60 bg-slate-50 px-3 py-2.5">
-                            <input data-q-field="points" type="hidden" value="100">
-                            <p class="text-xs font-semibold text-ink">Bobot dihitung otomatis</p>
-                            <p class="mt-0.5 text-[11px] leading-relaxed text-muted">Setiap soal dalam CPMK yang sama mendapat porsi yang setara.</p>
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="form-label text-xs mb-1">Poin Soal</label>
+                                <span data-q-point-share class="text-xs font-mono font-bold text-brand">20 / 100</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input data-q-field="points" type="number" min="1" max="1000" value="20" class="field text-xs py-2 bg-white font-mono font-bold text-ink" placeholder="20" required>
+                                <span class="text-xs text-muted shrink-0">poin</span>
+                            </div>
                         </div>
-                    </div>
-
-                    {{-- Pemetaan CPMK & CPL --}}
-                    <div class="rounded-lg bg-slate-50 p-3 border border-line/40">
-                        <label class="form-label text-xs">Target Capaian Pembelajaran (CPMK &amp; CPL Terkait)</label>
-                        <select data-q-field="cpmk" class="field text-xs py-2 bg-white mt-1">
-                            @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
-                                <option value="{{ $outcome['code'] }}">
-                                    {{ $outcome['code'] }} ({{ $outcome['cpl'] }}) - {{ $outcome['description'] }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <p class="mt-1 text-[11px] text-muted">Bobot nilai soal ini langsung terpetakan ke dalam rekapitulasi CPMK &amp; CPL mahasiswa.</p>
+                        <div>
+                            <label class="form-label text-xs">Target CPMK <span class="text-danger">*</span></label>
+                            <select data-q-field="cpmk" class="field text-xs py-2 bg-white" required>
+                                @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
+                                    <option value="{{ $outcome['code'] }}">
+                                        {{ $outcome['code'] }} ({{ $outcome['cpl'] }}) — {{ $outcome['description'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div data-q-score-mode-container class="sm:col-span-3" hidden>
+                            <label class="form-label text-xs">Mode Penilaian PG Kompleks</label>
+                            <select data-q-field="score_mode" class="field text-xs py-2 bg-white text-xs">
+                                <option value="parsial">Mode Parsial (Proporsional)</option>
+                                <option value="semua_atau_nol">Semua atau Nol (Tepat Sesuai Kunci)</option>
+                            </select>
+                        </div>
                     </div>
 
                     {{-- Pertanyaan / Instruksi Soal --}}
                     <div>
-                        <label class="form-label text-xs">Pertanyaan / Instruksi Soal</label>
-                        <textarea rows="3" data-q-field="prompt" class="field text-xs leading-relaxed" placeholder="Tuliskan pertanyaan, studi kasus, atau instruksi soal di sini..." required></textarea>
+                        <label class="form-label text-xs">Pertanyaan</label>
+                        <textarea rows="3" data-q-field="prompt" class="field text-xs leading-relaxed" placeholder="Tuliskan pertanyaan atau instruksi soal..." required></textarea>
                     </div>
 
                     {{-- Gambar Stimulus / Ilustrasi Soal --}}
@@ -255,23 +310,30 @@
                         <input type="hidden" data-q-field="alt">
                     </div>
 
-                    {{-- Pilihan Ganda & Kompleks (Visual Options + Tambah Pilihan) --}}
+                    {{-- Pilihan Ganda & Kompleks --}}
                     <div data-q-options class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         <div class="flex items-center justify-between">
                             <div>
-                                <span class="form-label text-xs mb-0">Daftar Pilihan Jawaban (A, B, C...)</span>
-                                <p class="text-[11px] text-muted">Tambahkan pilihan jawaban satu per satu dengan mudah.</p>
+                                <span class="form-label text-xs mb-0">Pilihan Jawaban (A, B, C...)</span>
+                                <p class="text-[11px] text-muted" data-q-options-hint>Tandai kunci jawaban yang benar.</p>
                             </div>
                             <button type="button" data-add-choice-btn class="button-secondary text-xs py-1.5 px-3 font-semibold">+ Tambah Pilihan</button>
                         </div>
                         <div data-choice-list class="space-y-2"></div>
                         <textarea data-q-field="options" hidden></textarea>
+                        <input type="hidden" data-q-field="correct_answer">
+                    </div>
+
+                    {{-- Uraian / Esai --}}
+                    <div data-q-essay class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-2" hidden>
+                        <label class="form-label text-xs mb-0">Pedoman Kunci Jawaban / Rubrik Singkat (Opsional)</label>
+                        <p class="text-[11px] text-muted">Tuliskan kata kunci atau kriteria jawaban yang diharapkan sebagai acuan penilaian.</p>
+                        <textarea rows="2" data-q-field="essay_guide" class="field text-xs leading-relaxed bg-white" placeholder="Contoh: Menjelaskan 3 fungsi utama, rumus kompleksitas O(n)..."></textarea>
                     </div>
 
                     {{-- Benar / Salah --}}
                     <div data-q-boolean class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 text-xs space-y-2" hidden>
-                        <span class="form-label text-xs">Pilihan Jawaban</span>
-                        <p class="text-[11px] text-muted">Pilihan otomatis tersedia untuk mahasiswa.</p>
+                        <span class="form-label text-xs">Pilihan Jawaban (Kunci Jawaban Benar)</span>
                         <div class="flex items-center gap-6 pt-1">
                             <label class="flex items-center gap-2 cursor-pointer font-medium text-ink">
                                 <input type="radio" data-q-field="boolean_answer" value="Benar" checked class="text-brand">
@@ -284,32 +346,38 @@
                         </div>
                     </div>
 
-                    {{-- Mencocokkan / Menjodohkan (Visual Pairs + Format Selector) --}}
+                    {{-- Mencocokkan / Menjodohkan --}}
                     <div data-q-matching class="rounded-lg border border-line/50 bg-canvas/30 p-3.5 space-y-3" hidden>
                         {{-- Mode Selector Pasangan --}}
-                        <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-white border border-line/40 text-xs">
-                            <div class="flex flex-wrap items-center gap-4">
-                                <span class="font-semibold text-ink">Format Pasangan:</span>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
+                        <div class="p-3 rounded-lg bg-white border border-line/40 space-y-2 text-xs">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-semibold text-slate-800">Format Pasangan Menjodohkan:</span>
+                                <span class="text-[11px] text-muted" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
                                     <input type="radio" data-pair-mode value="text" checked class="text-brand">
                                     <span>Teks ↔ Teks</span>
                                 </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
-                                    <input type="radio" data-pair-mode value="image" class="text-brand">
+                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                                    <input type="radio" data-pair-mode value="image_text" class="text-brand">
                                     <span>Gambar ↔ Teks</span>
                                 </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-ink">
+                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                                    <input type="radio" data-pair-mode value="text_image" class="text-brand">
+                                    <span>Teks ↔ Gambar</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
                                     <input type="radio" data-pair-mode value="image_image" class="text-brand">
                                     <span>Gambar ↔ Gambar</span>
                                 </label>
                             </div>
-                            <span class="text-[11px] text-muted" data-pair-mode-hint>Ketik istilah di kiri dan penjelasan di kanan</span>
                         </div>
 
                         <div class="flex items-center justify-between pt-1">
                             <div>
                                 <span class="form-label text-xs mb-0">Daftar Pasangan Menjodohkan</span>
-                                <p class="text-[11px] text-muted" data-pair-instruction>Isi item premis di sebelah kiri dan pasangan jawaban di sebelah kanan.</p>
+                                <p class="text-[11px] text-muted" data-pair-instruction>Kunci Jawaban: Baris premis di kiri secara otomatis berpasangan dengan jawaban di kanan.</p>
                             </div>
                             <button type="button" data-add-pair-btn class="button-secondary text-xs py-1.5 px-3 font-semibold">+ Tambah Pasangan</button>
                         </div>
@@ -413,12 +481,14 @@
 
         <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', \App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK') }}">
 
-        <div class="flex flex-wrap justify-between gap-3 pt-5">
+        <div data-form-error class="hidden text-xs text-danger font-medium border-t border-line/60 pt-3"></div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-5">
             <a class="button-secondary" href="{{ route('dosen.course.show', $course['id']) }}">Batal</a>
             <div class="flex items-center gap-2">
                 <button type="button" class="button-secondary" data-back-to-setup hidden>← Kembali</button>
                 <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal →</button>
-                <button class="button-primary" data-submit-content>Tambahkan ke course</button>
+                <button type="submit" class="button-primary" data-submit-content>Tambahkan ke course</button>
             </div>
         </div>
     </form>

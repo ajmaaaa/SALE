@@ -6,6 +6,12 @@ use Tests\TestCase;
 
 class CodingWebPreviewTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_web_coding_assignment_renders_preview_tab_and_iframe(): void
     {
         session(['auth_user' => ['id' => 2, 'name' => 'Dr. Budi Santoso', 'role' => 'dosen']]);

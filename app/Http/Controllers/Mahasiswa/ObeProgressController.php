@@ -17,7 +17,7 @@ class ObeProgressController extends Controller
     public function __construct(private ObeCalculationService $obe) {}
 
     /**
-     * Halaman Capaian CPMK & CPL Mandiri Mahasiswa (Step 18 & 19).
+     * Halaman capaian CPMK dan CPL mahasiswa.
      */
     public function index(Request $request): View
     {
@@ -33,8 +33,9 @@ class ObeProgressController extends Controller
             $cpmks = Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->get();
             $cpmkScores = $this->obe->cpmkScoresFor($cpmks, $student->id);
 
-            $cpmkDetails = $cpmks->map(function ($cpmk) use ($cpmkScores, $student) {
+            $cpmkDetails = $cpmks->map(function ($cpmk) use ($cpmkScores) {
                 $score = $cpmkScores[$cpmk->id];
+
                 return [
                     'cpmk' => $cpmk,
                     'score' => $score,

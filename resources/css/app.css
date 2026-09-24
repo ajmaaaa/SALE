@@ -131,11 +131,13 @@
 @layer base {
     html {
         color-scheme: light;
+        overscroll-behavior-y: none;
     }
 
     body {
         background: var(--color-canvas);
         color: var(--color-ink);
+        overscroll-behavior-y: none;
     }
 
     button,

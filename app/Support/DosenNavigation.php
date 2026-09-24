@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\ClassSection;
+use App\Models\Role;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Illuminate\Support\Facades\Schema;
@@ -28,7 +29,7 @@ class DosenNavigation
                 ->first();
         }
 
-        if (! $dosen?->hasRole(\App\Models\Role::DOSEN)) {
+        if (! $dosen?->hasRole(Role::DOSEN)) {
             return 0;
         }
 

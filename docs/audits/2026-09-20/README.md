@@ -20,7 +20,7 @@ konfigurasi server/TLS/backup, scan seluruh riwayat Git untuk secret, dan evalua
 Gemini langsung belum dilakukan. Tidak ada klaim bebas kerentanan.
 
 P0 = blocker penggunaan data nyata; P1 = integritas/akses penting; P2 = konsistensi dan
-pemeliharaan. **Teruji** berarti direproduksi di SQLite memory menggunakan
+pemeliharaan. **Teruji** berarti direproduksi di database pengujian terisolasi menggunakan
 [AuditReproductionTest.php](evidence/AuditReproductionTest.php); test yang lulus
 justru membuktikan perilaku bermasalah masih ada. **Statis** berarti bukti source,
 belum reproduksi browser atau eksploitasi eksternal.
@@ -108,7 +108,7 @@ Prioritaskan sumber data dan policy tunggal; reorganisasi folder mengikuti keput
 | Temuan tambahan (audit komprehensif) | F15–F18, S10–S14, M08–M09 ditambahkan: dosen ujian CBT tanpa fitur edit soal, isolasi file lintas sesi (404), route admin/penilaian tanpa auth, kaprodi autologin, cascade delete CPL. |
 
 Untuk mengulangi PoC: `vendor/bin/phpunit -c phpunit.xml docs/audits/2026-09-20/evidence/AuditReproductionTest.php --testdox`.
-Gunakan environment testing SQLite memory, bukan database institusi. Setelah perbaikan,
+Gunakan database MySQL testing terisolasi, bukan database institusi. Setelah perbaikan,
 ubah ekspektasi PoC menjadi perilaku aman dan pindahkan ke suite regresi normal.
 
 ## Urutan pekerjaan

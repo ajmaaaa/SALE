@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
-use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\User;
@@ -20,7 +19,7 @@ class KaprodiMonitoringController extends Controller
     public function __construct(private ObeCalculationService $obe) {}
 
     /**
-     * Dashboard Monitoring Capaian CPMK Tingkat Prodi (Step 18 & Step 20).
+     * Dashboard monitoring capaian CPMK tingkat prodi.
      */
     public function cpmk(Request $request): View
     {
@@ -41,7 +40,7 @@ class KaprodiMonitoringController extends Controller
             foreach ($cpmks as $cpmk) {
                 $scores = $students->map(fn ($s) => $this->obe->cpmkScore($cpmk, $s->id))->filter(fn ($s) => $s !== null);
                 $gradedCount = $scores->count();
-                $achievedCount = $scores->filter(fn ($s) => $s >= (float)$cpmk->threshold)->count();
+                $achievedCount = $scores->filter(fn ($s) => $s >= (float) $cpmk->threshold)->count();
                 $avgScore = $gradedCount > 0 ? round($scores->average(), 1) : null;
                 $percentAchieved = $gradedCount > 0 ? round(($achievedCount / $gradedCount) * 100, 1) : 0;
 
@@ -64,7 +63,7 @@ class KaprodiMonitoringController extends Controller
     }
 
     /**
-     * Dashboard Monitoring Capaian CPL Tingkat Prodi (Step 19 & Step 20).
+     * Dashboard monitoring capaian CPL tingkat prodi.
      */
     public function cpl(Request $request): View
     {
@@ -109,15 +108,21 @@ class KaprodiMonitoringController extends Controller
     {
         $user = Auth::guard('web')->user();
 
-        if (! $user && is_array(session('auth_user'))) {
+        if (! $user
+            && config('app.demo_mode')
+            && app()->environment(['local', 'testing'])
+            && is_array(session('auth_user'))) {
             $sessionUser = session('auth_user');
             $user = User::where('email', $sessionUser['email'] ?? '')
                 ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
                 ->first();
         }
 
-        $isKaprodi = ($user && $user->role && $user->role->name === Role::KAPRODI)
-            || (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === Role::KAPRODI);
+        $isDemoKaprodi = config('app.demo_mode')
+            && app()->environment(['local', 'testing'])
+            && is_array(session('auth_user'))
+            && (session('auth_user')['role'] ?? '') === Role::KAPRODI;
+        $isKaprodi = ($user && $user->role && $user->role->name === Role::KAPRODI) || $isDemoKaprodi;
 
         abort_unless($isKaprodi, 403, 'Akses khusus Kaprodi (Monitoring & Evaluasi OBE).');
     }

@@ -97,7 +97,7 @@
 <p>Gemini langsung belum dilakukan. Tidak ada klaim bebas kerentanan.</p>
 
 <p>P0 = blocker penggunaan data nyata; P1 = integritas/akses penting; P2 = konsistensi dan</p>
-<p>pemeliharaan. <strong>Teruji</strong> berarti direproduksi di SQLite memory menggunakan</p>
+<p>pemeliharaan. <strong>Teruji</strong> berarti direproduksi di database pengujian terisolasi menggunakan</p>
 <p>AuditReproductionTest.php; test yang lulus</p>
 <p>justru membuktikan perilaku bermasalah masih ada. <strong>Statis</strong> berarti bukti source,</p>
 <p>belum reproduksi browser atau eksploitasi eksternal.</p>
@@ -401,7 +401,7 @@
 </table>
 
 <p>Untuk mengulangi PoC: <code>vendor/bin/phpunit -c phpunit.xml docs/audits/2026-09-20/evidence/AuditReproductionTest.php --testdox</code>.</p>
-<p>Gunakan environment testing SQLite memory, bukan database institusi. Setelah perbaikan,</p>
+<p>Gunakan database MySQL testing terisolasi, bukan database institusi. Setelah perbaikan,</p>
 <p>ubah ekspektasi PoC menjadi perilaku aman dan pindahkan ke suite regresi normal.</p>
 
 <h2>Urutan pekerjaan</h2>

@@ -52,10 +52,9 @@
             </div>
         @endif
 
-        <!-- Card Rincian Kelas -->
-        <div class="rounded-xl border border-line bg-canvas/40 p-5 text-left space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-line">
-                <span class="px-2 py-0.5 rounded bg-brand text-white font-mono font-bold text-xs">{{ $section->display_code }}</span>
+        <div class="border-t border-b border-line/60 py-5 text-left space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-line/40">
+                <span class="px-2.5 py-1 rounded bg-brand text-white font-mono font-bold text-xs">{{ $section->display_code }}</span>
                 <span class="text-xs text-muted">{{ $section->semester->name ?? 'Semester Aktif' }}</span>
             </div>
 
@@ -77,12 +76,21 @@
         </div>
 
         <div class="flex justify-center gap-3 pt-2">
-            <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
-                Ke Dashboard Utama
-            </a>
-            <a href="{{ route('mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
-                Buka Course Saya
-            </a>
+            @if($isDosen ?? false)
+                <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs px-5 py-2.5">
+                    Daftar Kelas Saya
+                </a>
+                <a href="{{ route('dosen.course.index') }}" class="button-primary text-xs px-5 py-2.5">
+                    Buka Course Saya
+                </a>
+            @else
+                <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
+                    Ke Dashboard Utama
+                </a>
+                <a href="{{ route('mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
+                    Buka Course Saya
+                </a>
+            @endif
         </div>
     </div>
 </div>

@@ -53,7 +53,11 @@ class UserProdiController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $roleType = $request->input('role_type', 'mahasiswa');
+        $request->validate([
+            'role_type' => ['required', Rule::in(['dosen', 'mahasiswa'])],
+        ]);
+
+        $roleType = $request->input('role_type');
         $roleName = $roleType === 'dosen' ? Role::DOSEN : Role::MAHASISWA;
         $role = Role::where('name', $roleName)->firstOrFail();
 
@@ -64,7 +68,7 @@ class UserProdiController extends Controller
             'email' => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
             'nim_nidn' => ['required', 'string', 'max:30', 'unique:users,nim_nidn'],
             'prodi_id' => ['required', 'exists:prodis,id'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', 'min:6', 'max:255'],
         ], [
             'nim_nidn.required' => "{$idLabel} wajib diisi.",
             'nim_nidn.unique' => "{$idLabel} sudah terdaftar.",
@@ -91,6 +95,7 @@ class UserProdiController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        $this->assertManageableUser($user);
         $roleType = $user->hasRole(Role::DOSEN) ? 'dosen' : 'mahasiswa';
         $idLabel = $roleType === 'dosen' ? 'NIDN / NIP' : 'NIM';
 
@@ -99,7 +104,7 @@ class UserProdiController extends Controller
             'email' => ['required', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
             'nim_nidn' => ['required', 'string', 'max:30', Rule::unique('users', 'nim_nidn')->ignore($user->id)],
             'prodi_id' => ['required', 'exists:prodis,id'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', 'min:6', 'max:255'],
         ], [
             'nim_nidn.unique' => "{$idLabel} sudah terdaftar.",
             'email.unique' => 'Email sudah terdaftar.',
@@ -124,6 +129,7 @@ class UserProdiController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
+        $this->assertManageableUser($user);
         $roleType = $user->hasRole(Role::DOSEN) ? 'dosen' : 'mahasiswa';
         $name = $user->name;
         $prodiId = $user->prodi_id;
@@ -147,16 +153,16 @@ class UserProdiController extends Controller
 
         return response()->streamDownload(function () use ($type) {
             $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF"); // UTF-8 BOM
+            fwrite($file, "\xEF\xBB\xBF"); // UTF-8 BOM
 
             if ($type === 'dosen') {
                 fputcsv($file, ['NIDN_NIP', 'Nama Lengkap', 'Email Institusi', 'Password']);
-                fputcsv($file, ['198502022010121002', 'Dr. Hendra Wijaya, M.Kom.', 'hendra@example.test', 'password123']);
-                fputcsv($file, ['199003032015042001', 'Nurul Hidayah, S.Kom., M.T.', 'nurul@example.test', 'password123']);
+                fputcsv($file, ['198502022010121002', 'Dr. Hendra Wijaya, M.Kom.', 'hendra@example.test', '']);
+                fputcsv($file, ['199003032015042001', 'Nurul Hidayah, S.Kom., M.T.', 'nurul@example.test', '']);
             } else {
                 fputcsv($file, ['NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Password']);
-                fputcsv($file, ['231011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', 'password123']);
-                fputcsv($file, ['231011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', 'password123']);
+                fputcsv($file, ['231011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', '']);
+                fputcsv($file, ['231011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', '']);
             }
 
             fclose($file);
@@ -211,21 +217,31 @@ class UserProdiController extends Controller
                 $idNum = isset($cols[0]) ? trim($cols[0], "'\" \t\n\r\0\x0B") : '';
                 $name = isset($cols[1]) ? trim($cols[1], "'\" \t\n\r\0\x0B") : '';
                 $email = isset($cols[2]) ? trim($cols[2], "'\" \t\n\r\0\x0B") : '';
-                $pass = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : 'password123';
+                $pass = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : null;
 
                 if ($idNum === '' || $name === '' || $email === '') {
                     $skippedCount++;
                     $errors[] = "Baris {$rowNum}: Kolom nomor identitas, nama, atau email tidak boleh kosong.";
+
                     continue;
                 }
 
                 if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $skippedCount++;
                     $errors[] = "Baris {$rowNum}: Format email '{$email}' tidak valid.";
+
                     continue;
                 }
 
-                // Cek duplikasi di DB
+                if ($pass !== null && strlen($pass) < 6) {
+                    $skippedCount++;
+                    $errors[] = "Baris {$rowNum}: Password harus minimal 6 karakter jika diisi.";
+
+                    continue;
+                }
+
+                $pass ??= 'password123';
+
                 $exists = User::where('email', strtolower($email))
                     ->orWhere('nim_nidn', $idNum)
                     ->exists();
@@ -233,6 +249,7 @@ class UserProdiController extends Controller
                 if ($exists) {
                     $skippedCount++;
                     $errors[] = "Baris {$rowNum}: Nomor '{$idNum}' atau email '{$email}' sudah terdaftar dalam sistem.";
+
                     continue;
                 }
 
@@ -259,5 +276,14 @@ class UserProdiController extends Controller
         return redirect()->route('admin-prodi.users.index', ['prodi_id' => $prodiId, 'tab' => $roleType])
             ->with('notice', $msg)
             ->with('import_errors', $errors);
+    }
+
+    private function assertManageableUser(User $user): void
+    {
+        abort_unless(
+            $user->hasRole(Role::DOSEN) || $user->hasRole(Role::MAHASISWA),
+            404,
+            'Pengguna tidak termasuk lingkup pengelolaan Admin Program Studi.'
+        );
     }
 }

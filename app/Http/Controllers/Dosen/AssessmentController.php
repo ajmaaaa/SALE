@@ -59,8 +59,8 @@ class AssessmentController extends Controller
         $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
         $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
         $statusMsg = abs($newTotal - 100.0) < 0.01
-            ? "Total bobot kelas telah lengkap (100%)."
-            : "Total bobot kelas saat ini {$totalFormatted}% (sisa " . rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.') . "% belum dialokasikan).";
+            ? 'Total bobot kelas telah lengkap (100%).'
+            : "Total bobot kelas saat ini {$totalFormatted}% (sisa ".rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.').'% belum dialokasikan).';
 
         return redirect()->route('dosen.penilaian.asesmen', $section->id)
             ->with('notice', "Asesmen \"{$data['name']}\" berhasil dibuat. {$statusMsg}");
@@ -114,8 +114,8 @@ class AssessmentController extends Controller
         $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
         $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
         $statusMsg = abs($newTotal - 100.0) < 0.01
-            ? "Total bobot kelas telah lengkap (100%)."
-            : "Total bobot kelas saat ini {$totalFormatted}% (sisa " . rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.') . "% belum dialokasikan).";
+            ? 'Total bobot kelas telah lengkap (100%).'
+            : "Total bobot kelas saat ini {$totalFormatted}% (sisa ".rtrim(rtrim(number_format(100 - $newTotal, 2), '0'), '.').'% belum dialokasikan).';
 
         return redirect()->route('dosen.penilaian.asesmen', $section->id)
             ->with('notice', "Asesmen \"{$data['name']}\" berhasil diperbarui. {$statusMsg}");
@@ -231,8 +231,8 @@ class AssessmentController extends Controller
      * for CPMK contribution on an assessment.
      *
      * @return array<int, float>|RedirectResponse Either the validated
-     *  [cpmk_id => weight] map, or a redirect back with errors — the
-     *  caller must check with is_array()/instanceof before proceeding.
+     *                                            [cpmk_id => weight] map, or a redirect back with errors — the
+     *                                            caller must check with is_array()/instanceof before proceeding.
      */
     private function validatedCpmkWeights(Request $request): array|RedirectResponse
     {

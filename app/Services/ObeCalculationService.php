@@ -6,6 +6,8 @@ use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
+use App\Models\Rubric;
+use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
 use App\Models\StudentRubricScore;
 use Illuminate\Support\Collection;
@@ -48,7 +50,7 @@ class ObeCalculationService
     /**
      * Hitung nilai rubrik untuk satu mahasiswa dari kriteria rubrik.
      */
-    public function rubricScore(\App\Models\Rubric $rubric, int $studentId): ?float
+    public function rubricScore(Rubric $rubric, int $studentId): ?float
     {
         $criteria = $rubric->criteria;
 
@@ -161,7 +163,7 @@ class ObeCalculationService
     public function studentScoreForAssessmentCpmk(Assessment $assessment, Cpmk $cpmk, int $studentId): ?float
     {
         // 1. Cek nilai spesifik per-CPMK untuk mahasiswa ini jika ada
-        $cpmkScoreRow = \App\Models\StudentAssessmentCpmkScore::query()
+        $cpmkScoreRow = StudentAssessmentCpmkScore::query()
             ->where('assessment_id', $assessment->id)
             ->where('cpmk_id', $cpmk->id)
             ->where('mahasiswa_id', $studentId)
@@ -184,7 +186,7 @@ class ObeCalculationService
         // 2. Jika baris spesifik per-CPMK belum ada:
         // Jika mahasiswa ini sudah dinilai pada CPMK lain dalam asesmen multi-CPMK ini,
         // maka CPMK ini murni belum dinilai (harus tetap null, jangan fallback ke nilai umum asesmen!).
-        $hasOtherCpmkGraded = \App\Models\StudentAssessmentCpmkScore::query()
+        $hasOtherCpmkGraded = StudentAssessmentCpmkScore::query()
             ->where('assessment_id', $assessment->id)
             ->where('mahasiswa_id', $studentId)
             ->whereNotNull('score')
@@ -456,7 +458,7 @@ class ObeCalculationService
             // mahasiswa ini adalah poin kontribusi yang valid (0 <= score <= maxScore, bukan 0-100).
             if ($score === null && $assessment->cpmks()->exists()) {
                 $cpmks = $assessment->relationLoaded('cpmks') ? $assessment->cpmks : $assessment->cpmks()->get();
-                $cpmkScores = \App\Models\StudentAssessmentCpmkScore::query()
+                $cpmkScores = StudentAssessmentCpmkScore::query()
                     ->where('assessment_id', $assessment->id)
                     ->where('mahasiswa_id', $studentId)
                     ->get()
@@ -517,7 +519,7 @@ class ObeCalculationService
     /**
      * Map total bobot seluruh CPMK pada satu kelas [cpmk_id => bobot].
      *
-     * @param Collection<int, Cpmk> $cpmks
+     * @param  Collection<int, Cpmk>  $cpmks
      * @return Collection<int, float>
      */
     public function cpmkWeightsFor(Collection $cpmks, ClassSection $section): Collection
@@ -642,7 +644,7 @@ class ObeCalculationService
      *  RataRata_CPMK(k, kelas) = Σ NCPMK(k, mhs) / Jumlah_mahasiswa
      *  %Mahasiswa_Tuntas(k, kelas) = Jumlah(mhs dengan NCPMK ≥ ambang_batas) / Jumlah_mahasiswa × 100
      *
-     * @param Collection<int, int> $studentIds
+     * @param  Collection<int, int>  $studentIds
      * @return array{graded_count: int, total_count: int, average: ?float, threshold: float, pass_count: int, pass_rate: ?float, is_achieved: ?bool, attainment_status: ?string, predicate: ?string}
      */
     public function cpmkClassAggregate(Cpmk $cpmk, Collection $studentIds, ?int $classSectionId = null): array
@@ -696,7 +698,7 @@ class ObeCalculationService
      *  RataRata_CPL(m, kelas) = Σ NCPL(m, mhs) / Jumlah_mahasiswa
      *  %Mahasiswa_Tuntas = Jumlah(mhs dengan NCPL ≥ ambang_batas) / Jumlah_mahasiswa × 100
      *
-     * @param Collection<int, int> $studentIds
+     * @param  Collection<int, int>  $studentIds
      * @return array{graded_count: int, total_count: int, average: ?float, threshold: float, pass_count: int, pass_rate: ?float, is_achieved: ?bool, attainment_status: ?string, predicate: ?string}
      */
     public function cplClassAggregate(Cpl $cpl, Collection $studentIds, ?int $classSectionId = null): array

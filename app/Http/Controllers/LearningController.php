@@ -2,7 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\CourseDiscussion;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
+use App\Models\Role;
+use App\Models\Semester;
+use App\Models\StudentAssessmentScore;
+use App\Models\User;
+use App\Support\AcademicPreview;
 use App\Support\LearningPreview as Learning;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -15,52 +26,70 @@ class LearningController extends Controller
     public function courses(Request $request)
     {
         $q = mb_strtolower((string) $request->query('q', ''));
-        $courses = array_filter(Learning::courses(), fn ($course) => str_contains(mb_strtolower($course['title'].' '.$course['code'].' '.$course['lecturer']), $q));
+        $previewCourses = array_filter(Learning::courses(), fn ($course) => str_contains(mb_strtolower($course['title'].' '.$course['code'].' '.$course['lecturer']), $q));
 
         $user = auth()->user();
-        if (! $user && is_array(session('auth_user'))) {
+        if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
             $sessionUser = session('auth_user');
-            $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
+            $user = User::where('email', $sessionUser['email'] ?? '')
                 ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
                 ->first();
         }
 
-        if ($user && $user->hasRole(\App\Models\Role::MAHASISWA)) {
-            $enrolledSections = $user->classSectionsEnrolled()
+        $isDosen = $user?->hasRole(Role::DOSEN) ?? request()->is('dosen*');
+        $sections = collect();
+
+        if ($user && Schema::hasTable('class_sections')) {
+            $query = $isDosen
+                ? ClassSection::query()->where(function ($builder) use ($user) {
+                    $builder->where('dosen_id', $user->id)
+                        ->orWhere('dosen_pendamping_id', $user->id);
+                })
+                : $user->classSectionsEnrolled();
+
+            $sections = $query
                 ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
                 ->withCount(['students', 'assessments'])
                 ->when($q !== '', function ($query) use ($q) {
-                    $query->whereHas('mataKuliah', fn ($m) => $m->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"));
+                    $query->whereHas('mataKuliah', function ($mataKuliah) use ($q) {
+                        $mataKuliah->whereRaw('LOWER(name) LIKE ?', ["%{$q}%"])
+                            ->orWhereRaw('LOWER(code) LIKE ?', ["%{$q}%"]);
+                    });
                 })
+                ->orderByDesc('semester_id')
+                ->orderBy('mata_kuliah_id')
+                ->orderBy('section_code')
                 ->get();
+        }
 
-            foreach ($enrolledSections as $sec) {
-                $alreadyIncluded = collect($courses)->contains(function ($card) use ($sec) {
-                    return ($card['title'] ?? '') === $sec->mataKuliah->name || ($card['code'] ?? '') === $sec->display_code;
-                });
-
-                if (! $alreadyIncluded) {
-                    $courses[] = [
-                        'id' => $sec->id,
-                        'code' => $sec->display_code,
-                        'sks' => $sec->mataKuliah->sks . ' SKS',
-                        'title' => $sec->mataKuliah->name,
-                        'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
-                        'dosen_ketua' => $sec->dosen?->name ?? 'Dosen Pengampu',
-                        'dosen_wakil' => $sec->dosenPendamping?->name ?? null,
-                        'cover' => null,
-                        'type' => 'Kelas Aktif',
-                        'work' => 'Perkuliahan semester ' . ($sec->semester->name ?? 'aktif'),
-                        'due' => '',
-                        'students_count' => $sec->students_count,
-                        'assessments_count' => $sec->assessments_count,
-                        'enrollment_code' => $sec->enrollment_code,
-                        'enrollment_url' => $sec->enrollment_url,
-                        'qr_url' => route('kelas.qr', $sec->id),
-                        'svg_index' => ($sec->id % 4) + 1,
-                    ];
+        if ($user) {
+            $courses = $sections->map(function ($section) {
+                if (! $section->enrollment_code) {
+                    $section->update(['enrollment_code' => ClassSection::generateUniqueEnrollmentCode()]);
                 }
-            }
+
+                return [
+                    'id' => $section->id,
+                    'code' => $section->display_code,
+                    'sks' => ($section->mataKuliah->sks ?? 0).' SKS',
+                    'title' => $section->mataKuliah->name,
+                    'lecturer' => $section->dosen?->name ?? 'Belum ditetapkan',
+                    'dosen_ketua' => $section->dosen?->name ?? 'Belum ditetapkan',
+                    'dosen_wakil' => $section->dosenPendamping?->name,
+                    'cover' => null,
+                    'type' => 'Kelas Aktif',
+                    'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),
+                    'due' => '',
+                    'students_count' => $section->students_count,
+                    'assessments_count' => $section->assessments_count,
+                    'enrollment_code' => $section->enrollment_code,
+                    'enrollment_url' => $section->enrollment_url,
+                    'qr_url' => route('kelas.qr', $section->id),
+                    'svg_index' => ($section->id % 4) + 1,
+                ];
+            })->all();
+        } else {
+            $courses = $previewCourses;
         }
 
         return view('learning.courses', compact('courses'));
@@ -68,6 +97,45 @@ class LearningController extends Controller
 
     public function course(int $course)
     {
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+            if ($user) {
+                auth()->login($user);
+            }
+        }
+
+        $section = Schema::hasTable('class_sections')
+            ? ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'assessments'])->find($course)
+            : null;
+
+        if ($section && $user) {
+            $canAccess = $user->hasRole(Role::DOSEN)
+                ? (in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true) || empty($section->dosen_id))
+                : ($user->hasRole(Role::MAHASISWA)
+                    && $section->students()->where('users.id', $user->id)->exists());
+
+            if ($canAccess) {
+                if ($user->hasRole(Role::DOSEN) && empty($section->dosen_id)) {
+                    $section->update(['dosen_id' => $user->id]);
+                }
+
+                $courseData = Learning::databaseCourse($section);
+                $items = $section->assessments
+                    ->mapWithKeys(fn ($assessment) => [$assessment->id => Learning::databaseAssessment($assessment)])
+                    ->all();
+
+                session(["learning.discussion_reads.$course" => count(Learning::courseDiscussions($course))]);
+
+                return view('learning.course', ['course' => $courseData, 'items' => $items, 'classSection' => $section]);
+            }
+
+            abort(403, 'Anda tidak terdaftar pada kelas ini.');
+        }
+
         $courseData = Learning::course($course);
         session(["learning.discussion_reads.$course" => count(Learning::courseDiscussions($course))]);
 
@@ -76,24 +144,61 @@ class LearningController extends Controller
 
     public function item(int $course, int $item)
     {
+        $user = auth()->user();
+        if ($user && Schema::hasTable('class_sections')) {
+            $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->find($course);
+            $canAccess = $section && ($user->hasRole(Role::DOSEN)
+                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                : ($user->hasRole(Role::MAHASISWA)
+                    && $section->students()->where('users.id', $user->id)->exists()));
+
+            if ($canAccess) {
+                $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
+
+                return view('learning.item', [
+                    'course' => Learning::databaseCourse($section),
+                    'item' => Learning::databaseAssessment($assessment),
+                ]);
+            }
+        }
+
         return view('learning.item', ['course' => Learning::course($course), 'item' => Learning::resource($course, $item)]);
     }
 
     public function quizRoom(int $course, int $item)
     {
-        $isDosen = (session('auth_user.role') === 'dosen') || (auth()->user()?->hasRole(\App\Models\Role::DOSEN));
+        $isDosen = (session('auth_user.role') === 'dosen') || (auth()->user()?->hasRole(Role::DOSEN));
         abort_if($isDosen, 403, 'Akses ditolak: Dosen tidak dapat mengikuti ujian CBT mahasiswa.');
 
-        $resource = Learning::resource($course, $item);
+        $user = auth()->user();
+        $section = $user && Schema::hasTable('class_sections') ? ClassSection::find($course) : null;
+        $assessment = $section ? Assessment::where('class_section_id', $course)->find($item) : null;
+        if ($assessment) {
+            abort_unless(
+                $user->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists(),
+                403
+            );
+            $resource = Learning::databaseAssessment($assessment);
+            $courseData = Learning::databaseCourse($section->loadMissing(['mataKuliah', 'semester', 'dosen', 'dosenPendamping']));
+        } else {
+            $resource = Learning::resource($course, $item);
+            $courseData = Learning::course($course);
+        }
         abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding', 'uts', 'uas']), 404);
 
         $submission = session("learning.submissions.$item", null);
+        $dbScore = $user && Schema::hasTable('student_assessment_scores')
+            ? StudentAssessmentScore::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->whereNotNull('score')->first()
+            : null;
+        $sessionGrade = session("learning.grades.$item") ?? session("academic.item_grades.$item.1");
+        $scoreValue = $dbScore?->score ?? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : $sessionGrade);
 
-        if (!empty($resource['randomize_questions']) && !empty($resource['questions'])) {
+        if (! empty($resource['randomize_questions']) && ! empty($resource['questions'])) {
             $studentId = session('auth_user.id', 1);
             $cacheKey = "learning.quiz_order.{$item}.{$studentId}";
             $order = session($cacheKey);
-            if (!is_array($order) || count($order) !== count($resource['questions'])) {
+            if (! is_array($order) || count($order) !== count($resource['questions'])) {
                 $order = array_keys($resource['questions']);
                 mt_srand($item * 1000 + (int) $studentId);
                 shuffle($order);
@@ -112,29 +217,142 @@ class LearningController extends Controller
         }
 
         return view('learning.quiz-room', [
-            'course' => Learning::course($course),
+            'course' => $courseData,
             'item' => $resource,
             'submission' => $submission,
-            'isCompleted' => !empty($submission),
+            'isCompleted' => ! empty($submission) || $scoreValue !== null,
+            'scoreValue' => $scoreValue,
         ]);
     }
 
     public function assignments(Request $request)
     {
-        $items = array_filter(Learning::items(), function ($item) use ($request) {
-            return in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'])
-                && (! $request->filled('course') || $item['course'] === (int) $request->query('course'))
-                && (! $request->filled('type') || $item['type'] === $request->query('type'))
-                && str_contains(mb_strtolower($item['title']), mb_strtolower((string) $request->query('q', '')));
-        });
-        uasort($items, fn ($a, $b) => strcmp($a['due'] ?? '9999', $b['due'] ?? '9999'));
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+            if ($user) {
+                auth()->login($user);
+            }
+        }
 
-        return view('learning.assignments', ['items' => $items, 'courses' => Learning::courses()]);
+        $courses = [];
+        $items = [];
+        $studentScores = [];
+
+        if ($user && Schema::hasTable('student_assessment_scores')) {
+            $studentScores = StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                ->get()
+                ->keyBy('assessment_id');
+        }
+
+        if ($user && Schema::hasTable('class_sections')) {
+            $isDosen = $user->hasRole(Role::DOSEN);
+            $sections = $isDosen
+                ? ClassSection::where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->with(['mataKuliah', 'dosen'])->get()
+                : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
+
+            foreach ($sections as $sec) {
+                $courses[$sec->id] = [
+                    'id' => $sec->id,
+                    'code' => $sec->display_code,
+                    'title' => $sec->mataKuliah?->name ?? 'Mata Kuliah',
+                    'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                ];
+
+                if (Schema::hasTable('assessments')) {
+                    $assessments = Assessment::where('class_section_id', $sec->id)->get();
+                    foreach ($assessments as $asm) {
+                        $items[$asm->id] = [
+                            'id' => $asm->id,
+                            'course' => $sec->id,
+                            'title' => $asm->name,
+                            'module' => $asm->code,
+                            'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case']) ? ($asm->type === 'pbl' ? 'tugas' : $asm->type) : 'tugas',
+                            'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
+                            'points' => 100,
+                        ];
+                    }
+                }
+
+                $sessionItems = array_filter(Learning::items(), fn ($i) => ($i['course'] ?? null) === $sec->id);
+                foreach ($sessionItems as $sItem) {
+                    if (! isset($items[$sItem['id']])) {
+                        $items[$sItem['id']] = $sItem;
+                    }
+                }
+            }
+        }
+
+        if (empty($courses)) {
+            $courses = Learning::courses();
+        }
+        if (empty($items)) {
+            $items = Learning::items();
+        }
+
+        $filteredItems = array_filter($items, function ($item) use ($request, $studentScores) {
+            $matches = in_array($item['type'] ?? '', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case'])
+                && (! $request->filled('course') || (string) ($item['course'] ?? '') === (string) $request->query('course'))
+                && (! $request->filled('type') || ($item['type'] ?? '') === $request->query('type'))
+                && str_contains(mb_strtolower($item['title'] ?? ''), mb_strtolower((string) $request->query('q', '')));
+
+            if (! $matches) {
+                return false;
+            }
+
+            if ($request->query('tab') === 'nilai') {
+                $assessmentId = $item['id'];
+                $hasDbScore = isset($studentScores[$assessmentId]) && $studentScores[$assessmentId]->score !== null;
+                $hasSessionGrade = session("learning.grades.{$assessmentId}") !== null
+                    || session("academic.item_grades.{$assessmentId}.1") !== null;
+
+                return $hasDbScore || $hasSessionGrade;
+            }
+
+            return true;
+        });
+        uasort($filteredItems, fn ($a, $b) => strcmp($a['due'] ?? '9999', $b['due'] ?? '9999'));
+
+        return view('learning.assignments', [
+            'items' => $filteredItems,
+            'courses' => $courses,
+            'studentScores' => $studentScores,
+        ]);
     }
 
     public function discussions()
     {
-        return view('learning.discussions', ['items' => Learning::items(), 'courses' => Learning::courses()]);
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        $courses = [];
+        if ($user && Schema::hasTable('class_sections')) {
+            $isDosen = $user->hasRole(Role::DOSEN);
+            $sections = $isDosen
+                ? ClassSection::where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->with(['mataKuliah', 'dosen'])->get()
+                : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
+
+            foreach ($sections as $sec) {
+                $courses[$sec->id] = [
+                    'id' => $sec->id,
+                    'code' => $sec->display_code,
+                    'title' => $sec->mataKuliah?->name ?? 'Mata Kuliah',
+                    'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
+                ];
+            }
+        } elseif (! $user) {
+            $courses = Learning::courses();
+        }
+
+        return view('learning.discussions', ['items' => Learning::items(), 'courses' => $courses]);
     }
 
     public function createCourse()
@@ -145,19 +363,89 @@ class LearningController extends Controller
     public function storeCourse(Request $request)
     {
         $data = $request->validate([
-            'title' => 'required|string|max:120', 'code' => 'required|string|max:20',
-            'description' => 'required|string|max:2000', 'lecturer' => 'required|string|max:120',
+            'title' => 'required|string|max:120',
+            'code' => 'required|string|max:20',
+            'description' => 'required|string|max:2000',
+            'lecturer' => 'required|string|max:120',
             'cover' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'video' => 'nullable|url:http,https|max:2000',
+            'video_file' => 'nullable|file|mimes:mp4,webm|max:20480',
         ]);
         $data['video'] ??= null;
-        $courses = Learning::courses();
-        $data['id'] = max(array_keys($courses)) + 1;
+        $data['video_type'] = 'url';
+        if ($request->hasFile('video_file')) {
+            $data['video'] = $this->upload($request->file('video_file'));
+            $data['video_type'] = 'file';
+        }
+        unset($data['video_file']);
         $data['cover'] = $request->hasFile('cover') ? $this->upload($request->file('cover')) : null;
-        $courses[$data['id']] = $data;
+
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        $courseId = null;
+
+        if (Schema::hasTable('class_sections') && Schema::hasTable('mata_kuliahs')) {
+            $prodi = $user?->prodi ?? Prodi::first();
+            if (! $prodi && Schema::hasTable('prodis')) {
+                $prodi = Prodi::firstOrCreate(['code' => 'IF'], ['name' => 'Informatika']);
+            }
+
+            $mataKuliah = MataKuliah::firstOrCreate(
+                ['code' => strtoupper(trim($data['code']))],
+                [
+                    'name' => $data['title'],
+                    'prodi_id' => $prodi?->id,
+                    'sks' => 3,
+                ]
+            );
+
+            $semester = Semester::where('is_active', true)->first();
+            if (! $semester && Schema::hasTable('semesters')) {
+                $semester = Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
+            }
+
+            $existingCount = ClassSection::where('mata_kuliah_id', $mataKuliah->id)
+                ->where('semester_id', $semester?->id)
+                ->count();
+            $sectionCode = chr(65 + $existingCount);
+
+            $section = ClassSection::create([
+                'mata_kuliah_id' => $mataKuliah->id,
+                'semester_id' => $semester?->id,
+                'section_code' => $sectionCode,
+                'dosen_id' => $user?->id,
+                'capacity' => 40,
+                'enrollment_code' => ClassSection::generateUniqueEnrollmentCode(),
+            ]);
+
+            $courseId = $section->id;
+            $data['id'] = $courseId;
+            $data['enrollment_code'] = $section->enrollment_code;
+        }
+
+        $courses = Learning::courses();
+        if (! $courseId) {
+            $courseId = max(array_keys($courses)) + 1;
+            $data['id'] = $courseId;
+        }
+        $courses[$courseId] = $data;
         session(['learning.courses' => $courses]);
 
-        return redirect()->route('dosen.course.show', $data['id'])->with('notice', 'Course ditambahkan ke sesi pratinjau ini.');
+        if (! empty($data['video'])) {
+            session(["learning.course_video.{$courseId}" => [
+                'video' => $data['video'],
+                'video_type' => $data['video_type'] ?? 'url',
+                'video_title' => $data['title'],
+            ]]);
+        }
+
+        return redirect()->route('dosen.course.show', $courseId)->with('notice', 'Course berhasil ditambahkan ke database.');
     }
 
     public function createItem(int $course)
@@ -168,7 +456,7 @@ class LearningController extends Controller
     public function storeItem(Request $request, int $course)
     {
         Learning::course($course);
-        $academic = \App\Support\AcademicPreview::config($course);
+        $academic = AcademicPreview::config($course);
 
         // The lecturer UI exposes one "Tugas" option; programming is chosen as its mode.
         if ($request->input('type') === 'tugas' && $request->filled('task_mode')) {
@@ -205,13 +493,13 @@ class LearningController extends Controller
             'option_images' => 'nullable|array|max:20',
             'option_images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'points' => 'nullable|integer|min:1|max:1000',
-            'component' => ['nullable', Rule::in(array_column($academic['components'],'code'))],
+            'component' => ['nullable', Rule::in(array_column($academic['components'], 'code'))],
             'questions' => 'nullable|array|min:1|max:30',
-            'questions.*.type' => ['required', Rule::in(['uraian','pilihan','kompleks','coding','benar_salah','mencocokkan'])],
+            'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
             'questions.*.prompt' => 'required|string|max:10000',
             'questions.*.points' => 'required|integer|min:1|max:1000',
-            'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'],'code'))],
-            'questions.*.options' => 'nullable|string|max:3000',
+            'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'questions.*.options' => 'nullable|string|max:10000000',
             'questions.*.matching' => 'nullable|array',
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'questions.*.alt' => 'nullable|string|max:300',
@@ -223,7 +511,7 @@ class LearningController extends Controller
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,webp,mp4|max:20480',
             'manual_cpmk_weights' => 'nullable|array',
             'manual_cpmk_weights.*' => 'nullable|numeric|min:0|max:100',
-            'options' => 'nullable|string|max:3000', 'cpmk' => 'required|string|max:1000',
+            'options' => 'nullable|string|max:10000000', 'cpmk' => 'required|string|max:1000',
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
         ]);
@@ -236,6 +524,12 @@ class LearningController extends Controller
         }
 
         $category = $data['type'];
+        if (in_array($category, ['kuis', 'uts', 'uas'], true)
+            && ($request->hasFile('attachments') || $request->filled('link') || $request->boolean('pin_video'))) {
+            return back()->withErrors([
+                'attachments' => 'Kuis, UTS, dan UAS dikerjakan langsung di ruang soal dan tidak menerima lampiran berkas atau tautan pengumpulan.',
+            ])->withInput();
+        }
         $isCodingContent = $category === 'coding' || ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
         $submittedQuestions = ! empty($data['questions']);
 
@@ -281,27 +575,29 @@ class LearningController extends Controller
             abort_unless(ctype_digit((string) $index) && (int) $index < $optionCount && in_array($data['question_type'], ['pilihan', 'kompleks']), 422);
         }
         foreach ($data['questions'] ?? [] as $index => $question) {
-            if (in_array($question['type'], ['pilihan','kompleks'])) {
-                $options = array_values(array_filter(array_map('trim', explode("\n",$question['options'] ?? '')), fn($v)=>$v!==''));
-                if (count($options)<2 || count($options)>20 || count(array_unique($options))!==count($options)) return back()->withErrors(["questions.$index.options"=>'Isi 2–20 pilihan berbeda untuk soal '.($index+1).'.'])->withInput();
+            if (in_array($question['type'], ['pilihan', 'kompleks'])) {
+                $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
+                if (count($options) < 2 || count($options) > 20 || count(array_unique($options)) !== count($options)) {
+                    return back()->withErrors(["questions.$index.options" => 'Isi 2–20 pilihan berbeda untuk soal '.($index + 1).'.'])->withInput();
+                }
             }
         }
-        if (!empty($data['questions'])) {
+        if (! empty($data['questions'])) {
             if (! in_array($category, ['tugas', 'coding', 'kuis', 'uts', 'uas'], true)) {
                 return back()->withErrors(['type' => 'Paket soal campuran hanya dapat digunakan untuk Tugas, Kuis, UTS, dan UAS.'])->withInput();
             }
             foreach ($data['questions'] as $index => &$question) {
-                $question['points'] = 100;
+                $question['points'] = isset($question['points']) ? (int) $question['points'] : 20;
                 $question['image'] = $request->hasFile("questions.$index.image") ? $this->upload($request->file("questions.$index.image")) : null;
                 $question['alt'] = $question['image']
                     ? trim((string) ($question['alt'] ?? '')) ?: Str::limit('Gambar pendukung untuk '.strip_tags($question['prompt']), 300, '')
                     : null;
-                $mapping = collect($academic['cpmk'])->firstWhere('code',$question['cpmk']);
+                $mapping = collect($academic['cpmk'])->firstWhere('code', $question['cpmk']);
                 $question['cpl'] = $mapping['cpl'];
             }
             unset($question);
             $data['questions'] = array_values($data['questions']);
-            $data['points'] = array_sum(array_column($data['questions'],'points'));
+            $data['points'] = array_sum(array_column($data['questions'], 'points'));
             $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas'], true) ? $category : 'tugas';
             $data['scoring_mode'] = 'automatic_cpmk';
         }
@@ -354,12 +650,17 @@ class LearningController extends Controller
             }
 
             $courses = Learning::courses();
-            $courseData = $courses[$course];
+            $courseData = $courses[$course] ?? Learning::course($course);
             $courseData['video'] = $playableLink ? $videoLink : $videoAttachment;
             $courseData['video_type'] = $playableLink ? 'url' : 'file';
             $courseData['video_title'] = $data['title'];
             $courses[$course] = $courseData;
             session(['learning.courses' => $courses]);
+            session(["learning.course_video.{$course}" => [
+                'video' => $courseData['video'],
+                'video_type' => $courseData['video_type'],
+                'video_title' => $courseData['video_title'],
+            ]]);
         }
         $data['points'] = $data['points'] ?? 100;
         $data['allow_late'] = $request->boolean('allow_late', true);
@@ -378,6 +679,42 @@ class LearningController extends Controller
         $items[$data['id']] = $data;
         session(['learning.items' => $items]);
 
+        if (Schema::hasTable('class_sections') && Schema::hasTable('assessments')) {
+            $section = ClassSection::find($course);
+            if ($section && in_array($category, ['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case'], true)) {
+                $assessmentType = ($category === 'coding') ? 'tugas' : $category;
+                $asmCount = Assessment::where('class_section_id', $section->id)->count();
+                $questionImages = collect($data['questions'] ?? [])->pluck('image')->filter();
+                $fileIds = collect($data['attachments'])
+                    ->merge($data['option_images'])
+                    ->merge([$data['question_image']])
+                    ->merge($questionImages)
+                    ->filter()
+                    ->unique();
+                $data['file_meta'] = $fileIds->mapWithKeys(fn ($fileId) => [
+                    $fileId => session("learning.files.$fileId"),
+                ])->filter()->all();
+                $assessment = Assessment::create([
+                    'class_section_id' => $section->id,
+                    'code' => strtoupper($category).'-'.($asmCount + 1),
+                    'name' => $data['title'],
+                    'type' => $assessmentType,
+                    'description' => $data['body'],
+                    'learning_payload' => $data,
+                    'final_weight' => $category === 'materi' ? 0 : 10,
+                    'uses_rubric' => false,
+                    'status' => Assessment::STATUS_PUBLISHED,
+                    'due_at' => ! empty($data['due']) ? Carbon::parse($data['due']) : null,
+                    'allow_late' => $data['allow_late'],
+                ]);
+
+                $cpmk = $section->mataKuliah?->cpmks()->first() ?? Cpmk::first();
+                if ($cpmk) {
+                    $assessment->cpmks()->syncWithoutDetaching([$cpmk->id => ['weight' => 100]]);
+                }
+            }
+        }
+
         if ($data['ai_enabled'] && Schema::hasTable('ai_tasks')) {
             DB::table('ai_tasks')->updateOrInsert(
                 ['id' => $data['id']],
@@ -392,9 +729,8 @@ class LearningController extends Controller
     {
         Learning::course($course);
         $data = $request->validate(['message' => 'required|string|max:3000']);
-        $messages = Learning::courseDiscussions($course);
-
         $user = auth()->user();
+        $this->assertCourseDiscussionAccess($course, $user);
         $sessionUser = session('auth_user');
 
         $author = $user?->name ?? ($sessionUser['name'] ?? 'Ahmad Maulana');
@@ -413,11 +749,9 @@ class LearningController extends Controller
             'date_label' => 'Hari ini',
             'role' => $role,
         ];
-        $messages[] = $newMessage;
-        session([
-            "learning.course_discussions.$course" => $messages,
-            "learning.discussion_reads.$course" => count($messages),
-        ]);
+        $newMessage = $this->persistCourseDiscussion($course, $newMessage, $user);
+        $messages = Learning::courseDiscussions($course);
+        session(["learning.discussion_reads.$course" => count($messages)]);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -434,11 +768,15 @@ class LearningController extends Controller
 
     public function discuss(Request $request, int $course, int $item)
     {
-        Learning::resource($course, $item);
-        $data = $request->validate(['message' => 'required|string|max:3000']);
-        $messages = Learning::courseDiscussions($course);
-
         $user = auth()->user();
+        $hasDatabaseAssessment = $user
+            && Schema::hasTable('assessments')
+            && Assessment::where('class_section_id', $course)->whereKey($item)->exists();
+        if (! $hasDatabaseAssessment) {
+            Learning::resource($course, $item);
+        }
+        $data = $request->validate(['message' => 'required|string|max:3000']);
+        $this->assertCourseDiscussionAccess($course, $user);
         $sessionUser = session('auth_user');
 
         $author = $user?->name ?? ($sessionUser['name'] ?? 'Ahmad Maulana');
@@ -447,7 +785,7 @@ class LearningController extends Controller
             ? 'user:'.$user->getAuthIdentifier()
             : 'preview:'.$role.':'.($sessionUser['id'] ?? $sessionUser['number'] ?? $sessionUser['email'] ?? 1);
 
-        $messages[] = [
+        $newMessage = [
             'author' => $author,
             'sender_key' => $senderKey,
             'message' => $data['message'],
@@ -457,10 +795,9 @@ class LearningController extends Controller
             'date_label' => 'Hari ini',
             'role' => $role,
         ];
-        session([
-            "learning.course_discussions.$course" => $messages,
-            "learning.discussion_reads.$course" => count($messages),
-        ]);
+        $this->persistCourseDiscussion($course, $newMessage, $user);
+        $messages = Learning::courseDiscussions($course);
+        session(["learning.discussion_reads.$course" => count($messages)]);
         session(["learning.discussions.$item" => $messages]);
 
         $redirectRoute = ($role === 'dosen') ? 'dosen.course.show' : 'mahasiswa.course.show';
@@ -468,13 +805,78 @@ class LearningController extends Controller
         return redirect(route($redirectRoute, $course).'#diskusi-kelas');
     }
 
+    private function persistCourseDiscussion(int $course, array $message, ?User $user): array
+    {
+        if (Schema::hasTable('course_discussions') && ClassSection::whereKey($course)->exists()) {
+            $discussion = CourseDiscussion::create([
+                'class_section_id' => $course,
+                'user_id' => $user?->getAuthIdentifier(),
+                'author_name' => $message['author'],
+                'role' => $message['role'],
+                'sender_key' => $message['sender_key'],
+                'message' => $message['message'],
+            ]);
+
+            return [
+                'id' => $discussion->id,
+                'author' => $discussion->author_name,
+                'sender_key' => $discussion->sender_key,
+                'message' => $discussion->message,
+                'time' => $discussion->created_at->format('H:i'),
+                'timestamp' => $discussion->created_at->timestamp,
+                'date_key' => $discussion->created_at->toDateString(),
+                'date_label' => 'Hari ini',
+                'role' => $discussion->role,
+            ];
+        }
+
+        $messages = Learning::courseDiscussions($course);
+        $messages[] = $message;
+        session(["learning.course_discussions.$course" => $messages]);
+
+        return $message;
+    }
+
+    private function assertCourseDiscussionAccess(int $course, ?User $user): void
+    {
+        if (! $user || ! Schema::hasTable('class_sections')) {
+            return;
+        }
+
+        $section = ClassSection::find($course);
+        if (! $section) {
+            return;
+        }
+
+        $canAccess = $user->hasRole(Role::DOSEN)
+            ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+            : ($user->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists());
+
+        abort_unless($canAccess, 403);
+    }
+
     public function submit(Request $request, int $course, int $item)
     {
-        $resource = Learning::resource($course, $item);
-        abort_unless(in_array($resource['type'], ['tugas', 'coding', 'kuis']), 404);
+        $user = auth()->user();
+        $resource = null;
+
+        if ($user && Schema::hasTable('assessments')) {
+            $assessment = Assessment::where('class_section_id', $course)->find($item);
+            if ($assessment) {
+                $isEnrolled = $user->hasRole(Role::MAHASISWA)
+                    && $user->classSectionsEnrolled()->where('class_sections.id', $course)->exists();
+                abort_unless($isEnrolled, 403);
+                $resource = Learning::databaseAssessment($assessment);
+            }
+        }
+
+        $resource ??= Learning::resource($course, $item);
+
+        abort_unless(in_array($resource['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true), 404);
 
         $allowLate = $resource['allow_late'] ?? true;
-        if (! $allowLate && ! empty($resource['due']) && \Carbon\Carbon::parse($resource['due'])->isPast()) {
+        if (! $allowLate && ! empty($resource['due']) && Carbon::parse($resource['due'])->isPast()) {
             return back()->withErrors(['answer' => 'Batas waktu pengumpulan telah berakhir. Pengampu mengunci tugas ini dan tidak menerima pengumpulan terlambat.'])->withInput();
         }
 
@@ -494,7 +896,7 @@ class LearningController extends Controller
         ]);
         $isFromQuizRoom = $request->boolean('from_quiz_room');
 
-        if (!empty($resource['questions'])) {
+        if (! empty($resource['questions'])) {
             $answers = $data['question_answers'] ?? [];
             if (! $isFromQuizRoom && count($answers) !== count($resource['questions'])) {
                 return back()->withErrors(['question_answers' => 'Jawab seluruh soal sebelum mengumpulkan.'])->withInput();
@@ -504,7 +906,7 @@ class LearningController extends Controller
                 if (in_array($question['type'], ['pilihan', 'kompleks'])) {
                     $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
                     $choices = $answer['choices'] ?? [];
-                    if (!empty($choices)) {
+                    if (! empty($choices)) {
                         if (array_diff($choices, $options) || ($question['type'] === 'pilihan' && count($choices) !== 1)) {
                             return back()->withErrors(['question_answers' => 'Periksa pilihan pada soal '.($index + 1).'.'])->withInput();
                         }
@@ -552,11 +954,91 @@ class LearningController extends Controller
         $data['student_number'] = session('auth_user.number');
         session(["learning.submissions.$item" => $data]);
 
+        if (in_array($resource['type'], ['kuis', 'uts', 'uas'], true) || $isFromQuizRoom) {
+            $questions = $resource['questions'] ?? [];
+            if (! empty($questions)) {
+                $earnedPoints = 0;
+                $answers = $data['question_answers'] ?? [];
+                foreach ($questions as $index => $q) {
+                    $ans = $answers[$index] ?? [];
+                    $qType = $q['type'] ?? 'pilihan';
+                    $qPoints = (float) ($q['points'] ?? 25);
+                    $isCorrect = false;
+
+                    if ($qType === 'pilihan') {
+                        $choices = $ans['choices'] ?? [];
+                        $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ''));
+                        if (! empty($correct) && count($choices) === 1 && $choices[0] === $correct) {
+                            $isCorrect = true;
+                        }
+                    } elseif ($qType === 'benar_salah') {
+                        $choice = $ans['boolean_choice'] ?? '';
+                        $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
+                        if (! empty($choice) && $choice === $correct) {
+                            $isCorrect = true;
+                        }
+                    } elseif ($qType === 'kompleks') {
+                        $choices = $ans['choices'] ?? [];
+                        $correct = $q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'];
+                        sort($choices);
+                        $sortedCorrect = $correct;
+                        sort($sortedCorrect);
+                        if ($choices === $sortedCorrect) {
+                            $isCorrect = true;
+                        }
+                    } elseif ($qType === 'mencocokkan') {
+                        $matching = $ans['matching'] ?? [];
+                        $pairs = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => str_contains($v, '='));
+                        $totalPairs = count($pairs);
+                        $matchedCorrect = 0;
+                        foreach (array_values($pairs) as $pIdx => $pairStr) {
+                            [$term, $def] = array_map('trim', explode('=', $pairStr, 2));
+                            if (isset($matching[$pIdx]) && $matching[$pIdx] === $def) {
+                                $matchedCorrect++;
+                            }
+                        }
+                        if ($totalPairs > 0 && $matchedCorrect === $totalPairs) {
+                            $isCorrect = true;
+                        } elseif ($totalPairs > 0 && $matchedCorrect > 0) {
+                            $earnedPoints += ($matchedCorrect / $totalPairs) * $qPoints;
+                        }
+                    }
+
+                    if ($isCorrect) {
+                        $earnedPoints += $qPoints;
+                    }
+                }
+                session(["learning.grades.$item" => round($earnedPoints, 1)]);
+            }
+        }
+
         if ($request->boolean('from_quiz_room')) {
             return redirect()->route('mahasiswa.quiz.room', [$course, $item])->with('notice', 'Jawaban berhasil dikirim! Kuis Anda telah berhasil dikumpulkan.');
         }
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban dikumpulkan dalam sesi pratinjau. Belum dinilai.');
+    }
+
+    public function cancelSubmission(Request $request, int $course, int $item)
+    {
+        $user = auth()->user();
+        $resource = null;
+
+        if ($user && Schema::hasTable('assessments')) {
+            $assessment = Assessment::where('class_section_id', $course)->find($item);
+            if ($assessment) {
+                abort_unless(
+                    $user->hasRole(Role::MAHASISWA)
+                    && $user->classSectionsEnrolled()->where('class_sections.id', $course)->exists(),
+                    403
+                );
+                $resource = Learning::databaseAssessment($assessment);
+            }
+        }
+        $resource ??= Learning::resource($course, $item);
+        abort_unless(in_array($resource['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true), 404);
+
+        return back()->withErrors(['submission' => 'Penyerahan tugas yang sudah dikumpulkan tidak dapat dibatalkan.']);
     }
 
     private function upload($file): string
@@ -569,16 +1051,76 @@ class LearningController extends Controller
 
     public function file(Request $request, string $file)
     {
-        $meta = session("learning.files.$file");
+        $meta = session("learning.files.$file") ?? Learning::fileMeta($file);
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
         $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])
             || str_starts_with((string) $meta['mime'], 'video/')
             || ($request->boolean('inline') && $meta['mime'] === 'application/pdf');
         $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
-        if ($inline && !$request->boolean('download')) {
+        if ($inline && ! $request->boolean('download')) {
             return Storage::disk('local')->response($meta['path'], $meta['name'], $headers + ['Content-Type' => $meta['mime']]);
         }
 
         return Storage::disk('local')->download($meta['path'], $meta['name'], $headers);
+    }
+
+    public function notifications(Request $request)
+    {
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user'))) {
+            $sessionUser = session('auth_user');
+            $user = User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        $allNotifications = Learning::notifications($user);
+
+        $categoryCounts = [
+            'all' => count($allNotifications),
+            'tugas' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
+            'nilai' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'nilai')),
+            'diskusi' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
+        ];
+
+        $category = $request->query('category');
+        $notifications = $allNotifications;
+        if ($category && in_array($category, ['tugas', 'nilai', 'diskusi'])) {
+            $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
+        }
+
+        return view('learning.notifications', [
+            'notifications' => $notifications,
+            'selectedCategory' => $category,
+            'courses' => Learning::courses(),
+            'categoryCounts' => $categoryCounts,
+        ]);
+    }
+
+    public function markNotificationRead(Request $request, string $id)
+    {
+        $readNotifs = session('learning.read_notifications', []);
+
+        if ($id === 'all') {
+            $submittedIds = $request->input('notification_ids');
+            if (is_array($submittedIds) && ! empty($submittedIds)) {
+                $readNotifs = array_merge($readNotifs, $submittedIds);
+            } else {
+                $readNotifs[] = 'all';
+            }
+        } elseif (! in_array($id, $readNotifs, true)) {
+            $readNotifs[] = $id;
+        }
+
+        session(['learning.read_notifications' => array_values(array_unique($readNotifs))]);
+
+        $target = $request->query('target');
+        if ($target) {
+            if ((filter_var($target, FILTER_VALIDATE_URL) && str_starts_with($target, url('/'))) || (str_starts_with($target, '/') && ! str_starts_with($target, '//'))) {
+                return redirect($target);
+            }
+        }
+
+        return back();
     }
 }

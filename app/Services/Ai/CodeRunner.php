@@ -32,6 +32,7 @@ class CodeRunner
             if (! is_array($run) || ! is_string($run['stdout'] ?? null) || ! is_string($run['stderr'] ?? null)) {
                 return array_replace($base, ['error' => 'Respons runner server tidak valid.']);
             }
+
             return array_replace($base, ['stdout' => $run['stdout'], 'stderr' => $run['stderr'],
                 'output' => $run['stdout'].$run['stderr'], 'exit_code' => $run['code'] ?? null,
                 'version' => (string) $response->json('version', ''),

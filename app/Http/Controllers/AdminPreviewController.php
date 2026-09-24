@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Support\AdminPreview;
 use App\Support\LearningPreview;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AdminPreviewController extends Controller
@@ -19,8 +21,19 @@ class AdminPreviewController extends Controller
         $visibleAcademic = array_filter($academic, fn ($a) => str_contains(mb_strtolower($a['name'].' '.$a['code']), $q) && (! $request->filled('type') || $a['type'] === $request->query('type')));
         $edit = $request->integer('edit');
         $record = $section === 'pengguna' ? ($users[$edit] ?? null) : ($academic[$edit] ?? null);
+        $aiRequestRows = collect();
 
-        return view('admin.'.$section, compact('users', 'academic', 'visibleUsers', 'visibleAcademic', 'record'));
+        if ($section === 'monitoring'
+            && ! $request->boolean('contoh')
+            && Schema::hasTable('ai_api_calls')) {
+            $aiRequestRows = DB::table('ai_api_calls')
+                ->latest('created_at')
+                ->latest('id')
+                ->limit(50)
+                ->get();
+        }
+
+        return view('admin.'.$section, compact('users', 'academic', 'visibleUsers', 'visibleAcademic', 'record', 'aiRequestRows'));
     }
 
     public function user(Request $request)
@@ -34,7 +47,9 @@ class AdminPreviewController extends Controller
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
         ]);
         $roles = array_values(array_unique($data['roles'] ?? array_filter([$data['role'] ?? null])));
-        if (empty($roles)) return back()->withErrors(['roles' => 'Pilih minimal satu peran akses.'])->withInput();
+        if (empty($roles)) {
+            return back()->withErrors(['roles' => 'Pilih minimal satu peran akses.'])->withInput();
+        }
         $users = AdminPreview::users();
         $isNewUser = ! array_key_exists('id', $data);
         $id = (int) ($data['id'] ?? (max(array_keys($users)) + 1));
@@ -55,6 +70,7 @@ class AdminPreviewController extends Controller
 
                     return redirect('/admin/pengguna')->with('notice', 'Identitas sudah ada; peran baru ditambahkan ke akun yang sama.');
                 }
+
                 return back()->withErrors(['email' => 'Email atau nomor identitas sudah dipakai pengguna lain.'])->withInput();
             }
         }
@@ -94,7 +110,8 @@ class AdminPreviewController extends Controller
             $cols = array_map('trim', str_getcsv($line, $delimiter, '"', '\\'));
 
             if (count($cols) < 3) {
-                $errors[] = "Baris " . ($lineIndex + 1) . ": Format tidak lengkap (harus NIM, Nama, Email).";
+                $errors[] = 'Baris '.($lineIndex + 1).': Format tidak lengkap (harus NIM, Nama, Email).';
+
                 continue;
             }
 
@@ -138,7 +155,7 @@ class AdminPreviewController extends Controller
         }
 
         if (count($errors) > 0) {
-            return redirect('/admin/pengguna')->with('notice', "Berhasil menambahkan {$added} pengguna. " . count($errors) . " baris dilewati karena duplikat/format.");
+            return redirect('/admin/pengguna')->with('notice', "Berhasil menambahkan {$added} pengguna. ".count($errors).' baris dilewati karena duplikat/format.');
         }
 
         return redirect('/admin/pengguna')->with('notice', "Berhasil mengimpor {$added} pengguna secara massal.");

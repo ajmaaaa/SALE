@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureAdminProdiAuth
@@ -14,7 +15,10 @@ class EnsureAdminProdiAuth
     {
         $user = auth()->user();
 
-        if (! $user && is_array(session('auth_user'))) {
+        if (! $user
+            && config('app.demo_mode')
+            && app()->environment(['local', 'testing'])
+            && is_array(session('auth_user'))) {
             $sessionUser = session('auth_user');
             $user = User::with('role')
                 ->where(function ($query) use ($sessionUser) {
@@ -23,7 +27,7 @@ class EnsureAdminProdiAuth
                 })
                 ->first();
             if ($user && ($user->hasRole(Role::ADMIN_PRODI) || $user->hasRole(Role::ADMIN))) {
-                \Illuminate\Support\Facades\Auth::login($user);
+                Auth::login($user);
             }
         }
 

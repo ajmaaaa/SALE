@@ -22,17 +22,21 @@ class Assessment extends Model
         'name',
         'type',
         'description',
+        'learning_payload',
         'final_weight',
         'uses_rubric',
         'status',
         'due_at',
+        'allow_late',
     ];
 
     protected function casts(): array
     {
         return [
             'uses_rubric' => 'boolean',
+            'learning_payload' => 'array',
             'due_at' => 'datetime',
+            'allow_late' => 'boolean',
         ];
     }
 

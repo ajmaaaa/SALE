@@ -3,10 +3,17 @@
 namespace Tests\Feature;
 
 // use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Support\LearningPreview;
 use Tests\TestCase;
 
 class StudentFrontendTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_the_application_redirects_to_the_login_page(): void
     {
         $response = $this->get('/');
@@ -14,7 +21,7 @@ class StudentFrontendTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_public_prototype_pages_are_available_with_security_headers(): void
+    public function test_preview_pages_are_available_with_security_headers(): void
     {
         $routes = [
             route('mahasiswa.dashboard'),
@@ -26,7 +33,6 @@ class StudentFrontendTest extends TestCase
             route('mahasiswa.course.item', [1, 3]),
             route('dosen.dashboard'),
             route('dosen.course.index'),
-            route('dosen.course.create'),
             route('dosen.course.show', 1),
             route('dosen.item.create', 1),
             route('dosen.grades'),
@@ -38,7 +44,7 @@ class StudentFrontendTest extends TestCase
         foreach ($routes as $route) {
             $this->get($route)
                 ->assertOk()
-                ->assertHeader('Content-Security-Policy', "frame-ancestors 'none'")
+                ->assertHeader('Content-Security-Policy', "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'")
                 ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
                 ->assertHeader('X-Content-Type-Options', 'nosniff')
                 ->assertHeader('X-Frame-Options', 'DENY');
@@ -92,7 +98,7 @@ class StudentFrontendTest extends TestCase
         $response = $this->get(route('mahasiswa.dashboard'));
         $response->assertOk();
 
-        $recentDiscussions = \App\Support\LearningPreview::recentDiscussions();
+        $recentDiscussions = LearningPreview::recentDiscussions();
         $this->assertNotEmpty($recentDiscussions);
 
         foreach ($recentDiscussions as $discussion) {
@@ -119,7 +125,7 @@ class StudentFrontendTest extends TestCase
 
     public function test_dashboard_shows_empty_states_when_there_are_no_unread_messages_or_pending_work(): void
     {
-        $submissions = collect(\App\Support\LearningPreview::items())
+        $submissions = collect(LearningPreview::items())
             ->filter(fn ($item) => in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
             ->mapWithKeys(fn ($item) => [$item['id'] => ['answer' => 'selesai']])
             ->all();
@@ -134,4 +140,15 @@ class StudentFrontendTest extends TestCase
             ->assertDontSee('Belum ada tenggat terdekat.')
             ->assertDontSee('Tenggat terdekat');
     }
+
+    public function test_notifications_page_renders_with_active_sidebar_state(): void
+    {
+        $response = $this->get(route('mahasiswa.notifications'));
+
+        $response->assertOk()
+            ->assertSee('aria-current="page"', false)
+            ->assertSee('bg-brand-dark font-semibold text-white', false)
+            ->assertSee('Notifikasi', false);
+    }
 }
+

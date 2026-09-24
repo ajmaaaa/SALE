@@ -4,12 +4,9 @@ namespace App\Http\Controllers\AdminProdi;
 
 use App\Http\Controllers\Controller;
 use App\Models\Prodi;
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 class ProdiManagementController extends Controller
 {

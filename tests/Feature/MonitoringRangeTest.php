@@ -9,6 +9,12 @@ use Tests\TestCase;
 
 class MonitoringRangeTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();

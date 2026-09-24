@@ -18,11 +18,6 @@ use Illuminate\View\View;
 
 class AkademikProdiController extends Controller
 {
-    /**
-     * ==========================================
-     * 1. MANAJEMEN MATA KULIAH
-     * ==========================================
-     */
     public function matakuliahIndex(Request $request): View
     {
         $prodis = Prodi::orderBy('name')->get();
@@ -41,6 +36,11 @@ class AkademikProdiController extends Controller
 
     public function storeMataKuliah(Request $request): RedirectResponse
     {
+        $request->merge([
+            'code' => strtoupper(trim((string) $request->input('code'))),
+            'name' => trim((string) $request->input('name')),
+        ]);
+
         $validated = $request->validate([
             'prodi_id' => ['required', 'exists:prodis,id'],
             'code' => [
@@ -53,9 +53,6 @@ class AkademikProdiController extends Controller
             'code.unique' => 'Kode mata kuliah sudah digunakan pada program studi ini.',
             'sks.required' => 'Bobot SKS wajib diisi.',
         ]);
-
-        $validated['code'] = strtoupper(trim($validated['code']));
-        $validated['name'] = trim($validated['name']);
 
         MataKuliah::create($validated);
 
@@ -100,11 +97,6 @@ class AkademikProdiController extends Controller
             ->with('notice', "Mata Kuliah {$name} berhasil dihapus.");
     }
 
-    /**
-     * ==========================================
-     * 2. MANAJEMEN KELAS PERKULIAHAN
-     * ==========================================
-     */
     public function kelasIndex(Request $request): View
     {
         $prodis = Prodi::orderBy('name')->get();
@@ -116,6 +108,9 @@ class AkademikProdiController extends Controller
 
         $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
         $dosens = User::where('role_id', $dosenRoleId)
+            ->when($activeProdi, fn ($query) => $query->where(function ($subQuery) use ($activeProdi) {
+                $subQuery->where('prodi_id', $activeProdi->id)->orWhereNull('prodi_id');
+            }))
             ->orderBy('name')
             ->get();
 
@@ -145,6 +140,9 @@ class AkademikProdiController extends Controller
 
     public function storeKelas(Request $request): RedirectResponse
     {
+        $request->merge(['section_code' => strtoupper(trim((string) $request->input('section_code')))]);
+        $mataKuliah = MataKuliah::findOrFail($request->integer('mata_kuliah_id'));
+
         $validated = $request->validate([
             'mata_kuliah_id' => ['required', 'exists:mata_kuliahs,id'],
             'semester_id' => ['required', 'exists:semesters,id'],
@@ -156,12 +154,14 @@ class AkademikProdiController extends Controller
             ],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
             'dosen_id' => [
-                'required',
+                'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) {
-                    $user = \App\Models\User::with('role')->find($value);
-                    if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                function ($attribute, $value, $fail) use ($mataKuliah) {
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
+                    } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
+                        $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
                     }
                 },
             ],
@@ -169,22 +169,22 @@ class AkademikProdiController extends Controller
                 'nullable',
                 'exists:users,id',
                 'different:dosen_id',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($mataKuliah) {
                     if ($value) {
-                        $user = \App\Models\User::with('role')->find($value);
-                        if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                        $user = User::with('role')->find($value);
+                        if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
+                            $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
                         }
                     }
                 },
             ],
         ], [
             'section_code.unique' => 'Kelas dengan kode seksi ini sudah ada untuk mata kuliah dan semester yang dipilih.',
-            'dosen_id.required' => 'Dosen Ketua (Koordinator) wajib ditetapkan.',
             'dosen_pendamping_id.different' => 'Dosen Wakil (Pendamping) tidak boleh sama dengan Dosen Ketua.',
         ]);
 
-        $validated['section_code'] = strtoupper(trim($validated['section_code']));
         $validated['enrollment_code'] = ClassSection::generateUniqueEnrollmentCode();
 
         $section = ClassSection::create($validated);
@@ -193,7 +193,7 @@ class AkademikProdiController extends Controller
         return redirect()->route('admin-prodi.akademik.kelas', [
             'prodi_id' => $mk->prodi_id,
             'semester_id' => $section->semester_id,
-        ])->with('notice', "Kelas {$mk->name} - Seksi {$section->section_code} berhasil dibuat dengan Dosen Ketua {$section->dosen->name} dan Kode Masuk: {$section->enrollment_code}");
+        ])->with('notice', "Kelas {$mk->name} - Seksi {$section->section_code} berhasil dibuat. Kode Masuk: {$section->enrollment_code}");
     }
 
     public function updateKelas(Request $request, ClassSection $section): RedirectResponse
@@ -208,11 +208,11 @@ class AkademikProdiController extends Controller
             ],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
             'dosen_id' => [
-                'required',
+                'nullable',
                 'exists:users,id',
                 function ($attribute, $value, $fail) {
-                    $user = \App\Models\User::with('role')->find($value);
-                    if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
                     }
                 },
@@ -223,8 +223,8 @@ class AkademikProdiController extends Controller
                 'different:dosen_id',
                 function ($attribute, $value, $fail) {
                     if ($value) {
-                        $user = \App\Models\User::with('role')->find($value);
-                        if ($user && !in_array($user->role?->name, [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true)) {
+                        $user = User::with('role')->find($value);
+                        if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
                         }
                     }
@@ -274,6 +274,7 @@ class AkademikProdiController extends Controller
 
     public function qrCode(ClassSection $section): Response
     {
+        $this->authorizeEnrollmentCode($section);
         $url = $section->enrollment_url;
         $svg = QrCodeService::svg($url, 260);
 
@@ -285,6 +286,7 @@ class AkademikProdiController extends Controller
 
     public function barcode(ClassSection $section): Response
     {
+        $this->authorizeEnrollmentCode($section);
         $code = $section->enrollment_code;
         $svg = QrCodeService::barcodeSvg($code, 280, 80);
 
@@ -292,5 +294,21 @@ class AkademikProdiController extends Controller
             'Content-Type' => 'image/svg+xml',
             'Cache-Control' => 'no-cache, private',
         ]);
+    }
+
+    private function authorizeEnrollmentCode(ClassSection $section): void
+    {
+        if (config('app.demo_mode') && app()->environment(['local', 'testing'])) {
+            return;
+        }
+
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $isAdministrator = $user->hasRole(Role::ADMIN) || $user->hasRole(Role::ADMIN_PRODI);
+        $isTeaching = $user->hasRole(Role::DOSEN)
+            && in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+
+        abort_unless($isAdministrator || $isTeaching, 403, 'Anda tidak berhak melihat kode pendaftaran kelas ini.');
     }
 }

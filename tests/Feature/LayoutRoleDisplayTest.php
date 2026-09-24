@@ -47,23 +47,23 @@ class LayoutRoleDisplayTest extends TestCase
     public function test_can_switch_to_all_5_roles(): void
     {
         // 1. Switch to Kaprodi
-        $this->get(route('switch-role', 'kaprodi'))
+        $this->post(route('switch-role', 'kaprodi'))
             ->assertRedirect(route('kaprodi.monitoring.cpmk'));
 
         // 2. Switch to Admin Prodi
-        $this->get(route('switch-role', 'admin_prodi'))
+        $this->post(route('switch-role', 'admin_prodi'))
             ->assertRedirect(route('admin-prodi.dashboard'));
 
         // 3. Switch to Admin Sistem
-        $this->get(route('switch-role', 'admin'))
+        $this->post(route('switch-role', 'admin'))
             ->assertRedirect(route('admin.page', 'dashboard'));
 
         // 4. Switch to Dosen
-        $this->get(route('switch-role', 'dosen'))
+        $this->post(route('switch-role', 'dosen'))
             ->assertRedirect(route('dosen.dashboard'));
 
         // 5. Switch to Mahasiswa
-        $this->get(route('switch-role', 'mahasiswa'))
+        $this->post(route('switch-role', 'mahasiswa'))
             ->assertRedirect(route('mahasiswa.dashboard'));
     }
 }

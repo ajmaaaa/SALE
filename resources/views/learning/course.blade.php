@@ -11,97 +11,115 @@
     $materiItems = collect($items)->where('type', 'materi');
     $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
     $uncompletedTasksCount = $tugasItems->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))->count();
-    $allUsers = \App\Support\AdminPreview::users();
-    $enrolledStudents = array_filter($allUsers, fn($u) => $u['role'] === 'mahasiswa');
-    $courseMembers = collect($allUsers)
-        ->filter(fn($u) => in_array($u['role'], ['mahasiswa', 'dosen'], true))
-        ->sortBy(fn($u) => $u['role'] === 'dosen' ? 0 : 1)
-        ->values();
+    if (isset($classSection)) {
+        $classSection->loadMissing(['students', 'dosen', 'dosenPendamping']);
+        $enrolledStudents = $classSection->students->map(fn($user) => [
+            'name' => $user->name,
+            'number' => $user->nim_nidn ?? $user->email,
+            'role' => 'mahasiswa',
+        ])->values()->all();
+        $courseMembers = collect([$classSection->dosen, $classSection->dosenPendamping])
+            ->filter()
+            ->map(fn($user) => [
+                'name' => $user->name,
+                'number' => $user->nim_nidn ?? $user->email,
+                'role' => 'dosen',
+            ])
+            ->concat($enrolledStudents)
+            ->values();
+    } else {
+        $allUsers = \App\Support\AdminPreview::users();
+        $enrolledStudents = array_filter($allUsers, fn($u) => $u['role'] === 'mahasiswa');
+        $courseMembers = collect($allUsers)
+            ->filter(fn($u) => in_array($u['role'], ['mahasiswa', 'dosen'], true))
+            ->sortBy(fn($u) => $u['role'] === 'dosen' ? 0 : 1)
+            ->values();
+    }
     $courseVideo = $course['video'] ?? null;
     $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
     $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
-    $courseVideoMeta = $courseVideoType === 'file' && $courseVideo ? session('learning.files.'.$courseVideo, []) : [];
+    $courseVideoMeta = $courseVideoType === 'file' && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
 @endphp
 
-<div class="space-y-7">
-    {{-- Breadcrumb --}}
-    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted">
-        <a href="{{ route($role.'.course.index') }}" class="hover:text-brand">Course</a>
-        <span aria-hidden="true">/</span>
-        <span class="text-ink font-semibold">{{ $course['code'] }}</span>
-    </nav>
-
+<div class="space-y-0">
     {{-- Course Cover Image if present --}}
     @if(!empty($course['cover']))
-        <div class="overflow-hidden rounded-xl shadow-sm">
+        <div class="overflow-hidden rounded-xl shadow-sm mb-4">
             <img src="{{ route('preview.file', $course['cover']) }}" alt="Sampul course" class="h-48 w-full object-cover">
         </div>
     @endif
 
-    {{-- Course Header --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <div class="flex flex-wrap items-baseline gap-2 text-xs font-medium leading-4 text-muted">
-                <span class="font-mono font-semibold leading-4 text-ink">{{ $course['code'] }}</span>
-                <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
-                <span class="leading-4">3 SKS</span>
-                <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
-                <span class="leading-4">Semester Ganjil 2026/2027</span>
-                <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
-                <span class="leading-4">Wajib</span>
-            </div>
-            <h1 class="page-heading mt-2">{{ $course['title'] }}</h1>
-            <p class="mt-1 text-sm text-muted">
-                Dosen Pengampu: <span class="font-medium text-ink">{{ $course['lecturer'] }}</span>
-            </p>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
-
-            {{-- Tombol Jumlah Mahasiswa Tergabung (Klik untuk lihat daftar mahasiswa) --}}
-            <button type="button" onclick="document.getElementById('enrolled-students-modal').showModal()" class="button-secondary flex items-center gap-1.5 text-xs">
-                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <span>{{ count($enrolledStudents) }}</span>
-                <span class="sr-only">mahasiswa</span>
-            </button>
-
-            @if($role === 'dosen')
-                <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary">
-                    + Tambah Konten
+    {{-- Sticky Course Header (Breadcrumb, Title, Code, Lecturer, Enrolled Count & Actions) --}}
+    <div id="course-header-sticky" class="sticky top-16 z-20 -mt-6 lg:-mt-7 pt-5 lg:pt-6 pb-2.5 bg-[#f4f5f7] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
+        <div class="space-y-2.5">
+            {{-- Breadcrumb --}}
+            <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route($role.'.course.index') }}">
+                    <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                    <span>Course</span>
                 </a>
-            @endif
-        </div>
-    </header>
+                <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                <span class="font-semibold text-slate-800" aria-current="page">
+                    {{ $course['code'] }}
+                </span>
+            </nav>
 
-    <style>
-        @media (min-width: 1024px) {
-            .course-layout-grid {
-                display: grid !important;
-                grid-template-columns: minmax(0, 1fr) 360px !important;
-                align-items: start !important;
-                gap: 1.75rem !important;
-            }
-        }
-        @media (min-width: 1280px) {
-            .course-layout-grid {
-                grid-template-columns: minmax(0, 1fr) 380px !important;
-            }
-        }
-    </style>
+            {{-- Course Header --}}
+            <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <div class="flex flex-wrap items-baseline gap-2 text-xs font-medium leading-4 text-muted">
+                        <span class="font-mono font-semibold leading-4 text-ink">{{ $course['code'] }}</span>
+                        <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
+                        <span class="leading-4">{{ $course['sks'] ?? '3 SKS' }}</span>
+                        <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
+                        <span class="leading-4">{{ $course['semester'] ?? 'Semester Ganjil 2026/2027' }}</span>
+                    </div>
+                    <h1 class="page-heading mt-2">{{ $course['title'] }}</h1>
+                    <p class="mt-1 text-sm text-muted">
+                        Dosen Pengampu: <span class="font-medium text-ink">{{ $course['lecturer'] }}</span>
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                    {{-- Tombol Jumlah Mahasiswa: Cukup icon dan angka saja tanpa tulisan 'mahasiswa' --}}
+                    <button type="button" onclick="document.getElementById('enrolled-students-modal').showModal()" class="button-secondary flex items-center gap-1.5 text-xs py-1.5 px-2.5 shadow-2xs hover:bg-canvas transition" title="{{ count($enrolledStudents) }} Mahasiswa Terdaftar">
+                        <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span class="font-mono font-bold text-ink">{{ count($enrolledStudents) }}</span>
+                        <span class="sr-only">mahasiswa</span>
+                    </button>
+
+                    @if($role === 'dosen')
+                        <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary text-xs py-1.5 px-3 font-semibold shadow-2xs">
+                            + Tambah Konten
+                        </a>
+                    @endif
+                </div>
+            </header>
+        </div>
+
+        {{-- Efek bayangan pemisah murni (tanpa garis) tepat pada batas atas card video tanpa jarak, khusus pada area kolom kiri jika ada video --}}
+        @if(!empty($courseVideo))
+            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-7 pointer-events-none mt-2" aria-hidden="true">
+                <div class="h-3 bg-[#f4f5f7] shadow-[0_10px_20px_-3px_rgba(29,39,48,0.12)]"></div>
+                <div class="hidden lg:block"></div>
+            </div>
+        @endif
+    </div>
 
     {{-- 2-Column Layout: Konten di Kiri & Forum Diskusi Kelas di Samping (Kanan) --}}
-    <div class="course-layout-grid grid items-start gap-7">
+    <div id="course-main-grid" class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-7 mt-0">
         {{-- KOLOM KIRI: Video Pengantar & Modul Terpisah (Materi & Tugas) --}}
-        <div class="min-w-0 space-y-7">
+        <div class="min-w-0 space-y-5">
+
             {{-- 16:9 Video Player Card: hanya tampil jika course memiliki video yang dipasang. --}}
             @if(!empty($courseVideo))
                 <section aria-labelledby="video-heading">
-                    <div class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
+                    <div id="course-video-card" class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
                     @if($youtubeEmbed)
                         <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubeEmbed }}" title="Video {{ $course['title'] }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
@@ -118,8 +136,8 @@
                 </section>
             @endif
 
-            {{-- TABS NAV: MATERI & TUGAS --}}
-            <div class="space-y-4">
+            {{-- TABS NAV: MATERI & TUGAS (Sticky sehingga saat materi/tugas panjang di-scroll, tab tetap terlihat dan hanya list yang meluncur di bawahnya) --}}
+            <div id="course-tabs-container" class="sticky z-10 bg-[#f4f5f7] pt-2 pb-1 transition-all">
                 <nav class="flex border-b border-line/60 gap-6" aria-label="Tab konten kelas">
                     <button type="button" id="tab-btn-materi" onclick="switchCourseTab('materi')" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
                         <span>Materi</span>
@@ -134,6 +152,9 @@
                         @endif
                     </button>
                 </nav>
+                {{-- Efek bayangan pemisah murni di bawah tab materi/tugas saat list materi atau tugas meluncur di bawahnya --}}
+                <div class="h-2 -mt-1 bg-[#f4f5f7] shadow-[0_8px_16px_-2px_rgba(29,39,48,0.10)] pointer-events-none" aria-hidden="true"></div>
+            </div>
 
                 {{-- PANEL MATERI --}}
                 <div id="course-panel-materi" class="space-y-4">
@@ -212,6 +233,7 @@
                                     @php
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
                                         $isCoding = ($item['type'] === 'coding');
+                                        $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
                                         $itemUrl = $isCoding ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$course['id'], $item['id']]);
                                     @endphp
                                     <a href="{{ $itemUrl }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
@@ -232,7 +254,7 @@
                                             <div class="mt-0.5 text-xs text-muted flex flex-wrap items-center gap-2">
                                                 <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
                                                 <span class="h-2.5 w-px bg-line"></span>
-                                                <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
+                                                <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
                                                 <span class="h-2.5 w-px bg-line"></span>
                                                 <span>{{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
                                             </div>
@@ -245,6 +267,10 @@
                                         @elseif($hasSubmission)
                                             <span class="shrink-0 text-xs font-semibold text-emerald-700">
                                                 Sudah dikerjakan
+                                            </span>
+                                        @elseif($isPast)
+                                            <span class="shrink-0 text-xs font-semibold text-rose-600">
+                                                Terlambat
                                             </span>
                                         @elseif($isCoding)
                                             <span class="shrink-0 text-xs font-semibold text-brand">
@@ -263,7 +289,6 @@
                         <div class="surface p-6 text-center text-sm text-muted">Belum ada tugas perkuliahan.</div>
                     @endforelse
                 </div>
-            </div>
 
             <script>
                 function switchCourseTab(tab) {
@@ -285,12 +310,12 @@
                     }
                 }
             </script>
-        </div>
+            </div>
 
-        {{-- KOLOM KANAN (SIDEBAR DISAMPING): Forum Diskusi Kelas Saja --}}
-        <aside class="space-y-6">
-            <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 space-y-4">
-                <div class="flex items-center justify-between border-b border-line/50 pb-3">
+        {{-- KOLOM KANAN (SIDEBAR DI SAMPING): Forum Diskusi Kelas Saja --}}
+        <aside data-discuss-aside class="lg:sticky lg:top-20 z-20 self-start w-full">
+            <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 flex flex-col min-h-[440px] max-h-[90vh]">
+                <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
                     <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
                 </div>
 
@@ -308,7 +333,7 @@
                     $lastMessageTimestamp = collect($courseMessages)->last()['timestamp'] ?? null;
                     $lastMessageDate = $lastMessageTimestamp ? \Carbon\Carbon::createFromTimestamp($lastMessageTimestamp)->toDateString() : '';
                 @endphp
-                <div id="chat-messages" data-last-date="{{ $lastMessageDate }}" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 flex flex-col">
+                <div id="chat-messages" data-last-date="{{ $lastMessageDate }}" class="my-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
                     @forelse($courseMessages as $msg)
                         @php
                             $isMe = isset($msg['sender_key'])
@@ -330,38 +355,44 @@
                             @php($previousMessageDate = $messageDate)
                         @endif
                         <div class="flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}">
-                            <article class="min-w-0 w-fit max-w-[85%] rounded-xl border p-3 shadow-2xs {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-2">
-                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold {{ $isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700' }}">
-                                            {{ $initials }}
-                                        </span>
-                                        <div class="min-w-0">
-                                            <h3 class="text-xs font-bold text-ink truncate flex items-center gap-1.5">
-                                                <span>{{ $msg['author'] }}</span>
-                                                @if($isMe)
-                                                    <span class="text-[10px] font-medium text-brand">(Saya)</span>
-                                                @endif
-                                                @if(($msg['role'] ?? '') === 'dosen')
-                                                    <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20">Dosen</span>
-                                                @endif
-                                            </h3>
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
+                                <div class="flex items-start gap-2.5 min-w-0">
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 {{ $isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700' }}">
+                                        {{ $initials }}
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-1.5 leading-snug">
+                                            <span class="text-xs font-bold text-ink break-words">{{ $msg['author'] }}</span>
+                                            @if($isMe)
+                                                <span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>
+                                            @endif
+                                            @if(($msg['role'] ?? '') === 'dosen')
+                                                <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
-                                <p class="prose-content mt-1.5 break-words whitespace-pre-line pl-8 text-xs leading-relaxed text-slate-800">{{ $msg['message'] }}</p>
+                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{{ $msg['message'] }}</p>
                                 <time datetime="{{ $messageAt->toIso8601String() }}" class="mt-1 block text-right text-[10px] leading-none text-muted">{{ $messageAt->format('H:i') }}</time>
                             </article>
                         </div>
                     @empty
-                        <div class="rounded-xl border border-line/60 bg-canvas p-5 text-center text-xs text-muted">
-                            Belum ada pesan di forum kelas ini.
+                        <div id="empty-chat-placeholder" class="my-auto flex flex-col items-center justify-center p-6 text-center">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand mb-3 shadow-2xs">
+                                <svg class="h-6 w-6 stroke-[1.6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-xs font-bold text-ink">Belum Ada Diskusi</h3>
+                            <p class="mt-1 max-w-[240px] text-[11px] text-muted leading-relaxed">
+                                Jadilah yang pertama memulai obrolan kelas atau ajukan pertanyaan kepada dosen pengampu.
+                            </p>
                         </div>
                     @endforelse
                 </div>
 
                 {{-- Send Message Form: Tombol Kirim Di Dalam Kolom Chat (Gaya AI Coding Assistant) --}}
-                <form id="course-discuss-form" method="post" action="{{ route('mahasiswa.course.discuss.class', $course['id']) }}" class="pt-2 border-t border-line/50 space-y-1.5">
+                <form id="course-discuss-form" method="post" action="{{ route($isDosen ? 'dosen.course.discuss.class' : 'mahasiswa.course.discuss.class', $course['id']) }}" class="shrink-0 pt-2 border-t border-line/50 space-y-1.5">
                     @csrf
                     <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
                         <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
@@ -429,8 +460,8 @@
                         const msg = data.message;
 
                         // Clear empty state placeholder if present
-                        const emptyBox = chatMessages.querySelector('.bg-canvas');
-                        if (emptyBox && emptyBox.textContent.includes('Belum ada pesan')) {
+                        const emptyBox = document.getElementById('empty-chat-placeholder') || chatMessages.querySelector('.bg-canvas');
+                        if (emptyBox) {
                             emptyBox.remove();
                         }
 
@@ -453,21 +484,19 @@
                         const safeMsg = msg.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
                         msgWrapper.innerHTML = `
-                            <article class="min-w-0 w-fit max-w-[85%] rounded-xl border p-3 shadow-2xs bg-[#edf4fb] border-[#cfe0f2]">
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-2">
-                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-brand text-white">
-                                            ${initials}
-                                        </span>
-                                        <div class="min-w-0">
-                                            <h3 class="text-xs font-bold text-ink truncate flex items-center gap-1.5">
-                                                <span>${safeAuthor}</span>
-                                                <span class="text-[10px] font-medium text-brand">(Saya)</span>
-                                            </h3>
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs bg-[#edf4fb] border-[#cfe0f2]">
+                                <div class="flex items-start gap-2.5 min-w-0">
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-brand text-white">
+                                        ${initials}
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-1.5 leading-snug">
+                                            <span class="text-xs font-bold text-ink break-words">${safeAuthor}</span>
+                                            <span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>
                                         </div>
                                     </div>
                                 </div>
-                                <p class="prose-content mt-1.5 break-words text-xs leading-relaxed text-slate-800 whitespace-pre-line pl-8">${safeMsg}</p>
+                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${safeMsg}</p>
                                 <time class="mt-1 block text-right text-[10px] leading-none text-muted">${msg.time}</time>
                             </article>
                         `;
@@ -486,6 +515,74 @@
                 }
             }
         });
+
+        function syncDiscussionCard() {
+            const discussAside = document.querySelector('aside[data-discuss-aside]');
+            const discussCard = document.getElementById('diskusi-kelas');
+            const videoCard = document.getElementById('course-video-card');
+            const stickyHeader = document.getElementById('course-header-sticky');
+            const gridEl = document.getElementById('course-main-grid');
+            if (!discussAside || !discussCard) return;
+
+            if (window.innerWidth >= 1024) {
+                // Ketinggian card forum diskusi presisi setinggi card pemutar video
+                if (videoCard) {
+                    const h = videoCard.offsetHeight;
+                    if (h > 150) {
+                        discussCard.style.height = `${h}px`;
+                        discussCard.style.minHeight = `${h}px`;
+                        discussCard.style.maxHeight = `${h}px`;
+                    }
+                } else {
+                    discussCard.style.height = '540px';
+                    discussCard.style.minHeight = '500px';
+                    discussCard.style.maxHeight = '85vh';
+                }
+
+                discussAside.style.marginTop = '0px';
+
+                // Posisi sticky aside: terkunci persis di koordinat naturalnya saat render
+                // sehingga sama sekali tidak bergeser atau melompat sedikit pun saat di-scroll
+                discussAside.style.position = 'sticky';
+                let naturalStickyTop = 64 + (stickyHeader ? stickyHeader.offsetHeight : 0);
+                if (gridEl) {
+                    const gridDocTop = gridEl.getBoundingClientRect().top + window.scrollY;
+                    if (gridDocTop > 50) {
+                        naturalStickyTop = Math.round(gridDocTop);
+                    }
+                }
+                discussAside.style.top = `${naturalStickyTop}px`;
+            } else {
+                discussCard.style.height = '';
+                discussCard.style.minHeight = '';
+                discussCard.style.maxHeight = '';
+                discussAside.style.position = '';
+                discussAside.style.top = '';
+                discussAside.style.marginTop = '';
+            }
+
+            // Tabs Materi & Tugas sticky top: persis di bawah batas sticky header
+            const tabsContainer = document.getElementById('course-tabs-container');
+            if (tabsContainer) {
+                const headerH = stickyHeader ? stickyHeader.offsetHeight : 120;
+                tabsContainer.style.top = `${64 + headerH}px`;
+            }
+        }
+        window.addEventListener('resize', syncDiscussionCard);
+        window.addEventListener('load', syncDiscussionCard);
+        document.addEventListener('DOMContentLoaded', syncDiscussionCard);
+        setTimeout(syncDiscussionCard, 50);
+
+        if (window.ResizeObserver) {
+            const videoCardEl = document.getElementById('course-video-card');
+            if (videoCardEl) {
+                new ResizeObserver(() => syncDiscussionCard()).observe(videoCardEl);
+            }
+            const stickyHeaderEl = document.getElementById('course-header-sticky');
+            if (stickyHeaderEl) {
+                new ResizeObserver(() => syncDiscussionCard()).observe(stickyHeaderEl);
+            }
+        }
     })();
 </script>
 

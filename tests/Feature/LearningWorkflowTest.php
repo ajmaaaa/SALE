@@ -8,6 +8,12 @@ use Tests\TestCase;
 
 class LearningWorkflowTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_coding_material_uses_ai_workspace_and_quiz_can_have_a_deadline(): void
     {
         $this->post('/dosen/course/1/items', [
@@ -54,6 +60,30 @@ class LearningWorkflowTest extends TestCase
         $this->assertFalse($quiz['ai_enabled']);
     }
 
+    public function test_quiz_creation_rejects_generic_file_or_link_attachments(): void
+    {
+        Storage::fake('local');
+
+        $this->post('/dosen/course/1/items', [
+            'type' => 'kuis',
+            'module' => 'Kuis Tanpa Unggah Berkas',
+            'body' => 'Jawab langsung melalui ruang kuis.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['text'],
+            'attachments' => [UploadedFile::fake()->create('tidak-boleh.pdf', 10, 'application/pdf')],
+            'questions' => [[
+                'type' => 'pilihan',
+                'prompt' => 'Pilih jawaban yang benar.',
+                'points' => 100,
+                'cpmk' => 'CPMK-01',
+                'options' => "Benar\nSalah",
+            ]],
+        ])->assertSessionHasErrors('attachments');
+
+        $this->assertEmpty(Storage::disk('local')->allFiles('learning-preview'));
+    }
+
     public function test_courses_have_distinct_content_and_items_cannot_cross_courses(): void
     {
         $this->get('/mahasiswa/course/2')->assertOk()->assertSee('Laporan Evaluasi Usability')->assertDontSee('Praktikum Binary Tree');
@@ -62,12 +92,11 @@ class LearningWorkflowTest extends TestCase
         $this->get('/mahasiswa/assignment?course=2')->assertSee('Laporan Evaluasi Usability')->assertDontSee('Praktikum Binary Tree');
     }
 
-    public function test_lecturer_can_create_course_and_material_with_session_scoped_file(): void
+    public function test_lecturer_can_create_material_with_session_scoped_file(): void
     {
         Storage::fake('local');
-        $this->post('/dosen/course', ['code' => 'IF300', 'title' => 'Course baru', 'description' => 'Deskripsi kelas', 'lecturer' => 'Dosen contoh'])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/5');
-        $this->post('/dosen/course/5/items', ['type' => 'materi', 'title' => 'Materi baru', 'module' => 'Minggu 1', 'body' => 'Baca lampiran berikut.', 'question_type' => 'uraian', 'cpmk' => 'Memahami konsep.', 'attachments' => [UploadedFile::fake()->create('materi.pdf', 10, 'application/pdf')]])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/5');
-        $this->get('/mahasiswa/course/5/item/7')->assertOk()->assertSee('materi.pdf');
+        $this->post('/dosen/course/1/items', ['type' => 'materi', 'title' => 'Materi baru', 'module' => 'Minggu 1', 'body' => 'Baca lampiran berikut.', 'question_type' => 'uraian', 'cpmk' => 'Memahami konsep.', 'attachments' => [UploadedFile::fake()->create('materi.pdf', 10, 'application/pdf')]])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
+        $this->get('/mahasiswa/course/1/item/7')->assertOk()->assertSee('materi.pdf');
         $files = session('learning.files');
         $id = array_key_first($files);
         $this->get('/preview/files/'.$id)->assertOk();
@@ -79,21 +108,17 @@ class LearningWorkflowTest extends TestCase
     {
         Storage::fake('local');
 
-        $this->post('/dosen/course', [
-            'code' => 'IF301', 'title' => 'Course Video', 'description' => 'Video kelas', 'lecturer' => 'Dosen video',
-        ])->assertRedirect('/dosen/course/5');
-
-        $this->post('/dosen/course/5/items', [
+        $this->post('/dosen/course/1/items', [
             'type' => 'materi', 'title' => 'Video Binary Tree', 'module' => 'Minggu 1',
             'body' => 'Tonton video berikut.', 'question_type' => 'uraian', 'cpmk' => 'Memahami konsep.',
             'pin_video' => '1', 'attachments' => [UploadedFile::fake()->create('binary-tree.mp4', 128, 'video/mp4')],
-        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/5');
+        ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
 
-        $course = session('learning.courses.5');
+        $course = session('learning.courses.1');
         $this->assertSame('file', $course['video_type']);
         $this->assertSame('video/mp4', session('learning.files.'.$course['video'].'.mime'));
 
-        $page = $this->get('/mahasiswa/course/5')->assertOk();
+        $page = $this->get('/mahasiswa/course/1')->assertOk();
         $page->assertSee('<video', false)->assertSee(route('preview.file', $course['video']), false);
         $this->get('/preview/files/'.$course['video'])
             ->assertOk()
@@ -113,7 +138,7 @@ class LearningWorkflowTest extends TestCase
         $this->post('/mahasiswa/course/2/item/4/submission', [])->assertSessionHasErrors('answer');
         $this->post('/mahasiswa/course/2/item/4/submission', ['link' => 'javascript:alert(1)'])->assertSessionHasErrors('link');
         $this->post('/mahasiswa/course/2/item/4/submission', ['answer' => 'Hasil evaluasi: navigasi sulit ditemukan.'])->assertRedirect('/mahasiswa/course/2/item/4');
-        $this->get('/mahasiswa/course/2/item/4')->assertSee('Sudah dikumpulkan');
+        $this->get('/mahasiswa/course/2/item/4')->assertSee('Diserahkan');
         $this->get('/dosen/penilaian')->assertSee('Kelas yang Saya Ajar')->assertSee('Buka Ruang Penilaian');
         $this->get('/dosen/penilaian?room=1&course=2&type=uts')->assertOk()->assertSee('Ujian Tengah Semester (UTS)');
         $this->post('/mahasiswa/course/1/item/2/submission', ['answer' => 'x'])->assertNotFound();
@@ -264,7 +289,7 @@ class LearningWorkflowTest extends TestCase
 
         $assignmentsResponse = $this->get('/mahasiswa/assignment');
         $assignmentsResponse->assertOk()
-            ->assertSee('Belum dikumpulkan')
+            ->assertSee('Terlambat')
             ->assertSee('text-rose-600', false)
             ->assertDontSee('bg-rose-100', false);
 
@@ -383,17 +408,17 @@ class LearningWorkflowTest extends TestCase
         // 4. Completed quiz is locked and displays radiant checkmark receipt screen
         $completedRoom = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
         $completedRoom->assertOk()
-            ->assertSee('Kuis Telah Berhasil Dikumpulkan!')
+            ->assertSee('Nilai Perolehan Kuis:')
             ->assertSee('Kuis Terkunci (Telah Selesai)')
-            ->assertSee('Lembar Jawaban Terkumpul')
+            ->assertDontSee('Lembar Jawaban Terkumpul')
+            ->assertDontSee('Kuis Telah Berhasil Dikumpulkan!')
             ->assertDontSee('id="exam-form"', false)
             ->assertDontSee('Kerjakan Ulang');
 
-        // 5. Item overview shows completion badge and links to receipt, without CPMK or duplicate info
+        // 5. Item overview shows completion state and Lihat Jawaban button, without CPMK or duplicate info
         $overview = $this->get("/mahasiswa/course/1/item/{$quizId}");
         $overview->assertOk()
-            ->assertSee('Kuis Telah Berhasil Dikumpulkan')
-            ->assertSee('Lihat Tanda Terima Kuis')
+            ->assertSee('Lihat Jawaban')
             ->assertDontSee('Capaian Pembelajaran (CPMK)')
             ->assertDontSee('Kerjakan Ulang');
     }
@@ -453,14 +478,15 @@ class LearningWorkflowTest extends TestCase
         $room = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
         $room->assertOk()
             ->assertSee('Kuis Terkunci (Telah Selesai)')
-            ->assertSee('Kuis Telah Berhasil Dikumpulkan!')
+            ->assertSee('Nilai Perolehan Kuis:')
+            ->assertDontSee('Lembar Jawaban Terkumpul')
+            ->assertDontSee('Kuis Telah Berhasil Dikumpulkan!')
             ->assertDontSee('id="exam-form"', false);
 
         // 6. Item overview no longer allows starting the quiz
         $itemPage = $this->get("/mahasiswa/course/1/item/{$quizId}");
         $itemPage->assertOk()
-            ->assertSee('Kuis Telah Berhasil Dikumpulkan')
-            ->assertSee('Lihat Tanda Terima Kuis')
+            ->assertSee('Lihat Jawaban')
             ->assertDontSee('Mulai Kerjakan Kuis');
     }
 

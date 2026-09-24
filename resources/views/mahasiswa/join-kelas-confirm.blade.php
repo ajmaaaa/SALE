@@ -25,16 +25,17 @@
             <p class="text-sm text-muted">
                 @if($alreadyEnrolled)
                     Anda sudah terdaftar di kelas ini. Tidak ada tindakan yang diperlukan.
+                @elseif($isDosen ?? false)
+                    Anda akan ditambahkan ke slot Dosen Ketua atau Dosen Pendamping yang masih tersedia.
                 @else
                     Pastikan informasi kelas di bawah sudah benar sebelum mendaftar.
                 @endif
             </p>
         </div>
 
-        <!-- Card Rincian Kelas -->
-        <div class="rounded-xl border border-line bg-canvas/40 p-5 space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-line">
-                <span class="px-2 py-0.5 rounded bg-brand text-white font-mono font-bold text-xs">{{ $section->display_code }}</span>
+        <div class="border-t border-b border-line/60 py-5 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-line/40">
+                <span class="px-2.5 py-1 rounded bg-brand text-white font-mono font-bold text-xs">{{ $section->display_code }}</span>
                 <span class="text-xs text-muted">{{ $section->semester->name ?? 'Semester Aktif' }}</span>
             </div>
 
@@ -65,20 +66,19 @@
 
         @if($alreadyEnrolled)
             <div class="flex justify-center gap-3">
-                <a href="{{ route('mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
+                <a href="{{ route(($isDosen ?? false) ? 'dosen.course.index' : 'mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
                     Buka Course Saya
                 </a>
             </div>
         @else
-            {{-- S06: Gunakan form POST dengan CSRF protection --}}
             <form method="POST" action="{{ route('mahasiswa.join-kelas.post', $code) }}">
                 @csrf
                 <div class="flex justify-center gap-3">
-                    <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
+                    <a href="{{ route(($isDosen ?? false) ? 'dosen.course.index' : 'mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
                         Batal
                     </a>
                     <button type="submit" class="button-primary text-xs px-5 py-2.5">
-                        Ya, Daftarkan Saya
+                        {{ ($isDosen ?? false) ? 'Ya, Tambahkan Saya' : 'Ya, Daftarkan Saya' }}
                     </button>
                 </div>
             </form>

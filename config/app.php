@@ -43,6 +43,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Local Prototype Mode
+    |--------------------------------------------------------------------------
+    |
+    | Enables public preview pages and one-click personas only for local and
+    | test environments. Production authorization never trusts this flag alone.
+    |
+    */
+
+    'demo_mode' => (bool) env('SALE_DEMO_MODE', false),
+
+    'php_config_dir' => env('PHP_CONFIG_DIR'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |

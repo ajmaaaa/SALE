@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
@@ -10,7 +11,6 @@ use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
-use App\Models\Assessment;
 use App\Models\User;
 use Database\Seeders\DosenAccountSeeder;
 use Database\Seeders\RoleSeeder;
@@ -24,10 +24,15 @@ class AdminProdiManagementTest extends TestCase
     use RefreshDatabase;
 
     private User $adminProdi;
+
     private User $dosenKetua;
+
     private User $dosenWakil;
+
     private User $mahasiswa;
+
     private Prodi $prodi;
+
     private Semester $semester;
 
     protected function setUp(): void
@@ -266,8 +271,8 @@ class AdminProdiManagementTest extends TestCase
 
         // 3. Impor CSV Massal Mahasiswa
         $csvContent = "NIM,Nama Mahasiswa,Email Mahasiswa,Password\n"
-            . "231011405001,Rina Kurnia,rina@student.test,password123\n"
-            . "231011405002,Dimas Anggara,dimas@student.test,password123\n";
+            ."231011405001,Rina Kurnia,rina@student.test,password123\n"
+            ."231011405002,Dimas Anggara,dimas@student.test,password123\n";
 
         $file = UploadedFile::fake()->createWithContent('import_students.csv', $csvContent);
 
@@ -301,8 +306,13 @@ class AdminProdiManagementTest extends TestCase
         $rina = User::where('email', 'rina@student.test')->first();
         $this->actingAs($rina);
 
-        // Akses link pendaftaran kelas
+        // GET hanya menampilkan konfirmasi; mutasi dilakukan melalui POST + CSRF.
         $response = $this->get(route('mahasiswa.join-kelas', 'ALGO201A'));
+        $response->assertStatus(200);
+        $response->assertSee('Konfirmasi Pendaftaran Kelas');
+        $this->assertFalse($section->students()->where('users.id', $rina->id)->exists());
+
+        $response = $this->post(route('mahasiswa.join-kelas.post', 'ALGO201A'));
         $response->assertStatus(200);
         $response->assertSee('Pendaftaran Berhasil');
         $response->assertSee('IF201-A');
@@ -313,7 +323,7 @@ class AdminProdiManagementTest extends TestCase
         // Jika membuka link lagi, menampilkan feedback 'Sudah Terdaftar'
         $response = $this->get(route('mahasiswa.join-kelas', 'ALGO201A'));
         $response->assertStatus(200);
-        $response->assertSee('Anda Sudah Bergabung');
+        $response->assertSee('Anda Sudah Terdaftar');
     }
 
     /**
@@ -390,12 +400,65 @@ class AdminProdiManagementTest extends TestCase
     /**
      * Test Otorisasi: Mahasiswa tidak boleh mengakses ruang admin prodi
      */
+    public function test_admin_prodi_may_leave_password_blank_but_invalid_supplied_password_is_rejected(): void
+    {
+        $this->actingAs($this->adminProdi);
+
+        $payload = [
+            'role_type' => 'mahasiswa',
+            'name' => 'Mahasiswa Tanpa Password Manual',
+            'email' => 'default.password@student.test',
+            'nim_nidn' => '231011409099',
+            'prodi_id' => $this->prodi->id,
+        ];
+
+        $this->post(route('admin-prodi.users.store'), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $created = User::where('email', $payload['email'])->firstOrFail();
+        $this->assertTrue(Hash::check('password123', $created->password));
+
+        $this->post(route('admin-prodi.users.store'), array_merge($payload, [
+            'email' => 'invalid.password@student.test',
+            'nim_nidn' => '231011409098',
+            'password' => '123',
+        ]))->assertSessionHasErrors('password');
+    }
+
     public function test_unauthorized_user_is_blocked_from_admin_prodi(): void
     {
         $this->actingAs($this->mahasiswa);
 
         $response = $this->get(route('admin-prodi.dashboard'));
         $response->assertStatus(403);
+    }
+
+    public function test_admin_prodi_cannot_update_or_delete_privileged_accounts(): void
+    {
+        $adminRole = Role::where('name', Role::ADMIN)->firstOrFail();
+        $admin = User::factory()->create([
+            'role_id' => $adminRole->id,
+            'prodi_id' => $this->prodi->id,
+        ]);
+
+        $this->actingAs($this->adminProdi);
+
+        $payload = [
+            'name' => 'Compromised Admin',
+            'email' => 'compromised@example.test',
+            'nim_nidn' => 'ADMIN-CHANGED',
+            'prodi_id' => $this->prodi->id,
+        ];
+
+        $this->put(route('admin-prodi.users.update', $admin), $payload)->assertNotFound();
+        $this->delete(route('admin-prodi.users.destroy', $admin))->assertNotFound();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $admin->id,
+            'email' => $admin->email,
+            'role_id' => $adminRole->id,
+        ]);
     }
 
     /**
@@ -459,7 +522,7 @@ class AdminProdiManagementTest extends TestCase
         $dashBefore->assertDontSee('Pemrograman Mobile Lanjut');
 
         // Mahasiswa join kelas via kode
-        $joinResponse = $this->get(route('mahasiswa.join-kelas', $section->enrollment_code));
+        $joinResponse = $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code));
         $joinResponse->assertStatus(200);
         $joinResponse->assertSee('Pendaftaran Berhasil');
 

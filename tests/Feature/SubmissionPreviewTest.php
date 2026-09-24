@@ -9,6 +9,12 @@ use Tests\TestCase;
 
 class SubmissionPreviewTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_uploaded_files_are_scoped_to_student_course_and_component(): void
     {
         Storage::fake('local');
@@ -42,7 +48,7 @@ class SubmissionPreviewTest extends TestCase
         $this->get(route('preview.file', ['file' => $id, 'inline' => 1]))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Security-Policy', "frame-ancestors 'self'")
+            ->assertHeader('Content-Security-Policy', "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'")
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
             ->assertHeader('Content-Disposition', 'inline; filename=document.pdf');
         $this->get(route('preview.file', ['file' => $id, 'download' => 1]))->assertDownload('document.pdf');

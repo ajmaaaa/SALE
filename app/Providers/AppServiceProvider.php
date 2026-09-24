@@ -2,29 +2,24 @@
 
 namespace App\Providers;
 
+use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
-
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        if (class_exists(\Illuminate\Foundation\Console\ServeCommand::class)) {
-            \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables[] = 'PHPRC';
-            \Illuminate\Foundation\Console\ServeCommand::$passthroughVariables[] = 'LD_LIBRARY_PATH';
+        $phpConfigDir = config('app.php_config_dir');
+        if (! is_string($phpConfigDir) || $phpConfigDir === '' || ! is_dir($phpConfigDir)) {
+            return;
         }
-        putenv('PHPRC=/home/ajmaaa/.local/etc/php');
-        $_ENV['PHPRC'] = '/home/ajmaaa/.local/etc/php';
-        $_SERVER['PHPRC'] = '/home/ajmaaa/.local/etc/php';
+
+        if (class_exists(ServeCommand::class)) {
+            ServeCommand::$passthroughVariables[] = 'PHPRC';
+        }
+
+        putenv('PHPRC='.$phpConfigDir);
+        $_ENV['PHPRC'] = $phpConfigDir;
+        $_SERVER['PHPRC'] = $phpConfigDir;
     }
 }

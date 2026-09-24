@@ -35,7 +35,12 @@ def snapshot():
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     target = LOCAL / 'targets' / stamp
     target.mkdir(parents=True)
-    tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+    # Include safe, non-ignored untracked source files as well. Security scans must
+    # cover the working tree being reviewed, not only the last Git index state.
+    tracked = subprocess.check_output(
+        ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+        cwd=ROOT,
+    ).decode().split('\0')
     directories = {'app', 'bootstrap', 'config', 'database', 'resources', 'routes', 'tests'}
     files = {'artisan', 'composer.json', 'composer.lock', 'package.json', 'package-lock.json',
              'phpunit.xml', 'vite.config.js', '.env.example', '.env.testing', '.nvmrc', 'README.md',
@@ -50,13 +55,13 @@ def snapshot():
         source = ROOT / path
         if source.is_symlink() or not source.is_file() or source.resolve() != source.absolute():
             continue
-        if path.suffix in {'.sqlite', '.sqlite3', '.db'} or 'cache' in path.parts:
+        if path.suffix == '.db' or 'cache' in path.parts:
             continue
         destination = target / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
         count += 1
-    print(f'Snapshot: {target} ({count} file; perubahan tracked yang belum commit ikut disalin).', flush=True)
+    print(f'Snapshot: {target} ({count} file; perubahan tracked dan source baru yang belum commit ikut disalin).', flush=True)
     return target
 
 
@@ -96,7 +101,13 @@ def main():
                  'LLM_EXTRA_HEADERS', 'STRIX_DEDUPE_MODEL', 'DEDUPE_LLM_API_KEY',
                  'DEDUPE_LLM_API_BASE', 'DEDUPE_LLM_EXTRA_HEADERS'):
         env.pop(name, None)
-    env.update(STRIX_LLM=model, LLM_API_KEY=key, GEMINI_API_KEY=key, STRIX_LLM_MAX_RETRIES='2')
+    env.update(
+        STRIX_LLM=model,
+        LLM_API_KEY=key,
+        GEMINI_API_KEY=key,
+        STRIX_LLM_MAX_RETRIES='2',
+        STRIX_DOCKER_SANDBOX_NETWORK='host',
+    )
     print('Memulai scan Gemini pada salinan source. Output disimpan di .security/strix/strix_runs.', flush=True)
     result = subprocess.run([
         str(BIN), '--target', str(target), '--non-interactive', '--scan-mode', 'quick',

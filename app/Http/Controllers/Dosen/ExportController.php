@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\ObeCalculationService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -41,17 +41,17 @@ class ExportController extends Controller
         $students = $section->students()->orderBy('name')->get();
 
         $sectionSuffix = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'rekap-nilai-' . $section->mataKuliah->code . '-' . $sectionSuffix . '.csv';
+        $filename = 'rekap-nilai-'.$section->mataKuliah->code.'-'.$sectionSuffix.'.csv';
 
         return response()->streamDownload(function () use ($students, $cpmks, $cpmkWeights, $section) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header row
             $header = ['No', 'NIM', 'Nama'];
             foreach ($cpmks as $cpmk) {
                 $w = $cpmkWeights[$cpmk->id] ?? 0;
-                $header[] = "{$cpmk->code} (" . rtrim(rtrim(number_format($w, 1), '0'), '.') . '%)';
+                $header[] = "{$cpmk->code} (".rtrim(rtrim(number_format($w, 1), '0'), '.').'%)';
             }
             $header = array_merge($header, ['Nilai Akhir', 'Grade', 'Predikat', 'Coverage (%)', 'Status']);
             fputcsv($handle, $header, ';');
@@ -92,16 +92,16 @@ class ExportController extends Controller
         $students = $section->students()->orderBy('name')->get();
 
         $sectionSuffix = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'rekap-cpmk-' . $section->mataKuliah->code . '-' . $sectionSuffix . '.csv';
+        $filename = 'rekap-cpmk-'.$section->mataKuliah->code.'-'.$sectionSuffix.'.csv';
 
         return response()->streamDownload(function () use ($students, $cpmks, $cpmkWeights, $section) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             $header = ['No', 'NIM', 'Nama'];
             foreach ($cpmks as $cpmk) {
                 $w = $cpmkWeights[$cpmk->id] ?? 0;
-                $header[] = "{$cpmk->code} (" . rtrim(rtrim(number_format($w, 1), '0'), '.') . '%)';
+                $header[] = "{$cpmk->code} (".rtrim(rtrim(number_format($w, 1), '0'), '.').'%)';
             }
             fputcsv($handle, $header, ';');
 
@@ -130,16 +130,16 @@ class ExportController extends Controller
         $students = $section->students()->orderBy('name')->get();
 
         $sectionSuffix = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'rekap-cpl-' . $section->mataKuliah->code . '-' . $sectionSuffix . '.csv';
+        $filename = 'rekap-cpl-'.$section->mataKuliah->code.'-'.$sectionSuffix.'.csv';
 
         return response()->streamDownload(function () use ($students, $cpls, $section) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             $header = ['No', 'NIM', 'Nama'];
             foreach ($cpls as $cpl) {
                 $header[] = $cpl->code;
-                $header[] = 'Status ' . $cpl->code;
+                $header[] = 'Status '.$cpl->code;
             }
             fputcsv($handle, $header, ';');
 
@@ -150,7 +150,7 @@ class ExportController extends Controller
                 foreach ($cpls as $cpl) {
                     $score = $scores[$cpl->id] ?? null;
                     $row[] = $score !== null ? number_format($score, 2) : '';
-                    $row[] = $score !== null ? ($score >= (float)($cpl->target_score ?? 65) ? 'Tercapai' : 'Belum Tercapai') : 'Belum Dinilai';
+                    $row[] = $score !== null ? ($score >= (float) ($cpl->target_score ?? 65) ? 'Tercapai' : 'Belum Tercapai') : 'Belum Dinilai';
                 }
                 fputcsv($handle, $row, ';');
             }
@@ -212,20 +212,20 @@ class ExportController extends Controller
         $assessments = $section->assessments()->orderBy('code')->get();
         $students = $section->students()->orderBy('name')->get();
 
-        $filename = 'rekap_nilai_asesmen_' . $section->mataKuliah->code . '_' . $section->section_code . '.csv';
+        $filename = 'rekap_nilai_asesmen_'.$section->mataKuliah->code.'_'.$section->section_code.'.csv';
 
         return response()->streamDownload(function () use ($students, $assessments) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             $header = ['No', 'NIM', 'Nama'];
             foreach ($assessments as $assessment) {
-                $header[] = $assessment->code . ' (' . $assessment->final_weight . '%)';
+                $header[] = $assessment->code.' ('.$assessment->final_weight.'%)';
             }
             fputcsv($handle, $header, ';');
 
             foreach ($students as $i => $student) {
-                $row = [$i + 1, $student->nim_nidn ?? '', $student->name];
+                $row = [$i + 1, $this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
                 foreach ($assessments as $assessment) {
                     $score = $this->obe->assessmentScore($assessment->id, $student->id);
                     $row[] = $score !== null ? number_format($score, 2) : '';
@@ -287,18 +287,23 @@ class ExportController extends Controller
             $user = User::where('email', $sessionUser['email'] ?? '')
                 ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
                 ->first();
-            $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
+            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+        abort_unless(
+            $currentUserId && in_array($currentUserId, [$section->dosen_id, $section->dosen_pendamping_id], true),
+            403,
+            'Anda tidak memiliki akses ke kelas ini.'
+        );
     }
 
     private function sanitizeCsv(mixed $value): string
     {
         $str = (string) $value;
         if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
-            return "'" . $str;
+            return "'".$str;
         }
+
         return $str;
     }
 }

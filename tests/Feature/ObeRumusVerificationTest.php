@@ -21,11 +21,17 @@ class ObeRumusVerificationTest extends TestCase
     use RefreshDatabase;
 
     private ObeCalculationService $service;
+
     private User $dosen;
+
     private User $mhs1;
+
     private User $mhs2;
+
     private ClassSection $section;
+
     private Cpmk $cpmk;
+
     private Cpl $cpl;
 
     protected function setUp(): void
@@ -763,7 +769,7 @@ class ObeRumusVerificationTest extends TestCase
         $tugas1->cpmks()->attach($cpmk1->id, ['weight' => 60]); // 6%
         $tugas1->cpmks()->attach($cpmk2->id, ['weight' => 40]); // 4%
 
-        $obeService = app(\App\Services\ObeCalculationService::class);
+        $obeService = app(ObeCalculationService::class);
         $this->assertEquals(60.0, $obeService->assessmentCpmkMaxScore($tugas1, $cpmk1));
         $this->assertEquals(40.0, $obeService->assessmentCpmkMaxScore($tugas1, $cpmk2));
 
@@ -781,7 +787,7 @@ class ObeRumusVerificationTest extends TestCase
         $res->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $tugas1->id]));
 
         // Cek student_assessment_scores: overallScore = 60 + 40 = 100.0 (bukan 200)
-        $scoreRow = \App\Models\StudentAssessmentScore::where('assessment_id', $tugas1->id)
+        $scoreRow = StudentAssessmentScore::where('assessment_id', $tugas1->id)
             ->where('mahasiswa_id', $this->mhs1->id)
             ->first();
         $this->assertNotNull($scoreRow);
@@ -842,7 +848,7 @@ class ObeRumusVerificationTest extends TestCase
             ]);
 
         $res->assertSessionHasErrors([
-            "cpmk_scores.{$this->mhs1->id}.{$cpmk2->id}" => "Nilai CPMK-V2 tidak boleh melebihi batas maksimal 40.",
+            "cpmk_scores.{$this->mhs1->id}.{$cpmk2->id}" => 'Nilai CPMK-V2 tidak boleh melebihi batas maksimal 40.',
         ]);
     }
 }

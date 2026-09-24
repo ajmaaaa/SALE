@@ -6,6 +6,12 @@ use Tests\TestCase;
 
 class AssessmentDesignTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->disableRoleGateForPreviewBehavior();
+    }
+
     public function test_assessment_sheets_render_with_grading_controls(): void
     {
         foreach (['uas', 'uts', 'quiz', 'tugas', 'project'] as $type) {

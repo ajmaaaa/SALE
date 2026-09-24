@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -154,7 +155,7 @@ class AiTutorController extends Controller
             $id = DB::table('ai_turns')->insertGetId(['user_id' => $userId, 'task_id' => $task->id, 'question' => $input['question'], 'code' => $input['code'] ?? '']);
             try {
                 if ($isLiveAi) {
-                    $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history);
+                    $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history, $id);
                 } else {
                     $answer = $this->demoAnswer($input['question'], $input['code'] ?? '');
                 }
@@ -165,7 +166,7 @@ class AiTutorController extends Controller
                     throw $exception;
                 }
                 // Record only the exception type, never prompts, credentials, or raw provider data.
-                \Illuminate\Support\Facades\Log::error('AI tutor request failed', ['exception' => get_class($exception)]);
+                Log::error('AI tutor request failed', ['exception' => get_class($exception)]);
                 abort(503, 'Layanan AI mengalami gangguan. Permintaan tidak diulang otomatis.');
             }
 
@@ -185,35 +186,35 @@ class AiTutorController extends Controller
 
         if (str_contains($q, 'insert') || str_contains($q, 'tambah') || str_contains($q, 'masuk')) {
             return "Untuk menyisipkan simpul baru pada Binary Search Tree (BST), ingat kaidah dasarnya:\n\n"
-                . "1. **Kondisi Dasar (Akar Kosong)**: Jika `self.root is None`, simpul baru langsung menjadi `self.root`.\n"
-                . "2. **Penelusuran**: Bandingkan nilai baru (`val`) dengan nilai simpul saat ini (`current.val`):\n"
-                . "   - Jika `val < current.val`, arahkan langkah ke cabang kiri (`current.left`).\n"
-                . "   - Jika `val > current.val`, arahkan langkah ke cabang kanan (`current.right`).\n"
-                . "   - Jika nilai sama (duplikat), tentukan penanganannya (biasanya diabaikan atau ditaruh di cabang kanan).\n"
-                . "3. **Penempatan**: Lanjutkan penelusuran sampai menemukan posisi kosong (`None`), lalu tautkan `Node(val)` baru pada cabang tersebut.";
+                ."1. **Kondisi Dasar (Akar Kosong)**: Jika `self.root is None`, simpul baru langsung menjadi `self.root`.\n"
+                ."2. **Penelusuran**: Bandingkan nilai baru (`val`) dengan nilai simpul saat ini (`current.val`):\n"
+                ."   - Jika `val < current.val`, arahkan langkah ke cabang kiri (`current.left`).\n"
+                ."   - Jika `val > current.val`, arahkan langkah ke cabang kanan (`current.right`).\n"
+                ."   - Jika nilai sama (duplikat), tentukan penanganannya (biasanya diabaikan atau ditaruh di cabang kanan).\n"
+                .'3. **Penempatan**: Lanjutkan penelusuran sampai menemukan posisi kosong (`None`), lalu tautkan `Node(val)` baru pada cabang tersebut.';
         }
 
         if (str_contains($q, 'rekursi') || str_contains($q, 'recursion')) {
             return "Dalam BST, rekursi bekerja dengan memecah pohon menjadi subtree yang lebih kecil:\n\n"
-                . "- **Base Case**: Ketika simpul saat ini bernilai `None`, berarti kita telah mencapai posisi di mana simpul baru harus dipasang.\n"
-                . "- **Recursive Step**: Panggil kembali fungsi pembantu pada `node.left` atau `node.right` sesuai perbandingan nilai.\n\n"
-                . "Coba perhatikan: apakah fungsi pembantu Anda mengembalikan simpul yang diperbarui agar pointer induknya dapat terhubung?";
+                ."- **Base Case**: Ketika simpul saat ini bernilai `None`, berarti kita telah mencapai posisi di mana simpul baru harus dipasang.\n"
+                ."- **Recursive Step**: Panggil kembali fungsi pembantu pada `node.left` atau `node.right` sesuai perbandingan nilai.\n\n"
+                .'Coba perhatikan: apakah fungsi pembantu Anda mengembalikan simpul yang diperbarui agar pointer induknya dapat terhubung?';
         }
 
         if (str_contains($q, 'traversal') || str_contains($q, 'inorder') || str_contains($q, 'preorder') || str_contains($q, 'postorder')) {
             return "Urutan penelusuran pohon (Tree Traversal):\n\n"
-                . "- **In-order**: Kiri → Akar → Kanan (Pada BST terurut, ini menghasilkan deret angka menaik/ascending).\n"
-                . "- **Pre-order**: Akar → Kiri → Kanan (Bagus untuk mengkloning struktur pohon).\n"
-                . "- **Post-order**: Kiri → Kanan → Akar (Bagus untuk operasi penghapusan simpul dari daun ke akar).";
+                ."- **In-order**: Kiri → Akar → Kanan (Pada BST terurut, ini menghasilkan deret angka menaik/ascending).\n"
+                ."- **Pre-order**: Akar → Kiri → Kanan (Bagus untuk mengkloning struktur pohon).\n"
+                .'- **Post-order**: Kiri → Kanan → Akar (Bagus untuk operasi penghapusan simpul dari daun ke akar).';
         }
 
         if (str_contains($q, 'error') || str_contains($q, 'bug') || str_contains($q, 'none') || str_contains($q, 'attributeerror')) {
             return "Periksa pesan galat Anda:\n\n"
-                . "Biasanya `AttributeError: 'NoneType' object has no attribute 'val'` terjadi ketika mencoba mengakses atribut pada simpul yang kosong (`None`).\n\n"
-                . "Pastikan Anda selalu memeriksa `if node is None:` sebelum mengakses atribut `node.val`, `node.left`, atau `node.right`.";
+                ."Biasanya `AttributeError: 'NoneType' object has no attribute 'val'` terjadi ketika mencoba mengakses atribut pada simpul yang kosong (`None`).\n\n"
+                .'Pastikan Anda selalu memeriksa `if node is None:` sebelum mengakses atribut `node.val`, `node.left`, atau `node.right`.';
         }
 
         return "Untuk modul **Praktikum Binary Tree**, fokuskan pada bagaimana setiap simpul terhubung melalui pointer `left` dan `right`.\n\n"
-            . "Jika Anda ingin menguji metode `insert()`, coba visualisasikan pohon dengan angka-angka sederhana seperti `[8, 3, 10, 1, 6]`. Simpul mana yang menjadi anak kiri dan kanan dari akar `8`?";
+            .'Jika Anda ingin menguji metode `insert()`, coba visualisasikan pohon dengan angka-angka sederhana seperti `[8, 3, 10, 1, 6]`. Simpul mana yang menjadi anak kiri dan kanan dari akar `8`?';
     }
 }

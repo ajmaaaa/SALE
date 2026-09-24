@@ -30,7 +30,8 @@
             $gradedCourses++;
         }
     }
-    $gpa = $gradedCourses > 0 ? round($totalWeightedScore / ($gradedCourses * 3), 2) : $currentSemInfo['ips'];
+    $gpa = $gradedCourses > 0 ? round($totalWeightedScore / ($gradedCourses * 3), 2) : ($totalCredits > 0 ? $currentSemInfo['ips'] : 0.00);
+    $ipk = $totalCredits > 0 ? $currentSemInfo['ipk'] : 0.00;
 @endphp
 
 <div class="space-y-6">
@@ -71,7 +72,7 @@
         </div>
         <div>
             <span class="text-xs text-muted block">IPK Kumulatif</span>
-            <span class="mt-1 font-bold text-ink text-base block">{{ number_format($currentSemInfo['ipk'], 2, ',', '.') }}</span>
+            <span class="mt-1 font-bold text-ink text-base block">{{ number_format($ipk, 2, ',', '.') }}</span>
         </div>
     </div>
 
@@ -94,7 +95,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/30">
-                    @foreach($courses as $course)
+                    @forelse($courses as $course)
                         @php
                             $result = \App\Support\AcademicPreview::result($course['id'], $studentId);
                             $config = \App\Support\AcademicPreview::config($course['id']);
@@ -196,7 +197,13 @@
                                 </div>
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-xs text-muted">
+                                Belum ada mata kuliah yang terdaftar pada semester ini.
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>

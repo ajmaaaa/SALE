@@ -20,7 +20,20 @@
     @if(request()->has('room') || request()->has('course'))
         {{-- ── RUANG PENILAIAN ── --}}
         @php
-            $activeType = strtolower(request()->query('type', 'uts'));
+            $typeParam = strtolower(request()->query('type', 'uts'));
+            $typeMap = [
+                'kuis' => 'quiz',
+                'quiz' => 'quiz',
+                'proyek' => 'project',
+                'project' => 'project',
+                'pbl' => 'project',
+                'case' => 'project',
+                'coding' => 'tugas',
+                'tugas' => 'tugas',
+                'uts' => 'uts',
+                'uas' => 'uas',
+            ];
+            $activeType = $typeMap[$typeParam] ?? 'uts';
             $courseId   = request()->integer('course', 1);
             $courses    = \App\Support\LearningPreview::courses();
             $selectedCourse = $courses[$courseId] ?? $courses[1];
@@ -28,7 +41,11 @@
 
         @include('dosen.partials.grades-room-header')
 
-        @include('dosen.partials.assessment-' . ($activeType ?: 'uts'))
+        @if(view()->exists('dosen.partials.assessment-' . $activeType))
+            @include('dosen.partials.assessment-' . $activeType)
+        @else
+            @include('dosen.partials.assessment-uts')
+        @endif
         @include('dosen.partials.submission-preview')
         @include('dosen.partials.grade-import')
 

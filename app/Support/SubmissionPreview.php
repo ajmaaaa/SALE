@@ -19,7 +19,7 @@ class SubmissionPreview
             }
             foreach ($submission['files'] ?? [] as $file) {
                 $meta = session("learning.files.$file");
-                if (!$meta || !Storage::disk('local')->exists($meta['path'])) {
+                if (! $meta || ! Storage::disk('local')->exists($meta['path'])) {
                     continue;
                 }
                 $files[] = [

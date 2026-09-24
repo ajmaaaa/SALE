@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dosen;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\ClassSection;
+use App\Models\Role;
 use App\Models\Rubric;
 use App\Models\RubricCriterion;
 use App\Models\StudentRubricScore;
@@ -148,7 +149,7 @@ class RubricController extends Controller
         // Prefetch all rubric scores: keyed by "criterion_id:mahasiswa_id"
         $existingScores = StudentRubricScore::whereIn('rubric_criterion_id', $criteria->pluck('id'))
             ->get()
-            ->keyBy(fn ($s) => $s->rubric_criterion_id . ':' . $s->mahasiswa_id);
+            ->keyBy(fn ($s) => $s->rubric_criterion_id.':'.$s->mahasiswa_id);
 
         return view('dosen.penilaian.rubrik-nilai', [
             'section' => $this->withHeaderCounts($section),
@@ -251,7 +252,7 @@ class RubricController extends Controller
             $user = User::where('email', $sessionUser['email'] ?? '')
                 ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
                 ->first();
-            $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
+            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
         }
 
         abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');

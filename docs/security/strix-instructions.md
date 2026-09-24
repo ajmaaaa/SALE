@@ -11,7 +11,7 @@ from real database mutations. A prototype disclaimer does not protect database d
 The snapshot excludes live .env, databases, storage, credentials, dependencies and
 Git history. Never try to obtain these from the host. If you need dynamic proofs,
 install dependencies inside the sandbox, bootstrap only with .env.testing and an
-isolated SQLite database, and create synthetic accounts. Do not configure external
+isolated MySQL test database, and create synthetic accounts. Do not configure external
 mail, AI tutoring or code-runner services. Do not send destructive or load-test traffic.
 
 Report in Indonesian: severity, source path and line, prerequisites, reproduction,

@@ -107,7 +107,7 @@
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
-                                        onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id }}, {{ $cls->dosen_pendamping_id ?? 'null' }})"
+                                        onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id ?? 'null' }}, {{ $cls->dosen_pendamping_id ?? 'null' }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
@@ -186,15 +186,15 @@
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
                     <label for="create_dosen_id" class="block text-xs font-bold text-ink mb-1">
-                        Dosen Ketua (Koordinator Mata Kuliah) <span class="text-danger">*</span>
+                        Dosen Ketua (Koordinator Mata Kuliah) <span class="text-muted font-normal">(Opsional / Masuk via Kode)</span>
                     </label>
-                    <select name="dosen_id" id="create_dosen_id" required class="field text-xs font-semibold">
-                        <option value="">-- Pilih Dosen Ketua --</option>
+                    <select name="dosen_id" id="create_dosen_id" class="field text-xs font-semibold">
+                        <option value="">-- Belum Ditentukan (Dosen Bergabung via Kode / Tautan) --</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }} ({{ $dsn->nim_nidn ?? 'NIDN' }})</option>
                         @endforeach
                     </select>
-                    <p class="text-[11px] text-muted mt-0.5">Dosen penanggung jawab utama RPS, penyusun soal asesmen, dan koordinator nilai akhir.</p>
+                    <p class="text-[11px] text-muted mt-0.5">Dosen penanggung jawab utama. Jika dikosongkan, dosen dapat bergabung secara mandiri menggunakan kode kelas yang dibagikan.</p>
                 </div>
 
                 <div>
@@ -242,8 +242,9 @@
 
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
-                    <label for="edit_dosen_id" class="block text-xs font-bold text-ink mb-1">Dosen Ketua (Koordinator)</label>
-                    <select name="dosen_id" id="edit_dosen_id" required class="field text-xs font-semibold">
+                    <label for="edit_dosen_id" class="block text-xs font-bold text-ink mb-1">Dosen Ketua (Koordinator) <span class="text-muted font-normal">(Opsional)</span></label>
+                    <select name="dosen_id" id="edit_dosen_id" class="field text-xs font-semibold">
+                        <option value="">-- Belum Ditentukan (Dosen Bergabung via Kode) --</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
                         @endforeach
@@ -333,7 +334,7 @@
         form.action = `/admin-prodi/akademik/kelas/${id}`;
         document.getElementById('edit_section_code').value = sectionCode;
         document.getElementById('edit_capacity').value = capacity || '';
-        document.getElementById('edit_dosen_id').value = dosenId;
+        document.getElementById('edit_dosen_id').value = dosenId || '';
         document.getElementById('edit_dosen_wakil').value = dosenWakilId || '';
         document.getElementById('editKelasModal').classList.remove('hidden');
         document.getElementById('editKelasModal').classList.add('flex');

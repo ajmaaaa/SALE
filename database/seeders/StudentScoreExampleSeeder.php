@@ -57,9 +57,22 @@ class StudentScoreExampleSeeder extends Seeder
                     default => 0,
                 };
 
+                $feedback = match ($code) {
+                    'TGS-01' => 'Implementasi algoritma dan kode pengujian sudah sangat baik.',
+                    'TGS-02' => 'Analisis kompleksitas tepat, pertahankan kerapian struktur koding.',
+                    'KUIS-01' => 'Pemahaman konsep dasar binary tree sangat matang.',
+                    'PBL-01' => 'Solusi kasus terapan kreatif dengan dokumentasi jelas.',
+                    'UTS' => 'Pencapaian CPMK evaluasi tengah semester memuaskan.',
+                    default => null,
+                };
+
                 StudentAssessmentScore::updateOrCreate(
                     ['assessment_id' => $assessments[$code]->id, 'mahasiswa_id' => $student->id],
-                    ['score' => min(100, max(0, $base + $variation)), 'graded_at' => now()]
+                    [
+                        'score' => min(100, max(0, $base + $variation)),
+                        'feedback' => $feedback,
+                        'graded_at' => now(),
+                    ]
                 );
             }
 

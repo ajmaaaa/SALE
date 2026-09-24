@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class ClassSection extends Model
 {
@@ -31,7 +32,7 @@ class ClassSection extends Model
     public static function generateUniqueEnrollmentCode(): string
     {
         do {
-            $code = strtoupper(\Illuminate\Support\Str::random(8));
+            $code = strtoupper(Str::random(8));
         } while (static::where('enrollment_code', $code)->exists());
 
         return $code;
@@ -87,6 +88,7 @@ class ClassSection extends Model
     public function getTotalAssessmentWeightAttribute(): float
     {
         $assessments = $this->relationLoaded('assessments') ? $this->assessments : $this->assessments()->get();
+
         return round((float) $assessments->sum('final_weight'), 2);
     }
 

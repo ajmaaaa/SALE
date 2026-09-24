@@ -1,0 +1,56 @@
+[
+  {
+    "id": "essay-strong",
+    "type": "essay",
+    "question": "Jelaskan perbedaan stack dan queue serta berikan masing-masing satu contoh penerapan.",
+    "rubric": "Total 100: definisi stack/LIFO 25; definisi queue/FIFO 25; perbedaan mekanisme 20; contoh stack yang tepat 15; contoh queue yang tepat 15.",
+    "answer": "Stack memakai prinsip LIFO: data terakhir masuk menjadi yang pertama keluar, seperti call stack saat fungsi dipanggil. Queue memakai FIFO: data pertama masuk menjadi yang pertama dilayani, seperti antrean job pada printer. Jadi perbedaannya terutama pada urutan elemen yang diambil.",
+    "max_score": 100,
+    "expected_score": 100
+  },
+  {
+    "id": "essay-partial",
+    "type": "essay",
+    "question": "Jelaskan perbedaan stack dan queue serta berikan masing-masing satu contoh penerapan.",
+    "rubric": "Total 100: definisi stack/LIFO 25; definisi queue/FIFO 25; perbedaan mekanisme 20; contoh stack yang tepat 15; contoh queue yang tepat 15.",
+    "answer": "Stack mengambil data yang terakhir dimasukkan, sedangkan queue digunakan untuk antrean. Contoh stack adalah tumpukan piring.",
+    "max_score": 100,
+    "expected_score": 65
+  },
+  {
+    "id": "essay-weak",
+    "type": "essay",
+    "question": "Jelaskan perbedaan stack dan queue serta berikan masing-masing satu contoh penerapan.",
+    "rubric": "Total 100: definisi stack/LIFO 25; definisi queue/FIFO 25; perbedaan mekanisme 20; contoh stack yang tepat 15; contoh queue yang tepat 15.",
+    "answer": "Stack dan queue adalah tempat menyimpan data. Keduanya sama saja karena bisa menambah data.",
+    "max_score": 100,
+    "expected_score": 10
+  },
+  {
+    "id": "code-strong",
+    "type": "code",
+    "question": "Buat fungsi Python is_even(n) yang mengembalikan True bila n genap dan False bila ganjil.",
+    "rubric": "Total 100: sintaks valid 20; hasil benar untuk positif 25; benar untuk nol 20; benar untuk negatif 20; kode ringkas dan jelas 15.",
+    "answer": "def is_even(n):\n    return n % 2 == 0",
+    "max_score": 100,
+    "expected_score": 100
+  },
+  {
+    "id": "code-partial",
+    "type": "code",
+    "question": "Buat fungsi Python is_even(n) yang mengembalikan True bila n genap dan False bila ganjil.",
+    "rubric": "Total 100: sintaks valid 20; hasil benar untuk positif 25; benar untuk nol 20; benar untuk negatif 20; kode ringkas dan jelas 15.",
+    "answer": "def is_even(n):\n    if n > 0 and n % 2 == 0:\n        return True\n    return False",
+    "max_score": 100,
+    "expected_score": 60
+  },
+  {
+    "id": "code-weak",
+    "type": "code",
+    "question": "Buat fungsi Python is_even(n) yang mengembalikan True bila n genap dan False bila ganjil.",
+    "rubric": "Total 100: sintaks valid 20; hasil benar untuk positif 25; benar untuk nol 20; benar untuk negatif 20; kode ringkas dan jelas 15.",
+    "answer": "def is_even(n)\n    return True",
+    "max_score": 100,
+    "expected_score": 0
+  }
+]

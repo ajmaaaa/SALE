@@ -14,6 +14,9 @@ GEMINI_MODEL=gemini-3.6-flash
 AI_DAILY_TOKENS=100000
 AI_GLOBAL_DAILY_TOKENS=1000000
 AI_TASK_TURNS=12
+AI_INPUT_PRICE_PER_MILLION_USD=0.75
+AI_CACHED_INPUT_PRICE_PER_MILLION_USD=0.075
+AI_OUTPUT_PRICE_PER_MILLION_USD=3.75
 ```
 
 3. Jalankan:
@@ -61,6 +64,8 @@ Pemeriksa dan tutor menggunakan model yang sama dalam panggilan terpisah: kesala
 - Output dibatasi 600 token untuk tutor, 128 untuk setiap pemeriksa. Konfigurasi saat ini memakai `thinkingLevel=minimal`, sesuai Gemini 3.6 Flash; jangan mengganti ke model dengan konfigurasi thinking berbeda tanpa menyesuaikan integrasi dan menguji ulang.
 - Sebelum setiap panggilan, server mencadangkan kuota menggunakan ukuran payload UTF-8 ditambah allowance output/framing. Ini estimasi konservatif, bukan tokenizer resmi atau estimasi harga uang. Sisa kuota bisa ditolak meskipun belum nol karena cadangan tidak cukup.
 - Sesudah respons, cadangan disesuaikan dengan `usageMetadata.totalTokenCount`. Termasuk panggilan penyaring dan jawaban yang diblokir. Jika timeout atau usage hilang, cadangan tetap dibebankan untuk menghindari percobaan gagal tanpa batas. Tidak ada retry otomatis.
+- Setiap panggilan provider dicatat terpisah di `ai_api_calls`: tahap (`gate`, `answer`, atau `review`), input, cached input, output, thinking, total token, latensi, status, versi model, dan estimasi biaya. Isi pertanyaan, kode, jawaban, serta API key tidak disalin ke tabel observabilitas ini.
+- Estimasi biaya memakai `(input non-cache × harga input + input cache × harga cache + (output + thinking) × harga output) / 1.000.000`. Default `.env.example` adalah tarif Standard paid-tier Gemini 3.6 Flash yang berlaku sampai 31 Desember 2026. Perbarui variabel harga jika model, tier, atau tarif provider berubah. Free tier tetap akan tampil sebagai estimasi list price agar proyeksi skala tidak bergantung pada promo.
 - Batas per panggilan dapat menghentikan proses sebelum pemeriksa jawaban jika kuota tersisa tidak cukup; calon jawaban tetap tidak ditampilkan.
 - Fitur tidak dipakai berarti tidak ada panggilan model. Membuka room/status tidak memanggil Google. Biaya provider bergantung pada model, jenis token dan tier akun; kuota token aplikasi bukan batas tagihan rupiah yang presisi.
 
@@ -74,6 +79,33 @@ Riwayat berisi pertanyaan, potongan kode, jawaban yang diterbitkan, dan status. 
 php artisan test tests/Feature
 npm run build
 ```
+
+## Benchmark koreksi esai dan kode
+
+Benchmark bersifat read-only terhadap nilai mahasiswa: hasilnya disimpan sebagai laporan eksperimen dan tidak masuk ke gradebook. Dry run berikut tidak memanggil provider:
+
+```bash
+php artisan ai:benchmark
+```
+
+Setelah `AI_ENABLED=true`, `GEMINI_API_KEY` terisi, konfigurasi dibersihkan, dan migrasi dijalankan, lakukan uji aktual:
+
+```bash
+php artisan migrate
+php artisan config:clear
+php artisan ai:benchmark --repeat=3 --live
+php artisan ai:usage-report --days=30
+```
+
+Dataset awal ada di `docs/samples/ai-evaluation-benchmark.json`. Enam sampel kecil itu hanya memverifikasi alur dan perhitungan. Keputusan produksi harus memakai jawaban mahasiswa nyata yang sudah dianonimkan dan dinilai sedikitnya dua dosen. Isi `expected_score` dengan nilai konsensus dosen, lalu bandingkan:
+
+- mean absolute error skor AI terhadap dosen;
+- variasi skor antar tiga pengulangan;
+- persentase kasus dengan selisih lebih dari toleransi institusi;
+- biaya dan latensi rata-rata per jawaban;
+- kualitas umpan balik dan kasus berbahaya, misalnya prompt injection di dalam jawaban.
+
+Strategi `compact` membatasi umpan balik dan output; `detailed` meminta alasan lebih lengkap. Opsi default `all` menjalankan keduanya agar biaya dan akurasi dapat dibandingkan pada sampel yang sama. Laporan JSON disimpan di `storage/app/private/ai-benchmarks/` dan pemakaian per panggilan tampil di halaman monitoring admin. Untuk uji awal yang lebih hemat, gunakan `--strategy=compact --repeat=1`. Gunakan `--sample=essay-strong` untuk menjalankan satu sampel saja ketika ingin mengisolasi hasil atau menghindari batas waktu terminal.
 
 Konfigurasi PHPUnit lama menunjuk `tests/Unit` yang belum tersedia; gunakan perintah eksplisit di atas untuk seluruh tes yang ada.
 

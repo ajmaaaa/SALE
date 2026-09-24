@@ -14,7 +14,7 @@
 
     <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 hidden bg-ink/30 data-[open=true]:block lg:hidden"></div>
 
-    <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] -translate-x-full flex-col bg-white shadow-[2px_0_16px_rgba(29,39,48,0.03)] transition-transform data-[open=true]:translate-x-0 lg:translate-x-0">
+    <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-white shadow-[2px_0_16px_rgba(29,39,48,0.03)] overscroll-contain overflow-hidden max-lg:-translate-x-full max-lg:transition-transform max-lg:data-[open=true]:translate-x-0">
         <div class="px-6 pb-4 pt-6">
             @php
                 $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
@@ -29,36 +29,38 @@
         </div>
 
         @if(request()->is('admin-prodi*'))
-        <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi admin prodi">
-            <p class="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-muted">Ruang Admin Prodi</p>
-            <a href="{{ route('admin-prodi.dashboard') }}" @if(request()->routeIs('admin-prodi.dashboard')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.dashboard') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                Dashboard Prodi
-            </a>
-            <a href="{{ route('admin-prodi.akademik.matakuliah') }}" @if(request()->routeIs('admin-prodi.akademik.matakuliah*')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.akademik.matakuliah*') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                Mata Kuliah
-            </a>
-            <a href="{{ route('admin-prodi.kurikulum.index') }}" @if(request()->routeIs('admin-prodi.kurikulum.*')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.kurikulum.*') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
-                Kurikulum (CPL &amp; CPMK)
-            </a>
-            <a href="{{ route('admin-prodi.akademik.kelas') }}" @if(request()->routeIs('admin-prodi.akademik.kelas*')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.akademik.kelas*') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                Kelas &amp; Dosen Pengampu
-            </a>
-            <a href="{{ route('admin-prodi.users.index') }}" @if(request()->routeIs('admin-prodi.users.*')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.users.*') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-                Dosen &amp; Mahasiswa (Excel)
-            </a>
-            <a href="{{ route('admin-prodi.laporan.index') }}" @if(request()->routeIs('admin-prodi.laporan.*')) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('admin-prodi.laporan.*') ? 'bg-brand-dark text-white' : 'text-muted hover:bg-brand-soft hover:text-ink' }}">
-                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                Laporan &amp; Ekspor Semester
-            </a>
+        <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi admin prodi">
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
+            <div class="space-y-1">
+                <a href="{{ route('admin-prodi.dashboard') }}" @if(request()->routeIs('admin-prodi.dashboard')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
+                    Dashboard Prodi
+                </a>
+                <a href="{{ route('admin-prodi.akademik.matakuliah') }}" @if(request()->routeIs('admin-prodi.akademik.matakuliah*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.matakuliah*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                    Mata Kuliah
+                </a>
+                <a href="{{ route('admin-prodi.kurikulum.index') }}" @if(request()->routeIs('admin-prodi.kurikulum.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.kurikulum.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 12 10 5 10-5M2 17l10 5 10-5"/></svg>
+                    Kurikulum (CPL &amp; CPMK)
+                </a>
+                <a href="{{ route('admin-prodi.akademik.kelas') }}" @if(request()->routeIs('admin-prodi.akademik.kelas*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.kelas*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Kelas &amp; Dosen Pengampu
+                </a>
+                <a href="{{ route('admin-prodi.users.index') }}" @if(request()->routeIs('admin-prodi.users.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.users.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M16 11h5M18.5 8.5v5"/></svg>
+                    Dosen &amp; Mahasiswa
+                </a>
+                <a href="{{ route('admin-prodi.laporan.index') }}" @if(request()->routeIs('admin-prodi.laporan.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.laporan.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
+                    Laporan Semester
+                </a>
+            </div>
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Tata kelola kurikulum, kelas, dan pelaporan capaian prodi.</p>
         </nav>
         @elseif(request()->is('admin*'))
-        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi administrator">
+        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi administrator">
             <p class="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-muted">
                 Administrasi Sistem
             </p>
@@ -76,10 +78,9 @@
             $isCplActive = request()->routeIs('dosen.penilaian.cpl');
             $pendingGradingCount = \App\Support\DosenNavigation::pendingGradingCount();
         @endphp
-        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi dosen">
+        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi dosen">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang mengajar</p>
             <div class="space-y-1">
-                <!-- Dashboard -->
                 <a href="{{ route('dosen.dashboard') }}" 
                    @if(request()->routeIs('dosen.dashboard')) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -87,7 +88,6 @@
                     Dashboard
                 </a>
 
-                <!-- Course Saya -->
                 <a href="{{ route('dosen.course.index') }}" 
                    @if(request()->routeIs('dosen.course.*', 'dosen.item.*')) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.course.*', 'dosen.item.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -95,7 +95,6 @@
                     Course saya
                 </a>
 
-                <!-- Penilaian OBE -->
                 <a href="{{ route('dosen.penilaian.index') }}" 
                    @if($isPenilaianActive) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isPenilaianActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -106,7 +105,6 @@
                     @endif
                 </a>
 
-                <!-- Rekap Nilai -->
                 <a href="{{ $currentSectionId ? route('dosen.penilaian.rekap', $currentSectionId) : route('dosen.rekap.index') }}" 
                    @if($isRekapActive) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isRekapActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -123,7 +121,7 @@
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
         @elseif(request()->is('kaprodi*'))
-        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Navigasi kaprodi">
+        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi kaprodi">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Kaprodi</p>
             <div class="space-y-1">
                 <a href="{{ route('kaprodi.monitoring.cpmk') }}" 
@@ -145,8 +143,9 @@
         @php
             $forumUnreadCount = \App\Support\LearningPreview::unreadDiscussionCount();
             $pendingTaskCount = \App\Support\LearningPreview::pendingTaskCount();
+            $unreadNotifCount = \App\Support\LearningPreview::unreadNotificationCount();
         @endphp
-        <nav class="flex-1 px-3 py-5" aria-label="Navigasi mahasiswa">
+        <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi mahasiswa">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
             <div class="space-y-1">
                 <a href="{{ route('mahasiswa.dashboard') }}" @if(request()->routeIs('mahasiswa.dashboard')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -179,9 +178,15 @@
 
             <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
             <div class="space-y-1">
-                <a href="{{ route('mahasiswa.notifications') }}" class="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-left text-[14px] font-medium text-[#4d5964] hover:bg-[#f0f1ee] hover:text-ink">
+                @php
+                    $isNotifActive = request()->routeIs('mahasiswa.notifications*') || request()->is('*notifikasi*');
+                @endphp
+                <a href="{{ route('mahasiswa.notifications') }}" @if($isNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
-                    Notifikasi
+                    <span class="min-w-0 flex-1">Notifikasi</span>
+                    @if($unreadNotifCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full {{ $isNotifActive ? 'bg-white/20 text-white' : 'bg-[#4c1d95] text-white' }} px-1.5 text-[11px] font-bold leading-none" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
+                    @endif
                 </a>
                 <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
@@ -266,27 +271,60 @@
                                 <p class="text-xs text-muted">{{ $activeUser['email'] ?? 'user@example.test' }}</p>
                                 <p class="mt-1 text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '' }})</p>
                             </div>
-                            @if(in_array($roleName, ['dosen', 'kaprodi'], true))
-                            <div class="py-2 border-b border-line/60">
-                                <p class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Beralih Peran (Dosen &amp; Kaprodi)</p>
-                                @if($roleName !== 'dosen')
-                                <a href="{{ route('switch-role', 'dosen') }}" class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                    <span>Ruang Dosen</span>
-                                </a>
-                                @endif
-                                @if($roleName !== 'kaprodi')
-                                <a href="{{ route('switch-role', 'kaprodi') }}" class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ink hover:bg-canvas">
-                                    <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                    <span>Ruang Kaprodi</span>
-                                </a>
-                                @endif
+                            <!-- TESTING_ONLY: QUICK_ROLE_SWITCHER_START -->
+                            <!-- KOMPONEN PENGUJIAN: QUICK ROLE SWITCHER (Beralih Cepat Antar Peran) -->
+                            <!-- Hapus blok antara QUICK_ROLE_SWITCHER_START dan QUICK_ROLE_SWITCHER_END saat pengujian selesai -->
+                            <div class="py-2.5 my-1 border-y border-line/60 bg-canvas/40 -mx-3 px-3">
+                                <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-line/50">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted">
+                                        Peralihan Peran
+                                    </span>
+                                    <span class="text-[10px] text-muted font-normal">
+                                        @if(in_array($roleName, ['dosen', 'kaprodi'], true))
+                                            Beralih Peran (Dosen &amp; Kaprodi)
+                                        @else
+                                            Mode Pengujian
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="space-y-0.5">
+                                    @php
+                                        $rolesList = [
+                                            'mahasiswa' => ['label' => 'Mahasiswa', 'desc' => 'Ruang Belajar, Tugas & Nilai'],
+                                            'dosen' => ['label' => 'Dosen Pengampu', 'desc' => 'Ruang Mengajar & Penilaian'],
+                                            'kaprodi' => ['label' => 'Ketua Prodi (Kaprodi)', 'desc' => 'Monitoring Kurikulum & OBE'],
+                                            'admin_prodi' => ['label' => 'Admin Prodi', 'desc' => 'Kelola Kelas, Kurikulum, MK'],
+                                            'admin' => ['label' => 'Admin Sistem', 'desc' => 'Kelola Pengguna & Pengaturan'],
+                                        ];
+                                    @endphp
+                                    @foreach($rolesList as $rKey => $rMeta)
+                                        @php($isCurrent = $roleName === $rKey)
+                                        <form method="post" action="{{ route('switch-role', $rKey) }}" class="m-0">
+                                            @csrf
+                                            <button type="submit"
+                                                    @disabled($isCurrent)
+                                                    class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition {{ $isCurrent ? 'bg-slate-100 font-semibold text-ink cursor-default' : 'text-slate-600 hover:bg-slate-50 hover:text-ink' }}">
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <span class="h-1.5 w-1.5 rounded-full shrink-0 {{ $isCurrent ? 'bg-brand' : 'bg-slate-300' }}"></span>
+                                                    <div class="truncate">
+                                                        <span class="block leading-tight font-medium {{ $isCurrent ? 'font-semibold text-ink' : 'text-slate-700' }}">{{ $rMeta['label'] }}</span>
+                                                        <span class="block text-[10px] text-muted leading-tight">{{ $rMeta['desc'] }}</span>
+                                                    </div>
+                                                </div>
+                                                @if($isCurrent)
+                                                    <span class="text-[9px] font-semibold text-slate-500 uppercase tracking-wider shrink-0 bg-white border border-line/60 px-1.5 py-0.5 rounded">Aktif</span>
+                                                @endif
+                                            </button>
+                                        </form>
+                                    @endforeach
+                                </div>
                             </div>
-                            @endif
+                            <!-- TESTING_ONLY: QUICK_ROLE_SWITCHER_END -->
                             <div class="pt-2">
-                                <a href="{{ route('logout') }}" class="block rounded-lg px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10">
-                                    Keluar (Logout)
-                                </a>
+                                <form method="post" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold text-danger hover:bg-danger/10">Keluar (Logout)</button>
+                                </form>
                             </div>
                         </div>
                     </details>
@@ -302,7 +340,7 @@
     </div>
 
     {{-- Toast Notification --}}
-    @if(session('notice'))
+    @if(session('notice') || session('success'))
     <div id="toast-notice"
          role="status"
          aria-live="polite"
@@ -311,7 +349,7 @@
         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
             <svg class="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
         </span>
-        <span>{{ session('notice') }}</span>
+        <span>{{ session('notice') ?? session('success') }}</span>
     </div>
     <script>
         (function () {

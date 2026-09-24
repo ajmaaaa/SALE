@@ -48,9 +48,11 @@
                 <a href="{{ route('mahasiswa.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                @foreach($allCourses->take(4) as $course)
+                @forelse($allCourses->take(4) as $course)
                     @include('learning.partials.course-card', ['course' => $course, 'role' => 'mahasiswa', 'isFirst' => $loop->first])
-                @endforeach
+                @empty
+                    <p class="col-span-full py-2 text-xs text-muted">Belum ada kelas.</p>
+                @endforelse
             </div>
         </section>
 

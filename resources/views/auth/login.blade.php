@@ -48,7 +48,21 @@
 
                 <div>
                     <label for="password" class="form-label text-xs">Kata Sandi</label>
-                    <input id="password" name="password" type="password" required autocomplete="current-password" class="field text-sm" placeholder="••••••••">
+                    <div class="relative mt-1">
+                        <input id="password" name="password" type="password" required autocomplete="current-password" class="field text-sm pr-10" placeholder="••••••••">
+                        <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none" aria-label="Tampilkan kata sandi">
+                            <svg id="eye-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg id="eye-off-icon" class="h-4 w-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+                                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+                                <line x1="2" y1="2" x2="22" y2="22"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="pt-2">
@@ -64,5 +78,26 @@
     <footer class="border-t border-line/50 bg-white px-6 py-4 text-center text-xs text-muted">
         SALE - Smart Academic Learning Ecosystem
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('toggle-password');
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            const eyeOffIcon = document.getElementById('eye-off-icon');
+
+            if (toggleBtn && passwordInput) {
+                toggleBtn.addEventListener('click', function () {
+                    const isPassword = passwordInput.getAttribute('type') === 'password';
+                    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                    if (eyeIcon && eyeOffIcon) {
+                        eyeIcon.classList.toggle('hidden', isPassword);
+                        eyeOffIcon.classList.toggle('hidden', !isPassword);
+                    }
+                    toggleBtn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+                });
+            }
+        });
+    </script>
 </body>
 </html>

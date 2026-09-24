@@ -4,7 +4,6 @@ namespace App\Http\Controllers\AdminProdi;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
-use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
@@ -12,7 +11,6 @@ use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -39,11 +37,11 @@ class LaporanProdiController extends Controller
 
         return response()->streamDownload(function () use ($data) {
             $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF"); // UTF-8 BOM
+            fwrite($file, "\xEF\xBB\xBF"); // UTF-8 BOM
 
             fputcsv($file, ['LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI PER SEMESTER']);
-            fputcsv($file, ['Program Studi', $data['activeProdi']?->name . ' (' . $data['activeProdi']?->code . ')']);
-            fputcsv($file, ['Semester', $data['activeSemester']?->name . ' (' . $data['activeSemester']?->code . ')']);
+            fputcsv($file, $this->sanitizeCsvRow(['Program Studi', $data['activeProdi']?->name.' ('.$data['activeProdi']?->code.')']));
+            fputcsv($file, $this->sanitizeCsvRow(['Semester', $data['activeSemester']?->name.' ('.$data['activeSemester']?->code.')']));
             fputcsv($file, ['Tanggal Cetak', now()->translatedFormat('d F Y, H:i:s')]);
             fputcsv($file, []);
 
@@ -62,7 +60,7 @@ class LaporanProdiController extends Controller
             fputcsv($file, ['Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Mahasiswa Terdaftar', 'Jumlah Asesmen', 'Rata-rata Nilai Kelas']);
 
             foreach ($data['classReports'] as $cr) {
-                fputcsv($file, [
+                fputcsv($file, $this->sanitizeCsvRow([
                     $cr['mk_code'],
                     $cr['mk_name'],
                     $cr['sks'],
@@ -72,7 +70,7 @@ class LaporanProdiController extends Controller
                     $cr['students_count'],
                     $cr['assessments_count'],
                     $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai',
-                ]);
+                ]));
             }
 
             fclose($file);
@@ -123,7 +121,7 @@ class LaporanProdiController extends Controller
             ->where(function ($q) use ($semesterCodeYear) {
                 if ($semesterCodeYear) {
                     $q->where('nim_nidn', 'like', $semesterCodeYear.'%')
-                      ->orWhereYear('created_at', (int) $semesterCodeYear);
+                        ->orWhereYear('created_at', (int) $semesterCodeYear);
                 }
             })
             ->count();
@@ -206,5 +204,17 @@ class LaporanProdiController extends Controller
             'metrics',
             'classReports'
         );
+    }
+
+    /** @return array<int, string> */
+    private function sanitizeCsvRow(array $row): array
+    {
+        return array_map(function (mixed $value): string {
+            $string = (string) $value;
+
+            return $string !== '' && in_array($string[0], ['=', '+', '-', '@', "\t", "\r"], true)
+                ? "'".$string
+                : $string;
+        }, $row);
     }
 }

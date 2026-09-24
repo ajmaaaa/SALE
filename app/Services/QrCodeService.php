@@ -10,7 +10,7 @@ class QrCodeService
      */
     public static function svg(string $data, int $size = 200): string
     {
-        $matrix = (new static())->generateMatrix($data);
+        $matrix = (new static)->generateMatrix($data);
         $dimension = count($matrix);
         $margin = 4;
         $totalModules = $dimension + ($margin * 2);
@@ -45,17 +45,17 @@ class QrCodeService
     {
         // Simple and robust Code 128-B generator
         $patterns = [
-            '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213',
-            '221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
-            '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211',
-            '212123','212321','232121','111323','131123','131321','112313','132113','132311','211313',
-            '231113','231311','112133','112331','132131','113123','113321','133121','313121','211331',
-            '231131','213113','213311','213131','311123','311321','331121','312113','312311','332111',
-            '314111','221411','431111','111224','111422','121124','121421','141122','141221','112214',
-            '112412','122114','122411','142112','142211','241211','221114','413111','241112','134111',
-            '111242','121142','121241','114212','124112','124211','411212','421112','421211','212141',
-            '214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
-            '114131','311141','411131','211412','211214','211232','2331112'
+            '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
+            '221312', '231212', '112232', '122132', '122231', '113222', '123122', '123221', '223211', '221132',
+            '221231', '213212', '223112', '312131', '311222', '321122', '321221', '312212', '322112', '322211',
+            '212123', '212321', '232121', '111323', '131123', '131321', '112313', '132113', '132311', '211313',
+            '231113', '231311', '112133', '112331', '132131', '113123', '113321', '133121', '313121', '211331',
+            '231131', '213113', '213311', '213131', '311123', '311321', '331121', '312113', '312311', '332111',
+            '314111', '221411', '431111', '111224', '111422', '121124', '121421', '141122', '141221', '112214',
+            '112412', '122114', '122411', '142112', '142211', '241211', '221114', '413111', '241112', '134111',
+            '111242', '121142', '121241', '114212', '124112', '124211', '411212', '421112', '421211', '212141',
+            '214121', '412121', '111143', '111341', '131141', '114113', '114311', '411113', '411311', '113141',
+            '114131', '311141', '411131', '211412', '211214', '211232', '2331112',
         ];
 
         $startB = 104;
@@ -85,7 +85,7 @@ class QrCodeService
         $totalUnits = 0;
         $barsLen = strlen($bars);
         for ($i = 0; $i < $barsLen; $i++) {
-            $totalUnits += (int)$bars[$i];
+            $totalUnits += (int) $bars[$i];
         }
 
         $unitWidth = ($width - 20) / $totalUnits;
@@ -94,7 +94,7 @@ class QrCodeService
         $svgBars = '';
 
         for ($i = 0; $i < $barsLen; $i++) {
-            $w = (int)$bars[$i] * $unitWidth;
+            $w = (int) $bars[$i] * $unitWidth;
             $isBlack = ($i % 2 === 0);
             if ($isBlack) {
                 $svgBars .= sprintf('<rect x="%.2f" y="5" width="%.2f" height="%d" fill="#0f172a"/>', $curX, $w, $barHeight);
@@ -148,8 +148,12 @@ class QrCodeService
         // 3. Timing patterns
         for ($i = 8; $i < $size - 8; $i++) {
             $bit = ($i % 2 === 0) ? 1 : 0;
-            if ($matrix[6][$i] === -1) $matrix[6][$i] = $bit;
-            if ($matrix[$i][6] === -1) $matrix[$i][6] = $bit;
+            if ($matrix[6][$i] === -1) {
+                $matrix[6][$i] = $bit;
+            }
+            if ($matrix[$i][6] === -1) {
+                $matrix[$i][6] = $bit;
+            }
         }
 
         // 4. Dark module
@@ -157,12 +161,20 @@ class QrCodeService
 
         // 5. Reserve format information areas
         for ($i = 0; $i < 9; $i++) {
-            if ($matrix[8][$i] === -1) $matrix[8][$i] = 0;
-            if ($matrix[$i][8] === -1) $matrix[$i][8] = 0;
+            if ($matrix[8][$i] === -1) {
+                $matrix[8][$i] = 0;
+            }
+            if ($matrix[$i][8] === -1) {
+                $matrix[$i][8] = 0;
+            }
         }
         for ($i = $size - 8; $i < $size; $i++) {
-            if ($matrix[8][$i] === -1) $matrix[8][$i] = 0;
-            if ($matrix[$i][8] === -1) $matrix[$i][8] = 0;
+            if ($matrix[8][$i] === -1) {
+                $matrix[8][$i] = 0;
+            }
+            if ($matrix[$i][8] === -1) {
+                $matrix[$i][8] = 0;
+            }
         }
 
         // 6. Encode Data (Byte mode 0100 + length + data bytes + terminator)
@@ -263,7 +275,7 @@ class QrCodeService
         // Top-left
         $coordsTopLeft = [
             [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 7], [8, 8],
-            [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8]
+            [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
         ];
         foreach ($coordsTopLeft as $i => $pos) {
             $m[$pos[0]][$pos[1]] = $bits[$i];
@@ -286,19 +298,31 @@ class QrCodeService
     private function isFunctionModule(int $r, int $c, int $size, int $version): bool
     {
         // Finder patterns + separators
-        if ($r < 9 && $c < 9) return true;
-        if ($r < 9 && $c >= $size - 8) return true;
-        if ($r >= $size - 8 && $c < 9) return true;
+        if ($r < 9 && $c < 9) {
+            return true;
+        }
+        if ($r < 9 && $c >= $size - 8) {
+            return true;
+        }
+        if ($r >= $size - 8 && $c < 9) {
+            return true;
+        }
 
         // Timing patterns
-        if ($r === 6 || $c === 6) return true;
+        if ($r === 6 || $c === 6) {
+            return true;
+        }
 
         // Dark module
-        if ($r === $size - 8 && $c === 8) return true;
+        if ($r === $size - 8 && $c === 8) {
+            return true;
+        }
 
         // Alignment pattern
         $alignCenter = $version === 3 ? 22 : 26;
-        if (abs($r - $alignCenter) <= 2 && abs($c - $alignCenter) <= 2) return true;
+        if (abs($r - $alignCenter) <= 2 && abs($c - $alignCenter) <= 2) {
+            return true;
+        }
 
         return false;
     }
@@ -382,16 +406,20 @@ class QrCodeService
             }
             $poly = $newPoly;
         }
+
         return $poly;
     }
 
     // Galois Field GF(256) with primitive polynomial 0x11d
     private static ?array $gfExpTable = null;
+
     private static ?array $gfLogTable = null;
 
     private function initGfTables(): void
     {
-        if (self::$gfExpTable !== null) return;
+        if (self::$gfExpTable !== null) {
+            return;
+        }
 
         self::$gfExpTable = array_fill(0, 512, 0);
         self::$gfLogTable = array_fill(0, 256, 0);
@@ -402,7 +430,7 @@ class QrCodeService
             self::$gfLogTable[$x] = $i;
             $x <<= 1;
             if ($x & 0x100) {
-                $x ^= 0x11d;
+                $x ^= 0x11D;
             }
         }
         for ($i = 255; $i < 512; $i++) {
@@ -413,26 +441,34 @@ class QrCodeService
     private function gfExp(int $n): int
     {
         $this->initGfTables();
+
         return self::$gfExpTable[$n % 255];
     }
 
     private function gfLog(int $n): int
     {
         $this->initGfTables();
+
         return self::$gfLogTable[$n];
     }
 
     private function gfMul(int $x, int $y): int
     {
-        if ($x === 0 || $y === 0) return 0;
+        if ($x === 0 || $y === 0) {
+            return 0;
+        }
         $this->initGfTables();
+
         return self::$gfExpTable[self::$gfLogTable[$x] + self::$gfLogTable[$y]];
     }
 
     private function gfMulByLog(int $x, int $logY): int
     {
-        if ($x === 0) return 0;
+        if ($x === 0) {
+            return 0;
+        }
         $this->initGfTables();
+
         return self::$gfExpTable[self::$gfLogTable[$x] + $logY];
     }
 }
