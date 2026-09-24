@@ -70,11 +70,6 @@
                 @endforeach
             </div>
 
-            @if($unreadCount > 0)
-                <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">
-                    {{ $unreadCount }} belum dibaca
-                </span>
-            @endif
         </div>
 
         <!-- Notifications List -->

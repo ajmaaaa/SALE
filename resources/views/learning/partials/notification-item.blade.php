@@ -4,7 +4,7 @@
     $actionType = $notif['action_type'] ?? 'link';
 @endphp
 
-<div class="group flex items-start justify-between gap-4 py-3.5 px-4 rounded-xl transition-all duration-150 border-b border-slate-100/80 last:border-0 {{ $isRead ? 'bg-white hover:bg-slate-50/60' : 'bg-slate-50/80 hover:bg-slate-100/60' }}">
+<div class="group flex items-start justify-between gap-4 py-3.5 px-4 rounded-xl transition-all duration-200 border-b border-slate-100/80 last:border-0 {{ $isRead ? 'opacity-55 hover:opacity-100 bg-white hover:bg-slate-50/80' : 'opacity-100 bg-slate-50/90 border-l-4 border-l-[#102f50] shadow-2xs hover:bg-slate-100/80' }}">
     <div class="flex items-start gap-3.5 min-w-0 flex-1">
         <!-- Ultra-Plain & Simple Monochrome Icon -->
         <div class="shrink-0 mt-1 text-slate-400">
