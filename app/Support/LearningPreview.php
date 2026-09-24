@@ -184,16 +184,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         return array_slice($messages, 0, 3);
     }
 
-    public static function unreadDiscussions(): array
-    {
-        return self::recentDiscussions();
-    }
-
-    public static function courseDiscussions(int $courseId): array
-    {
-        return [];
-    }
-
     public static function labels(): array
     {
         return [
@@ -220,75 +210,181 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function notifications(): array
     {
-        $default = [
-            [
-                'id' => 1,
-                'title' => 'Tugas Praktikum Binary Tree Telah Diterbitkan',
-                'message' => 'Dosen Dr. Budi Santoso menerbitkan tugas baru pada mata kuliah Struktur Data dan Algoritma. Tenggat waktu pengumpulan: 10 September 2026, 23:59 WIB.',
-                'category' => 'tugas',
-                'group' => 'hari_ini',
-                'icon_type' => 'alert',
-                'action_label' => 'Buka Tugas Coding',
-                'link' => route('mahasiswa.course.item', [1, 1]),
-                'time' => '10 menit yang lalu',
-                'is_read' => false,
-            ],
-            [
-                'id' => 2,
-                'title' => 'Jawaban Laporan Evaluasi Usability Berhasil Dikumpulkan',
-                'message' => 'Jawaban Anda untuk tugas Laporan Evaluasi Usability telah tersimpan di sistem. Status: Menunggu Penilaian.',
-                'category' => 'tugas',
-                'group' => 'hari_ini',
-                'icon_type' => 'check',
-                'action_label' => 'Lihat Detail Penyerahan',
-                'link' => route('mahasiswa.course.item', [2, 4]),
-                'time' => '2 jam yang lalu',
-                'is_read' => false,
-            ],
-            [
-                'id' => 3,
-                'title' => 'Pengumuman: Perubahan Ruang Kuliah Struktur Data',
-                'message' => 'Pertemuan perkuliahan Struktur Data hari Kamis dipindahkan ke Laboratorium Komputasi 2 pada pukul 10:00 WIB.',
-                'category' => 'kelas',
-                'group' => 'hari_ini',
-                'icon_type' => 'chat',
-                'action_label' => '',
-                'link' => route('mahasiswa.course.item', [1, 6]),
-                'time' => '4 jam yang lalu',
-                'is_read' => true,
-            ],
-            [
-                'id' => 4,
-                'title' => 'Diskusi Baru di Mata Kuliah Kecerdasan Buatan',
-                'message' => 'Raka Putra menambahkan topik diskusi baru pada Kuis Evaluasi Model.',
-                'category' => 'diskusi',
-                'group' => 'kemarin_sebelumnya',
-                'icon_type' => 'chat',
-                'action_label' => 'Lihat Diskusi',
-                'link' => route('mahasiswa.course.item', [3, 5]),
-                'time' => 'Kemarin, 14:20 WIB',
-                'is_read' => true,
-            ],
-            [
-                'id' => 5,
-                'title' => 'Kuis Evaluasi Model Dibuka',
-                'message' => 'Kuis Evaluasi Model telah dibuka. Durasi pengerjaan: 45 menit.',
-                'category' => 'tugas',
-                'group' => 'kemarin_sebelumnya',
-                'icon_type' => 'alert',
-                'action_label' => 'Kerjakan Kuis',
-                'link' => route('mahasiswa.course.item', [3, 5]),
-                'time' => '2 hari yang lalu',
-                'is_read' => true,
-            ],
-        ];
-
-        $notifs = session('learning.notifications');
-        if (is_null($notifs)) {
-            session(['learning.notifications' => $default]);
-            return $default;
+        if (session('learning.cleared_notifications')) {
+            return [];
         }
 
-        return $notifs;
+        $readList = session('learning.read_notifications', []);
+        $allRead = session('learning.read_all_notifications', false);
+
+        $notifications = [];
+
+        // 1. Dynamic Submissions
+        $submissions = session('learning.submissions', []);
+        foreach ($submissions as $id => $submission) {
+            $item = self::items()[$id] ?? null;
+            if (! $item) continue;
+            $course = self::courses()[$item['course']] ?? null;
+
+            $notifId = "sub_{$id}";
+            $notifications[] = [
+                'id' => $notifId,
+                'category' => 'tugas',
+                'category_label' => 'Tugas',
+                'title' => $course['title'] ?? 'Mata Kuliah',
+                'message' => 'Pengumuman Tugas: Jawaban ' . $item['title'] . ' telah berhasil dikirim pada ' . ($submission['time'] ?? 'hari ini') . '. Status: Menunggu Penilaian dari Dosen.',
+                'time' => $submission['time'] ?? 'Hari ini',
+                'timestamp' => now()->timestamp,
+                'group' => 'hari_ini',
+                'course_id' => $item['course'],
+                'course_title' => $course['title'] ?? 'Mata Kuliah',
+                'link' => route('mahasiswa.course.item', [$item['course'], $id]),
+                'action_label' => 'Lihat Jawaban',
+                'action_type' => 'button_soft',
+                'icon_type' => 'check',
+                'is_read' => $allRead || in_array($notifId, $readList, true),
+            ];
+        }
+
+        // Mock Item 1 (Hari ini - Interaksi Manusia dan Komputer)
+        $id1 = "task_uiux_1";
+        $notifications[] = [
+            'id' => $id1,
+            'category' => 'tugas',
+            'category_label' => 'Tugas',
+            'title' => 'Interaksi Manusia dan Komputer',
+            'message' => 'Tenggat waktu pengumpulan berkas tugas akhir modul UI/UX Wireframing & Prototyping akan berakhir pukul 23:59 WIB malam ini. Pastikan berkas Figma telah dipublikasikan dengan akses baca.',
+            'time' => '1 jam lalu',
+            'timestamp' => now()->timestamp - 3600,
+            'group' => 'hari_ini',
+            'course_id' => 2,
+            'course_title' => 'Interaksi Manusia dan Komputer',
+            'link' => route('mahasiswa.course.item', [2, 4]),
+            'action_label' => 'Kumpulkan Tugas',
+            'action_type' => 'button_primary',
+            'icon_type' => 'alert',
+            'is_read' => $allRead || in_array($id1, $readList, true),
+        ];
+
+        // Mock Item 2 (Hari ini - Struktur Data dan Algoritma)
+        $id2 = "eval_algo_1";
+        $notifications[] = [
+            'id' => $id2,
+            'category' => 'tugas',
+            'category_label' => 'Tugas',
+            'title' => 'Struktur Data dan Algoritma',
+            'message' => 'Hasil Evaluasi Kuis: Skor akhir Anda adalah 95/100. Catatan evaluasi telah ditambahkan oleh Bpk. Hendra Gunawan: "Penerapan balanced binary tree sangat efisien dan tepat sasaran."',
+            'time' => '2 jam lalu',
+            'timestamp' => now()->timestamp - 7200,
+            'group' => 'hari_ini',
+            'course_id' => 1,
+            'course_title' => 'Struktur Data dan Algoritma',
+            'link' => route('mahasiswa.nilai'),
+            'action_label' => 'Lihat Evaluasi Lengkap',
+            'action_type' => 'link',
+            'icon_type' => 'check',
+            'is_read' => $allRead || in_array($id2, $readList, true),
+        ];
+
+        // Mock Item 3 (Hari ini - Interaksi Manusia dan Komputer)
+        $id4 = "kelas_imk_1";
+        $notifications[] = [
+            'id' => $id4,
+            'category' => 'pengumuman',
+            'category_label' => 'Pengumuman Akademik',
+            'title' => 'Interaksi Manusia dan Komputer',
+            'message' => 'Jadwal Perkuliahan Pengganti: Sesi perkuliahan 5 dipindahkan ke pukul 14:00 WIB di Ruang Lab Komputer 2 Gedung Utama.',
+            'time' => '5 jam lalu',
+            'timestamp' => now()->timestamp - 18000,
+            'group' => 'hari_ini',
+            'course_id' => 2,
+            'course_title' => 'Interaksi Manusia dan Komputer',
+            'link' => route('mahasiswa.course.show', 2),
+            'action_label' => 'Lihat Jadwal Kelas',
+            'action_type' => 'link',
+            'icon_type' => 'alert',
+            'is_read' => $allRead || in_array($id4, $readList, true),
+        ];
+
+        // Mock Item 4 (Kemarin & Sebelumnya - Kecerdasan Buatan Terapan)
+        $id6 = "task_ai_1";
+        $notifications[] = [
+            'id' => $id6,
+            'category' => 'tugas',
+            'category_label' => 'Tugas',
+            'title' => 'Kecerdasan Buatan Terapan',
+            'message' => 'Tugas Baru Diterbitkan: Modul Klasifikasi Dataset Imbalance menggunakan Random Forest & XGBoost telah dibuka.',
+            'time' => 'Kemarin',
+            'timestamp' => now()->timestamp - 86400,
+            'group' => 'kemarin_sebelumnya',
+            'course_id' => 3,
+            'course_title' => 'Kecerdasan Buatan Terapan',
+            'link' => route('mahasiswa.course.item', [3, 5]),
+            'action_label' => 'Buka Modul Tugas',
+            'action_type' => 'link',
+            'icon_type' => 'alert',
+            'is_read' => $allRead || in_array($id6, $readList, true),
+        ];
+
+        // Mock Item 5 (Kemarin & Sebelumnya - Rekayasa Perangkat Lunak)
+        $id8 = "disc_rpl_1";
+        $notifications[] = [
+            'id' => $id8,
+            'category' => 'diskusi',
+            'category_label' => 'Sistem & Diskusi',
+            'title' => 'Rekayasa Perangkat Lunak',
+            'message' => 'Tanggapan Dosen: Ir. Fajar Nugroho, M.T. membalas pertanyaan Anda di topik Diskusi Arsitektur Microservices vs Monolith.',
+            'time' => '2 hari lalu',
+            'timestamp' => now()->timestamp - 172800,
+            'group' => 'kemarin_sebelumnya',
+            'course_id' => 4,
+            'course_title' => 'Rekayasa Perangkat Lunak',
+            'link' => route('mahasiswa.discussion.index'),
+            'action_label' => 'Buka Balasan Forum',
+            'action_type' => 'link',
+            'icon_type' => 'chat',
+            'is_read' => $allRead || in_array($id8, $readList, true),
+        ];
+
+        // Mock Item 6 (Kemarin & Sebelumnya - Sertifikat/Sistem)
+        $id9 = "cert_web_1";
+        $notifications[] = [
+            'id' => $id9,
+            'category' => 'diskusi',
+            'category_label' => 'Sistem & Diskusi',
+            'title' => 'Smart Academic Learning Ecosystem',
+            'message' => 'Selamat, Anda telah menuntaskan seluruh kurikulum dan asesmen pada kursus Dasar Pemrograman Web Modern. Kredensial digital Anda siap diunduh.',
+            'time' => '3 hari lalu',
+            'timestamp' => now()->timestamp - 259200,
+            'group' => 'kemarin_sebelumnya',
+            'course_id' => null,
+            'course_title' => 'Smart Academic Learning Ecosystem',
+            'link' => route('mahasiswa.profile.index'),
+            'action_label' => 'Unduh Dokumen Sertifikat',
+            'action_type' => 'link_download',
+            'icon_type' => 'award',
+            'is_read' => $allRead || in_array($id9, $readList, true),
+        ];
+
+        return $notifications;
+    }
+
+    public static function markNotificationRead(string $id): void
+    {
+        $readList = session('learning.read_notifications', []);
+        if (! in_array($id, $readList, true)) {
+            $readList[] = $id;
+            session(['learning.read_notifications' => $readList]);
+        }
+    }
+
+    public static function markAllNotificationsRead(): void
+    {
+        session(['learning.read_all_notifications' => true]);
+    }
+
+    public static function unreadNotificationCount(): int
+    {
+        return collect(self::notifications())->where('is_read', false)->count();
     }
 }

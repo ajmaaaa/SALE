@@ -205,17 +205,6 @@ class LearningController extends Controller
         return redirect(route('mahasiswa.course.item', [$course, $item]).'#diskusi');
     }
 
-    public function discussCourse(Request $request, int $course)
-    {
-        Learning::course($course);
-        $data = $request->validate(['message' => 'required|string|max:3000']);
-        $messages = session("learning.course_discussions.$course", []);
-        $messages[] = ['author' => 'Mahasiswa', 'message' => $data['message'], 'time' => now()->format('d M, H:i'), 'timestamp' => now()->timestamp];
-        session(["learning.course_discussions.$course" => $messages]);
-
-        return back()->with('notice', 'Pesan diskusi kelas terkirim.');
-    }
-
     public function submit(Request $request, int $course, int $item)
     {
         $resource = Learning::resource($course, $item);
@@ -310,55 +299,73 @@ class LearningController extends Controller
 
     public function notifications(Request $request)
     {
-        $all = Learning::notifications();
-        $activeCategory = $request->query('category', 'semua');
-        
-        $notifications = match ($activeCategory) {
-            'tugas' => array_values(array_filter($all, fn ($n) => ($n['category'] ?? '') === 'tugas')),
-            'kelas' => array_values(array_filter($all, fn ($n) => ($n['category'] ?? '') === 'kelas')),
-            'diskusi' => array_values(array_filter($all, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
-            default => $all,
-        };
+        $allNotifications = Learning::notifications();
+        $unreadCount = Learning::unreadNotificationCount();
+        $courses = Learning::courses();
+
+        $activeCategory = (string) $request->query('category', 'semua');
+        $activeCourse = $request->filled('course') ? (int) $request->query('course') : null;
+        $searchQuery = mb_strtolower(trim((string) $request->query('q', '')));
+
+        $notifications = collect($allNotifications)->filter(function ($item) use ($activeCategory, $activeCourse, $searchQuery) {
+            // Category Filter
+            if ($activeCategory !== 'semua' && ($item['category'] ?? '') !== $activeCategory) {
+                return false;
+            }
+
+            // Course Filter
+            if ($activeCourse !== null && ($item['course_id'] ?? null) !== $activeCourse) {
+                return false;
+            }
+
+            // Search Filter
+            if ($searchQuery !== '') {
+                $searchableText = mb_strtolower(($item['title'] ?? '') . ' ' . ($item['message'] ?? '') . ' ' . ($item['course_title'] ?? '') . ' ' . ($item['category_label'] ?? ''));
+                if (! str_contains($searchableText, $searchQuery)) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values()->all();
 
         return view('learning.notifications', [
             'notifications' => $notifications,
-            'allNotifications' => $all,
+            'allNotifications' => $allNotifications,
+            'courses' => $courses,
+            'unreadCount' => $unreadCount,
             'activeCategory' => $activeCategory,
+            'activeCourse' => $activeCourse,
+            'searchQuery' => $request->query('q', ''),
         ]);
     }
 
-    public function readNotification(Request $request, int $id)
+    public function markAllNotificationsRead(Request $request)
     {
-        $all = Learning::notifications();
-        foreach ($all as &$n) {
-            if ($n['id'] === $id) {
-                $n['is_read'] = true;
-            }
-        }
-        session(['learning.notifications' => $all]);
+        Learning::markAllNotificationsRead();
 
-        if ($request->query('target')) {
-            return redirect($request->query('target'));
-        }
-
-        return back();
+        return redirect()->back()->with('notice', 'Semua notifikasi telah ditandai telah dibaca.');
     }
 
-    public function readAllNotifications()
+    public function markNotificationRead(Request $request, string $id)
     {
-        $all = Learning::notifications();
-        foreach ($all as &$n) {
-            $n['is_read'] = true;
-        }
-        session(['learning.notifications' => $all]);
+        Learning::markNotificationRead($id);
 
-        return back()->with('notice', 'Semua notifikasi ditandai telah dibaca.');
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        if ($request->filled('target')) {
+            return redirect($request->input('target'));
+        }
+
+        return redirect()->back()->with('notice', 'Notifikasi ditandai sudah dibaca.');
     }
 
-    public function clearNotifications()
+    public function clearNotificationHistory(Request $request)
     {
-        session(['learning.notifications' => []]);
+        session(['learning.cleared_notifications' => true]);
 
-        return back()->with('notice', 'Riwayat notifikasi telah dibersihkan.');
+        return redirect()->back()->with('notice', 'Riwayat notifikasi telah dibersihkan.');
     }
 }
