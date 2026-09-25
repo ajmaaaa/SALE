@@ -139,9 +139,12 @@ class LearningWorkflowTest extends TestCase
         $this->post('/mahasiswa/course/2/item/4/submission', ['link' => 'javascript:alert(1)'])->assertSessionHasErrors('link');
         $this->post('/mahasiswa/course/2/item/4/submission', ['answer' => 'Hasil evaluasi: navigasi sulit ditemukan.'])->assertRedirect('/mahasiswa/course/2/item/4');
         $this->get('/mahasiswa/course/2/item/4')->assertSee('Diserahkan');
-        $this->get('/dosen/penilaian')->assertSee('Kelas yang Saya Ajar')->assertSee('Buka Ruang Penilaian');
-        $this->get('/dosen/penilaian?room=1&course=2&type=uts')->assertOk()->assertSee('Ujian Tengah Semester (UTS)');
         $this->post('/mahasiswa/course/1/item/2/submission', ['answer' => 'x'])->assertNotFound();
+    }
+
+    public function test_legacy_dosen_grades_route_redirects_to_class_assessments(): void
+    {
+        $this->get('/dosen/penilaian')->assertRedirect('/dosen/penilaian-kelas');
     }
 
     public function test_new_coding_tasks_get_their_own_editor_template(): void
