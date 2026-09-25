@@ -48,6 +48,9 @@ Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
         Route::get('/grade', fn () => redirect()->route('mahasiswa.assignment.index', ['tab' => 'nilai']))->name('grade.index');
         Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::put('/profile/notifications', [ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
+        Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.photo');
     });
 
     Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen,kaprodi')->name('assignment.code');
