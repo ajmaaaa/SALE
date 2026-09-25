@@ -34,9 +34,7 @@
         <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', 'pengguna') }}">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-muted">PENGGUNA AKTIF</p>
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </span>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <p class="mt-3 text-2xl font-bold text-ink">{{ $activeUsersCount }}</p>
             <p class="mt-1 text-xs text-muted">Dari {{ $totalUsersCount }} total akun terdaftar</p>
@@ -46,9 +44,7 @@
         <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', 'akademik') }}">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-muted">PROGRAM STUDI</p>
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                </span>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
             </div>
             <p class="mt-3 text-2xl font-bold text-ink">{{ $prodiCount }}</p>
             <p class="mt-1 text-xs text-muted">Bernaung dalam 1 fakultas</p>
@@ -58,9 +54,7 @@
         <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', 'pengaturan') }}">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-muted">SEMESTER BERJALAN</p>
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                </span>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
             <p class="mt-3 text-lg font-bold text-ink truncate">{{ $activeSemester }}</p>
             <p class="mt-1 text-xs text-muted">Tahun ajaran aktif institusi</p>
@@ -70,9 +64,7 @@
         <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-muted">KUOTA AI BULAN INI</p>
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                </span>
+                <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             </div>
             <p class="mt-3 text-2xl font-bold text-ink">640.000 <span class="text-xs font-normal text-muted">token</span></p>
             <p class="mt-1 text-xs text-muted">64% dari kuota 1.000.000 token</p>
@@ -90,7 +82,7 @@
                         <h2 id="ai-monitoring-heading" class="section-heading text-base">Pemantauan Token &amp; Layanan AI</h2>
                         <p class="mt-0.5 text-xs text-muted">Penggunaan token evaluasi otomatis dan agen asisten pembelajaran.</p>
                     </div>
-                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Layanan Aktif</span>
+                    <span class="text-xs font-medium text-emerald-600">Layanan Aktif</span>
                 </div>
 
                 <div class="grid gap-5 sm:grid-cols-2 pt-1">
@@ -134,10 +126,7 @@
                         <h2 id="server-monitoring-heading" class="section-heading text-base">Beban Server &amp; Ketersediaan</h2>
                         <p class="mt-0.5 text-xs text-muted">Kondisi sumber daya komputasi dan performa operasional.</p>
                     </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                        Status Normal
-                    </span>
+                    <span class="text-xs font-medium text-emerald-600">Status Normal</span>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">

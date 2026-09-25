@@ -41,7 +41,7 @@
                     <div><dt class="text-sm text-muted">Email</dt><dd class="mt-1 break-all font-semibold text-ink">{{ $userEmail }}</dd></div>
                     <div><dt class="text-sm text-muted">Program studi</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->prodi?->name ?? ($sessionUser['prodi'] ?? 'Teknik Informatika') }}</dd></div>
                     <div><dt class="text-sm text-muted">Kelas diampu</dt><dd class="mt-1 font-semibold text-ink">{{ $user ? $user->classSectionsTeaching()->count() : 1 }} Kelas Aktif</dd></div>
-                    <div><dt class="text-sm text-muted">Status</dt><dd class="mt-1 font-semibold text-ink"><span class="status bg-emerald-50 text-emerald-700">Aktif</span></dd></div>
+                    <div><dt class="text-sm text-muted">Status</dt><dd class="mt-1 font-semibold text-ink">Aktif</dd></div>
                 </dl>
             </section>
 

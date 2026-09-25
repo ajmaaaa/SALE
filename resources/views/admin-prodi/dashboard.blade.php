@@ -24,7 +24,7 @@
     <!-- Stat Cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <!-- Mata Kuliah & Kelas -->
-        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between border border-line/60">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Mata Kuliah &amp; Kelas</p>
                 <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
@@ -39,15 +39,14 @@
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
-                <a href="{{ route('admin-prodi.akademik.kelas') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
-                    <span>Daftar kelas &amp; barcode</span>
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                <a href="{{ route('admin-prodi.akademik.kelas') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
+                    Daftar Kelas &amp; Barcode
                 </a>
             </div>
         </div>
 
         <!-- Dosen & Mahasiswa -->
-        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between border border-line/60">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Dosen &amp; Mahasiswa</p>
                 <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
@@ -62,15 +61,14 @@
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
-                <a href="{{ route('admin-prodi.users.index') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
-                    <span>Impor / input data</span>
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                <a href="{{ route('admin-prodi.users.index') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
+                    Impor / Input Data
                 </a>
             </div>
         </div>
 
         <!-- Standar Mutu OBE -->
-        <div class="surface p-4 sm:p-5 flex flex-col justify-between">
+        <div class="surface p-4 sm:p-5 flex flex-col justify-between border border-line/60">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Standar Mutu OBE</p>
                 <div class="mt-3 grid grid-cols-2 gap-3 divide-x divide-line/60">
@@ -85,16 +83,15 @@
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
-                <a href="{{ route('admin-prodi.kurikulum.index') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
-                    <span>Matriks pemetaan</span>
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                <a href="{{ route('admin-prodi.kurikulum.index') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
+                    Matriks Pemetaan
                 </a>
             </div>
         </div>
     </div>
 
     <!-- Kelas Aktif Terbaru -->
-    <div class="surface p-5">
+    <div class="surface p-5 border border-line/60">
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-base font-bold text-ink">Kelas Perkuliahan Aktif Terbaru</h2>
