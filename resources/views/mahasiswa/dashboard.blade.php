@@ -44,7 +44,7 @@
     <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
         <section aria-labelledby="course-heading" class="min-w-0">
             <div class="mb-4 flex h-12 items-start justify-between gap-3">
-                <div class="min-w-0"><h2 id="course-heading" class="section-heading truncate text-base sm:text-lg">Course semester ini</h2><p class="mt-0.5 truncate text-xs text-muted">Kelas aktif program studi</p></div>
+                <div class="min-w-0"><h2 id="course-heading" class="section-heading truncate text-base sm:text-lg">Course semester ini</h2></div>
                 <a href="{{ route('mahasiswa.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
