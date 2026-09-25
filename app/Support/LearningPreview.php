@@ -5,7 +5,9 @@ namespace App\Support;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\CourseDiscussion;
+use App\Models\Message;
 use App\Models\Role;
+use App\Models\Room;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Carbon\Carbon;
@@ -413,8 +415,40 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $messages = [];
 
         foreach ($courses as $courseId => $courseData) {
-            $courseMessages = self::courseDiscussions((int) $courseId);
             $read = (int) session("learning.discussion_reads.$courseId", 0);
+
+            if (Schema::hasTable('rooms') && Schema::hasTable('messages')) {
+                $roomId = Room::where('course_id', (int) $courseId)->value('id');
+                if (! $roomId) {
+                    continue;
+                }
+
+                Message::where('room_id', $roomId)
+                    ->with(['user.role'])
+                    ->orderBy('id')
+                    ->offset($read)
+                    ->get()
+                    ->each(function (Message $message) use (&$messages, $courseId, $courseData, $user) {
+                        $payload = $message->toChatPayload($user);
+                        if ($payload['is_me']) {
+                            return;
+                        }
+
+                        $messages[] = [
+                            'course' => (int) $courseId,
+                            'course_title' => $courseData['title'],
+                            'author' => $payload['author'],
+                            'message' => $payload['content'],
+                            'time' => $payload['time'],
+                            'timestamp' => $payload['timestamp'],
+                            'role' => $payload['role'],
+                        ];
+                    });
+
+                continue;
+            }
+
+            $courseMessages = self::courseDiscussions((int) $courseId);
 
             foreach (array_slice($courseMessages, $read) as $message) {
                 $isOwnMessage = isset($message['sender_key'])
@@ -436,6 +470,17 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         usort($messages, fn ($a, $b) => ($b['timestamp'] ?? 0) <=> ($a['timestamp'] ?? 0));
 
         return $messages;
+    }
+
+    public static function chatMessageCount(int $course): ?int
+    {
+        if (! Schema::hasTable('rooms') || ! Schema::hasTable('messages')) {
+            return null;
+        }
+
+        $roomId = Room::where('course_id', $course)->value('id');
+
+        return $roomId ? Message::where('room_id', $roomId)->count() : 0;
     }
 
     public static function pendingTaskCount(): int
