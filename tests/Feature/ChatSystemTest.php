@@ -3,10 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Message;
+use App\Models\ClassSection;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Room;
 use App\Models\RoomMember;
+use App\Models\Semester;
 use App\Models\User;
+use App\Support\LearningPreview;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -85,6 +90,44 @@ class ChatSystemTest extends TestCase
                 'members',
             ])
             ->assertJson(['success' => true]);
+    }
+
+    public function test_unread_discussions_use_messages_from_the_chat_room(): void
+    {
+        $prodi = Prodi::create(['code' => 'IF', 'name' => 'Informatika']);
+        $semester = Semester::create(['code' => '2026-1', 'name' => 'Ganjil 2026/2027']);
+        $mataKuliah = MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'IF204',
+            'name' => 'Struktur Data dan Algoritma',
+            'sks' => 3,
+        ]);
+        ClassSection::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $this->dosen->id,
+            'section_code' => 'A',
+        ]);
+
+        Message::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->dosen->id,
+            'content' => 'Pesan yang sudah dibaca.',
+        ]);
+        $unreadMessage = Message::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->dosen->id,
+            'content' => 'Pesan baru dari database chat.',
+        ]);
+
+        $this->actingAs($this->mahasiswa1);
+        session()->put('learning.discussion_reads.1', 1);
+
+        $unread = LearningPreview::unreadDiscussions(1);
+
+        $this->assertCount(1, $unread);
+        $this->assertSame($unreadMessage->content, $unread[0]['message']);
+        $this->assertSame($this->dosen->name, $unread[0]['author']);
     }
 
     public function test_student_and_dosen_can_send_message_with_reply_and_mentions(): void
@@ -225,7 +268,7 @@ class ChatSystemTest extends TestCase
         $response = $this->actingAs($this->mahasiswa1)
             ->get(route('mahasiswa.course.show', 1));
 
-        $response->assertOk();
+        $response->assertOk()->assertSessionHas('learning.discussion_reads.1', 1);
         // Ensure no prose-content in chat bubble
         $response->assertDontSee('<p class="prose-content mt-1.5', false);
     }
