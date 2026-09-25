@@ -56,7 +56,6 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h2 class="text-base font-bold text-ink">Daftar Dosen Pengampu — {{ $activeProdi?->name }}</h2>
-                <p class="text-xs text-muted">Dosen yang telah terdaftar dapat ditugaskan sebagai Dosen Ketua atau Dosen Wakil di kelas.</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('admin-prodi.users.template', 'dosen') }}" class="button-secondary text-xs">
