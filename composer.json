@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.12",
         "laravel/tinker": "^2.10.1"
     },
     "require-dev": {
@@ -55,7 +56,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others-on-fail -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve --port=8080 --no-reload\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names=server,queue,vite"
+            "npx concurrently --kill-others-on-fail -c \"#93c5fd,#c4b5fd,#fdba74,#fca5a5\" \"php artisan serve --port=8080 --no-reload\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" \"php artisan reverb:start --host=0.0.0.0 --port=8081\" --names=server,queue,vite,reverb"
         ]
     },
     "extra": {
