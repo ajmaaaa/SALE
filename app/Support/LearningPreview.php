@@ -423,10 +423,16 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     continue;
                 }
 
+                $unreadCount = Message::where('room_id', $roomId)->count() - $read;
+                if ($unreadCount <= 0) {
+                    continue;
+                }
+
                 Message::where('room_id', $roomId)
                     ->with(['user.role'])
                     ->orderBy('id')
                     ->offset($read)
+                    ->limit($unreadCount)
                     ->get()
                     ->each(function (Message $message) use (&$messages, $courseId, $courseData, $user) {
                         $payload = $message->toChatPayload($user);
