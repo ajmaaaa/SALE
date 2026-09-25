@@ -29,10 +29,10 @@
     <div class="grid gap-4 sm:grid-cols-2">
         <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
             <div>
-                <p class="text-sm text-muted">Jumlah Course (Matkul)</p>
-                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">matkul aktif</span></p>
+                <p class="text-sm text-muted">Jumlah Course</p>
+                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">mata kuliah aktif</span></p>
             </div>
-            <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs shrink-0">Kelola Matkul</a>
+            <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs shrink-0">Kelola Mata Kuliah</a>
         </div>
         <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
             <div>
@@ -49,7 +49,6 @@
             <div class="mb-4 flex h-12 items-start justify-between gap-3">
                 <div class="min-w-0">
                     <h2 id="dosen-course-heading" class="section-heading truncate text-base sm:text-lg">Daftar Kelas Saya</h2>
-                    <p class="mt-0.5 truncate text-xs text-muted">Kelas yang Anda ampu semester ini</p>
                 </div>
                 <a href="{{ route('dosen.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
@@ -67,7 +66,6 @@
             <div class="mb-4 flex h-12 items-start justify-between gap-3">
                 <div class="min-w-0">
                     <h2 id="dosen-discussion-heading" class="section-heading truncate text-base sm:text-lg">Pesan belum dibaca</h2>
-                    <p class="mt-0.5 truncate text-xs text-muted">Pesan masuk dari forum kelas</p>
                 </div>
                 <a href="{{ route('dosen.discussion.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Buka forum</a>
             </div>
