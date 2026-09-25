@@ -1,20 +1,20 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Notifikasi | SALE')
+@section('title', 'Notifikasi Dosen | SALE')
 @section('header', 'Notifikasi')
 
 @section('content')
 <div class="space-y-6">
     <header class="pb-1">
-        <h1 class="page-heading">Notifikasi Pembelajaran</h1>
-        <p class="page-description">Pemberitahuan penugasan, kuis, nilai terbit, sistem, dan diskusi akademik semester ini.</p>
+        <h1 class="page-heading">Notifikasi</h1>
+        <p class="page-description">Pemberitahuan aktivitas kelas, penilaian, dan diskusi mahasiswa semester ini.</p>
     </header>
 
-    {{-- Filter Kategori Notifikasi & Tombol Aksi (Tandai & Hapus Semua) --}}
+    {{-- Filter Kategori & Tombol Aksi --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
         <nav class="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-semibold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Kategori Notifikasi">
             {{-- Semua --}}
-            <a href="{{ route('mahasiswa.notifications') }}"
+            <a href="{{ route('dosen.notifications') }}"
                class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ empty($selectedCategory) ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Semua</span>
                 <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ empty($selectedCategory) ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
@@ -23,7 +23,7 @@
             </a>
 
             {{-- Tugas & Kuis --}}
-            <a href="{{ route('mahasiswa.notifications', ['category' => 'tugas']) }}"
+            <a href="{{ route('dosen.notifications', ['category' => 'tugas']) }}"
                class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'tugas' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Tugas &amp; Kuis</span>
                 @if(isset($categoryCounts['tugas']))
@@ -34,7 +34,7 @@
             </a>
 
             {{-- Nilai --}}
-            <a href="{{ route('mahasiswa.notifications', ['category' => 'nilai']) }}"
+            <a href="{{ route('dosen.notifications', ['category' => 'nilai']) }}"
                class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'nilai' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Nilai</span>
                 @if(isset($categoryCounts['nilai']))
@@ -45,7 +45,7 @@
             </a>
 
             {{-- Sistem --}}
-            <a href="{{ route('mahasiswa.notifications', ['category' => 'sistem']) }}"
+            <a href="{{ route('dosen.notifications', ['category' => 'sistem']) }}"
                class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'sistem' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Sistem</span>
                 @if(isset($categoryCounts['sistem']))
@@ -56,7 +56,7 @@
             </a>
 
             {{-- Diskusi --}}
-            <a href="{{ route('mahasiswa.notifications', ['category' => 'diskusi']) }}"
+            <a href="{{ route('dosen.notifications', ['category' => 'diskusi']) }}"
                class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'diskusi' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Diskusi</span>
                 @if(isset($categoryCounts['diskusi']))
@@ -73,7 +73,7 @@
         @if($hasUnread || count($notifications) > 0)
             <div class="flex items-center gap-2 pb-2.5 sm:pb-3 shrink-0">
                 @if($hasUnread)
-                    <form action="{{ route('mahasiswa.notifications.read', 'all') }}" method="POST">
+                    <form action="{{ route('dosen.notifications.read', 'all') }}" method="POST">
                         @csrf
                         @foreach($notifications as $n)
                             @if(empty($n['is_read']))
@@ -90,7 +90,7 @@
                 @endif
 
                 @if(count($notifications) > 0)
-                    <form action="{{ route('mahasiswa.notifications.clear') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua notifikasi? Tindakan ini tidak dapat dibatalkan.');">
+                    <form action="{{ route('dosen.notifications.clear') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua notifikasi? Tindakan ini tidak dapat dibatalkan.');">
                         @csrf
                         @if(!empty($selectedCategory))
                             <input type="hidden" name="category" value="{{ $selectedCategory }}">
@@ -110,21 +110,19 @@
         @endif
     </div>
 
-    {{-- Daftar Notifikasi Dikelompokkan per Tanggal (Pemisah teks berlabel & berjarak) --}}
+    {{-- Daftar Notifikasi per Tanggal --}}
     <div class="space-y-8 pt-1">
         @forelse($groupedNotifications as $dateLabel => $groupNotifs)
             <div class="space-y-3">
-                {{-- Pemisah Tanggal Berjarak Nyaman dengan Teks Berlabel --}}
                 <div class="px-1">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-500">
                         {{ $dateLabel }}
                     </span>
                 </div>
 
-                {{-- List Notifikasi Dalam Grup Tanggal --}}
                 <section class="surface overflow-hidden rounded-xl border border-line divide-y divide-slate-100 shadow-2xs" aria-label="Notifikasi {{ $dateLabel }}">
                     @foreach($groupNotifs as $notif)
-                        @include('learning.partials.notification-item', ['notif' => $notif])
+                        @include('dosen.partials.notification-item-dosen', ['notif' => $notif])
                     @endforeach
                 </section>
             </div>
@@ -137,11 +135,10 @@
                 </div>
                 <div class="space-y-1">
                     <p class="text-sm font-bold text-ink">Tidak ada notifikasi untuk kategori ini.</p>
-                    <p class="text-slate-500">Semua pemberitahuan akademik telah ditinjau atau dibersihkan.</p>
+                    <p class="text-slate-500">Semua pemberitahuan telah ditinjau atau dibersihkan.</p>
                 </div>
             </div>
         @endforelse
     </div>
 </div>
 @endsection
-

@@ -1,9 +1,14 @@
 @php
-    $mainTabs = [
+    $isOnMatriks = request()->routeIs('dosen.penilaian.matriks');
+    $mainTabs = $isOnMatriks ? [
         'dosen.penilaian.matriks' => '1. Matriks Penilaian',
         'dosen.penilaian.asesmen' => '2. Input Nilai',
         'dosen.penilaian.rekap'   => '3. Rekap CPMK',
         'dosen.penilaian.cpl'     => '4. Rekap CPL',
+    ] : [
+        'dosen.penilaian.asesmen' => '1. Asesmen',
+        'dosen.penilaian.rekap'   => '2. Rekap CPMK',
+        'dosen.penilaian.cpl'     => '3. Rekap CPL',
     ];
 @endphp
 

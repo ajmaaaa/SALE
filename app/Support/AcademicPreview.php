@@ -170,4 +170,405 @@ class AcademicPreview
 
         return ['scores' => $scores, 'total' => $coverage > 0 ? round($total, 2) : null, 'average' => $coverage > 0 ? round($total / $coverage * 100, 2) : null, 'coverage' => $coverage, 'complete' => abs($coverage - 100) < 0.001 && $itemsComplete];
     }
+
+    public static function assessmentEvaluation(int $course, int $item): array
+    {
+        $itemData = LearningPreview::items()[$item] ?? null;
+        abort_unless($itemData, 404);
+
+        $courseData = LearningPreview::course($course);
+        $academic = self::config($course);
+
+        $questions = $itemData['questions'] ?? [];
+        if (empty($questions)) {
+            $questions = [[
+                'id' => 1,
+                'prompt' => $itemData['body'] ?? $itemData['title'],
+                'type' => $itemData['question_type'] ?? 'uraian',
+                'cpmk' => (!empty($itemData['cpmk']) && strlen($itemData['cpmk']) <= 15) ? $itemData['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01'),
+                'points' => $itemData['points'] ?? 100,
+            ]];
+        }
+
+        $groupCounts = array_count_values(array_filter(array_column($questions, 'cpmk')));
+        $totalQuestions = max(1, count($questions));
+
+        $formattedQuestions = [];
+        foreach ($questions as $qIdx => $q) {
+            $cCode = (!empty($q['cpmk']) && strlen($q['cpmk']) <= 15) ? $q['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01');
+            $groupCount = max(1, (int) ($groupCounts[$cCode] ?? 1));
+            $porsiSoal = 100 / $groupCount;
+            $bobotCpmk = ($groupCount / $totalQuestions) * 100;
+            $isEssay = in_array($q['type'] ?? 'pilihan', ['uraian', 'coding'], true);
+
+            $formattedQuestions[$qIdx] = array_merge($q, [
+                'index' => $qIdx,
+                'cpmk' => $cCode,
+                'points' => (float) ($q['points'] ?? 100),
+                'porsi_soal' => round($porsiSoal, 2),
+                'porsi_soal_raw' => $porsiSoal,
+                'bobot_cpmk' => round($bobotCpmk, 2),
+                'bobot_cpmk_raw' => $bobotCpmk,
+                'is_essay' => $isEssay,
+            ]);
+        }
+
+        self::ensureSampleAssessmentData($course, $item, $formattedQuestions);
+
+        $baseStudents = array_values(array_filter(AdminPreview::users(), fn ($u) => ($u['role'] ?? '') === 'mahasiswa'));
+        $extraStudents = [
+            ['id' => 4, 'name' => 'Dewi Anggraini', 'email' => 'dewi@example.test', 'number' => '231011401235', 'role' => 'mahasiswa', 'status' => 'aktif', 'roles' => ['mahasiswa']],
+            ['id' => 5, 'name' => 'Fajar Ramadhan', 'email' => 'fajar@example.test', 'number' => '231011401238', 'role' => 'mahasiswa', 'status' => 'aktif', 'roles' => ['mahasiswa']],
+            ['id' => 6, 'name' => 'Rizky Pratama', 'email' => 'rizky@example.test', 'number' => '231011401239', 'role' => 'mahasiswa', 'status' => 'aktif', 'roles' => ['mahasiswa']],
+            ['id' => 7, 'name' => 'Siti Nurhaliza', 'email' => 'siti@example.test', 'number' => '231011401240', 'role' => 'mahasiswa', 'status' => 'aktif', 'roles' => ['mahasiswa']],
+        ];
+        $students = $baseStudents;
+        foreach ($extraStudents as $extra) {
+            if (!collect($students)->contains('id', $extra['id'])) {
+                $students[] = $extra;
+            }
+        }
+
+        $pendingQueue = [];
+        $completedResults = [];
+
+        foreach ($students as $stu) {
+            $stuId = $stu['id'];
+            $submission = session("learning.submissions.{$item}.{$stuId}") ?? session("learning.submissions.{$item}");
+            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
+                $submission = null;
+            }
+
+            $grades = session("academic.item_grades.{$item}.{$stuId}.points", []);
+
+            $stuQuestions = [];
+            $pendingEssaysCount = 0;
+            $hasSubmitted = !empty($submission);
+
+            foreach ($formattedQuestions as $qIdx => $q) {
+                $ans = $submission['question_answers'][$qIdx] ?? [];
+                $qPoints = (float) $q['points'];
+                $porsi = $q['porsi_soal_raw'];
+
+                if ($q['is_essay']) {
+                    $rawScore = $grades[$qIdx] ?? null;
+                    $scoreVal = is_numeric($rawScore) ? (float) $rawScore : null;
+                    if ($hasSubmitted && $scoreVal === null) {
+                        $pendingEssaysCount++;
+                    }
+                    $persen = ($scoreVal !== null && $qPoints > 0) ? ($scoreVal / $qPoints) : null;
+                    $nilaiSoal = $persen !== null ? ($persen * $porsi) : null;
+
+                    $stuQuestions[$qIdx] = [
+                        'score' => $scoreVal,
+                        'persen' => $persen !== null ? round($persen * 100, 2) : null,
+                        'nilai_soal' => $nilaiSoal !== null ? round($nilaiSoal, 2) : null,
+                        'nilai_soal_raw' => $nilaiSoal,
+                        'status' => $scoreVal !== null ? 'DINILAI' : ($hasSubmitted ? 'PERLU_DINILAI' : 'BELUM'),
+                        'student_answer' => $ans['text'] ?? ($submission['answer'] ?? ''),
+                    ];
+                } else {
+                    $autoScore = isset($grades[$qIdx]) ? (float) $grades[$qIdx] : self::evaluateAutoQuestion($q, $ans);
+                    $persen = $autoScore !== null ? ($autoScore / $qPoints) : ($hasSubmitted ? 0.0 : null);
+                    $scoreVal = $persen !== null ? round($persen * $qPoints, 2) : null;
+                    $nilaiSoalRaw = $persen !== null ? ($persen * $porsi) : null;
+                    $nilaiSoal = $nilaiSoalRaw !== null ? round($nilaiSoalRaw, 2) : null;
+
+                    $stuQuestions[$qIdx] = [
+                        'score' => $scoreVal,
+                        'persen' => $persen !== null ? round($persen * 100, 2) : null,
+                        'nilai_soal' => $nilaiSoal,
+                        'nilai_soal_raw' => $nilaiSoalRaw,
+                        'status' => 'OTOMATIS',
+                        'student_answer' => $ans,
+                    ];
+                }
+            }
+
+            $cpmkScores = [];
+            foreach ($formattedQuestions as $qIdx => $q) {
+                $cCode = $q['cpmk'];
+                if (!isset($cpmkScores[$cCode])) {
+                    $cpmkScores[$cCode] = [
+                        'total_nilai' => 0.0,
+                        'bobot_cpmk' => $q['bobot_cpmk_raw'],
+                    ];
+                }
+                if (isset($stuQuestions[$qIdx]['nilai_soal_raw']) && $stuQuestions[$qIdx]['nilai_soal_raw'] !== null) {
+                    $cpmkScores[$cCode]['total_nilai'] += $stuQuestions[$qIdx]['nilai_soal_raw'];
+                }
+            }
+
+            $totalAsesmen = 0.0;
+            foreach ($cpmkScores as $cCode => $cInfo) {
+                $totalAsesmen += $cInfo['total_nilai'] * ($cInfo['bobot_cpmk'] / 100);
+            }
+            $totalAsesmen = round($totalAsesmen, 2);
+
+            $statusKey = 'belum_dikerjakan';
+            $statusLabel = 'Belum Dikerjakan';
+            if ($hasSubmitted) {
+                if ($pendingEssaysCount > 0) {
+                    $statusKey = 'perlu_dinilai';
+                    $statusLabel = 'Perlu Dinilai';
+                } else {
+                    $statusKey = 'selesai';
+                    $statusLabel = 'Selesai';
+                }
+            }
+
+            $studentEntry = [
+                'student' => $stu,
+                'has_submitted' => $hasSubmitted,
+                'pending_essays_count' => $pendingEssaysCount,
+                'status_key' => $statusKey,
+                'status_label' => $statusLabel,
+                'nilai_asesmen' => ($statusKey === 'selesai') ? $totalAsesmen : ($hasSubmitted ? $totalAsesmen : null),
+                'nilai_display' => ($statusKey === 'selesai') ? number_format($totalAsesmen, 2, ',', '.') : '—',
+                'cpmk_breakdown' => array_map(fn ($c) => [
+                    'score' => round($c['total_nilai'], 2),
+                    'weight' => round($c['bobot_cpmk'], 2),
+                ], $cpmkScores),
+                'questions_breakdown' => $stuQuestions,
+            ];
+
+            if ($statusKey === 'perlu_dinilai') {
+                $pendingQueue[] = $studentEntry;
+            }
+            $completedResults[] = $studentEntry;
+        }
+
+        return [
+            'course' => $courseData,
+            'item' => $itemData,
+            'questions' => $formattedQuestions,
+            'students' => $students,
+            'pending_queue' => $pendingQueue,
+            'results' => $completedResults,
+            'total_pending' => count($pendingQueue),
+            'all_completed' => count($pendingQueue) === 0,
+        ];
+    }
+
+    public static function evaluateAutoQuestion(array $question, array $answer): ?float
+    {
+        $type = $question['type'] ?? 'pilihan';
+        $points = (float) ($question['points'] ?? 100);
+
+        if ($type === 'pilihan') {
+            $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
+            $correctOption = $options[0] ?? '';
+            $chosen = $answer['choices'][0] ?? ($answer['choice'] ?? null);
+            if ($chosen === null) return null;
+            return ($chosen === $correctOption) ? $points : 0.0;
+        }
+
+        if ($type === 'kompleks') {
+            $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
+            $correctKeys = array_slice($options, 0, max(1, (int) round(count($options) / 2)));
+            $chosen = $answer['choices'] ?? [];
+            if (empty($chosen)) return null;
+
+            $benar = count(array_intersect($chosen, $correctKeys));
+            $salah = count(array_diff($chosen, $correctKeys));
+            $jumlahKunci = max(1, count($correctKeys));
+
+            $persen = max(0.0, ($benar - $salah) / $jumlahKunci);
+            return round($persen * $points, 2);
+        }
+
+        if ($type === 'benar_salah') {
+            $chosen = $answer['boolean_choice'] ?? null;
+            if ($chosen === null) return null;
+            $correct = 'Benar';
+            return ($chosen === $correct) ? $points : 0.0;
+        }
+
+        if ($type === 'mencocokkan') {
+            $matching = $answer['matching'] ?? [];
+            if (empty($matching)) return null;
+            $correctCount = 0;
+            $totalPairs = count($matching);
+            foreach ($matching as $pIdx => $target) {
+                if ($target !== null && $target !== '') {
+                    $correctCount++;
+                }
+            }
+            $persen = $totalPairs > 0 ? ($correctCount / $totalPairs) : 0.0;
+            return round($persen * $points, 2);
+        }
+
+        return null;
+    }
+
+    public static function getEssayToGrade(int $course, int $item, int $studentId, ?int $questionIndex = null): array
+    {
+        $evaluation = self::assessmentEvaluation($course, $item);
+        $questions = $evaluation['questions'];
+        $essayQuestions = array_filter($questions, fn ($q) => $q['is_essay']);
+        $essayIndexes = array_keys($essayQuestions);
+
+        $student = collect($evaluation['students'])->firstWhere('id', $studentId);
+        abort_unless($student, 404);
+
+        $grades = session("academic.item_grades.{$item}.{$studentId}.points", []);
+
+        if ($questionIndex === null || !isset($questions[$questionIndex]) || !$questions[$questionIndex]['is_essay']) {
+            $targetIndex = null;
+            foreach ($essayIndexes as $idx) {
+                if (!isset($grades[$idx]) || $grades[$idx] === null) {
+                    $targetIndex = $idx;
+                    break;
+                }
+            }
+            $questionIndex = $targetIndex ?? ($essayIndexes[0] ?? 0);
+        }
+
+        $currentQuestion = $questions[$questionIndex] ?? null;
+        abort_unless($currentQuestion && $currentQuestion['is_essay'], 404);
+
+        $currentPosition = array_search($questionIndex, $essayIndexes, true);
+        $currentEssayNumber = $currentPosition !== false ? ($currentPosition + 1) : 1;
+        $totalEssaysForStudent = count($essayIndexes);
+
+        $nextQuestionIndex = null;
+        $hasNextEssay = false;
+        if ($currentPosition !== false && isset($essayIndexes[$currentPosition + 1])) {
+            $nextQuestionIndex = $essayIndexes[$currentPosition + 1];
+            $hasNextEssay = true;
+        }
+
+        $nextStudentId = null;
+        foreach ($evaluation['pending_queue'] as $pending) {
+            if ($pending['student']['id'] !== $studentId && $pending['pending_essays_count'] > 0) {
+                $nextStudentId = $pending['student']['id'];
+                break;
+            }
+        }
+
+        $submission = session("learning.submissions.{$item}.{$studentId}") ?? session("learning.submissions.{$item}");
+        $answerText = $submission['question_answers'][$questionIndex]['text']
+            ?? ($submission['answer'] ?? '');
+
+        $currentScore = $grades[$questionIndex] ?? null;
+
+        return [
+            'course' => $evaluation['course'],
+            'item' => $evaluation['item'],
+            'student' => $student,
+            'question' => $currentQuestion,
+            'question_index' => $questionIndex,
+            'current_essay_number' => $currentEssayNumber,
+            'total_essay_count' => $totalEssaysForStudent,
+            'answer_text' => $answerText,
+            'current_score' => $currentScore,
+            'porsi_soal' => $currentQuestion['porsi_soal_raw'],
+            'has_next_essay' => $hasNextEssay,
+            'next_question_index' => $nextQuestionIndex,
+            'is_last_essay' => ! $hasNextEssay,
+            'next_student_id' => $nextStudentId,
+        ];
+    }
+
+    private static function ensureSampleAssessmentData(int $course, int $item, array $questions): void
+    {
+        $seededKey = "academic.item_seeded.{$item}";
+        if (session()->has($seededKey)) {
+            return;
+        }
+
+        // Fajar Ramadhan (student 5, 231011401238)
+        if (!session()->has("learning.submissions.{$item}.5")) {
+            $answers = [];
+            foreach ($questions as $idx => $q) {
+                if ($q['is_essay']) {
+                    $answers[$idx] = [
+                        'text' => "Stack adalah struktur data yang menggunakan konsep LIFO (Last In First Out), di mana elemen yang terakhir masuk akan menjadi yang pertama keluar. Sedangkan Queue menggunakan konsep FIFO (First In First Out), di mana elemen yang pertama masuk akan menjadi yang pertama keluar.\n\nContoh penggunaan Stack adalah fitur Undo pada text editor atau penelusuran riwayat halaman web pada browser. Contoh penggunaan Queue adalah sistem antrean cetak printer atau pemrosesan permintaan task pada server antrian.",
+                    ];
+                } else {
+                    $answers[$idx] = ['choices' => ['Benar']];
+                }
+            }
+            session(["learning.submissions.{$item}.5" => [
+                'student_number' => '231011401238',
+                'question_answers' => $answers,
+                'time' => now()->subHours(2)->format('d M Y, H:i'),
+            ]]);
+        }
+
+        // Siti Nurhaliza (student 7, 231011401240)
+        if (!session()->has("learning.submissions.{$item}.7")) {
+            $answers = [];
+            foreach ($questions as $idx => $q) {
+                if ($q['is_essay']) {
+                    $answers[$idx] = [
+                        'text' => "Perbedaan utamanya terletak pada cara penyimpanan dan pengaksesan data. Stack bekerja berdasarkan urutan LIFO, contohnya tumpukan pemanggilan fungsi (call stack) saat rekursi. Queue bekerja berdasarkan urutan FIFO, contohnya simulasi antrean kasir.",
+                    ];
+                } else {
+                    $answers[$idx] = ['choices' => ['Benar']];
+                }
+            }
+            session(["learning.submissions.{$item}.7" => [
+                'student_number' => '231011401240',
+                'question_answers' => $answers,
+                'time' => now()->subHours(3)->format('d M Y, H:i'),
+            ]]);
+        }
+
+        // Ahmad Maulana (student 1) - Finished (85,00)
+        if (!session()->has("learning.submissions.{$item}.1")) {
+            $answers = [];
+            foreach ($questions as $idx => $q) {
+                $answers[$idx] = ['text' => 'Analisis komparatif struktur data Stack dan Queue...', 'choices' => ['Benar']];
+            }
+            session(["learning.submissions.{$item}.1" => [
+                'student_number' => '231011401234',
+                'question_answers' => $answers,
+                'time' => now()->subHours(5)->format('d M Y, H:i'),
+            ]]);
+            $seedGrades = [];
+            foreach ($questions as $idx => $q) {
+                $seedGrades[$idx] = round((float) $q['points'] * 0.85, 1);
+            }
+            session(["academic.item_grades.{$item}.1.points" => $seedGrades]);
+        }
+
+        // Dewi Anggraini (student 4) - Finished (78,00)
+        if (!session()->has("learning.submissions.{$item}.4")) {
+            $answers = [];
+            foreach ($questions as $idx => $q) {
+                $answers[$idx] = ['text' => 'Stack menggunakan prinsip LIFO, Queue menggunakan prinsip FIFO...', 'choices' => ['Benar']];
+            }
+            session(["learning.submissions.{$item}.4" => [
+                'student_number' => '231011401235',
+                'question_answers' => $answers,
+                'time' => now()->subHours(6)->format('d M Y, H:i'),
+            ]]);
+            $seedGrades = [];
+            foreach ($questions as $idx => $q) {
+                $seedGrades[$idx] = round((float) $q['points'] * 0.78, 1);
+            }
+            session(["academic.item_grades.{$item}.4.points" => $seedGrades]);
+        }
+
+        // Rizky Pratama (student 6) - Finished (90,00)
+        if (!session()->has("learning.submissions.{$item}.6")) {
+            $answers = [];
+            foreach ($questions as $idx => $q) {
+                $answers[$idx] = ['text' => 'Stack adalah LIFO, Queue adalah FIFO dengan implementasi pointer head dan tail...', 'choices' => ['Benar']];
+            }
+            session(["learning.submissions.{$item}.6" => [
+                'student_number' => '231011401239',
+                'question_answers' => $answers,
+                'time' => now()->subHours(7)->format('d M Y, H:i'),
+            ]]);
+            $seedGrades = [];
+            foreach ($questions as $idx => $q) {
+                $seedGrades[$idx] = round((float) $q['points'] * 0.90, 1);
+            }
+            session(["academic.item_grades.{$item}.6.points" => $seedGrades]);
+        }
+
+        session([$seededKey => true]);
+    }
 }

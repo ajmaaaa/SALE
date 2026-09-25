@@ -6,9 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
-use App\Models\Role;
-use App\Models\StudentAssessmentCpmkScore;
-use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\RedirectResponse;
@@ -22,17 +19,17 @@ class PenilaianController extends Controller
     public function __construct(private ObeCalculationService $obe) {}
 
     /**
-     * Dashboard penilaian kelas.
+     * Dashboard Penilaian Kelas — langsung mengarah ke Daftar Asesmen.
      */
     public function dashboard(ClassSection $section): RedirectResponse
     {
         $this->authorizeOwnership($section);
 
-        return redirect()->route('dosen.penilaian.matriks', $section);
+        return redirect()->route('dosen.penilaian.asesmen', $section);
     }
 
     /**
-     * Rekap dalam satu kartu mandiri per CPMK.
+     * Tab: Rekap CPMK (Langkah 3: Satu kartu mandiri per CPMK).
      */
     public function rekap(ClassSection $section): View
     {
@@ -45,11 +42,11 @@ class PenilaianController extends Controller
         $assessmentIds = $assessments->pluck('id');
 
         // Pre-fetch raw scores untuk efisiensi
-        $rawAssessmentScores = StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)->get()
-            ->groupBy(fn ($row) => $row->assessment_id.'_'.$row->mahasiswa_id);
+        $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)->get()
+            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->mahasiswa_id);
 
-        $rawCpmkScores = StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)->get()
-            ->groupBy(fn ($row) => $row->assessment_id.'_'.$row->cpmk_id.'_'.$row->mahasiswa_id);
+        $rawCpmkScores = \App\Models\StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)->get()
+            ->groupBy(fn ($row) => $row->assessment_id . '_' . $row->cpmk_id . '_' . $row->mahasiswa_id);
 
         $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
         $totalCpmkWeight = (float) $cpmkWeights->sum();
@@ -82,8 +79,8 @@ class PenilaianController extends Controller
                 $scores = [];
                 foreach ($components as $comp) {
                     $asmtId = $comp['assessment']->id;
-                    $cpmkScoreKey = $asmtId.'_'.$cpmk->id.'_'.$student->id;
-                    $asmtScoreKey = $asmtId.'_'.$student->id;
+                    $cpmkScoreKey = $asmtId . '_' . $cpmk->id . '_' . $student->id;
+                    $asmtScoreKey = $asmtId . '_' . $student->id;
 
                     $cpmkSpecific = $rawCpmkScores->get($cpmkScoreKey)?->first();
                     if ($cpmkSpecific !== null && $cpmkSpecific->score !== null) {
@@ -124,7 +121,7 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Matriks penilaian interaktif.
+     * Tab: Matriks Penilaian (Langkah 1: Matriks Versi C Interaktif).
      */
     public function matriks(ClassSection $section): View
     {
@@ -208,7 +205,7 @@ class PenilaianController extends Controller
                 : "kurang {$diffFormatted}%";
 
             return back()->withErrors([
-                'matrix' => "Total bobot matriks penilaian harus tepat 100% (saat ini {$grandTotalFormatted}%, {$detail}). Matriks tidak dapat disimpan sebelum total tepat 100%.",
+                'matrix' => "Total bobot matriks penilaian harus tepat 100% (saat ini {$grandTotalFormatted}%, {$detail}). Matriks tidak dapat disimpan sebelum total tepat 100%."
             ])->withInput();
         }
 
@@ -224,7 +221,7 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Daftar asesmen untuk input nilai.
+     * Tab: Daftar Asesmen (Langkah 2: Input Nilai per Asesmen).
      */
     public function asesmen(ClassSection $section): View
     {
@@ -240,7 +237,7 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Alias route lama untuk rekap CPMK.
+     * Tab: Rekap CPMK (Langkah 3 alias / rute cpmk lama).
      */
     public function cpmk(ClassSection $section)
     {
@@ -248,7 +245,7 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Rekap dalam satu kartu mandiri per CPL.
+     * Tab: Rekap CPL (Langkah 4: Satu kartu mandiri per CPL).
      */
     public function cpl(ClassSection $section): View
     {
@@ -367,7 +364,7 @@ class PenilaianController extends Controller
             $user = User::where('email', $sessionUser['email'] ?? '')
                 ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
                 ->first();
-            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
+            $currentUserId = $user?->hasRole(\App\Models\Role::DOSEN) ? $user->id : null;
         }
 
         abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');

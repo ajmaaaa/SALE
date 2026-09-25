@@ -118,6 +118,25 @@
                     Forum Diskusi
                 </a>
             </div>
+
+            <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
+            <div class="space-y-1">
+                @php
+                    $dosenUnreadNotifCount = \App\Support\LearningPreview::unreadNotificationCount();
+                    $isDosenNotifActive = request()->routeIs('dosen.notifications*') || request()->is('*notifikasi*');
+                @endphp
+                <a href="{{ route('dosen.notifications') }}" @if($isDosenNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isDosenNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
+                    <span class="min-w-0 flex-1">Notifikasi</span>
+                    @if($dosenUnreadNotifCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $dosenUnreadNotifCount }} notifikasi belum dibaca">{{ $dosenUnreadNotifCount > 99 ? '99+' : $dosenUnreadNotifCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('dosen.profile.index') }}" @if(request()->routeIs('dosen.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+                    Profil &amp; Pengaturan
+                </a>
+            </div>
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
         @elseif(request()->is('kaprodi*'))
@@ -185,7 +204,7 @@
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
                     @if($unreadNotifCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full {{ $isNotifActive ? 'bg-white/20 text-white' : 'bg-[#4c1d95] text-white' }} px-1.5 text-[11px] font-bold leading-none" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
                     @endif
                 </a>
                 <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">

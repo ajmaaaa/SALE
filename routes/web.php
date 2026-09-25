@@ -65,6 +65,15 @@ Route::middleware('role:mahasiswa')->group(function () {
 });
 Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen')->whereUuid('file')->name('preview.file');
 
+// Chat Real-Time & Diskusi Kelas
+Route::prefix('chat')->name('chat.')->group(function () {
+    Route::get('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'getMessages'])->whereNumber('course')->name('messages.index');
+    Route::post('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'sendMessage'])->whereNumber('course')->name('messages.store');
+    Route::post('/messages/{message}/pin', [\App\Http\Controllers\ChatController::class, 'pinMessage'])->whereNumber('message')->name('messages.pin');
+    Route::delete('/messages/{message}', [\App\Http\Controllers\ChatController::class, 'deleteMessage'])->whereNumber('message')->name('messages.destroy');
+    Route::get('/course/{course}/members', [\App\Http\Controllers\ChatController::class, 'getMembers'])->whereNumber('course')->name('members');
+});
+
 Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function () {
     Route::get('/dashboard', [DosenDashboardController::class, 'index'])->name('dashboard');
     Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
@@ -116,6 +125,11 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
         Route::get('/export/nilai-asesmen', [ExportController::class, 'rekapNilaiAssessment'])->name('export.nilai');
     });
     Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
+    Route::get('/notifikasi', [LearningController::class, 'dosenNotifications'])->name('notifications');
+    Route::match(['get', 'post'], '/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('notifications.read');
+    Route::post('/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('notifications.clear');
+    Route::post('/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('notifications.delete');
+    Route::get('/profil', [\App\Http\Controllers\Dosen\ProfileController::class, 'index'])->name('profile.index');
 });
 
 Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
@@ -137,6 +151,11 @@ Route::middleware('role:dosen')->group(function () {
     Route::post('/dosen/gradebook/{course}', [AcademicController::class, 'saveScores'])->whereNumber('course')->name('dosen.scores.save');
     Route::post('/dosen/gradebook/{course}/bulk', [AcademicController::class, 'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
     Route::post('/dosen/penilaian/{item}', [AcademicController::class, 'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
+    Route::get('/dosen/course/{course}/item/{item}/penilaian', [AcademicController::class, 'assessmentGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian');
+    Route::get('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex?}', [AcademicController::class, 'evaluateEssay'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai');
+    Route::post('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex}', [AcademicController::class, 'saveEssayScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai.save');
+    Route::get('/dosen/course/{course}/item/{item}/penilaian-tugas', [AcademicController::class, 'tugasGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian.tugas');
+    Route::post('/dosen/course/{course}/item/{item}/penilaian-tugas/{student}', [AcademicController::class, 'saveTugasScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.tugas.save');
 });
 Route::get('/mahasiswa/nilai', [AcademicController::class, 'student'])->middleware('role:mahasiswa')->name('mahasiswa.nilai');
 

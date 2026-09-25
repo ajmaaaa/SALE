@@ -329,46 +329,141 @@
         <aside data-discuss-aside class="lg:sticky lg:top-20 z-20 self-start w-full">
             <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 flex flex-col min-h-[440px] max-h-[90vh]">
                 <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
-                    <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Sistem Diskusi Terhubung"></span>
+                        <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
+                    </div>
+                    <span id="chat-total-badge" class="text-[11px] font-medium text-muted">
+                        0 pesan
+                    </span>
                 </div>
 
                 {{-- Messages List --}}
                 @php
-                    $meName = auth()->check()
-                        ? auth()->user()->name
-                        : session('auth_user.name', 'Ahmad Maulana');
-                    $meRole = auth()->user()?->role?->name ?? session('auth_user.role', 'mahasiswa');
-                    $meSenderKey = auth()->check()
-                        ? 'user:'.auth()->user()->getAuthIdentifier()
+                    $hasChatTables = \Illuminate\Support\Facades\Schema::hasTable('rooms') && \Illuminate\Support\Facades\Schema::hasTable('messages');
+                    $chatRoom = $hasChatTables ? \App\Models\Room::forCourse($course['id'], $course['title']) : null;
+                    $chatUser = auth()->user();
+                    if (! $chatUser && is_array(session('auth_user'))) {
+                        $sU = session('auth_user');
+                        if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                            try {
+                                $chatUser = \App\Models\User::where('email', $sU['email'] ?? '')->orWhere('nim_nidn', $sU['number'] ?? '')->first();
+                            } catch (\Throwable $e) {
+                            }
+                        }
+                    }
+                    $isDosenUser = ($chatUser && ($chatUser->hasRole(\App\Models\Role::DOSEN) || $chatUser->hasRole(\App\Models\Role::KAPRODI)))
+                        || (is_array(session('auth_user')) && in_array(session('auth_user')['role'] ?? '', [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true));
+
+                    $meName = $chatUser?->name ?? session('auth_user.name', 'Ahmad Maulana');
+                    $meRole = $chatUser?->role?->name ?? session('auth_user.role', 'mahasiswa');
+                    $meSenderKey = $chatUser
+                        ? 'user:'.$chatUser->getAuthIdentifier()
                         : 'preview:'.$meRole.':'.(session('auth_user.id') ?? session('auth_user.number') ?? session('auth_user.email') ?? 1);
+
+                    if ($hasChatTables && $chatRoom && \App\Models\Message::where('room_id', $chatRoom->id)->exists()) {
+                        $rawMessages = \App\Models\Message::where('room_id', $chatRoom->id)
+                            ->with(['user.role', 'replyTo.user', 'mentions.mentionedUser'])
+                            ->orderByDesc('id')
+                            ->limit(40)
+                            ->get();
+                        $initialMessages = $rawMessages->reverse()->values()->map(function ($m) use ($chatUser, $meName) {
+                            $p = $m->toChatPayload($chatUser);
+                            if (! $p['is_me'] && ! empty($meName) && trim($p['author']) === trim($meName)) {
+                                $p['is_me'] = true;
+                            }
+                            return $p;
+                        });
+                        $pinnedMessages = \App\Models\Message::where('room_id', $chatRoom->id)
+                            ->where('is_pinned', true)
+                            ->with(['user.role', 'replyTo.user'])
+                            ->orderByDesc('id')
+                            ->get()
+                            ->map(fn($m) => $m->toChatPayload($chatUser));
+
+                        $roomMembersList = $chatRoom->members()->select('users.id', 'users.name')->get()->map(fn($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'role' => $u->pivot->role ?? 'mahasiswa'
+                        ]);
+                    } else {
+                        $previewMessages = collect(\App\Support\LearningPreview::courseDiscussions($course['id']));
+                        $initialMessages = $previewMessages->map(function ($m, $idx) use ($meName, $meSenderKey) {
+                            $isMe = isset($m['sender_key'])
+                                ? hash_equals($meSenderKey, (string) $m['sender_key'])
+                                : (!empty($meName) && trim($m['author'] ?? '') === trim($meName));
+                            $msgAt = isset($m['timestamp']) ? \Carbon\Carbon::createFromTimestamp($m['timestamp']) : now();
+                            return [
+                                'id' => $idx + 1,
+                                'room_id' => 1,
+                                'content' => $m['message'] ?? '',
+                                'is_pinned' => false,
+                                'user_id' => 0,
+                                'author' => $m['author'] ?? 'Pengguna',
+                                'role' => $m['role'] ?? 'mahasiswa',
+                                'is_me' => $isMe,
+                                'time' => $m['time'] ?? $msgAt->format('H:i'),
+                                'date_key' => $m['date_key'] ?? $msgAt->toDateString(),
+                                'date_label' => $m['date_label'] ?? ($msgAt->isToday() ? 'Hari ini' : ($msgAt->isYesterday() ? 'Kemarin' : $msgAt->translatedFormat('d F Y'))),
+                                'timestamp' => $m['timestamp'] ?? $msgAt->timestamp,
+                                'reply_to' => null,
+                                'mentions' => [],
+                            ];
+                        });
+                        $pinnedMessages = collect();
+                        $roomMembersList = collect();
+                    }
+
+                    $currentUserId = $chatUser?->id ?? 0;
                     $previousMessageDate = null;
-                    $courseMessages = \App\Support\LearningPreview::courseDiscussions($course['id']);
-                    $lastMessageTimestamp = collect($courseMessages)->last()['timestamp'] ?? null;
-                    $lastMessageDate = $lastMessageTimestamp ? \Carbon\Carbon::createFromTimestamp($lastMessageTimestamp)->toDateString() : '';
                 @endphp
-                <div id="chat-messages" data-last-date="{{ $lastMessageDate }}" class="my-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
-                    @forelse($courseMessages as $msg)
+
+                {{-- Banner Pesan yang Disematkan Dosen --}}
+                <div id="pinned-announcements-container" class="{{ $pinnedMessages->isEmpty() ? 'hidden' : '' }} shrink-0 mt-2 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-orange-50/70 p-3 text-xs shadow-2xs">
+                    <div class="flex items-center justify-between gap-2 border-b border-amber-200/60 pb-1.5 mb-2">
+                        <div class="flex items-center gap-1.5 font-bold text-amber-900">
+                            <svg class="h-3.5 w-3.5 text-amber-600 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            <span>Pesan Disematkan Dosen</span>
+                        </div>
+                        <span id="pinned-count-badge" class="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                            {{ $pinnedMessages->count() }}
+                        </span>
+                    </div>
+                    <div id="pinned-messages-list" class="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                        @foreach($pinnedMessages as $pinMsg)
+                            <div id="pinned-item-{{ $pinMsg['id'] }}" class="flex items-start justify-between gap-2 rounded-lg bg-white/80 p-2 border border-amber-200/40">
+                                <div class="min-w-0 flex-1">
+                                    <span class="font-bold text-amber-950">{{ $pinMsg['author'] }}:</span>
+                                    <span class="text-slate-800 line-clamp-2">{{ $pinMsg['content'] }}</span>
+                                </div>
+                                @if($isDosenUser)
+                                    <button type="button" onclick="togglePinMessage({{ $pinMsg['id'] }})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div id="chat-messages" class="my-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
+                    @forelse($initialMessages as $msg)
                         @php
-                            $isMe = isset($msg['sender_key'])
-                                ? hash_equals($meSenderKey, (string) $msg['sender_key'])
-                                : (!empty($meName) && trim($msg['author']) === trim($meName));
-                            $initials = collect(explode(' ', $msg['author']))->map(fn($part)=>mb_substr($part,0,1))->take(2)->implode('');
-                            $messageAt = isset($msg['timestamp']) ? \Carbon\Carbon::createFromTimestamp($msg['timestamp']) : now();
-                            $messageDate = $messageAt->toDateString();
-                            $dateLabel = $messageAt->isToday()
-                                ? 'Hari ini'
-                                : ($messageAt->isYesterday() ? 'Kemarin' : $messageAt->translatedFormat('d F Y'));
+                            $isMe = $msg['is_me'];
+                            $initials = collect(explode(' ', $msg['author'] ?? 'P'))->map(fn($part)=>mb_substr($part,0,1))->take(2)->implode('');
+                            $isPinned = !empty($msg['is_pinned']);
+                            $canDelete = $isDosenUser || $isMe;
+                            $msgDateKey = $msg['date_key'] ?? now()->toDateString();
+                            $msgDateLabel = $msg['date_label'] ?? 'Hari ini';
                         @endphp
-                        @if($messageDate !== $previousMessageDate)
-                            <div class="flex items-center gap-3 py-1" role="separator" aria-label="{{ $dateLabel }}">
+                        @if($msgDateKey !== $previousMessageDate)
+                            <div class="flex items-center gap-3 py-1" role="separator" aria-label="{{ $msgDateLabel }}">
                                 <span class="h-px flex-1 bg-line/70"></span>
-                                <time datetime="{{ $messageDate }}" class="shrink-0 text-[10px] font-medium text-muted">{{ $dateLabel }}</time>
+                                <time datetime="{{ $msgDateKey }}" class="shrink-0 text-[10px] font-medium text-muted">{{ $msgDateLabel }}</time>
                                 <span class="h-px flex-1 bg-line/70"></span>
                             </div>
-                            @php($previousMessageDate = $messageDate)
+                            @php($previousMessageDate = $msgDateKey)
                         @endif
-                        <div class="flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}">
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
+                        <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs transition-all {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }} relative hover:shadow-xs">
                                 <div class="flex items-start gap-2.5 min-w-0">
                                     <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 {{ $isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700' }}">
                                         {{ $initials }}
@@ -382,11 +477,48 @@
                                             @if(($msg['role'] ?? '') === 'dosen')
                                                 <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>
                                             @endif
+                                            @if($isPinned)
+                                                <span id="pin-badge-{{ $msg['id'] }}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100/80 px-1 rounded border border-amber-200 shrink-0">
+                                                    📌 Disematkan
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
+                                    <time class="shrink-0 text-[10px] text-muted">{{ $msg['time'] }}</time>
                                 </div>
-                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{{ $msg['message'] }}</p>
-                                <time datetime="{{ $messageAt->toIso8601String() }}" class="mt-1 block text-right text-[10px] leading-none text-muted">{{ $messageAt->format('H:i') }}</time>
+
+                                {{-- Kutipan Balasan (Reply Quote Bubble) --}}
+                                @if(!empty($msg['reply_to']))
+                                    <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
+                                        <span class="font-bold text-brand block leading-tight">{{ $msg['reply_to']['sender_name'] }}</span>
+                                        <span class="line-clamp-1 italic text-slate-700 mt-0.5">{{ $msg['reply_to']['excerpt'] }}</span>
+                                    </div>
+                                @endif
+
+                                {{-- Isi Pesan (Render Mention @User dengan badge) --}}
+                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">
+                                    {!! preg_replace('/@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/', '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>', e($msg['content'])) !!}
+                                </p>
+
+                                {{-- Bar Aksi Cepat (Balas, Pin, Hapus) --}}
+                                <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <button type="button" onclick="setReplyTarget({{ $msg['id'] }}, '{{ addslashes($msg['author']) }}', '{{ addslashes(Str::limit($msg['content'], 50)) }}')" class="hover:text-brand font-medium flex items-center gap-0.5">
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                        Balas
+                                    </button>
+                                    @if($isDosenUser)
+                                        <span class="text-line">|</span>
+                                        <button type="button" onclick="togglePinMessage({{ $msg['id'] }})" class="hover:text-amber-700 font-medium">
+                                            {{ $isPinned ? 'Lepas Pin' : 'Pin' }}
+                                        </button>
+                                    @endif
+                                    @if($canDelete)
+                                        <span class="text-line">|</span>
+                                        <button type="button" onclick="deleteMessage({{ $msg['id'] }})" class="hover:text-rose-600 font-medium">
+                                            Hapus
+                                        </button>
+                                    @endif
+                                </div>
                             </article>
                         </div>
                     @empty
@@ -404,21 +536,44 @@
                     @endforelse
                 </div>
 
-                {{-- Send Message Form: Tombol Kirim Di Dalam Kolom Chat (Gaya AI Coding Assistant) --}}
-                <form id="course-discuss-form" method="post" action="{{ route($isDosen ? 'dosen.course.discuss.class' : 'mahasiswa.course.discuss.class', $course['id']) }}" class="shrink-0 pt-2 border-t border-line/50 space-y-1.5">
-                    @csrf
-                    <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
-                        <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
-                        <textarea maxlength="3000" name="message" id="course_discuss_message" rows="2" required class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tulis pesan untuk dosen &amp; kelas..."></textarea>
-                        <div class="absolute right-2 bottom-2 flex items-center">
-                            <button id="course-discuss-submit-btn" type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg inline-flex items-center justify-center transition-all duration-150 transform shrink-0 shadow-xs hover:scale-105 active:scale-95 disabled:opacity-30" title="Kirim pesan (Enter)" aria-label="Kirim pesan">
-                                <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                                </svg>
-                            </button>
+                {{-- Area Input Pesan dengan Preview Reply & Dropdown Mention --}}
+                <div class="relative shrink-0 pt-1 border-t border-line/50 space-y-1.5">
+                    {{-- Preview Balasan Pesan --}}
+                    <div id="reply-preview-bar" class="hidden rounded-t-xl border border-b-0 border-[#b9c0ca] bg-slate-50 px-3 py-2 text-xs flex items-center justify-between gap-2 border-l-4 !border-l-brand animate-fadeIn">
+                        <div class="min-w-0 flex-1 flex items-center gap-2">
+                            <svg class="h-3.5 w-3.5 text-brand shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                            <div class="min-w-0 truncate">
+                                <span class="text-slate-500">Membalas ke:</span>
+                                <strong id="reply-author-label" class="font-bold text-ink"></strong>
+                                <span id="reply-content-excerpt" class="text-muted ml-1 truncate"></span>
+                            </div>
                         </div>
+                        <button type="button" onclick="cancelReplyMode()" class="text-slate-400 hover:text-rose-600 transition shrink-0 p-1" title="Batalkan balasan" aria-label="Batalkan balasan">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
-                </form>
+
+                    {{-- Dropdown Autocomplete @Mention --}}
+                    <div id="mention-dropdown" class="hidden absolute bottom-full left-0 mb-1 z-30 w-64 max-h-48 overflow-y-auto rounded-xl border border-line/80 bg-white p-1 shadow-lg divide-y divide-line/30">
+                    </div>
+
+                    {{-- Form Input Pesan --}}
+                    <form id="course-discuss-form" method="post" action="{{ route($isDosen ? 'dosen.course.discuss.class' : 'mahasiswa.course.discuss.class', $course['id']) }}" class="space-y-1">
+                        @csrf
+                        <input type="hidden" name="reply_to_message_id" id="reply_to_message_id" value="">
+                        <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
+                            <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
+                            <textarea maxlength="3000" name="message" id="course_discuss_message" rows="2" required class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tulis pesan... Ketik @ untuk mention dosen / teman"></textarea>
+                            <div class="absolute right-2 bottom-2 flex items-center">
+                                <button id="course-discuss-submit-btn" type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg inline-flex items-center justify-center transition-all duration-150 transform shrink-0 shadow-xs hover:scale-105 active:scale-95 disabled:opacity-30" title="Kirim pesan (Enter)" aria-label="Kirim pesan">
+                                    <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </section>
         </aside>
     </div>
@@ -426,98 +581,206 @@
 
 <script>
     (function() {
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        const courseId = {{ $course['id'] }};
+        const roomId = {{ $chatRoom?->id ?? 1 }};
+        const currentUserId = {{ $currentUserId }};
+        const isDosenUser = {{ $isDosenUser ? 'true' : 'false' }};
+        const roomMembers = @json($roomMembersList ?? []);
 
+        const chatMessages = document.getElementById('chat-messages');
         const discussForm = document.getElementById('course-discuss-form');
         const discussInput = document.getElementById('course_discuss_message');
         const discussSubmitBtn = document.getElementById('course-discuss-submit-btn');
+        const replyPreviewBar = document.getElementById('reply-preview-bar');
+        const replyInput = document.getElementById('reply_to_message_id');
+        const replyAuthorLabel = document.getElementById('reply-author-label');
+        const replyContentExcerpt = document.getElementById('reply-content-excerpt');
+        const mentionDropdown = document.getElementById('mention-dropdown');
+        const pinnedContainer = document.getElementById('pinned-announcements-container');
+        const pinnedList = document.getElementById('pinned-messages-list');
+        const pinnedCountBadge = document.getElementById('pinned-count-badge');
+        const totalBadge = document.getElementById('chat-total-badge');
 
-        if (!discussForm || !discussInput) return;
+        let activeReplyTarget = null;
+        let mentionStartIndex = -1;
+        let selectedMentionUserIds = [];
 
-        // Enter submits immediately; Shift+Enter inserts a new line
-        discussInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (discussInput.value.trim().length > 0) {
-                    discussForm.requestSubmit();
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // 1. Reply Handling
+        window.setReplyTarget = function(messageId, author, excerpt) {
+            activeReplyTarget = { id: messageId, author: author, excerpt: excerpt };
+            if (replyInput) replyInput.value = messageId;
+            if (replyAuthorLabel) replyAuthorLabel.textContent = author;
+            if (replyContentExcerpt) replyContentExcerpt.textContent = excerpt;
+            if (replyPreviewBar) replyPreviewBar.classList.remove('hidden');
+            if (discussInput) {
+                discussInput.focus();
+            }
+        };
+
+        window.cancelReplyMode = function() {
+            activeReplyTarget = null;
+            if (replyInput) replyInput.value = '';
+            if (replyPreviewBar) replyPreviewBar.classList.add('hidden');
+        };
+
+        // 2. Pin / Unpin Handling
+        window.togglePinMessage = async function(messageId) {
+            try {
+                const response = await fetch(`/chat/messages/${messageId}/pin`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    refreshChatStream();
                 }
+            } catch (err) {
+                console.error('Gagal toggle pin:', err);
             }
-        });
+        };
 
-        // AJAX submit with instant UI feedback
-        discussForm.addEventListener('submit', async function(e) {
-            const messageText = discussInput.value.trim();
-            if (!messageText) {
-                e.preventDefault();
-                return;
+        // 3. Delete Message Handling
+        window.deleteMessage = async function(messageId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus pesan ini?')) return;
+
+            try {
+                const response = await fetch(`/chat/messages/${messageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const row = document.getElementById(`msg-bubble-${messageId}`);
+                    if (row) row.remove();
+                    refreshChatStream();
+                }
+            } catch (err) {
+                console.error('Gagal menghapus pesan:', err);
             }
+        };
 
-            if (window.fetch) {
+        // 4. @Mention Dropdown Autocomplete
+        if (discussInput && mentionDropdown) {
+            discussInput.addEventListener('input', function() {
+                const text = discussInput.value;
+                const cursorPos = discussInput.selectionStart;
+                const textBeforeCursor = text.slice(0, cursorPos);
+                const lastAtPos = textBeforeCursor.lastIndexOf('@');
+
+                if (lastAtPos !== -1 && (lastAtPos === 0 || /\s/.test(text[lastAtPos - 1]))) {
+                    const query = textBeforeCursor.slice(lastAtPos + 1).toLowerCase();
+                    mentionStartIndex = lastAtPos;
+
+                    const matches = roomMembers.filter(m => m.name.toLowerCase().includes(query));
+                    if (matches.length > 0) {
+                        mentionDropdown.innerHTML = '';
+                        matches.slice(0, 5).forEach(m => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center justify-between gap-2 rounded-lg transition';
+                            btn.innerHTML = `
+                                <span class="font-semibold text-ink truncate">${m.name}</span>
+                                <span class="text-[10px] text-muted uppercase font-bold shrink-0">${m.role}</span>
+                            `;
+                            btn.onclick = () => selectMentionUser(m);
+                            mentionDropdown.appendChild(btn);
+                        });
+                        mentionDropdown.classList.remove('hidden');
+                    } else {
+                        mentionDropdown.classList.add('hidden');
+                    }
+                } else {
+                    mentionDropdown.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!mentionDropdown.contains(e.target) && e.target !== discussInput) {
+                    mentionDropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        function selectMentionUser(user) {
+            if (mentionStartIndex === -1) return;
+            const text = discussInput.value;
+            const textBefore = text.slice(0, mentionStartIndex);
+            const textAfter = text.slice(discussInput.selectionStart);
+            discussInput.value = `${textBefore}@${user.name} ${textAfter}`;
+            mentionDropdown.classList.add('hidden');
+            if (!selectedMentionUserIds.includes(user.id)) {
+                selectedMentionUserIds.push(user.id);
+            }
+            discussInput.focus();
+        }
+
+        // 5. Enter Key and AJAX Submit
+        if (discussInput && discussForm) {
+            discussInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (discussInput.value.trim().length > 0) {
+                        discussForm.requestSubmit();
+                    }
+                }
+            });
+
+            discussForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
+                const content = discussInput.value.trim();
+                if (!content) return;
+
                 if (discussSubmitBtn) discussSubmitBtn.disabled = true;
 
                 try {
-                    const formData = new FormData(discussForm);
-                    const response = await fetch(discussForm.action, {
+                    const payload = {
+                        content: content,
+                        message: content,
+                        reply_to_message_id: replyInput && replyInput.value ? Number(replyInput.value) : null,
+                        mentioned_user_ids: selectedMentionUserIds,
+                    };
+
+                    let response = await fetch(`/chat/course/${courseId}/messages`, {
                         method: 'POST',
-                        body: formData,
+                        body: JSON.stringify(payload),
                         headers: {
                             'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         }
                     });
 
+                    if (!response.ok) {
+                        const formData = new FormData(discussForm);
+                        response = await fetch(discussForm.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                    }
+
                     if (response.ok) {
-                        const data = await response.json();
-                        const msg = data.message;
-
-                        // Clear empty state placeholder if present
-                        const emptyBox = document.getElementById('empty-chat-placeholder') || chatMessages.querySelector('.bg-canvas');
-                        if (emptyBox) {
-                            emptyBox.remove();
-                        }
-
-                        if (chatMessages.dataset.lastDate !== msg.date_key) {
-                            const dateSeparator = document.createElement('div');
-                            dateSeparator.className = 'flex items-center gap-3 py-1';
-                            dateSeparator.setAttribute('role', 'separator');
-                            dateSeparator.setAttribute('aria-label', msg.date_label);
-                            dateSeparator.innerHTML = `<span class="h-px flex-1 bg-line/70"></span><time datetime="${msg.date_key}" class="shrink-0 text-[10px] font-medium text-muted">${msg.date_label}</time><span class="h-px flex-1 bg-line/70"></span>`;
-                            chatMessages.appendChild(dateSeparator);
-                            chatMessages.dataset.lastDate = msg.date_key;
-                        }
-
-                        // Create message bubble
-                        const msgWrapper = document.createElement('div');
-                        msgWrapper.className = 'flex w-full justify-end';
-
-                        const initials = (msg.author || 'Me').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-                        const safeAuthor = (msg.author || 'Saya').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        const safeMsg = msg.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-
-                        msgWrapper.innerHTML = `
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs bg-[#edf4fb] border-[#cfe0f2]">
-                                <div class="flex items-start gap-2.5 min-w-0">
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-brand text-white">
-                                        ${initials}
-                                    </span>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex flex-wrap items-center gap-1.5 leading-snug">
-                                            <span class="text-xs font-bold text-ink break-words">${safeAuthor}</span>
-                                            <span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${safeMsg}</p>
-                                <time class="mt-1 block text-right text-[10px] leading-none text-muted">${msg.time}</time>
-                            </article>
-                        `;
-
-                        chatMessages.appendChild(msgWrapper);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-
                         discussInput.value = '';
+                        selectedMentionUserIds = [];
+                        cancelReplyMode();
+                        const emptyPlaceholder = document.getElementById('empty-chat-placeholder');
+                        if (emptyPlaceholder) emptyPlaceholder.remove();
+                        refreshChatStream(true);
                     } else {
                         discussForm.submit();
                     }
@@ -526,8 +789,131 @@
                 } finally {
                     if (discussSubmitBtn) discussSubmitBtn.disabled = false;
                 }
+            });
+        }
+
+        // 6. Polling & Real-Time Sync
+        async function refreshChatStream(scrollToBottom = false) {
+            try {
+                const res = await fetch(`/chat/course/${courseId}/messages`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.success) return;
+
+                if (totalBadge) totalBadge.textContent = `${data.messages.length} pesan`;
+
+                if (pinnedContainer && pinnedList) {
+                    if (data.pinned_messages && data.pinned_messages.length > 0) {
+                        pinnedContainer.classList.remove('hidden');
+                        if (pinnedCountBadge) pinnedCountBadge.textContent = data.pinned_messages.length;
+                        pinnedList.innerHTML = data.pinned_messages.map(p => `
+                            <div id="pinned-item-${p.id}" class="flex items-start justify-between gap-2 rounded-lg bg-white/80 p-2 border border-amber-200/40">
+                                <div class="min-w-0 flex-1">
+                                    <span class="font-bold text-amber-950">${p.author}:</span>
+                                    <span class="text-slate-800 line-clamp-2">${p.content}</span>
+                                </div>
+                                ${isDosenUser ? `<button type="button" onclick="togglePinMessage(${p.id})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>` : ''}
+                            </div>
+                        `).join('');
+                    } else {
+                        pinnedContainer.classList.add('hidden');
+                    }
+                }
+
+                if (chatMessages && data.messages) {
+                    const emptyState = document.getElementById('empty-chat-placeholder');
+                    if (data.messages.length > 0 && emptyState) {
+                        emptyState.remove();
+                    }
+
+                    const currentIds = Array.from(chatMessages.querySelectorAll('[data-message-id]')).map(el => Number(el.dataset.messageId));
+                    const newIds = data.messages.map(m => m.id);
+
+                    const isDifferent = currentIds.length !== newIds.length || !newIds.every((id, idx) => id === currentIds[idx]);
+
+                    if (isDifferent) {
+                        const wasAtBottom = chatMessages.scrollHeight - chatMessages.clientHeight <= chatMessages.scrollTop + 50;
+
+                        chatMessages.innerHTML = data.messages.map(m => {
+                            const isMe = m.is_me;
+                            const initials = (m.author || 'P').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+                            const canDelete = isDosenUser || isMe;
+                            const pinBadge = m.is_pinned ? `<span id="pin-badge-${m.id}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100/80 px-1 rounded border border-amber-200 shrink-0">📌 Disematkan</span>` : '';
+                            const replyBox = m.reply_to ? `
+                                <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
+                                    <span class="font-bold text-brand block leading-tight">${m.reply_to.sender_name}</span>
+                                    <span class="line-clamp-1 italic text-slate-700 mt-0.5">${m.reply_to.excerpt}</span>
+                                </div>
+                            ` : '';
+
+                            const formattedContent = m.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/g, '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>');
+
+                            return `
+                                <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${m.author}">
+                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs transition-all ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60'} relative hover:shadow-xs">
+                                        <div class="flex items-start gap-2.5 min-w-0">
+                                            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700'}">
+                                                ${initials}
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-1.5 leading-snug">
+                                                    <span class="text-xs font-bold text-ink break-words">${m.author}</span>
+                                                    ${isMe ? '<span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>' : ''}
+                                                    ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
+                                                    ${pinBadge}
+                                                </div>
+                                            </div>
+                                            <time class="shrink-0 text-[10px] text-muted">${m.time}</time>
+                                        </div>
+                                        ${replyBox}
+                                        <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
+                                        <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
+                                            <button type="button" onclick="setReplyTarget(${m.id}, '${m.author.replace(/'/g, "\\'")}', '${m.content.slice(0, 50).replace(/'/g, "\\'")}')" class="hover:text-brand font-medium flex items-center gap-0.5">
+                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                                Balas
+                                            </button>
+                                            ${isDosenUser ? `
+                                                <span class="text-line">|</span>
+                                                <button type="button" onclick="togglePinMessage(${m.id})" class="hover:text-amber-700 font-medium">
+                                                    ${m.is_pinned ? 'Lepas Pin' : 'Pin'}
+                                                </button>
+                                            ` : ''}
+                                            ${canDelete ? `
+                                                <span class="text-line">|</span>
+                                                <button type="button" onclick="deleteMessage(${m.id})" class="hover:text-rose-600 font-medium">
+                                                    Hapus
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </article>
+                                </div>
+                            `;
+                        }).join('');
+
+                        if (scrollToBottom || wasAtBottom) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }
+                }
+            } catch (err) {
             }
-        });
+        }
+
+        let pollTimer = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                refreshChatStream();
+            }
+        }, 3500);
+
+        if (window.Echo) {
+            try {
+                window.Echo.private(`room.${roomId}`)
+                    .listen('MessageSent', () => refreshChatStream(true))
+                    .listen('MessagePinned', () => refreshChatStream())
+                    .listen('MessageDeleted', () => refreshChatStream());
+            } catch (echoErr) {
+            }
+        }
 
         function syncDiscussionCard() {
             const discussAside = document.querySelector('aside[data-discuss-aside]');

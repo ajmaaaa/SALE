@@ -22,6 +22,17 @@ class EnsureRole
             ? in_array($sessionRole, $roles, true)
             : collect($roles)->contains(fn (string $role): bool => $user->hasRole($role));
 
+        if (! $hasRole) {
+            $isDosen = ($user && ($user->hasRole('dosen') || $user->hasRole('kaprodi')))
+                || in_array($sessionRole, ['dosen', 'kaprodi'], true);
+            if ($isDosen && $request->is('mahasiswa/course/*')) {
+                $courseId = $request->route('course');
+                if ($courseId) {
+                    return redirect()->route('dosen.course.show', $courseId);
+                }
+            }
+        }
+
         abort_unless(
             $hasRole,
             403,

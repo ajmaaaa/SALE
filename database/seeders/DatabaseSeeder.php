@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             DemoLearningContentSeeder::class,
             StudentScoreExampleSeeder::class,
             RpsSimulationSeeder::class,
+            ChatSeeder::class,
         ]);
 
         // Register further domain seeders here as more persistent SALE

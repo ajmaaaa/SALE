@@ -474,9 +474,18 @@
                         </div>
 
                         <div class="space-y-2 pt-2">
-                            <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                Lihat &amp; Nilai Jawaban Mahasiswa
-                            </a>
+                            @php
+                                $isTugasBiasa = in_array($item['type'], ['tugas', 'coding'], true) && empty($item['questions']);
+                            @endphp
+                            @if($isTugasBiasa)
+                                <a href="{{ route('dosen.item.penilaian.tugas', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
+                                    Nilai Tugas Mahasiswa
+                                </a>
+                            @else
+                                <a href="{{ route('dosen.item.penilaian', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
+                                    Lihat &amp; Nilai Jawaban Mahasiswa
+                                </a>
+                            @endif
                             <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
                                 + Tambah Konten / Soal Baru
                             </a>

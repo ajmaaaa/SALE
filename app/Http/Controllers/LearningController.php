@@ -884,6 +884,33 @@ class LearningController extends Controller
             ];
         }
 
+        if (Schema::hasTable('rooms') && Schema::hasTable('messages')) {
+            try {
+                $room = \App\Models\Room::forCourse($course);
+                $userId = $user?->id;
+                if (! $userId && is_array(session('auth_user'))) {
+                    $sU = session('auth_user');
+                    if (Schema::hasTable('users')) {
+                        $dbUser = \App\Models\User::where('email', $sU['email'] ?? '')->orWhere('nim_nidn', $sU['number'] ?? '')->first();
+                        $userId = $dbUser?->id;
+                    }
+                }
+                if (! $userId && Schema::hasTable('users')) {
+                    $dbUser = \App\Models\User::where('email', 'ahmad.maulana@student.test')->first() ?? \App\Models\User::first();
+                    $userId = $dbUser?->id;
+                }
+                if ($userId) {
+                    $dbMsg = \App\Models\Message::create([
+                        'room_id' => $room->id,
+                        'user_id' => $userId,
+                        'content' => $message['message'] ?? $message['content'] ?? '',
+                    ]);
+                    $message['id'] = $dbMsg->id;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
         $messages = Learning::courseDiscussions($course);
         $messages[] = $message;
         session(["learning.course_discussions.$course" => $messages]);
@@ -1169,6 +1196,65 @@ class LearningController extends Controller
             'selectedCategory' => $category,
             'courses' => Learning::courses(),
             'categoryCounts' => $categoryCounts,
+        ]);
+    }
+
+    /**
+     * Halaman notifikasi untuk dosen — menampilkan pemberitahuan terkait kelas,
+     * pengumpulan tugas mahasiswa, dan aktivitas forum.
+     * Data bersumber dari database (submissions, assessments, discussions).
+     */
+    public function dosenNotifications(Request $request)
+    {
+        $user = auth()->user();
+        if (! $user && is_array(session('auth_user'))) {
+            $sessionUser = session('auth_user');
+            $user = \App\Models\User::where('email', $sessionUser['email'] ?? '')
+                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
+                ->first();
+        }
+
+        // Kumpulkan notifikasi berbasis database untuk dosen
+        $allNotifications = Learning::notifications($user);
+
+        $categoryCounts = [
+            'all'     => count($allNotifications),
+            'tugas'   => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
+            'nilai'   => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'nilai')),
+            'sistem'  => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'sistem')),
+            'diskusi' => count(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
+        ];
+
+        $category = $request->query('category');
+        $notifications = $allNotifications;
+        if ($category && in_array($category, ['tugas', 'nilai', 'sistem', 'diskusi'])) {
+            $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
+        }
+
+        $groupedNotifications = collect($notifications)->groupBy(function ($notif) {
+            $ts = $notif['timestamp'] ?? time();
+            try {
+                $carbon = is_numeric($ts)
+                    ? \Carbon\Carbon::createFromTimestamp((int) $ts)
+                    : \Carbon\Carbon::parse($ts);
+            } catch (\Throwable) {
+                $carbon = \Carbon\Carbon::now();
+            }
+            if ($carbon->isToday()) {
+                return 'Hari Ini';
+            }
+            if ($carbon->isYesterday()) {
+                return 'Kemarin';
+            }
+            return $carbon->translatedFormat('d F Y');
+        });
+
+        return view('dosen.notifikasi', [
+            'notifications'        => $notifications,
+            'groupedNotifications' => $groupedNotifications,
+            'selectedCategory'     => $category,
+            'courses'              => Learning::courses(),
+            'categoryCounts'       => $categoryCounts,
         ]);
     }
 

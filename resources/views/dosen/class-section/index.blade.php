@@ -86,7 +86,7 @@
                                 </a>
                             </div>
                         @else
-                            <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="button-primary text-xs w-full py-2 text-center font-semibold">
+                            <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-primary text-xs w-full py-2 text-center font-semibold">
                                 Kelola Penilaian
                             </a>
                         @endif
