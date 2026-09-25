@@ -832,6 +832,11 @@
                 }
 
                 if (chatMessages && data.messages) {
+                    const hasRenderedMessages = chatMessages.querySelector('[data-message-id]');
+                    if (data.messages.length === 0 && hasRenderedMessages) {
+                        return;
+                    }
+
                     const emptyState = document.getElementById('empty-chat-placeholder');
                     if (data.messages.length > 0 && emptyState) {
                         emptyState.remove();
@@ -1019,11 +1024,6 @@
         @empty
             <p class="text-center text-sm text-muted py-4">Belum ada mahasiswa yang terdaftar di kelas ini.</p>
         @endforelse
-    </div>
-    <div class="p-4 border-t border-line/50 text-right">
-        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs">
-            Tutup
-        </button>
     </div>
 </dialog>
 @endsection
