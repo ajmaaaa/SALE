@@ -476,7 +476,10 @@
                             @php($previousMessageDate = $msgDateKey)
                         @endif
                         <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs transition-all {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }} relative hover:shadow-xs">
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-hidden flex {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row' }}">
+                                {{-- Garis Vertikal (brand untuk pesan saya, abu untuk pesan lain) --}}
+                                <span class="shrink-0 w-[3.5px] self-stretch {{ $isMe ? 'bg-[#1f4b7a]' : 'bg-[#c2c8d0]' }}" aria-hidden="true"></span>
+                                <div class="p-3 min-w-0 flex-1">
                                 <div class="flex items-start gap-2.5 min-w-0">
                                     <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 {{ $isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700' }}">
                                         {{ $initials }}
@@ -529,6 +532,7 @@
                                             @endif
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                             </article>
                         </div>
@@ -866,38 +870,41 @@
 
                             return `
                                 <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${m.author}">
-                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border p-3 shadow-2xs transition-all ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60'} relative hover:shadow-xs">
-                                        <div class="flex items-start gap-2.5 min-w-0">
-                                            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700'}">
-                                                ${initials}
-                                            </span>
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex flex-wrap items-center gap-1.5 leading-snug">
-                                                    <span class="text-xs font-bold text-ink break-words">${m.author}</span>
-                                                    ${isMe ? '<span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>' : ''}
-                                                    ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
-                                                    ${pinBadge}
-                                                    <time class="ml-auto shrink-0 text-[10px] text-muted">${m.time}</time>
-                                                </div>
-                                                ${replyBox}
-                                                <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
-                                                <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
-                                            <button type="button" onclick="setReplyTarget(${m.id}, '${m.author.replace(/'/g, "\\'")}', '${m.content.slice(0, 50).replace(/'/g, "\\'")}')" class="hover:text-brand font-medium flex items-center gap-0.5">
-                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                                Balas
-                                            </button>
-                                            ${isDosenUser ? `
-                                                <span class="text-line">|</span>
-                                                <button type="button" onclick="togglePinMessage(${m.id})" class="hover:text-amber-700 font-medium">
-                                                    ${m.is_pinned ? 'Lepas Pin' : 'Pin'}
-                                                </button>
-                                            ` : ''}
-                                            ${canDelete ? `
-                                                <span class="text-line">|</span>
-                                                <button type="button" onclick="deleteMessage(${m.id})" class="hover:text-rose-600 font-medium">
-                                                    Hapus
-                                                </button>
-                                            ` : ''}
+                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-hidden flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}">
+                                        <span class="shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a]' : 'bg-[#c2c8d0]'}" aria-hidden="true"></span>
+                                        <div class="p-3 min-w-0 flex-1">
+                                            <div class="flex items-start gap-2.5 min-w-0">
+                                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${isMe ? 'bg-[#1f4b7a] text-white' : 'bg-slate-200 text-slate-700'}">
+                                                    ${initials}
+                                                </span>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex flex-wrap items-center gap-1.5 leading-snug">
+                                                        <span class="text-xs font-bold text-ink break-words">${m.author}</span>
+                                                        ${isMe ? '<span class="text-[10px] font-medium text-[#1f4b7a] shrink-0">(Saya)</span>' : ''}
+                                                        ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
+                                                        ${pinBadge}
+                                                        <time class="ml-auto shrink-0 text-[10px] text-muted">${m.time}</time>
+                                                    </div>
+                                                    ${replyBox}
+                                                    <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
+                                                    <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
+                                                        <button type="button" onclick="setReplyTarget(${m.id}, '${m.author.replace(/'/g, "\\'")}', '${m.content.slice(0, 50).replace(/'/g, "\\'")}')\" class=\"hover:text-[#1f4b7a] font-medium flex items-center gap-0.5">
+                                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                                            Balas
+                                                        </button>
+                                                        ${isDosenUser ? `
+                                                            <span class="text-line">|</span>
+                                                            <button type="button" onclick="togglePinMessage(${m.id})" class="hover:text-amber-700 font-medium">
+                                                                ${m.is_pinned ? 'Lepas Pin' : 'Pin'}
+                                                            </button>
+                                                        ` : ''}
+                                                        ${canDelete ? `
+                                                            <span class="text-line">|</span>
+                                                            <button type="button" onclick="deleteMessage(${m.id})" class="hover:text-rose-600 font-medium">
+                                                                Hapus
+                                                            </button>
+                                                        ` : ''}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
