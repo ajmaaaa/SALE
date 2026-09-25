@@ -48,33 +48,50 @@
             <section data-settings-panel id="keamanan" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-keamanan" tabindex="0">
                 <h2 id="security-heading" class="section-heading">Keamanan akun</h2>
                 <p class="mt-1 text-sm text-muted">Gunakan kata sandi yang unik dan tidak dipakai pada layanan lain.</p>
-                <form class="mt-6 grid max-w-4xl gap-4 lg:grid-cols-2">
-                    <input type="text" name="username" value="{{ $userNidn }}" autocomplete="username" class="sr-only" tabindex="-1" aria-hidden="true">
-                    <div><label for="current-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi saat ini</label><input id="current-password" type="password" autocomplete="current-password" class="field"></div>
-                    <div><label for="new-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi baru</label><input id="new-password" type="password" autocomplete="new-password" class="field" aria-describedby="password-help"><p id="password-help" class="mt-1.5 text-xs text-muted">Minimal 12 karakter dengan kombinasi huruf dan angka.</p></div>
-                    <div><label for="confirm-password" class="mb-1.5 block text-sm font-semibold text-ink">Konfirmasi kata sandi baru</label><input id="confirm-password" type="password" autocomplete="new-password" class="field"></div>
-                    <div class="flex items-end"><button type="button" class="button-primary">Perbarui kata sandi</button></div>
+                @if(session('status') === 'password-updated')
+                    <p role="status" class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Kata sandi berhasil diperbarui.</p>
+                @endif
+                @if(!$settingsWritable)
+                    <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Perubahan keamanan tersedia untuk akun dosen yang tersimpan di database.</p>
+                @endif
+                <form action="{{ route('dosen.profile.password') }}" method="POST" class="mt-6 grid max-w-4xl gap-4 lg:grid-cols-2">
+                    @csrf
+                    @method('PUT')
+                    <div><label for="current-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi saat ini</label><input id="current-password" name="current_password" type="password" autocomplete="current-password" required @disabled(!$settingsWritable) class="field">@error('current_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror</div>
+                    <div><label for="new-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi baru</label><input id="new-password" name="new_password" type="password" autocomplete="new-password" minlength="12" required @disabled(!$settingsWritable) class="field" aria-describedby="password-help"><p id="password-help" class="mt-1.5 text-xs text-muted">Minimal 12 karakter dengan kombinasi huruf dan angka.</p>@error('new_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror</div>
+                    <div><label for="confirm-password" class="mb-1.5 block text-sm font-semibold text-ink">Konfirmasi kata sandi baru</label><input id="confirm-password" name="new_password_confirmation" type="password" autocomplete="new-password" minlength="12" required @disabled(!$settingsWritable) class="field"></div>
+                    <div class="flex items-end"><button type="submit" @disabled(!$settingsWritable) class="button-primary">Perbarui kata sandi</button></div>
                 </form>
             </section>
 
             <section data-settings-panel id="notifikasi" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-notifikasi" tabindex="0">
                 <h2 id="notification-heading" class="section-heading">Preferensi Notifikasi</h2>
                 <p class="mt-1 text-sm text-muted">Atur pemberitahuan yang ingin Anda terima terkait aktivitas pengajaran.</p>
-                <fieldset class="mt-5 grid gap-3 xl:grid-cols-2">
-                    <legend class="sr-only">Preferensi notifikasi dosen</legend>
-                    @foreach ([
-                        ['id' => 'notif_submission', 'title' => 'Mahasiswa mengumpulkan tugas', 'description' => 'Pemberitahuan ketika ada mahasiswa yang baru mengumpulkan jawaban', 'checked' => true],
-                        ['id' => 'notif_deadline', 'title' => 'Pengingat batas penilaian', 'description' => 'Ingatkan jika ada asesmen belum selesai dinilai setelah 3 hari', 'checked' => true],
-                        ['id' => 'notif_forum', 'title' => 'Aktivitas forum diskusi', 'description' => 'Notifikasi untuk pertanyaan baru dari mahasiswa di forum', 'checked' => false],
-                        ['id' => 'notif_rekap', 'title' => 'Rekap OBE tersedia', 'description' => 'Pemberitahuan ketika rekap CPMK dan CPL telah terkalkulasi', 'checked' => true],
-                    ] as $preference)
-                        <label for="{{ $preference['id'] }}" class="flex cursor-pointer items-start gap-4 rounded-lg bg-brand-soft px-4 py-4">
-                            <input id="{{ $preference['id'] }}" type="checkbox" @checked($preference['checked']) class="mt-1 h-4 w-4 rounded-sm border-line text-brand focus:ring-brand">
-                            <span><span class="block font-semibold text-ink">{{ $preference['title'] }}</span><span class="mt-1 block text-sm text-muted">{{ $preference['description'] }}</span></span>
-                        </label>
-                    @endforeach
-                </fieldset>
-                <button type="button" class="button-primary mt-5">Simpan preferensi</button>
+                @if(session('status') === 'notification-preferences-updated')
+                    <p role="status" class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Preferensi notifikasi berhasil disimpan.</p>
+                @endif
+                @if(!$settingsWritable)
+                    <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Preferensi hanya dapat disimpan untuk akun dosen yang tersimpan di database.</p>
+                @endif
+                <form action="{{ route('dosen.profile.notifications') }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <fieldset @disabled(!$settingsWritable) class="mt-5 grid gap-3 xl:grid-cols-2">
+                        <legend class="sr-only">Preferensi notifikasi dosen</legend>
+                        @foreach ([
+                            ['id' => 'notif_submission', 'title' => 'Mahasiswa mengumpulkan tugas', 'description' => 'Pemberitahuan ketika ada mahasiswa yang baru mengumpulkan jawaban'],
+                            ['id' => 'notif_deadline', 'title' => 'Pengingat batas penilaian', 'description' => 'Ingatkan jika ada asesmen belum selesai dinilai setelah 3 hari'],
+                            ['id' => 'notif_forum', 'title' => 'Aktivitas forum diskusi', 'description' => 'Notifikasi untuk pertanyaan baru dari mahasiswa di forum'],
+                            ['id' => 'notif_rekap', 'title' => 'Rekap OBE tersedia', 'description' => 'Pemberitahuan ketika rekap CPMK dan CPL telah terkalkulasi'],
+                        ] as $preference)
+                            <label for="{{ $preference['id'] }}" class="flex cursor-pointer items-start gap-4 rounded-lg bg-brand-soft px-4 py-4 has-[:disabled]:cursor-not-allowed">
+                                <input id="{{ $preference['id'] }}" name="preferences[{{ $preference['id'] }}]" value="1" type="checkbox" @checked($preferences[$preference['id']]) class="mt-1 h-4 w-4 rounded-sm border-line text-brand focus:ring-brand">
+                                <span><span class="block font-semibold text-ink">{{ $preference['title'] }}</span><span class="mt-1 block text-sm text-muted">{{ $preference['description'] }}</span></span>
+                            </label>
+                        @endforeach
+                    </fieldset>
+                    <button type="submit" @disabled(!$settingsWritable) class="button-primary mt-5">Simpan preferensi</button>
+                </form>
             </section>
         </div>
     </div>
