@@ -25,7 +25,7 @@ class EnsureRole
         if (! $hasRole) {
             $isDosen = ($user && ($user->hasRole('dosen') || $user->hasRole('kaprodi')))
                 || in_array($sessionRole, ['dosen', 'kaprodi'], true);
-            if ($isDosen && $request->is('mahasiswa/course/*')) {
+            if ($isDosen && $request->routeIs('mahasiswa.course.show')) {
                 $courseId = $request->route('course');
                 if ($courseId) {
                     return redirect()->route('dosen.course.show', $courseId);

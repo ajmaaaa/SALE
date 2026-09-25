@@ -37,25 +37,28 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/switch-role/{role}', [AuthController::class, 'switchRole'])->name('switch-role');
 
 // Demo personas still require an active matching role; operational environments use database users.
-Route::prefix('mahasiswa')->name('mahasiswa.')->middleware('role:mahasiswa')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
+    Route::middleware('role:mahasiswa')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
-    Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
+        Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
+        Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
 
-    Route::get('/assignment', [LearningController::class, 'assignments'])->name('assignment.index');
-    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->name('assignment.code');
+        Route::get('/assignment', [LearningController::class, 'assignments'])->name('assignment.index');
+        Route::get('/grade', fn () => redirect()->route('mahasiswa.assignment.index', ['tab' => 'nilai']))->name('grade.index');
+        Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
+        Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+    });
 
-    Route::get('/grade', fn () => redirect()->route('mahasiswa.assignment.index', ['tab' => 'nilai']))->name('grade.index');
-    Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
-    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen,kaprodi')->name('assignment.code');
 });
 
+Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen,kaprodi')->name('mahasiswa.course.item');
+Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen,kaprodi')->name('mahasiswa.course.discuss');
+
 Route::middleware('role:mahasiswa')->group(function () {
-    Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('mahasiswa.course.item');
     Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::class, 'quizRoom'])->whereNumber(['course', 'item'])->name('mahasiswa.quiz.room');
     Route::post('/mahasiswa/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('mahasiswa.course.discuss.class');
-    Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('mahasiswa.course.discuss');
     Route::post('/mahasiswa/course/{course}/item/{item}/submission', [LearningController::class, 'submit'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submit');
     Route::post('/mahasiswa/course/{course}/item/{item}/submission/cancel', [LearningController::class, 'cancelSubmission'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submission.cancel');
     Route::get('/mahasiswa/notifikasi', [LearningController::class, 'notifications'])->name('mahasiswa.notifications');
@@ -80,6 +83,9 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
     Route::get('/course/create', [LearningController::class, 'createCourse'])->name('course.create');
     Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
+    Route::get('/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('course.item');
+    Route::post('/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('course.discuss');
+    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->name('assignment.code');
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
     Route::post('/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('course.discuss.class');

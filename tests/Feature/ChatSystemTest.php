@@ -194,4 +194,39 @@ class ChatSystemTest extends TestCase
 
         $response->assertRedirect(route('dosen.course.show', 2));
     }
+
+    public function test_dosen_can_access_course_item_and_coding_assignment_without_redirect_loop(): void
+    {
+        // Dosen accessing /dosen/course/1/item/1
+        $responseDosenItem = $this->actingAs($this->dosen)
+            ->get('/dosen/course/1/item/1');
+        $responseDosenItem->assertOk()
+            ->assertSee('Pengelolaan Pengampu');
+
+        // Dosen accessing /mahasiswa/course/1/item/1
+        $responseMhsItem = $this->actingAs($this->dosen)
+            ->get('/mahasiswa/course/1/item/1');
+        $responseMhsItem->assertOk();
+
+        // Dosen accessing coding assignment
+        $responseCode = $this->actingAs($this->dosen)
+            ->get('/mahasiswa/assignment/1/code');
+        $responseCode->assertOk();
+    }
+
+    public function test_course_view_renders_clean_chat_bubble_without_indentation(): void
+    {
+        Message::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->mahasiswa1->id,
+            'content' => 'Halo @Budi Santoso, M.Kom. ini pesan uji coba.',
+        ]);
+
+        $response = $this->actingAs($this->mahasiswa1)
+            ->get(route('mahasiswa.course.show', 1));
+
+        $response->assertOk();
+        // Ensure no prose-content in chat bubble
+        $response->assertDontSee('<p class="prose-content mt-1.5', false);
+    }
 }
