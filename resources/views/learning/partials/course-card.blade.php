@@ -49,7 +49,6 @@
     $enrollmentUrl = $course['enrollment_url'] ?? url('/join-kelas/' . $enrollmentCode);
     $qrUrl = $course['qr_url'] ?? ('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($enrollmentUrl));
     $dosenKetua = $course['dosen_ketua'] ?? ($course['lecturer'] ?? 'Dr. Budi Santoso, M.Kom.');
-    $dosenWakil = $course['dosen_wakil'] ?? null;
 @endphp
 
 <div class="group relative flex min-h-64 flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md border border-line/70">
@@ -62,12 +61,9 @@
                     <span class="h-3 w-px self-center bg-brand/30" aria-hidden="true"></span>
                     <span class="leading-4">{{ $sks }}</span>
                 </div>
-                <h2 class="mt-1 text-lg font-semibold leading-snug text-ink group-hover:text-brand transition">{{ $course['title'] }}</h2>
-                <div class="mt-2 space-y-0.5 text-xs text-muted">
+                <h2 class="mt-1 text-lg font-semibold leading-snug text-ink group-hover:text-brand transition line-clamp-2 min-h-[3.25rem]">{{ $course['title'] }}</h2>
+                <div class="mt-2 text-xs text-muted truncate">
                     <p><span class="font-medium text-ink">Dosen Ketua:</span> {{ $dosenKetua }}</p>
-                    @if(!empty($dosenWakil))
-                        <p><span class="font-medium text-ink">Dosen Wakil:</span> {{ $dosenWakil }}</p>
-                    @endif
                 </div>
             </div>
         </a>
@@ -83,49 +79,52 @@
             @else
                 <svg class="absolute -right-2 -top-2 h-36 w-36 text-white opacity-[0.14]" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="15" y="20" width="34" height="22" rx="4"/><rect x="70" y="20" width="34" height="22" rx="4"/><rect x="43" y="79" width="34" height="22" rx="4"/><path d="M49 31h21M32 42v24h28v13M87 42v24H60"/></svg>
             @endif
-            <div class="relative z-10">
-                <div class="inline-flex items-baseline gap-2 text-xs font-semibold leading-4 text-white/90">
-                    <span class="font-mono leading-4">{{ $course['code'] }}</span>
-                    <span class="h-3 w-px self-center bg-white/30" aria-hidden="true"></span>
-                    <span class="leading-4">{{ $sks }}</span>
+            <div class="relative z-10 flex flex-col justify-between h-full">
+                <div>
+                    <div class="inline-flex items-baseline gap-2 text-xs font-semibold leading-4 text-white/90">
+                        <span class="font-mono leading-4">{{ $course['code'] }}</span>
+                        <span class="h-3 w-px self-center bg-white/30" aria-hidden="true"></span>
+                        <span class="leading-4">{{ $sks }}</span>
+                    </div>
+                    <h2 class="mt-2 text-lg sm:text-xl font-bold leading-snug text-white group-hover:text-slate-100 transition line-clamp-2 min-h-[3.25rem]">{{ $course['title'] }}</h2>
                 </div>
-                <h2 class="mt-2.5 text-lg sm:text-xl font-bold leading-snug text-white group-hover:text-slate-100 transition">{{ $course['title'] }}</h2>
                 
-                <div class="mt-2.5 space-y-0.5 text-xs text-white/90">
-                    <div><span class="text-white/70">Dosen Ketua:</span> <span class="font-semibold text-white">{{ $dosenKetua }}</span></div>
-                    @if(!empty($dosenWakil))
-                        <div><span class="text-white/70">Dosen Wakil:</span> <span class="font-semibold text-white">{{ $dosenWakil }}</span></div>
-                    @endif
+                <div class="mt-2.5 text-xs text-white/90 truncate">
+                    <p><span class="text-white/70">Dosen Ketua:</span> <span class="font-semibold text-white">{{ $dosenKetua }}</span></p>
                 </div>
             </div>
         </a>
     @endif
 
     <div class="flex flex-1 flex-col px-5 py-4 justify-between">
-        <a href="{{ $targetUrl }}" class="block">
-            <p class="text-xs font-semibold leading-4 text-brand">{{ $type }}</p>
-            <p class="mt-1 min-h-10 text-sm font-medium leading-5 text-ink line-clamp-2">{{ $work }}</p>
+        <div>
+            <a href="{{ $targetUrl }}" class="block group/link">
+                <p class="text-xs font-semibold leading-4 text-brand">{{ $type }}</p>
+                <p class="mt-1 min-h-10 text-sm font-medium leading-5 text-ink line-clamp-2 group-hover/link:text-brand transition">{{ $work }}</p>
+            </a>
+
             {{-- Baris jam (tenggat merah jika ada tugas yang harus dikumpulkan) + QR sejajar --}}
-            <div class="mt-2 flex items-center justify-between gap-2">
+            <div class="mt-2 flex min-h-7 items-center justify-between gap-2">
                 @if($hasPendingTask && !empty($dueFormatted))
-                    <p class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
+                    <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
                         <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"/>
                             <polyline points="12 6 12 12 16 14"/>
                         </svg>
                         <span>Tenggat: {{ $dueFormatted }} WIB</span>
-                    </p>
+                    </a>
                 @elseif(!empty($dueFormatted))
-                    <p class="text-xs font-medium leading-5 text-muted flex items-center gap-1.5">
+                    <a href="{{ $targetUrl }}" class="text-xs font-medium leading-5 text-muted flex items-center gap-1.5">
                         <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"/>
                             <polyline points="12 6 12 12 16 14"/>
                         </svg>
                         <span>{{ $dueFormatted }} WIB</span>
-                    </p>
+                    </a>
                 @else
-                    <span class="text-xs text-muted">Tidak ada tenggat</span>
+                    <a href="{{ $targetUrl }}" class="text-xs text-muted leading-5">Tidak ada tenggat</a>
                 @endif
+
                 @if($isDosen && !empty($enrollmentCode))
                     <button type="button"
                             onclick="event.preventDefault(); event.stopPropagation(); openQrModal('{{ $course['code'] }}', '{{ addslashes($course['title']) }}', '{{ $enrollmentCode }}', '{{ $enrollmentUrl }}', '{{ $qrUrl }}')"
@@ -142,14 +141,13 @@
                     </button>
                 @endif
             </div>
-        </a>
+        </div>
 
         {{-- Footer stats: Mahasiswa (kiri) | Asesmen (kanan) --}}
         <div class="mt-4 pt-3 flex items-center justify-between text-xs font-medium text-muted border-t border-line/60">
             <a href="{{ $targetUrl }}" class="flex items-center gap-1.5 hover:text-ink transition">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>{{ $studentsCount }}</span>
-                <span class="sr-only">mahasiswa</span>
+                <span>{{ $studentsCount }} Mahasiswa</span>
             </a>
             <a href="{{ $targetUrl }}" class="flex items-center gap-1.5 hover:text-ink transition">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>

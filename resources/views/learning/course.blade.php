@@ -184,7 +184,7 @@
                                         $isCodingMaterial = ($item['material_mode'] ?? null) === 'coding';
                                         $materialUrl = $isCodingMaterial
                                             ? route('mahasiswa.assignment.code', $item['id'])
-                                            : route('mahasiswa.course.item', [$course['id'], $item['id']]);
+                                            : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
                                     @endphp
                                     <a href="{{ $materialUrl }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
                                         <span class="shrink-0 text-brand">
@@ -203,7 +203,7 @@
                                             </p>
                                         </div>
                                         <span class="text-xs font-semibold text-brand">
-                                            {{ $isCodingMaterial ? 'Mulai praktik' : 'Buka Materi' }}
+                                            {{ $isCodingMaterial ? ($isDosen ? 'Buka Praktikum' : 'Mulai praktik') : 'Buka Materi' }}
                                         </span>
                                     </a>
                                 @endforeach
@@ -222,7 +222,7 @@
                                                 <span>Editor kode &amp; terminal</span>
                                             </p>
                                         </div>
-                                        <span class="text-xs font-semibold text-brand">Kerjakan</span>
+                                        <span class="text-xs font-semibold text-brand">{{ $isDosen ? 'Buka Praktikum' : 'Kerjakan' }}</span>
                                     </a>
                                 @endif
                             </div>
@@ -247,7 +247,9 @@
                                         $hasSubmission = session('learning.submissions.'.$item['id']);
                                         $isCoding = ($item['type'] === 'coding');
                                         $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
-                                        $itemUrl = $isCoding ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$course['id'], $item['id']]);
+                                        $itemUrl = $isCoding
+                                            ? route('mahasiswa.assignment.code', $item['id'])
+                                            : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
                                     @endphp
                                     <a href="{{ $itemUrl }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
                                         <span class="shrink-0 {{ $hasSubmission ? 'text-emerald-600' : 'text-brand' }}">
@@ -275,7 +277,7 @@
 
                                         @if($isDosen)
                                             <span class="shrink-0 text-xs font-semibold text-brand">
-                                                Kerjakan
+                                                {{ $item['type'] === 'kuis' ? 'Kelola Kuis' : 'Kelola / Nilai' }}
                                             </span>
                                         @elseif($hasSubmission)
                                             <span class="shrink-0 text-xs font-semibold text-emerald-700">
@@ -310,6 +312,8 @@
                     const panelMateri = document.getElementById('course-panel-materi');
                     const panelTugas = document.getElementById('course-panel-tugas');
 
+                    if (!btnMateri || !btnTugas || !panelMateri || !panelTugas) return;
+
                     if (tab === 'materi') {
                         btnMateri.className = 'pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition';
                         btnTugas.className = 'pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition';
@@ -322,6 +326,15 @@
                         panelTugas.style.display = 'block';
                     }
                 }
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if (urlParams.get('tab') === 'tugas' || window.location.hash === '#tugas' || window.location.hash === '#course-panel-tugas') {
+                            switchCourseTab('tugas');
+                        }
+                    } catch (e) {}
+                });
             </script>
             </div>
 
@@ -482,42 +495,40 @@
                                                     📌 Disematkan
                                                 </span>
                                             @endif
+                                            <time class="ml-auto shrink-0 text-[10px] text-muted">{{ $msg['time'] }}</time>
+                                        </div>
+
+                                        {{-- Kutipan Balasan (Reply Quote Bubble) --}}
+                                        @if(!empty($msg['reply_to']))
+                                            <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
+                                                <span class="font-bold text-brand block leading-tight">{{ $msg['reply_to']['sender_name'] }}</span>
+                                                <span class="line-clamp-1 italic text-slate-700 mt-0.5">{{ $msg['reply_to']['excerpt'] }}</span>
+                                            </div>
+                                        @endif
+
+                                        {{-- Isi Pesan (Render Mention @User dengan badge) --}}
+                                        <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{!! preg_replace('/@([A-Za-z0-9_.\\s]+?)(?=[,\\s\\n]|$)/', '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>', e(trim($msg['content']))) !!}</p>
+
+                                        {{-- Bar Aksi Cepat (Balas, Pin, Hapus) --}}
+                                        <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
+                                            <button type="button" onclick="setReplyTarget({{ $msg['id'] }}, '{{ addslashes($msg['author']) }}', '{{ addslashes(Str::limit($msg['content'], 50)) }}')" class="hover:text-brand font-medium flex items-center gap-0.5">
+                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                                Balas
+                                            </button>
+                                            @if($isDosenUser)
+                                                <span class="text-line">|</span>
+                                                <button type="button" onclick="togglePinMessage({{ $msg['id'] }})" class="hover:text-amber-700 font-medium">
+                                                    {{ $isPinned ? 'Lepas Pin' : 'Pin' }}
+                                                </button>
+                                            @endif
+                                            @if($canDelete)
+                                                <span class="text-line">|</span>
+                                                <button type="button" onclick="deleteMessage({{ $msg['id'] }})" class="hover:text-rose-600 font-medium">
+                                                    Hapus
+                                                </button>
+                                            @endif
                                         </div>
                                     </div>
-                                    <time class="shrink-0 text-[10px] text-muted">{{ $msg['time'] }}</time>
-                                </div>
-
-                                {{-- Kutipan Balasan (Reply Quote Bubble) --}}
-                                @if(!empty($msg['reply_to']))
-                                    <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
-                                        <span class="font-bold text-brand block leading-tight">{{ $msg['reply_to']['sender_name'] }}</span>
-                                        <span class="line-clamp-1 italic text-slate-700 mt-0.5">{{ $msg['reply_to']['excerpt'] }}</span>
-                                    </div>
-                                @endif
-
-                                {{-- Isi Pesan (Render Mention @User dengan badge) --}}
-                                <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">
-                                    {!! preg_replace('/@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/', '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>', e($msg['content'])) !!}
-                                </p>
-
-                                {{-- Bar Aksi Cepat (Balas, Pin, Hapus) --}}
-                                <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
-                                    <button type="button" onclick="setReplyTarget({{ $msg['id'] }}, '{{ addslashes($msg['author']) }}', '{{ addslashes(Str::limit($msg['content'], 50)) }}')" class="hover:text-brand font-medium flex items-center gap-0.5">
-                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                        Balas
-                                    </button>
-                                    @if($isDosenUser)
-                                        <span class="text-line">|</span>
-                                        <button type="button" onclick="togglePinMessage({{ $msg['id'] }})" class="hover:text-amber-700 font-medium">
-                                            {{ $isPinned ? 'Lepas Pin' : 'Pin' }}
-                                        </button>
-                                    @endif
-                                    @if($canDelete)
-                                        <span class="text-line">|</span>
-                                        <button type="button" onclick="deleteMessage({{ $msg['id'] }})" class="hover:text-rose-600 font-medium">
-                                            Hapus
-                                        </button>
-                                    @endif
                                 </div>
                             </article>
                         </div>
@@ -861,13 +872,11 @@
                                                     ${isMe ? '<span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>' : ''}
                                                     ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
                                                     ${pinBadge}
+                                                    <time class="ml-auto shrink-0 text-[10px] text-muted">${m.time}</time>
                                                 </div>
-                                            </div>
-                                            <time class="shrink-0 text-[10px] text-muted">${m.time}</time>
-                                        </div>
-                                        ${replyBox}
-                                        <p class="prose-content mt-1.5 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
-                                        <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
+                                                ${replyBox}
+                                                <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
+                                                <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
                                             <button type="button" onclick="setReplyTarget(${m.id}, '${m.author.replace(/'/g, "\\'")}', '${m.content.slice(0, 50).replace(/'/g, "\\'")}')" class="hover:text-brand font-medium flex items-center gap-0.5">
                                                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
                                                 Balas
@@ -884,6 +893,8 @@
                                                     Hapus
                                                 </button>
                                             ` : ''}
+                                                </div>
+                                            </div>
                                         </div>
                                     </article>
                                 </div>
