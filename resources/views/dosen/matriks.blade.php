@@ -162,7 +162,7 @@
                         {{ $isExact100 ? 'Valid (Tepat 100%)' : ($isOver100 ? 'Melebihi 100% (' . $grandTotalFormatted . '%)' : 'Belum 100% (' . $grandTotalFormatted . '%)') }}
                     </span>
                     <span id="difference-indicator" class="font-mono text-xs {{ $isExact100 ? 'text-emerald-700 font-medium' : ($isOver100 ? 'text-rose-600 font-semibold' : 'text-amber-700 font-semibold') }}">
-                        {{ $isExact100 ? '✓ Siap input nilai' : ($isOver100 ? 'Kelebihan: +' . $diffFormatted . '%' : 'Kekurangan: -' . $diffFormatted . '%') }}
+                        {{ $isExact100 ? 'Siap input nilai' : ($isOver100 ? 'Kelebihan: +' . $diffFormatted . '%' : 'Kekurangan: -' . $diffFormatted . '%') }}
                     </span>
                 </div>
 
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (diffIndicator) {
                 diffIndicator.className = 'font-mono text-xs text-emerald-700 font-medium';
-                diffIndicator.textContent = changed ? '✓ Pas 100% (Simpan untuk mengunci)' : '✓ Siap input nilai';
+                diffIndicator.textContent = changed ? 'Pas 100% (Simpan untuk mengunci)' : 'Siap input nilai';
             }
             if (grandTotalCell) {
                 grandTotalCell.className = 'text-center font-mono font-extrabold text-sm border-l-2 border-emerald-500/30 text-emerald-700 bg-emerald-50/40';
