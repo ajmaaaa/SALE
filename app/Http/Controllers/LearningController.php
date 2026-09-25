@@ -129,7 +129,7 @@ class LearningController extends Controller
                     ->mapWithKeys(fn ($assessment) => [$assessment->id => Learning::databaseAssessment($assessment)])
                     ->all();
 
-                session(["learning.discussion_reads.$course" => count(Learning::courseDiscussions($course))]);
+                session(["learning.discussion_reads.$course" => Learning::chatMessageCount($course) ?? count(Learning::courseDiscussions($course))]);
 
                 return view('learning.course', ['course' => $courseData, 'items' => $items, 'classSection' => $section]);
             }
@@ -138,7 +138,7 @@ class LearningController extends Controller
         }
 
         $courseData = Learning::course($course);
-        session(["learning.discussion_reads.$course" => count(Learning::courseDiscussions($course))]);
+        session(["learning.discussion_reads.$course" => Learning::chatMessageCount($course) ?? count(Learning::courseDiscussions($course))]);
 
         return view('learning.course', ['course' => $courseData, 'items' => array_filter(Learning::items(), fn ($item) => $item['course'] === $course)]);
     }
