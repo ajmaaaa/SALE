@@ -5,18 +5,10 @@
 
 @section('content')
 <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex flex-col gap-4">
         <div>
             <h2 class="section-heading text-xl font-bold text-ink">Monitoring Capaian CPMK Program Studi</h2>
             <p class="mt-1 text-xs text-muted">Pemantauan ketercapaian capaian pembelajaran mata kuliah untuk pengendalian mutu kurikulum OBE.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <a href="{{ route('kaprodi.monitoring.cpl') }}" class="button-secondary text-xs inline-flex items-center gap-1.5">
-                <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                Lihat Monitoring CPL
-            </a>
         </div>
     </div>
 
