@@ -1,3 +1,4 @@
+import './bootstrap';
 import './submission-preview';
 import './grade-import';
 import { runWeb } from './web-preview';
