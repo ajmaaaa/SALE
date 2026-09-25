@@ -89,23 +89,7 @@
                     </form>
                 @endif
 
-                @if(count($notifications) > 0)
-                    <form action="{{ route('dosen.notifications.clear') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua notifikasi? Tindakan ini tidak dapat dibatalkan.');">
-                        @csrf
-                        @if(!empty($selectedCategory))
-                            <input type="hidden" name="category" value="{{ $selectedCategory }}">
-                        @endif
-                        <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-100 border border-sky-200/80 px-3 py-1.5 text-xs font-bold text-sky-900 shadow-2xs hover:bg-sky-200 active:scale-[0.98] transition-all cursor-pointer">
-                            <svg class="h-3.5 w-3.5 text-sky-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
-                            <span>Hapus Semua</span>
-                        </button>
-                    </form>
-                @endif
+
             </div>
         @endif
     </div>
