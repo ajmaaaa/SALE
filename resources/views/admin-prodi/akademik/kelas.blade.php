@@ -270,54 +270,65 @@
     </div>
 </div>
 
-<!-- Modal Tampilkan Barcode & QR Code Kelas -->
-<div id="barcodeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl text-center space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-line">
-            <h2 class="text-base font-bold text-ink">Barcode &amp; Link Join Kelas</h2>
-            <button type="button" onclick="closeBarcodeModal()" class="text-muted hover:text-ink text-xl">&times;</button>
-        </div>
+<!-- Modal Tampilkan QR Code Kelas -->
+<div id="barcodeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
 
-        <div>
-            <span id="barcode_class_code" class="text-sm font-bold text-brand font-mono"></span>
-            <h3 id="barcode_mk_name" class="font-bold text-base text-ink mt-1"></h3>
-            <p class="text-xs text-muted">Mahasiswa dapat bergabung ke kelas ini dengan memindai barcode QR Code atau membuka link langsung di bawah ini.</p>
-        </div>
-
-        <!-- Tampilan QR Code SVG -->
-        <div class="flex justify-center p-3 bg-white border border-line rounded-xl shadow-xs">
-            <img id="qr_image" src="" alt="QR Code Join Kelas" class="h-48 w-48 object-contain">
-        </div>
-
-        <!-- Tampilan Barcode 1D Code128 -->
-        <div class="flex justify-center p-2 bg-white border border-line rounded-lg">
-            <img id="barcode_image" src="" alt="Barcode 1D Kelas" class="h-16 w-auto object-contain">
-        </div>
-
-        <!-- Kode Unik & Copy URL -->
-        <div class="space-y-2 text-left">
+        {{-- Header --}}
+        <div class="flex items-start justify-between px-6 pt-6 pb-4">
             <div>
-                <label class="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">Kode Kelas:</label>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="modal_enroll_code" readonly class="field font-mono font-bold text-xs bg-canvas text-center tracking-widest">
-                    <button type="button" onclick="copyModalCode()" class="button-secondary text-xs shrink-0 py-2 px-3">Salin Kode</button>
-                </div>
+                <h2 class="text-base font-bold text-ink">QR Code & Akses Kelas</h2>
+                <p id="barcode_mk_subtitle" class="text-xs text-muted mt-0.5"></p>
             </div>
-            <div>
-                <label class="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">Tautan Pendaftaran (Link):</label>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="modal_enroll_url" readonly class="field font-mono text-[11px] bg-canvas">
-                    <button type="button" onclick="copyModalUrl()" class="button-primary text-xs shrink-0 py-2 px-3" id="btnCopyUrl">Salin Link</button>
-                </div>
+            <button type="button" onclick="closeBarcodeModal()"
+                    class="text-muted hover:text-ink transition p-1 rounded-lg hover:bg-canvas ml-3 shrink-0"
+                    aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        {{-- QR Code --}}
+        <div class="flex justify-center px-6 pb-4">
+            <div class="p-4 bg-white border border-line rounded-2xl shadow-xs inline-flex">
+                <img id="qr_image" src="" alt="QR Code Akses Kelas" class="h-44 w-44 object-contain">
             </div>
         </div>
 
-        <div class="pt-3 border-t border-line flex justify-end gap-2">
-            <button type="button" onclick="window.print()" class="button-secondary text-xs">Cetak Halaman</button>
-            <button type="button" onclick="closeBarcodeModal()" class="button-primary text-xs">Tutup</button>
+        {{-- Kode Akses Kelas --}}
+        <div class="text-center px-6 pb-4">
+            <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Kode Akses Kelas</p>
+            <p id="modal_enroll_code_display" class="text-3xl font-bold text-ink tracking-[0.15em] font-mono"></p>
+            <p class="mt-3 text-xs text-muted leading-relaxed max-w-[260px] mx-auto">
+                Mahasiswa dapat memindai QR Code di atas atau memasukkan kode akses kelas untuk bergabung ke kelas ini.
+            </p>
+        </div>
+
+        {{-- Hidden inputs for copy --}}
+        <input type="hidden" id="modal_enroll_code">
+        <input type="hidden" id="modal_enroll_url">
+
+        {{-- Tombol Aksi --}}
+        <div class="flex gap-2 px-6 pb-6">
+            <button type="button" onclick="copyModalCode()"
+                    class="flex-1 button-secondary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Salin Kode
+            </button>
+            <button type="button" onclick="copyModalUrl()" id="btnCopyUrl"
+                    class="flex-1 button-primary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Salin Link
+            </button>
         </div>
     </div>
 </div>
+
 
 <script>
     function openCreateKelasModal() {
@@ -345,12 +356,11 @@
     }
 
     function showBarcodeModal(classCode, mkName, code, url, qrSrc, barcodeSrc) {
-        document.getElementById('barcode_class_code').textContent = classCode;
-        document.getElementById('barcode_mk_name').textContent = mkName;
+        document.getElementById('barcode_mk_subtitle').textContent = mkName + ' (' + classCode + ')';
         document.getElementById('modal_enroll_code').value = code;
         document.getElementById('modal_enroll_url').value = url;
+        document.getElementById('modal_enroll_code_display').textContent = code;
         document.getElementById('qr_image').src = qrSrc;
-        document.getElementById('barcode_image').src = barcodeSrc;
 
         document.getElementById('barcodeModal').classList.remove('hidden');
         document.getElementById('barcodeModal').classList.add('flex');
@@ -361,19 +371,18 @@
     }
 
     function copyModalCode() {
-        const input = document.getElementById('modal_enroll_code');
-        input.select();
-        navigator.clipboard.writeText(input.value);
-        alert(`Kode kelas ${input.value} berhasil disalin ke clipboard!`);
+        const code = document.getElementById('modal_enroll_code').value;
+        navigator.clipboard.writeText(code);
+        alert(`Kode kelas ${code} berhasil disalin ke clipboard!`);
     }
 
     function copyModalUrl() {
-        const input = document.getElementById('modal_enroll_url');
-        input.select();
-        navigator.clipboard.writeText(input.value);
+        const url = document.getElementById('modal_enroll_url').value;
+        navigator.clipboard.writeText(url);
         const btn = document.getElementById('btnCopyUrl');
-        btn.textContent = 'Tersalin!';
-        setTimeout(() => { btn.textContent = 'Salin Link'; }, 2000);
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!`;
+        setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
     }
 </script>
 @endsection
