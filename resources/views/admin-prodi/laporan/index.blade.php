@@ -97,7 +97,6 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-base font-bold text-ink">Rincian Kelas Perkuliahan &amp; Rata-rata Nilai</h2>
-                <p class="text-xs text-muted">Evaluasi ketercapaian nilai dan penugasan Dosen Ketua / Wakil di semester {{ $activeSemester?->name }}</p>
             </div>
             <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="text-xs font-semibold text-brand hover:underline">
                 Unduh Data CSV
