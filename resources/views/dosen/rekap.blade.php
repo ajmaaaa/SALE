@@ -17,9 +17,6 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="section-heading">Rekap Capaian per CPMK</h2>
-            <p class="mt-1 text-sm text-muted">
-                Nilai tiap CPMK per mahasiswa dari seluruh komponen asesmen yang dipetakan.
-            </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
             <a href="{{ route('dosen.penilaian.export.cpmk', $section->id) }}" class="button-secondary text-xs">Export CSV</a>
@@ -29,7 +26,7 @@
     @if($cpmks->isEmpty())
         <div class="surface p-12 text-center rounded-xl border border-line">
             <h3 class="text-base font-semibold text-ink mb-1.5">Belum Ada CPMK</h3>
-            <p class="text-sm text-muted">Hubungi pengelola kurikulum agar CPMK dapat dipetakan.</p>
+            <p class="text-sm text-muted">Hubungi Admin Prodi agar CPMK dapat dipetakan.</p>
         </div>
     @elseif(empty($columns))
         <div class="surface p-12 text-center rounded-xl border border-line">
