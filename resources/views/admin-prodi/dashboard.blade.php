@@ -40,7 +40,7 @@
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
                 <a href="{{ route('admin-prodi.akademik.kelas') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
-                    Daftar Kelas &amp; Barcode
+                    Daftar Kelas
                 </a>
             </div>
         </div>
@@ -62,7 +62,7 @@
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
                 <a href="{{ route('admin-prodi.users.index') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
-                    Impor / Input Data
+                    Input Data
                 </a>
             </div>
         </div>
@@ -84,7 +84,7 @@
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
                 <a href="{{ route('admin-prodi.kurikulum.index') }}" class="button-secondary w-full text-xs py-2 min-h-9 justify-center">
-                    Matriks Pemetaan
+                    Kelola CPL &amp; CPMK
                 </a>
             </div>
         </div>
