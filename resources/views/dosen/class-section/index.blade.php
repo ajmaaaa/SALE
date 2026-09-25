@@ -77,14 +77,9 @@
 
                     <div class="mt-5 pt-3 border-t border-line/40">
                         @if($isRekap)
-                            <div class="grid grid-cols-2 gap-2">
-                                <a href="{{ route('dosen.penilaian.rekap', $section->id) }}" class="button-primary text-xs py-2 text-center font-semibold">
-                                    Rekap CPMK
-                                </a>
-                                <a href="{{ route('dosen.penilaian.cpl', $section->id) }}" class="button-secondary text-xs py-2 text-center font-semibold">
-                                    Rekap CPL
-                                </a>
-                            </div>
+                            <a href="{{ route('dosen.penilaian.rekap', $section->id) }}" class="button-primary text-xs w-full py-2 text-center font-semibold block">
+                                Rekap Nilai
+                            </a>
                         @else
                             <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-primary text-xs w-full py-2 text-center font-semibold">
                                 Kelola Penilaian
