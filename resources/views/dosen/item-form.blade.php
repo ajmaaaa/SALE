@@ -218,6 +218,9 @@
                         <span class="text-xs text-muted font-medium" data-question-total>0 soal</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button type="button" class="button-secondary text-xs py-1.5 px-3 font-semibold text-brand" data-toggle-cpmk-summary title="Tampilkan ringkasan distribusi bobot CPMK">
+                            <span data-cpmk-stat>Ringkasan CPMK (0)</span>
+                        </button>
                         <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-question>+ Tambah Soal</button>
                     </div>
                 </div>
@@ -229,6 +232,29 @@
                         <input type="number" min="1" max="500" value="" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-target-question-count placeholder="5">
                         <button type="button" class="button-secondary py-1 px-2.5 text-xs font-semibold" data-apply-question-count>Atur</button>
                         <button type="button" data-auto-distribute-points class="button-secondary py-1 px-2.5 text-xs font-semibold text-brand hover:text-brand-dark" title="Bagi rata total 100 poin ke seluruh soal">Bagi Rata (100 / n)</button>
+                    </div>
+                </div>
+
+                {{-- Panel Ringkasan Bobot CPMK Otomatis --}}
+                <div data-cpmk-summary-panel class="rounded-xl border border-brand/30 bg-brand-soft/10 p-3.5 text-xs space-y-2" hidden>
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-ink text-xs">Distribusi Bobot CPMK Otomatis (Total 100%)</span>
+                        <span class="text-[11px] text-muted">Dihitung proporsional dari sebaran butir soal</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-line/60 text-muted font-medium">
+                                    <th class="py-1.5 px-3">Target CPMK</th>
+                                    <th class="py-1.5 px-3 text-center">Jumlah Soal</th>
+                                    <th class="py-1.5 px-3 text-center">Bobot CPMK</th>
+                                    <th class="py-1.5 px-3 text-center">Porsi per Soal</th>
+                                </tr>
+                            </thead>
+                            <tbody data-cpmk-summary-rows class="divide-y divide-line/30 bg-white/70">
+                                <tr><td colspan="4" class="py-2.5 px-3 text-center text-muted italic">Tambahkan soal untuk melihat ringkasan</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

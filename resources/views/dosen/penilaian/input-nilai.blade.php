@@ -34,28 +34,13 @@
                 @endif
             </div>
         </div>
-        <div class="flex gap-2 shrink-0">
-            <a href="{{ route('dosen.penilaian.asesmen.nilai.template', [$section->id, $assessment->id]) }}" class="button-secondary text-xs">Template CSV</a>
-            <a href="{{ route('dosen.penilaian.asesmen.nilai.import', [$section->id, $assessment->id]) }}" class="button-secondary text-xs">Import CSV</a>
-        </div>
+
     </div>
 
     {{-- Progress --}}
     @php $total = $students->count(); @endphp
-    <div>
-        @if($total > 0 && $gradedCount >= $total)
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                {{ $gradedCount }} dari {{ $total }} mahasiswa &bull; Sudah dinilai lengkap
-            </span>
-        @elseif($gradedCount > 0)
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                {{ $gradedCount }} dari {{ $total }} mahasiswa &bull; Belum selesai
-            </span>
-        @else
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-canvas text-muted border border-line">
-                0 dari {{ $total }} mahasiswa &bull; Belum dinilai
-            </span>
-        @endif
+    <div class="text-xs text-muted">
+        <span class="font-semibold text-ink">{{ $gradedCount }} dari {{ $total }} mahasiswa</span>
     </div>
 
     {{-- Error --}}
@@ -190,11 +175,11 @@
                                 {{-- Kolom Status --}}
                                 <td class="py-3 px-3 text-center border-l border-line/40 status-col-{{ $student->id }}">
                                     @if($isGraded)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                        <span class="text-xs font-semibold text-emerald-700">
                                             Sudah Dinilai
                                         </span>
                                     @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-canvas text-muted border border-line/60">
+                                        <span class="text-xs text-muted">
                                             Belum Dinilai
                                         </span>
                                     @endif
@@ -284,9 +269,9 @@
 
         if (statusCol) {
             if (count > 0 && !hasExceeded) {
-                statusCol.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Sudah Dinilai</span>';
+                statusCol.innerHTML = '<span class="text-xs font-semibold text-emerald-700">Sudah Dinilai</span>';
             } else {
-                statusCol.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-canvas text-muted border border-line/60">Belum Dinilai</span>';
+                statusCol.innerHTML = '<span class="text-xs text-muted">Belum Dinilai</span>';
             }
         }
     }
@@ -296,9 +281,9 @@
         if (!statusCol) return;
         const val = input.value.trim();
         if (val !== '' && !isNaN(val) && parseFloat(val) >= 0 && parseFloat(val) <= 100) {
-            statusCol.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Sudah Dinilai</span>';
+            statusCol.innerHTML = '<span class="text-xs font-semibold text-emerald-700">Sudah Dinilai</span>';
         } else {
-            statusCol.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-canvas text-muted border border-line/60">Belum Dinilai</span>';
+            statusCol.innerHTML = '<span class="text-xs text-muted">Belum Dinilai</span>';
         }
     }
 

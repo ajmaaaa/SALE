@@ -1,21 +1,20 @@
 @php
     $isOnMatriks = request()->routeIs('dosen.penilaian.matriks');
+    $hideNav = request()->routeIs('dosen.penilaian.asesmen', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
     $mainTabs = $isOnMatriks ? [
-        'dosen.penilaian.matriks' => '1. Matriks Penilaian',
-        'dosen.penilaian.asesmen' => '2. Input Nilai',
-        'dosen.penilaian.rekap'   => '3. Rekap CPMK',
-        'dosen.penilaian.cpl'     => '4. Rekap CPL',
-    ] : [
-        'dosen.penilaian.asesmen' => '1. Asesmen',
-        'dosen.penilaian.rekap'   => '2. Rekap CPMK',
-        'dosen.penilaian.cpl'     => '3. Rekap CPL',
-    ];
+        'dosen.penilaian.matriks' => 'Matriks Penilaian',
+        'dosen.penilaian.asesmen' => 'Input Nilai Asesmen',
+    ] : [];
 @endphp
 
 <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-            <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Penilaian</a>
+            @if(request()->routeIs('dosen.penilaian.rekap', 'dosen.penilaian.cpmk'))
+                <a href="{{ route('dosen.rekap.index') }}" class="hover:text-brand">Rekap Nilai</a>
+            @else
+                <a href="{{ route('dosen.penilaian.index') }}" class="hover:text-brand">Penilaian</a>
+            @endif
             <span>/</span>
             <span class="text-ink font-semibold">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
         </nav>
@@ -47,11 +46,13 @@
     </div>
 </header>
 
+@if(!$hideNav && !empty($mainTabs))
 <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto overflow-y-hidden border-b border-line/80 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Tab penilaian kelas">
     @foreach($mainTabs as $route => $label)
         <a href="{{ route($route, $section->id) }}"
-           class="px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors {{ request()->routeIs($route) || ($route === 'dosen.penilaian.rekap' && request()->routeIs('dosen.penilaian.cpmk')) ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
+           class="px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors {{ request()->routeIs($route) ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             {{ $label }}
         </a>
     @endforeach
 </nav>
+@endif

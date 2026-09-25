@@ -9,7 +9,7 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="section-heading">2. Input Nilai per Komponen Asesmen</h2>
+            <h2 class="section-heading">Input Nilai per Komponen Asesmen</h2>
             <p class="mt-1 text-sm text-muted">Pilih instrumen asesmen untuk melihat dan menginputkan nilai mahasiswa per CPMK.</p>
         </div>
     </div>
@@ -65,20 +65,8 @@
                                     @endforelse
                                 </div>
                             </td>
-                            <td class="py-3 px-4">
-                                @if($totalStudents > 0 && $gradedCount >= $totalStudents)
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                        {{ $gradedCount }}/{{ $totalStudents }} Dinilai &bull; Selesai
-                                    </span>
-                                @elseif($gradedCount > 0)
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                                        {{ $gradedCount }}/{{ $totalStudents }} Dinilai &bull; Perlu Dinilai
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-canvas text-muted border border-line">
-                                        0/{{ $totalStudents }} Dinilai &bull; Belum Dinilai
-                                    </span>
-                                @endif
+                            <td class="py-3 px-4 text-xs font-semibold text-ink">
+                                {{ $gradedCount }}/{{ $totalStudents }}
                             </td>
                             <td class="py-3 px-4 text-right whitespace-nowrap">
                                 <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="button-primary inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold shadow-2xs">

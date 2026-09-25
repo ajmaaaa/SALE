@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Assessment;
+use App\Models\Cpmk;
+use App\Models\StudentAssessmentScore;
+use App\Models\StudentAssessmentCpmkScore;
 use App\Models\User;
 use App\Support\AcademicPreview as Academic;
 use App\Support\AdminPreview;
@@ -282,6 +286,46 @@ class AcademicController extends Controller
         $grades[$questionIndex] = (float) $validated['score'];
         session(["academic.item_grades.{$item}.{$student}.points" => $grades]);
 
+        // Hitung ulang penilaian & simpan ke database jika tabel tersedia
+        $evalAfter = Academic::assessmentEvaluation($course, $item);
+        $studentResult = collect($evalAfter['results'])->firstWhere('student.id', $student);
+        if ($studentResult) {
+            $isCompleted = ($studentResult['status_key'] ?? '') === 'selesai';
+            $finalScore = $isCompleted ? ($studentResult['nilai_asesmen'] ?? null) : null;
+
+            if (Schema::hasTable('student_assessment_scores')) {
+                StudentAssessmentScore::updateOrCreate(
+                    ['assessment_id' => $item, 'mahasiswa_id' => $student],
+                    [
+                        'score' => $finalScore,
+                        'graded_by' => auth()->id(),
+                        'graded_at' => $isCompleted ? now() : null,
+                    ]
+                );
+            }
+
+            if ($isCompleted && Schema::hasTable('student_assessment_cpmk_scores')) {
+                $assessment = Assessment::with('cpmks')->find($item);
+                if ($assessment) {
+                    foreach ($studentResult['cpmk_breakdown'] ?? [] as $cCode => $cInfo) {
+                        $cpmkModel = $assessment->cpmks->first(function ($c) use ($cCode) {
+                            $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
+                            $c2 = strtoupper(trim(str_replace(' ', '-', $cCode)));
+                            return $c1 === $c2;
+                        }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $cCode)->first() : null);
+
+                        if ($cpmkModel) {
+                            $propScore = round(($cInfo['score'] * $cInfo['weight']) / 100, 2);
+                            StudentAssessmentCpmkScore::updateOrCreate(
+                                ['assessment_id' => $item, 'cpmk_id' => $cpmkModel->id, 'mahasiswa_id' => $student],
+                                ['score' => $propScore]
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         return redirect()
             ->route('dosen.item.penilaian.esai', [$course, $item, $student])
             ->with('notice', 'Skor berhasil disimpan.');
@@ -396,7 +440,7 @@ class AcademicController extends Controller
 
         $skor = (float) $validated['skor'];
 
-        // Hitung nilai_tugas dan distribusi CPMK
+        // Hitung nilai_tugas dan distribusi CPMK (skala 100)
         $nilaiTugas = $poinTugas > 0 ? round($skor / $poinTugas * 100, 2) : 0;
         $manualWeights = $itemData['manual_cpmk_weights'] ?? [];
         $nilaiCpmk = [];
@@ -410,6 +454,30 @@ class AcademicController extends Controller
             "academic.item_grades.{$item}.{$student}.nilai_tugas" => $nilaiTugas,
             "academic.item_grades.{$item}.{$student}.nilai_cpmk" => $nilaiCpmk,
         ]);
+
+        // Simpan ke database
+        if (Schema::hasTable('student_assessment_scores')) {
+            StudentAssessmentScore::updateOrCreate(
+                ['assessment_id' => $item, 'mahasiswa_id' => $student],
+                [
+                    'score' => $nilaiTugas,
+                    'graded_by' => auth()->id(),
+                    'graded_at' => now(),
+                ]
+            );
+        }
+
+        if (Schema::hasTable('student_assessment_cpmk_scores')) {
+            $assessment = Assessment::with('cpmks')->find($item);
+            if ($assessment && $assessment->cpmks->isNotEmpty()) {
+                foreach ($assessment->cpmks as $cpmk) {
+                    StudentAssessmentCpmkScore::updateOrCreate(
+                        ['assessment_id' => $item, 'cpmk_id' => $cpmk->id, 'mahasiswa_id' => $student],
+                        ['score' => $nilaiTugas]
+                    );
+                }
+            }
+        }
 
         return redirect()
             ->route('dosen.item.penilaian.tugas', [$course, $item])

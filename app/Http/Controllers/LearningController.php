@@ -498,8 +498,12 @@ class LearningController extends Controller
             'questions' => 'nullable|array|min:1|max:30',
             'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
             'questions.*.prompt' => 'required|string|max:10000',
-            'questions.*.points' => 'required|integer|min:1|max:1000',
+            'questions.*.points' => 'nullable|integer|min:1|max:1000',
             'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'questions.*.score_mode' => 'nullable|string|in:parsial,semua_atau_nol',
+            'questions.*.correct_answer' => 'nullable|string|max:500',
+            'questions.*.essay_guide' => 'nullable|string|max:5000',
+            'questions.*.boolean_answer' => 'nullable|string|in:Benar,Salah',
             'questions.*.options' => 'nullable|string|max:10000000',
             'questions.*.matching' => 'nullable|array',
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -588,13 +592,20 @@ class LearningController extends Controller
                 return back()->withErrors(['type' => 'Paket soal campuran hanya dapat digunakan untuk Tugas, Kuis, UTS, dan UAS.'])->withInput();
             }
             foreach ($data['questions'] as $index => &$question) {
-                $question['points'] = isset($question['points']) ? (int) $question['points'] : 20;
+                $question['points'] = (isset($question['points']) && (int) $question['points'] > 0) ? (int) $question['points'] : 100;
+                $question['is_essay'] = ($question['type'] === 'uraian');
+                $question['score_mode'] = $question['score_mode'] ?? 'parsial';
+                $question['correct_answer'] = $question['correct_answer'] ?? null;
+                $question['essay_guide'] = $question['essay_guide'] ?? null;
+                $question['boolean_answer'] = $question['boolean_answer'] ?? null;
                 $question['image'] = $request->hasFile("questions.$index.image") ? $this->upload($request->file("questions.$index.image")) : null;
                 $question['alt'] = $question['image']
                     ? trim((string) ($question['alt'] ?? '')) ?: Str::limit('Gambar pendukung untuk '.strip_tags($question['prompt']), 300, '')
                     : null;
-                $mapping = collect($academic['cpmk'])->firstWhere('code', $question['cpmk']);
-                $question['cpl'] = $mapping['cpl'];
+                $mapping = collect($academic['cpmk'])->first(function ($c) use ($question) {
+                    return strcasecmp(trim(str_replace(' ', '-', $c['code'])), trim(str_replace(' ', '-', $question['cpmk']))) === 0;
+                });
+                $question['cpl'] = $mapping['cpl'] ?? 'CPL';
             }
             unset($question);
             $data['questions'] = array_values($data['questions']);
@@ -762,9 +773,54 @@ class LearningController extends Controller
                     'allow_late' => $data['allow_late'],
                 ]);
 
-                $cpmk = $section->mataKuliah?->cpmks()->first() ?? Cpmk::first();
-                if ($cpmk) {
-                    $assessment->cpmks()->syncWithoutDetaching([$cpmk->id => ['weight' => 100]]);
+                // Sinkronisasi bobot CPMK ke database (tabel assessment_cpmk)
+                $syncData = [];
+                $allCpmks = $section->mataKuliah?->cpmks()->get() ?? (Schema::hasTable('cpmks') ? Cpmk::all() : collect());
+
+                if (! empty($data['questions'])) {
+                    $cpmkCounts = array_count_values(array_filter(array_column($data['questions'], 'cpmk')));
+                    $totalQ = max(1, count($data['questions']));
+                    $accumulated = 0.0;
+                    $itemsLeft = count($cpmkCounts);
+                    foreach ($cpmkCounts as $code => $cnt) {
+                        $itemsLeft--;
+                        $cpmkModel = $allCpmks->first(function ($c) use ($code) {
+                            $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
+                            $c2 = strtoupper(trim(str_replace(' ', '-', $code)));
+                            return $c1 === $c2;
+                        });
+                        if ($cpmkModel) {
+                            if ($itemsLeft === 0) {
+                                $w = round(100.00 - $accumulated, 2);
+                            } else {
+                                $w = round(($cnt / $totalQ) * 100, 2);
+                                $accumulated += $w;
+                            }
+                            $syncData[$cpmkModel->id] = ['weight' => $w];
+                        }
+                    }
+                } elseif (! empty($data['manual_cpmk_weights'])) {
+                    foreach ($data['manual_cpmk_weights'] as $code => $weight) {
+                        $cpmkModel = $allCpmks->first(function ($c) use ($code) {
+                            $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
+                            $c2 = strtoupper(trim(str_replace(' ', '-', $code)));
+                            return $c1 === $c2;
+                        });
+                        if ($cpmkModel) {
+                            $syncData[$cpmkModel->id] = ['weight' => (float) $weight];
+                        }
+                    }
+                }
+
+                if (empty($syncData)) {
+                    $cpmk = $section->mataKuliah?->cpmks()->first() ?? (Schema::hasTable('cpmks') ? Cpmk::first() : null);
+                    if ($cpmk) {
+                        $syncData[$cpmk->id] = ['weight' => 100];
+                    }
+                }
+
+                if (! empty($syncData)) {
+                    $assessment->cpmks()->sync($syncData);
                 }
             }
         }
@@ -1035,28 +1091,53 @@ class LearningController extends Controller
         $data['student_number'] = session('auth_user.number');
         session(["learning.submissions.$item" => $data]);
 
+        if ($user) {
+            session(["learning.submissions.{$item}.{$user->id}" => $data]);
+        }
+
         if (in_array($resource['type'], ['kuis', 'uts', 'uas'], true) || $isFromQuizRoom) {
             $questions = $resource['questions'] ?? [];
             if (! empty($questions)) {
                 $earnedPoints = 0;
                 $answers = $data['question_answers'] ?? [];
+                $hasEssay = collect($questions)->contains(fn ($q) => in_array($q['type'] ?? 'pilihan', ['uraian', 'coding', 'esai'], true));
+
+                $groupCounts = array_count_values(array_filter(array_column($questions, 'cpmk')));
+                $totalQuestions = max(1, count($questions));
+                $cpmkScores = [];
+
                 foreach ($questions as $index => $q) {
+                    $cCode = $q['cpmk'] ?? 'CPMK-01';
+                    $groupCount = max(1, (int) ($groupCounts[$cCode] ?? 1));
+                    $porsiSoal = 100 / $groupCount;
+                    $bobotCpmk = ($groupCount / $totalQuestions) * 100;
+
+                    if (! isset($cpmkScores[$cCode])) {
+                        $cpmkScores[$cCode] = [
+                            'total_nilai' => 0.0,
+                            'bobot_cpmk' => $bobotCpmk,
+                        ];
+                    }
+
                     $ans = $answers[$index] ?? [];
                     $qType = $q['type'] ?? 'pilihan';
                     $qPoints = (float) ($q['points'] ?? 25);
                     $isCorrect = false;
+                    $earned = 0.0;
 
                     if ($qType === 'pilihan') {
                         $choices = $ans['choices'] ?? [];
                         $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ''));
                         if (! empty($correct) && count($choices) === 1 && $choices[0] === $correct) {
                             $isCorrect = true;
+                            $earned = $qPoints;
                         }
                     } elseif ($qType === 'benar_salah') {
                         $choice = $ans['boolean_choice'] ?? '';
                         $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
                         if (! empty($choice) && $choice === $correct) {
                             $isCorrect = true;
+                            $earned = $qPoints;
                         }
                     } elseif ($qType === 'kompleks') {
                         $choices = $ans['choices'] ?? [];
@@ -1066,6 +1147,7 @@ class LearningController extends Controller
                         sort($sortedCorrect);
                         if ($choices === $sortedCorrect) {
                             $isCorrect = true;
+                            $earned = $qPoints;
                         }
                     } elseif ($qType === 'mencocokkan') {
                         $matching = $ans['matching'] ?? [];
@@ -1080,16 +1162,74 @@ class LearningController extends Controller
                         }
                         if ($totalPairs > 0 && $matchedCorrect === $totalPairs) {
                             $isCorrect = true;
+                            $earned = $qPoints;
                         } elseif ($totalPairs > 0 && $matchedCorrect > 0) {
-                            $earnedPoints += ($matchedCorrect / $totalPairs) * $qPoints;
+                            $earned = ($matchedCorrect / $totalPairs) * $qPoints;
                         }
                     }
 
                     if ($isCorrect) {
                         $earnedPoints += $qPoints;
                     }
+
+                    $persen = $qPoints > 0 ? ($earned / $qPoints) : 0;
+                    $nilaiSoal = $persen * $porsiSoal;
+                    $cpmkScores[$cCode]['total_nilai'] += $nilaiSoal;
                 }
+
                 session(["learning.grades.$item" => round($earnedPoints, 1)]);
+
+                // Integrasi Database
+                if ($user && Schema::hasTable('student_assessment_scores')) {
+                    if ($hasEssay) {
+                        // Ada soal esai -> status MENUNGGU penilaian dosen (score = null)
+                        StudentAssessmentScore::updateOrCreate(
+                            ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
+                            ['score' => null]
+                        );
+                    } else {
+                        // Semua soal otomatis -> hitung nilai total asesmen (skala 100) dan simpan
+                        $totalAsesmen = 0.0;
+                        foreach ($cpmkScores as $cCode => $cInfo) {
+                            $totalAsesmen += $cInfo['total_nilai'] * ($cInfo['bobot_cpmk'] / 100);
+                        }
+                        $totalAsesmen = round($totalAsesmen, 2);
+
+                        StudentAssessmentScore::updateOrCreate(
+                            ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
+                            ['score' => $totalAsesmen, 'graded_at' => now()]
+                        );
+
+                        if (Schema::hasTable('student_assessment_cpmk_scores')) {
+                            $asmtModel = Assessment::with('cpmks')->find($item);
+                            if ($asmtModel) {
+                                foreach ($cpmkScores as $cCode => $cInfo) {
+                                    $cpmkModel = $asmtModel->cpmks->first(function ($c) use ($cCode) {
+                                        $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
+                                        $c2 = strtoupper(trim(str_replace(' ', '-', $cCode)));
+                                        return $c1 === $c2;
+                                    }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $cCode)->first() : null);
+
+                                    if ($cpmkModel) {
+                                        $proportionalScore = round(($cInfo['total_nilai'] * $cInfo['bobot_cpmk']) / 100, 2);
+                                        StudentAssessmentCpmkScore::updateOrCreate(
+                                            ['assessment_id' => $item, 'cpmk_id' => $cpmkModel->id, 'mahasiswa_id' => $user->id],
+                                            ['score' => $proportionalScore]
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } elseif (in_array($resource['type'], ['tugas', 'coding'], true)) {
+            // Pengumpulan Tugas -> status MENUNGGU penilaian dosen (score = null)
+            if ($user && Schema::hasTable('student_assessment_scores')) {
+                StudentAssessmentScore::updateOrCreate(
+                    ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
+                    ['score' => null]
+                );
             }
         }
 
