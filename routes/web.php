@@ -89,7 +89,7 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
     Route::post('/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('course.discuss.class');
-    Route::view('/penilaian', 'dosen.grades')->name('grades');
+    Route::redirect('/penilaian', '/dosen/penilaian-kelas')->name('grades');
 
     Route::get('/penilaian-kelas', [ClassSectionController::class, 'index'])->name('penilaian.index');
     Route::get('/rekap-nilai', [ClassSectionController::class, 'rekapIndex'])->name('rekap.index');
@@ -136,6 +136,8 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
     Route::post('/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('notifications.clear');
     Route::post('/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('notifications.delete');
     Route::get('/profil', [\App\Http\Controllers\Dosen\ProfileController::class, 'index'])->name('profile.index');
+    Route::put('/profil/password', [\App\Http\Controllers\Dosen\ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::put('/profil/notifikasi', [\App\Http\Controllers\Dosen\ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
 });
 
 Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
