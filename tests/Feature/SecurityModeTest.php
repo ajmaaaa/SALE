@@ -24,7 +24,6 @@ class SecurityModeTest extends TestCase
         $this->get('/mahasiswa/dashboard')->assertRedirect(route('login'));
         $this->get('/dosen/dashboard')->assertRedirect(route('login'));
         $this->get('/admin/dashboard')->assertRedirect(route('login'));
-        $this->get('/kaprodi/monitoring/cpmk')->assertRedirect(route('login'));
         $this->get('/admin-prodi/dashboard')->assertRedirect(route('login'));
 
         $role = Role::create(['name' => Role::MAHASISWA, 'label' => 'Mahasiswa']);
@@ -33,7 +32,6 @@ class SecurityModeTest extends TestCase
 
         $this->get('/admin/dashboard')->assertForbidden();
         $this->get('/dosen/dashboard')->assertForbidden();
-        $this->get('/kaprodi/monitoring/cpmk')->assertForbidden();
         $this->get('/admin-prodi/dashboard')->assertForbidden();
     }
 
@@ -67,7 +65,7 @@ class SecurityModeTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertDatabaseCount('roles', 5);
+        $this->assertDatabaseCount('roles', 4);
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('prodis', 0);
     }
