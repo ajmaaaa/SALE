@@ -34,7 +34,7 @@
                 class="field w-full font-mono uppercase text-sm tracking-wider"
             >
             <p class="mt-1 text-[11px] text-muted">
-                Masukkan kode acak 8 karakter atau tempel tautan masuk kelas dari Admin Prodi/Kaprodi.
+                Masukkan kode acak 8 karakter atau tempel tautan masuk kelas dari Admin Prodi / Dosen.
             </p>
         </div>
         <div class="flex items-center justify-end gap-2 pt-2">
