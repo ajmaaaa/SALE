@@ -28,7 +28,7 @@ Jangan menggabungkan data sesi dan database tanpa menuliskan rencana migrasi ser
 
 ## Autentikasi dan role
 
-Role tetap adalah `admin`, `admin_prodi`, `kaprodi`, `dosen`, dan `mahasiswa`. `EnsureRole` memeriksa role aktif untuk setiap kelompok route. Mengetik path role lain tidak mengubah role dan harus menghasilkan redirect login atau 403.
+Role tetap adalah `admin`, `admin_prodi`, `dosen`, dan `mahasiswa`. `EnsureRole` memeriksa role aktif untuk setiap kelompok route. Mengetik path role lain tidak mengubah role dan harus menghasilkan redirect login atau 403.
 
 Mode demo hanya aktif jika kedua kondisi berikut benar:
 
