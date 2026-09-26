@@ -23,8 +23,8 @@ class EnsureRole
             : collect($roles)->contains(fn (string $role): bool => $user->hasRole($role));
 
         if (! $hasRole) {
-            $isDosen = ($user && ($user->hasRole('dosen') || $user->hasRole('kaprodi')))
-                || in_array($sessionRole, ['dosen', 'kaprodi'], true);
+            $isDosen = ($user && $user->hasRole('dosen'))
+                || $sessionRole === 'dosen';
             if ($isDosen && $request->routeIs('mahasiswa.course.show')) {
                 $courseId = $request->route('course');
                 if ($courseId) {
