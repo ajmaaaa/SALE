@@ -270,10 +270,7 @@
 
             <div data-question-empty-state class="rounded-xl border border-dashed border-line/80 bg-slate-50/50 p-8 text-center text-xs text-muted" hidden>
                 <p class="font-medium text-ink">Belum ada butir soal yang disusun.</p>
-                <p class="mt-1 text-slate-500">Klik tombol <strong>+ Tambah Soal</strong> atau tentukan target jumlah soal di atas.</p>
-                <div class="mt-3">
-                    <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-question>+ Tambah Soal Pertama</button>
-                </div>
+                <p class="mt-1 text-slate-500">Gunakan tombol <strong>+ Tambah Soal</strong> di atas atau tentukan target jumlah soal.</p>
             </div>
 
             <div data-question-rows></div>
@@ -531,8 +528,8 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-5">
             <a class="button-secondary" href="{{ route('dosen.course.show', $course['id']) }}">Batal</a>
             <div class="flex items-center gap-2">
-                <button type="button" class="button-secondary" data-back-to-setup hidden>← Kembali</button>
-                <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal →</button>
+                <button type="button" class="button-secondary" data-back-to-setup hidden> Kembali</button>
+                <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal </button>
                 <button type="submit" class="button-primary" data-submit-content>Tambahkan ke course</button>
             </div>
         </div>
