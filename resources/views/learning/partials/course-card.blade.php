@@ -1,7 +1,7 @@
 @php
     $passedRole = $role ?? null;
     $currentRole = $passedRole ?: (request()->is('dosen*') ? 'dosen' : (auth()->user()?->role?->name ?? session('auth_user.role') ?? 'mahasiswa'));
-    $isDosen = ($passedRole === 'dosen') || request()->is('dosen*') || in_array($currentRole, ['dosen', 'kaprodi'], true);
+    $isDosen = ($passedRole === 'dosen') || request()->is('dosen*') || ($currentRole === 'dosen');
 
     $contents = collect(\App\Support\LearningPreview::items())->where('course', $course['id']);
     if ($contents->isEmpty() && \Illuminate\Support\Facades\Schema::hasTable('assessments')) {
