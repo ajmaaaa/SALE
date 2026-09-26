@@ -27,7 +27,7 @@ class LayoutRoleDisplayTest extends TestCase
         $response->assertOk();
         // Pastikan tidak ada raw json role di render
         $response->assertDontSee('{"id":');
-        $response->assertSee('Beralih Peran (Dosen & Kaprodi)');
+        $response->assertSee('Peralihan Peran');
         $response->assertDontSee('Mahasiswa (Ahmad Maulana)');
 
         // Mahasiswa tidak melihat opsi switch role sama sekali
@@ -44,25 +44,21 @@ class LayoutRoleDisplayTest extends TestCase
         $mhsResponse->assertDontSee('Beralih Peran');
     }
 
-    public function test_can_switch_to_all_5_roles(): void
+    public function test_can_switch_to_all_4_roles(): void
     {
-        // 1. Switch to Kaprodi
-        $this->post(route('switch-role', 'kaprodi'))
-            ->assertRedirect(route('kaprodi.monitoring.cpmk'));
-
-        // 2. Switch to Admin Prodi
+        // 1. Switch to Admin Prodi
         $this->post(route('switch-role', 'admin_prodi'))
             ->assertRedirect(route('admin-prodi.dashboard'));
 
-        // 3. Switch to Admin Sistem
+        // 2. Switch to Admin Sistem
         $this->post(route('switch-role', 'admin'))
             ->assertRedirect(route('admin.page', 'dashboard'));
 
-        // 4. Switch to Dosen
+        // 3. Switch to Dosen
         $this->post(route('switch-role', 'dosen'))
             ->assertRedirect(route('dosen.dashboard'));
 
-        // 5. Switch to Mahasiswa
+        // 4. Switch to Mahasiswa
         $this->post(route('switch-role', 'mahasiswa'))
             ->assertRedirect(route('mahasiswa.dashboard'));
     }
