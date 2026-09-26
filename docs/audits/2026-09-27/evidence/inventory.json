@@ -1,0 +1,128 @@
+{
+  "commit": "1c86a5652bebaf79110a2a0ccec30a5a91cb6072",
+  "route_count": 158,
+  "routes_by_method": {
+    "GET|HEAD": 83,
+    "POST": 50,
+    "PUT": 12,
+    "DELETE": 8,
+    "GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS": 2,
+    "GET|POST|HEAD": 3
+  },
+  "controllers": 29,
+  "models": 20,
+  "migrations": 33,
+  "views": 83,
+  "controllers_without_routes": [
+    "app/Http/Controllers/Mahasiswa/GradeController.php",
+    "app/Http/Controllers/Mahasiswa/DiscussionController.php",
+    "app/Http/Controllers/Mahasiswa/CourseController.php"
+  ],
+  "views_without_literal_references_candidates": [
+    "resources/views/dosen/cpmk.blade.php",
+    "resources/views/dosen/pengaturan.blade.php",
+    "resources/views/dosen/asesmen.blade.php",
+    "resources/views/mahasiswa/partials/semester-chart.blade.php",
+    "resources/views/mahasiswa/partials/dashboard-courses-original.blade.php",
+    "resources/views/dosen/partials/assessment-project.blade.php",
+    "resources/views/dosen/partials/assessment-tugas.blade.php",
+    "resources/views/dosen/partials/assessment-quiz.blade.php",
+    "resources/views/dosen/partials/assessment-uas.blade.php",
+    "resources/views/admin/dashboard.blade.php",
+    "resources/views/admin/pengguna.blade.php",
+    "resources/views/admin/laporan.blade.php",
+    "resources/views/admin/akademik.blade.php",
+    "resources/views/admin/pengaturan.blade.php",
+    "resources/views/dosen/partials/assessment-sheet.blade.php",
+    "resources/views/admin/aktivitas.blade.php",
+    "resources/views/admin/monitoring.blade.php"
+  ],
+  "views_not_reachable_by_literal_graph_candidates": [
+    "resources/views/dosen/cpmk.blade.php",
+    "resources/views/mahasiswa/discussion.blade.php",
+    "resources/views/mahasiswa/course-detail.blade.php",
+    "resources/views/mahasiswa/assignment.blade.php",
+    "resources/views/dosen/pengaturan.blade.php",
+    "resources/views/dosen/asesmen.blade.php",
+    "resources/views/mahasiswa/partials/semester-chart.blade.php",
+    "resources/views/mahasiswa/partials/dashboard-courses-original.blade.php",
+    "resources/views/mahasiswa/grade.blade.php",
+    "resources/views/mahasiswa/course.blade.php",
+    "resources/views/dosen/partials/assessment-project.blade.php",
+    "resources/views/dosen/grades.blade.php",
+    "resources/views/dosen/partials/assessment-tugas.blade.php",
+    "resources/views/dosen/partials/assessment-quiz.blade.php",
+    "resources/views/dosen/partials/assessment-uts.blade.php",
+    "resources/views/dosen/partials/assessment-uas.blade.php",
+    "resources/views/dosen/partials/grade-import.blade.php",
+    "resources/views/dosen/penilaian/dashboard.blade.php",
+    "resources/views/dosen/partials/submission-preview.blade.php",
+    "resources/views/dosen/partials/submission-button.blade.php",
+    "resources/views/dosen/partials/assessment-sheet.blade.php",
+    "resources/views/dosen/partials/grades-class-list.blade.php",
+    "resources/views/dosen/partials/grades-room-header.blade.php"
+  ],
+  "largest_source_files": [
+    {
+      "file": "resources/js/app.js",
+      "lines": 2838
+    },
+    {
+      "file": "app/Services/ObeExcelExportService.php",
+      "lines": 1711
+    },
+    {
+      "file": "app/Http/Controllers/LearningController.php",
+      "lines": 1463
+    },
+    {
+      "file": "resources/views/learning/quiz-room.blade.php",
+      "lines": 1396
+    },
+    {
+      "file": "resources/views/learning/course.blade.php",
+      "lines": 1047
+    },
+    {
+      "file": "app/Support/LearningPreview.php",
+      "lines": 952
+    },
+    {
+      "file": "app/Services/AdminLaporanService.php",
+      "lines": 819
+    },
+    {
+      "file": "resources/views/learning/item.blade.php",
+      "lines": 765
+    },
+    {
+      "file": "app/Services/ObeCalculationService.php",
+      "lines": 749
+    },
+    {
+      "file": "resources/views/mahasiswa/assignment-code.blade.php",
+      "lines": 655
+    },
+    {
+      "file": "app/Http/Controllers/Dosen/InputNilaiController.php",
+      "lines": 614
+    },
+    {
+      "file": "app/Support/AcademicPreview.php",
+      "lines": 574
+    },
+    {
+      "file": "resources/views/dosen/item-form.blade.php",
+      "lines": 538
+    },
+    {
+      "file": "app/Http/Controllers/Dosen/ExportController.php",
+      "lines": 529
+    },
+    {
+      "file": "app/Http/Controllers/Dosen/PenilaianController.php",
+      "lines": 492
+    }
+  ],
+  "limitations": "References are lexical, not proof of dead code. Dynamic views and runtime conditional navigation were manually reviewed separately."
+}

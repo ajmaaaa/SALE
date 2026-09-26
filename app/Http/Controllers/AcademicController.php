@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Assessment;
+use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\StudentAssessmentScore;
 use App\Models\StudentAssessmentCpmkScore;
+use App\Models\Submission;
 use App\Models\User;
 use App\Support\AcademicPreview as Academic;
 use App\Support\AdminPreview;
@@ -19,7 +21,8 @@ class AcademicController extends Controller
     public function gradeItem(Request $request, int $item)
     {
         $resource = Learning::items()[$item] ?? null;
-        abort_unless($resource && session("learning.submissions.$item"), 404);
+        $submission = $this->resolveSubmission($item);
+        abort_unless($resource && $submission, 404);
         if (! empty($resource['questions'])) {
             $questions = $resource['questions'];
         } elseif (($resource['scoring_mode'] ?? null) === 'manual_cpmk' && ! empty($resource['manual_cpmk_weights'])) {
@@ -73,8 +76,15 @@ class AcademicController extends Controller
         abort_unless($courseData, 404);
 
         if ($item !== 0) {
-            $itemData = Learning::items()[$item] ?? null;
-            abort_unless($itemData && $itemData['course'] === $course, 404, 'Item tidak ditemukan atau bukan milik course ini.');
+            $itemData = null;
+            if (Schema::hasTable('assessments')) {
+                $assessment = Assessment::where('class_section_id', $course)->find($item);
+                if ($assessment) {
+                    $itemData = Learning::databaseAssessment($assessment);
+                }
+            }
+            $itemData ??= Learning::items()[$item] ?? null;
+            abort_unless($itemData && ($itemData['course'] ?? null) === $course, 404, 'Item tidak ditemukan atau bukan milik course ini.');
         }
     }
 
@@ -106,7 +116,7 @@ class AcademicController extends Controller
 
         // Kumpulkan semua soal esai + jawaban + skor yang sudah ada
         $grades = session("academic.item_grades.{$item}.{$student}.points", []);
-        $submission = session("learning.submissions.{$item}.{$student}") ?? session("learning.submissions.{$item}");
+        $submission = $this->resolveSubmission($item, $student);
 
         $essayItems = [];
         foreach ($questions as $qIdx => $q) {
@@ -219,7 +229,14 @@ class AcademicController extends Controller
     public function tugasGrading(int $course, int $item)
     {
         $this->authorizeOwnership($course, $item);
-        $itemData = Learning::items()[$item] ?? null;
+        $itemData = null;
+        if (Schema::hasTable('assessments')) {
+            $assessment = Assessment::where('class_section_id', $course)->find($item);
+            if ($assessment) {
+                $itemData = Learning::databaseAssessment($assessment);
+            }
+        }
+        $itemData ??= Learning::items()[$item] ?? null;
         abort_unless($itemData && in_array($itemData['type'], ['tugas', 'coding'], true), 404);
 
         $courseData = Learning::course($course);
@@ -240,13 +257,30 @@ class AcademicController extends Controller
                 $students[] = $extra;
             }
         }
+        if (Schema::hasTable('class_sections')) {
+            $section = ClassSection::find($course);
+            if ($section) {
+                $dbStudents = $section->students()->get()->map(fn ($u) => [
+                    'id'     => $u->id,
+                    'name'   => $u->name,
+                    'email'  => $u->email,
+                    'number' => $u->nim_nidn ?? (string) $u->id,
+                    'role'   => 'mahasiswa',
+                ])->toArray();
+                foreach ($dbStudents as $dbStu) {
+                    if (! collect($students)->contains('id', $dbStu['id'])) {
+                        $students[] = $dbStu;
+                    }
+                }
+            }
+        }
 
         $pendingQueue = [];
         $results = [];
 
         foreach ($students as $stu) {
             $stuId = $stu['id'];
-            $submission = session("learning.submissions.{$item}.{$stuId}") ?? session("learning.submissions.{$item}");
+            $submission = $this->resolveSubmission($item, $stuId);
             if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
                 $submission = null;
             }
@@ -363,5 +397,35 @@ class AcademicController extends Controller
         return redirect()
             ->route('dosen.item.penilaian.tugas', [$course, $item])
             ->with('notice', "Skor tugas disimpan. Nilai tugas: " . number_format($nilaiTugas, 2, ',', '.') . " dari 100.");
+    }
+
+    private function resolveSubmission(int $item, ?int $studentId = null): ?array
+    {
+        $submission = $studentId
+            ? (session("learning.submissions.{$item}.{$studentId}") ?? session("learning.submissions.{$item}"))
+            : session("learning.submissions.{$item}");
+
+        if (! $submission && Schema::hasTable('submissions')) {
+            $query = Submission::where('assessment_id', $item);
+            if ($studentId) {
+                $query->where(fn ($q) => $q->where('user_id', $studentId)->orWhere('mahasiswa_id', $studentId));
+            }
+            $dbSub = $query->latest('id')->first();
+            if ($dbSub) {
+                $submission = [
+                    'answer'           => $dbSub->answer,
+                    'link'             => $dbSub->link,
+                    'question_answers' => $dbSub->question_answers ?? [],
+                    'files'            => $dbSub->file_ids ?? [],
+                    'student_number'   => $dbSub->student_number,
+                    'time'             => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                    'status'           => $dbSub->status,
+                    'attempt'          => $dbSub->attempt,
+                    'version'          => $dbSub->version,
+                ];
+            }
+        }
+
+        return $submission;
     }
 }

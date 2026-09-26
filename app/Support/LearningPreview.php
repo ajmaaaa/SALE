@@ -936,17 +936,34 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             return $samples[$file];
         }
 
-        if (Schema::hasTable('assessments') && Schema::hasColumn('assessments', 'learning_payload')) {
-            $assessment = Assessment::query()
-                ->whereNotNull('learning_payload')
-                ->get(['learning_payload'])
-                ->first(fn ($item) => isset(($item->learning_payload['file_meta'] ?? [])[$file]));
+        return self::fileMetaWithAssessment($file)['meta'] ?? null;
+    }
 
-            if ($assessment) {
-                return $assessment->learning_payload['file_meta'][$file];
-            }
+    /**
+     * Mengembalikan metadata file beserta assessment pemiliknya (untuk otorisasi akses).
+     * Mengembalikan ['meta' => [...], 'assessment' => Assessment] jika ditemukan di DB,
+     * atau null jika tidak ditemukan.
+     *
+     * @return array{meta: array, assessment: Assessment}|null
+     */
+    public static function fileMetaWithAssessment(string $file): ?array
+    {
+        if (! Schema::hasTable('assessments') || ! Schema::hasColumn('assessments', 'learning_payload')) {
+            return null;
         }
 
-        return null;
+        $assessment = Assessment::query()
+            ->whereNotNull('learning_payload')
+            ->get(['id', 'class_section_id', 'learning_payload'])
+            ->first(fn ($item) => isset(($item->learning_payload['file_meta'] ?? [])[$file]));
+
+        if (! $assessment) {
+            return null;
+        }
+
+        return [
+            'meta' => $assessment->learning_payload['file_meta'][$file],
+            'assessment' => $assessment,
+        ];
     }
 }

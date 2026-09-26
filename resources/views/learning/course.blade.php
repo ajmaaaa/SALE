@@ -593,6 +593,10 @@
         const isDosenUser = {{ $isDosenUser ? 'true' : 'false' }};
         const roomMembers = @json($roomMembersList ?? []);
 
+        // Encode any user-supplied string as safe HTML text — never interpolate raw into innerHTML.
+        const _escNode = document.createElement('span');
+        function esc(str) { _escNode.textContent = str == null ? '' : String(str); return _escNode.innerHTML; }
+
         const chatMessages = document.getElementById('chat-messages');
         const discussForm = document.getElementById('course-discuss-form');
         const discussInput = document.getElementById('course_discuss_message');
@@ -691,18 +695,23 @@
 
                     const matches = roomMembers.filter(m => m.name.toLowerCase().includes(query));
                     if (matches.length > 0) {
-                        mentionDropdown.innerHTML = '';
+                         mentionDropdown.innerHTML = '';
                         matches.slice(0, 5).forEach(m => {
                             const btn = document.createElement('button');
                             btn.type = 'button';
                             btn.className = 'w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center justify-between gap-2 rounded-lg transition';
-                            btn.innerHTML = `
-                                <span class="font-semibold text-ink truncate">${m.name}</span>
-                                <span class="text-[10px] text-muted uppercase font-bold shrink-0">${m.role}</span>
-                            `;
+                            const nameSpan = document.createElement('span');
+                            nameSpan.className = 'font-semibold text-ink truncate';
+                            nameSpan.textContent = m.name;
+                            const roleSpan = document.createElement('span');
+                            roleSpan.className = 'text-[10px] text-muted uppercase font-bold shrink-0';
+                            roleSpan.textContent = m.role;
+                            btn.appendChild(nameSpan);
+                            btn.appendChild(roleSpan);
                             btn.onclick = () => selectMentionUser(m);
                             mentionDropdown.appendChild(btn);
                         });
+
                         mentionDropdown.classList.remove('hidden');
                     } else {
                         mentionDropdown.classList.add('hidden');
@@ -812,15 +821,36 @@
                     if (data.pinned_messages && data.pinned_messages.length > 0) {
                         pinnedContainer.classList.remove('hidden');
                         if (pinnedCountBadge) pinnedCountBadge.textContent = data.pinned_messages.length;
-                        pinnedList.innerHTML = data.pinned_messages.map(p => `
-                            <div id="pinned-item-${p.id}" class="flex items-start gap-2 rounded-lg bg-white/70 p-2">
-                                <div class="min-w-0 flex-1">
-                                    ${!p.is_me ? `<span class="font-bold text-[#1f4b7a]">${p.author}:</span> ` : ''}
-                                    <span class="text-slate-800 line-clamp-2">${p.content}</span>
-                                </div>
-                                ${isDosenUser ? `<button type="button" onclick="togglePinMessage(${p.id})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>` : ''}
-                            </div>
-                        `).join('');
+                        pinnedList.innerHTML = '';
+                        data.pinned_messages.forEach(p => {
+                            const wrap = document.createElement('div');
+                            wrap.id = `pinned-item-${p.id}`;
+                            wrap.className = 'flex items-start gap-2 rounded-lg bg-white/70 p-2';
+                            const inner = document.createElement('div');
+                            inner.className = 'min-w-0 flex-1';
+                            if (!p.is_me) {
+                                const authorSpan = document.createElement('span');
+                                authorSpan.className = 'font-bold text-[#1f4b7a]';
+                                authorSpan.textContent = p.author + ':';
+                                inner.appendChild(authorSpan);
+                                inner.appendChild(document.createTextNode(' '));
+                            }
+                            const contentSpan = document.createElement('span');
+                            contentSpan.className = 'text-slate-800 line-clamp-2';
+                            contentSpan.textContent = p.content;
+                            inner.appendChild(contentSpan);
+                            wrap.appendChild(inner);
+                            if (isDosenUser) {
+                                const unpinBtn = document.createElement('button');
+                                unpinBtn.type = 'button';
+                                unpinBtn.className = 'shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium';
+                                unpinBtn.title = 'Lepas Sematan';
+                                unpinBtn.textContent = 'Lepas';
+                                unpinBtn.onclick = () => togglePinMessage(p.id);
+                                wrap.appendChild(unpinBtn);
+                            }
+                            pinnedList.appendChild(wrap);
+                        });
                     } else {
                         pinnedContainer.classList.add('hidden');
                     }
@@ -847,13 +877,13 @@
 
                         chatMessages.innerHTML = data.messages.map(m => {
                             const isMe = m.is_me;
-                            const initials = (m.author || 'P').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+                            const initials = esc((m.author || 'P').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
                             const canDelete = isDosenUser || isMe;
                             const pinBadge = m.is_pinned ? `<span id="pin-badge-${m.id}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0">Disematkan</span>` : '';
                             const replyBox = m.reply_to ? `
                                 <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
-                                    <span class="font-bold text-brand block leading-tight">${m.reply_to.sender_name}</span>
-                                    <span class="line-clamp-1 italic text-slate-700 mt-0.5">${m.reply_to.excerpt}</span>
+                                    <span class="font-bold text-brand block leading-tight">${esc(m.reply_to.sender_name)}</span>
+                                    <span class="line-clamp-1 italic text-slate-700 mt-0.5">${esc(m.reply_to.excerpt)}</span>
                                 </div>
                             ` : '';
 
@@ -862,7 +892,7 @@
                             const replyExcerpt = JSON.stringify(m.content.slice(0, 50)).replace(/'/g, '&#39;');
 
                             return `
-                                <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${m.author}">
+                                <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${esc(m.author)}">
                                     <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}">
                                         <span class="shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl'}" aria-hidden="true"></span>
                                         <div class="p-3 min-w-0 flex-1">
@@ -875,7 +905,7 @@
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex flex-wrap items-center gap-1.5 leading-snug">
                                                         ${!isMe ? `
-                                                            <span class="text-xs font-bold text-ink break-words">${m.author}</span>
+                                                            <span class="text-xs font-bold text-ink break-words">${esc(m.author)}</span>
                                                             ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
                                                         ` : ''}
                                                         ${pinBadge}
@@ -893,7 +923,7 @@
                                                     ${replyBox}
                                                     <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
                                                     <div class="mt-1 flex justify-end">
-                                                        <time class="text-[10px] text-muted">${m.time}</time>
+                                                        <time class="text-[10px] text-muted">${esc(m.time)}</time>
                                                     </div>
                                                 </div>
                                             </div>
@@ -902,6 +932,7 @@
                                 </div>
                             `;
                         }).join('');
+
 
                         if (scrollToBottom || wasAtBottom) {
                             chatMessages.scrollTop = chatMessages.scrollHeight;

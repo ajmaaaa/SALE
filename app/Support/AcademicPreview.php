@@ -2,6 +2,11 @@
 
 namespace App\Support;
 
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\Submission;
+use Illuminate\Support\Facades\Schema;
+
 class AcademicPreview
 {
     public static function config(int $course): array
@@ -173,7 +178,14 @@ class AcademicPreview
 
     public static function assessmentEvaluation(int $course, int $item): array
     {
-        $itemData = LearningPreview::items()[$item] ?? null;
+        $itemData = null;
+        if (Schema::hasTable('assessments')) {
+            $assessment = Assessment::where('class_section_id', $course)->find($item);
+            if ($assessment) {
+                $itemData = LearningPreview::databaseAssessment($assessment);
+            }
+        }
+        $itemData ??= LearningPreview::items()[$item] ?? null;
         abort_unless($itemData, 404);
 
         $courseData = LearningPreview::course($course);
@@ -228,13 +240,32 @@ class AcademicPreview
                 $students[] = $extra;
             }
         }
+        if (Schema::hasTable('class_sections')) {
+            $section = ClassSection::find($course);
+            if ($section) {
+                $dbStudents = $section->students()->get()->map(fn ($u) => [
+                    'id'     => $u->id,
+                    'name'   => $u->name,
+                    'email'  => $u->email,
+                    'number' => $u->nim_nidn ?? (string) $u->id,
+                    'role'   => 'mahasiswa',
+                    'status' => 'aktif',
+                    'roles'  => ['mahasiswa'],
+                ])->toArray();
+                foreach ($dbStudents as $dbStu) {
+                    if (! collect($students)->contains('id', $dbStu['id'])) {
+                        $students[] = $dbStu;
+                    }
+                }
+            }
+        }
 
         $pendingQueue = [];
         $completedResults = [];
 
         foreach ($students as $stu) {
             $stuId = $stu['id'];
-            $submission = session("learning.submissions.{$item}.{$stuId}") ?? session("learning.submissions.{$item}");
+            $submission = self::resolveSubmission($item, $stuId);
             if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
                 $submission = null;
             }
@@ -446,7 +477,7 @@ class AcademicPreview
             }
         }
 
-        $submission = session("learning.submissions.{$item}.{$studentId}") ?? session("learning.submissions.{$item}");
+        $submission = self::resolveSubmission($item, $studentId);
         $answerText = $submission['question_answers'][$questionIndex]['text']
             ?? ($submission['answer'] ?? '');
 
@@ -570,5 +601,35 @@ class AcademicPreview
         }
 
         session([$seededKey => true]);
+    }
+
+    public static function resolveSubmission(int $item, ?int $studentId = null): ?array
+    {
+        $submission = $studentId
+            ? (session("learning.submissions.{$item}.{$studentId}") ?? session("learning.submissions.{$item}"))
+            : session("learning.submissions.{$item}");
+
+        if (! $submission && Schema::hasTable('submissions')) {
+            $query = Submission::where('assessment_id', $item);
+            if ($studentId) {
+                $query->where(fn ($q) => $q->where('user_id', $studentId)->orWhere('mahasiswa_id', $studentId));
+            }
+            $dbSub = $query->latest('id')->first();
+            if ($dbSub) {
+                $submission = [
+                    'answer'           => $dbSub->answer,
+                    'link'             => $dbSub->link,
+                    'question_answers' => $dbSub->question_answers ?? [],
+                    'files'            => $dbSub->file_ids ?? [],
+                    'student_number'   => $dbSub->student_number,
+                    'time'             => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                    'status'           => $dbSub->status,
+                    'attempt'          => $dbSub->attempt,
+                    'version'          => $dbSub->version,
+                ];
+            }
+        }
+
+        return $submission;
     }
 }

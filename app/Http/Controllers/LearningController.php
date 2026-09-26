@@ -10,7 +10,10 @@ use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
+use App\Models\Attachment;
 use App\Models\StudentAssessmentScore;
+use App\Models\Submission;
+use App\Models\SubmissionAnswer;
 use App\Models\User;
 use App\Support\AcademicPreview;
 use App\Support\LearningPreview as Learning;
@@ -185,6 +188,25 @@ class LearningController extends Controller
         abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding', 'uts', 'uas']), 404);
 
         $submission = session("learning.submissions.$item", null);
+        if (! $submission && $user && Schema::hasTable('submissions')) {
+            $dbSub = Submission::where('assessment_id', $item)
+                ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                ->latest('id')
+                ->first();
+            if ($dbSub) {
+                $submission = [
+                    'answer'           => $dbSub->answer,
+                    'link'             => $dbSub->link,
+                    'question_answers' => $dbSub->question_answers ?? [],
+                    'files'            => $dbSub->file_ids ?? [],
+                    'student_number'   => $dbSub->student_number,
+                    'time'             => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                    'status'           => $dbSub->status,
+                    'attempt'          => $dbSub->attempt,
+                    'version'          => $dbSub->version,
+                ];
+            }
+        }
         $dbScore = $user && Schema::hasTable('student_assessment_scores')
             ? StudentAssessmentScore::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->whereNotNull('score')->first()
             : null;
@@ -1080,7 +1102,12 @@ class LearningController extends Controller
         } else {
             unset($data['question_answers']);
         }
-        $previousFiles = session("learning.submissions.$item.files", []);
+        $previousFiles = session("learning.submissions.$item.files");
+        if ($previousFiles === null && $user && Schema::hasTable('submissions')) {
+            $dbSub = Submission::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->first();
+            $previousFiles = $dbSub?->file_ids ?? [];
+        }
+        $previousFiles = $previousFiles ?? [];
         $keep = $request->input('keep_files', $request->boolean('replace_files') ? [] : $previousFiles);
         abort_if(array_diff($keep, $previousFiles), 422);
         if (count($keep) + count($request->file('files', [])) > 5) {
@@ -1107,6 +1134,86 @@ class LearningController extends Controller
 
         if ($user) {
             session(["learning.submissions.{$item}.{$user->id}" => $data]);
+        }
+
+        // Persist attempt, waktu kirim, status, owner, dan versi jawaban dalam transaksi.
+        if ($user && Schema::hasTable('submissions')) {
+            try {
+                DB::transaction(function () use ($user, $item, $course, $data) {
+                    $existing = Submission::where('assessment_id', $item)
+                        ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                        ->first();
+
+                    $attempt = $existing ? ($existing->attempt + 1) : 1;
+                    $version = $existing ? ($existing->version + 1) : 1;
+
+                    $submission = Submission::updateOrCreate(
+                        ['assessment_id' => $item, 'user_id' => $user->id],
+                        [
+                            'mahasiswa_id'     => $user->id,
+                            'attempt'          => $attempt,
+                            'version'          => $version,
+                            'status'           => 'pending',
+                            'submitted_at'     => now(),
+                            'answer'           => $data['answer'] ?? null,
+                            'link'             => $data['link'] ?? null,
+                            'question_answers' => $data['question_answers'] ?? null,
+                            'file_ids'         => $data['files'] ?? [],
+                            'student_number'   => $data['student_number'] ?? null,
+                        ]
+                    );
+
+                    // Simpan versi jawaban ke tabel submission_answers
+                    if (Schema::hasTable('submission_answers')) {
+                        if (! empty($data['question_answers'])) {
+                            foreach ($data['question_answers'] as $index => $ans) {
+                                SubmissionAnswer::create([
+                                    'submission_id'  => $submission->id,
+                                    'question_index' => $index,
+                                    'version'        => $version,
+                                    'answer_text'    => $ans['text'] ?? null,
+                                    'link'           => $ans['link'] ?? null,
+                                    'choices'        => $ans['choices'] ?? null,
+                                    'boolean_choice' => $ans['boolean_choice'] ?? null,
+                                    'matching'       => $ans['matching'] ?? null,
+                                ]);
+                            }
+                        } elseif (! empty($data['answer']) || ! empty($data['link']) || ! empty($data['choices']) || ! empty($data['boolean_choice']) || ! empty($data['matching'])) {
+                            SubmissionAnswer::create([
+                                'submission_id'  => $submission->id,
+                                'question_index' => null,
+                                'version'        => $version,
+                                'answer_text'    => $data['answer'] ?? null,
+                                'link'           => $data['link'] ?? null,
+                                'choices'        => $data['choices'] ?? null,
+                                'boolean_choice' => $data['boolean_choice'] ?? null,
+                                'matching'       => $data['matching'] ?? null,
+                            ]);
+                        }
+                    }
+
+                    // Simpan atau hubungkan berkas ke tabel attachments
+                    if (Schema::hasTable('attachments') && ! empty($data['files'])) {
+                        foreach ($data['files'] as $fileUuid) {
+                            $meta = session("learning.files.{$fileUuid}") ?? Learning::fileMeta($fileUuid);
+                            Attachment::updateOrCreate(
+                                ['uuid' => $fileUuid],
+                                [
+                                    'user_id'          => $user->id,
+                                    'class_section_id' => $course,
+                                    'assessment_id'    => $item,
+                                    'submission_id'    => $submission->id,
+                                    'path'             => $meta['path'] ?? '',
+                                    'name'             => $meta['name'] ?? '',
+                                    'mime'             => $meta['mime'] ?? null,
+                                ]
+                            );
+                        }
+                    }
+                });
+            } catch (\Throwable) {
+                // Session write already succeeded; DB failure is logged but not surfaced to the student.
+            }
         }
 
         if (in_array($resource['type'], ['kuis', 'uts', 'uas'], true) || $isFromQuizRoom) {
@@ -1279,14 +1386,88 @@ class LearningController extends Controller
     private function upload($file): string
     {
         $id = (string) Str::uuid();
-        session(["learning.files.$id" => ['path' => $file->store('learning-preview', 'local'), 'name' => $file->getClientOriginalName(), 'mime' => $file->getMimeType()]]);
+        $path = $file->store('learning-preview', 'local');
+        $name = $file->getClientOriginalName();
+        $mime = $file->getMimeType();
+        session(["learning.files.$id" => ['path' => $path, 'name' => $name, 'mime' => $mime]]);
+
+        $user = auth()->user();
+        if ($user && Schema::hasTable('attachments')) {
+            try {
+                Attachment::create([
+                    'uuid'    => $id,
+                    'user_id' => $user->id,
+                    'path'    => $path,
+                    'name'    => $name,
+                    'mime'    => $mime,
+                    'size'    => $file->getSize(),
+                ]);
+            } catch (\Throwable) {
+            }
+        }
 
         return $id;
     }
 
     public function file(Request $request, string $file)
     {
-        $meta = session("learning.files.$file") ?? Learning::fileMeta($file);
+        // Cek sesi dulu — berkas yang diupload dalam sesi pengguna ini inherently private.
+        $sessionMeta = session("learning.files.$file");
+        if ($sessionMeta) {
+            $meta = $sessionMeta;
+        } else {
+            // Cek sample/demo files (tidak memerlukan otorisasi kelas).
+            $samples = Learning::sampleFiles();
+            if (isset($samples[$file])) {
+                $meta = $samples[$file];
+            } else {
+                // Cek apakah berkas tercatat pada tabel attachments
+                $attachment = Schema::hasTable('attachments') ? Attachment::where('uuid', $file)->first() : null;
+                if ($attachment) {
+                    $user = auth()->user();
+                    abort_unless($user, 401);
+                    $sectionId = $attachment->class_section_id;
+                    if (! $sectionId && $attachment->assessment_id && Schema::hasTable('assessments')) {
+                        $sectionId = Assessment::where('id', $attachment->assessment_id)->value('class_section_id');
+                    }
+                    if ($sectionId && Schema::hasTable('class_sections')) {
+                        $section = ClassSection::find($sectionId);
+                        if ($section) {
+                            $authorized = $user->hasRole(Role::DOSEN)
+                                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                                : ($user->hasRole(Role::MAHASISWA)
+                                    && ($attachment->user_id === $user->id || $section->students()->where('users.id', $user->id)->exists()));
+                            abort_unless($authorized, 403);
+                        }
+                    } elseif ($attachment->user_id !== $user->id && ! $user->hasRole(Role::DOSEN)) {
+                        abort(403);
+                    }
+                    $meta = ['path' => $attachment->path, 'name' => $attachment->name, 'mime' => $attachment->mime];
+                } else {
+                    // Berkas berasal dari database — wajib verifikasi relasi pengguna dengan kelas.
+                    $fileWithAssessment = Learning::fileMetaWithAssessment($file);
+                    abort_unless($fileWithAssessment !== null, 404);
+
+                    $user = auth()->user();
+                    $assessment = $fileWithAssessment['assessment'];
+                    $sectionId = $assessment->class_section_id;
+
+                if ($user && $sectionId && Schema::hasTable('class_sections')) {
+                    $section = ClassSection::find($sectionId);
+                    if ($section) {
+                        $authorized = $user->hasRole(Role::DOSEN)
+                            ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                            : ($user->hasRole(Role::MAHASISWA)
+                                && $section->students()->where('users.id', $user->id)->exists());
+                        abort_unless($authorized, 403);
+                    }
+                }
+
+                    $meta = $fileWithAssessment['meta'];
+                }
+            }
+        }
+
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
         $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp'])
             || str_starts_with((string) $meta['mime'], 'video/')

@@ -1,0 +1,10 @@
+{
+  "missing": {
+    "composer/pcre": "3.4.0",
+    "maennchen/zipstream-php": "3.2.2",
+    "markbaker/complex": "3.0.2",
+    "markbaker/matrix": "3.0.1",
+    "phpoffice/phpspreadsheet": "5.10.0"
+  },
+  "different": {}
+}

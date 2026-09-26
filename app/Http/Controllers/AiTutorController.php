@@ -28,8 +28,9 @@ class AiTutorController extends Controller
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429, 'Terlalu banyak percobaan masuk. Tunggu satu menit.');
         RateLimiter::hit($key, 60);
 
-        // Auto-provision demo account for quick UI testing / demonstration
-        if (Schema::hasTable('users') && $credentials['email'] === 'demo.ai@sale.test' && $credentials['password'] === 'password123456') {
+        // Auto-provision demo account — hanya pada mode demo di environment lokal/testing.
+        $isDemoMode = config('app.demo_mode') && app()->environment(['local', 'testing']);
+        if ($isDemoMode && Schema::hasTable('users') && $credentials['email'] === 'demo.ai@sale.test' && $credentials['password'] === 'password123456') {
             $user = User::firstOrCreate(
                 ['email' => 'demo.ai@sale.test'],
                 ['name' => 'Mahasiswa Demo AI', 'password' => 'password123456']

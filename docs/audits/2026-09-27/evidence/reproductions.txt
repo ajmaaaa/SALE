@@ -1,0 +1,46 @@
+PHP Warning:  PHP Startup: Unable to load dynamic library 'mbstring' (tried: /usr/lib/php/modules/mbstring (/usr/lib/php/modules/mbstring: cannot open shared object file: No such file or directory), /usr/lib/php/modules/mbstring.so (/usr/lib/php/modules/mbstring.so: cannot open shared object file: No such file or directory)) in Unknown on line 0
+PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.5.10
+Configuration: /home/ajmaaa/Projects/SALE/phpunit.xml
+
+.................................                                 33 / 33 (100%)
+
+Time: 00:02.074, Memory: 60.50 MB
+
+Audit Reproduction (Tests\Audit\AuditReproduction)
+ ✔ A01 guest can read private chat and impersonate first user
+ ✔ A02 unenrolled student can join room by reading it
+ ✔ A03 unassigned lecturer can moderate messages
+ ✔ A04 demo ai account is created when demo mode is disabled
+ ✔ A05 admin prodi can reset foreign user password
+ ✔ A06 new account uses shared default password
+ ✔ A07 private attachment is readable without enrollment
+ ✔ A08 get course assigns unrelated lecturer as owner
+ ✔ A09 unassigned lecturer can create class content
+ ✔ A10 unassigned lecturer can create grade for unenrolled user
+ ✔ A11 quiz submission errors after overall score is saved
+ ✔ A12 essay pending grade is already visible in grade tab
+ ✔ A13 student can overwrite already graded submission
+ ✔ A14 closed assessment still accepts submission
+ ✔ A15 new content keeps preview id in database payload
+ ✔ A16 real quiz without questions gets sample bst questions
+ ✔ A17 submission answer disappears when session is reset
+ ✔ A18 partial cpmk input already publishes overall grade
+ ✔ A19 new student without enrollment sees sample assignments
+ ✔ A20 notification target allows external host with same prefix
+ ✔ A21 database material is listed as assignment
+ ✔ A22 server accepts submission after quiz duration
+ ✔ A23 existing direct grade and cpmk grade can disagree
+ ✔ A24 question builder letter key is not equal to answer text
+ ✔ A25 teacher boolean key is ignored by submission grader
+ ✔ A26 essay review grader accepts wrong matches and ignores keys
+ ✔ A27 randomized questions are graded against original indexes
+ ✔ A28 student obe progress uses old section for repeated course
+ ✔ A29 assistant can edit assessment but cannot open rubric
+ ✔ A30 valid scoped grade flow and cross class gate are present
+ ✔ A31 excel export interprets student name as formula
+ ✔ A32 content creation can push assessment weights over 100
+ ✔ A33 rubric input through grade route can exceed criterion max
+
+OK (33 tests, 175 assertions)
