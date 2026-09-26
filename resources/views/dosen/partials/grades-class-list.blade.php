@@ -25,7 +25,7 @@
         <p class="page-description">Kelola penilaian dan capaian CPMK dari kelas yang sedang Anda ampu.</p>
     </div>
     <div class="flex flex-wrap gap-2.5 shrink-0">
-        <a class="button-secondary" href="{{ route('dosen.gradebook') }}">Rekap Nilai Kelas</a>
+        <a class="button-secondary" href="{{ route('dosen.rekap.index') }}">Rekap Nilai Kelas</a>
     </div>
 </header>
 

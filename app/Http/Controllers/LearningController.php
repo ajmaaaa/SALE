@@ -746,7 +746,7 @@ class LearningController extends Controller
 
         if (Schema::hasTable('class_sections') && Schema::hasTable('assessments')) {
             $section = ClassSection::find($course);
-            if ($section && in_array($category, ['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case'], true)) {
+            if ($section && in_array($category, ['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'pengumuman'], true)) {
                 $assessmentType = ($category === 'coding') ? 'tugas' : $category;
                 $asmCount = Assessment::where('class_section_id', $section->id)->count();
                 $questionImages = collect($data['questions'] ?? [])->pluck('image')->filter();
@@ -766,12 +766,13 @@ class LearningController extends Controller
                     'type' => $assessmentType,
                     'description' => $data['body'],
                     'learning_payload' => $data,
-                    'final_weight' => $category === 'materi' ? 0 : 10,
+                    'final_weight' => in_array($category, ['materi', 'pengumuman'], true) ? 0 : 10,
                     'uses_rubric' => false,
                     'status' => Assessment::STATUS_PUBLISHED,
                     'due_at' => ! empty($data['due']) ? Carbon::parse($data['due']) : null,
                     'allow_late' => $data['allow_late'],
                 ]);
+
 
                 // Sinkronisasi bobot CPMK ke database (tabel assessment_cpmk)
                 $syncData = [];

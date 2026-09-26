@@ -1111,7 +1111,7 @@ if (coverInput) {
     });
     remove.addEventListener('click', () => { clear(); coverInput.value = ''; coverInput.setCustomValidity(''); });
 }
-const parseCategory = (value) => {
+function parseCategory(value) {
     const normalized = (value || '').toLowerCase().trim();
     if (!normalized) return '';
     if (normalized === 'materi') return 'materi';
@@ -1128,7 +1128,8 @@ const parseCategory = (value) => {
     }
     if (normalized === 'tugas') return 'tugas';
     return '';
-};
+}
+
 
 const contentType = document.querySelector('[data-content-type]');
 if (contentType) {

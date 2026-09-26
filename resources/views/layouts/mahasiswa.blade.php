@@ -237,7 +237,7 @@
             );
             $initials = collect(explode(' ', $activeUser['name'] ?? 'User'))->map(fn($part)=>mb_substr($part,0,1))->take(2)->implode('');
         @endphp
-        <header class="sticky top-0 z-30 bg-white/95 shadow-[0_2px_12px_rgba(29,39,48,0.07)] backdrop-blur-sm">
+        <header class="sticky top-0 z-30 bg-white border-b border-line/60 shadow-xs">
             <div class="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10">
                 <div class="flex min-w-0 items-center gap-3">
                     <button data-sidebar-toggle type="button" aria-label="Buka navigasi" aria-expanded="false" class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-ink shadow-sm hover:bg-brand-soft lg:hidden">

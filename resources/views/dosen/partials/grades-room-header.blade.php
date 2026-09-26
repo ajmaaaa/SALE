@@ -36,13 +36,10 @@
     </div>
 </header>
 
-{{-- Top Tabs: Ringkasan / Input Nilai / Capaian CPMK --}}
+{{-- Top Tabs: Ringkasan / Input Nilai --}}
 <div class="surface p-1.5 flex items-center gap-2">
     <a href="{{ route('dosen.grades', ['room' => 1, 'course' => $selectedCourse['id'], 'type' => $activeType]) }}" class="px-4 py-2 text-xs font-semibold bg-brand-dark text-white rounded-lg transition shadow-xs">
         Input Nilai
-    </a>
-    <a href="{{ route('dosen.academic', $selectedCourse['id']) }}" class="px-4 py-2 text-xs font-semibold text-muted hover:text-ink rounded-lg transition">
-        Capaian CPMK
     </a>
 </div>
 

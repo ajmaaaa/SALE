@@ -132,7 +132,7 @@
                                     <div class="flex shrink-0 flex-col items-end gap-1.5 text-right self-center sm:self-start">
                                         <div class="flex flex-wrap items-center gap-2">
                                             @if($isLecturer)
-                                                <a href="{{ route('dosen.gradebook', $course['id']) }}" class="button-secondary text-xs py-2.5 px-5 font-semibold">Lihat Jawaban Mahasiswa</a>
+                                                <a href="{{ route('dosen.item.penilaian', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2.5 px-5 font-semibold">Lihat Jawaban Mahasiswa</a>
                                             @elseif($isGraded || $submission)
                                                 <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
                                             @elseif($isLocked)

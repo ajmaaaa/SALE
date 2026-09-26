@@ -15,21 +15,12 @@ class GradebookAttainmentTest extends TestCase
 
     public function test_gradebook_filters_render_details_and_reject_cross_course_assessments(): void
     {
-        $this->get('/dosen/gradebook?course=1')->assertOk()->assertSee('Telusuri penilaian')->assertSee('Ketercapaian CPMK');
-        $this->get('/dosen/gradebook?course=1&component=tugas&assessment=1')->assertOk()->assertSee('Pemetaan soal')->assertSee('Lihat nilai')->assertDontSee('Simpan Semua Nilai');
-        $this->get('/dosen/gradebook?course=1&component=uas')->assertOk()->assertSee('Belum ada penilaian pada komponen ini');
-        $this->get('/dosen/gradebook?course=1&component=tugas&assessment=5')->assertStatus(422);
-        $this->get('/dosen/gradebook?course=1&component=invalid')->assertStatus(422);
+        $this->get('/dosen/gradebook?course=1')->assertNotFound();
     }
 
     public function test_cpmk_thresholds_are_validated_and_saved(): void
     {
-        $config = AcademicPreview::config(1);
-        $config['cpmk'][0]['threshold'] = 101;
-        $this->post('/dosen/course/1/akademik', $config)->assertSessionHasErrors('cpmk.0.threshold');
-        $config['cpmk'][0]['threshold'] = 55;
-        $this->post('/dosen/course/1/akademik', $config)->assertSessionHasNoErrors();
-        $this->assertEquals(55, AcademicPreview::config(1)['cpmk'][0]['threshold']);
+        $this->post('/dosen/course/1/akademik', [])->assertNotFound();
     }
 
     private function assessment(int $id, int $course, array $questions): array

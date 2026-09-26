@@ -101,14 +101,6 @@
                 </div>
             </header>
         </div>
-
-        {{-- Efek bayangan pemisah murni (tanpa garis) tepat pada batas atas card video tanpa jarak, khusus pada area kolom kiri jika ada video --}}
-        @if(!empty($courseVideo))
-            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-7 pointer-events-none mt-2" aria-hidden="true">
-                <div class="h-3 bg-[#f4f5f7] shadow-[0_10px_20px_-3px_rgba(29,39,48,0.12)]"></div>
-                <div class="hidden lg:block"></div>
-            </div>
-        @endif
     </div>
 
     {{-- 2-Column Layout: Konten di Kiri & Forum Diskusi Kelas di Samping (Kanan) --}}

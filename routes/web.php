@@ -99,8 +99,11 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
         Route::get('/', [PenilaianController::class, 'dashboard'])->name('dashboard');
         Route::get('/rekap', [PenilaianController::class, 'rekap'])->name('rekap');
         Route::get('/rekap/export', [ExportController::class, 'rekapKeseluruhan'])->name('rekap.export');
+        Route::get('/rekap/export/excel', [ExportController::class, 'rekapKeseluruhanExcel'])->name('rekap.export.excel');
         Route::get('/cpmk/export', [ExportController::class, 'rekapCpmk'])->name('cpmk.export');
+        Route::get('/cpmk/export/excel', [ExportController::class, 'rekapCpmkExcel'])->name('cpmk.export.excel');
         Route::get('/cpl/export', [ExportController::class, 'rekapCpl'])->name('cpl.export');
+        Route::get('/cpl/export/excel', [ExportController::class, 'rekapCplExcel'])->name('cpl.export.excel');
         Route::get('/rekap/print', [ExportController::class, 'printRekap'])->name('rekap.print');
         Route::get('/matriks', [PenilaianController::class, 'matriks'])->name('matriks');
         Route::post('/matriks', [PenilaianController::class, 'saveMatriks'])->name('matriks.save');
@@ -128,9 +131,13 @@ Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function
 
         Route::get('/export', [ExportController::class, 'index'])->name('export');
         Route::get('/export/keseluruhan', [ExportController::class, 'rekapKeseluruhan'])->name('export.keseluruhan');
+        Route::get('/export/keseluruhan/excel', [ExportController::class, 'rekapKeseluruhanExcel'])->name('export.keseluruhan.excel');
         Route::get('/export/cpmk', [ExportController::class, 'rekapCpmk'])->name('export.cpmk');
+        Route::get('/export/cpmk/excel', [ExportController::class, 'rekapCpmkExcel'])->name('export.cpmk.excel');
         Route::get('/export/cpl', [ExportController::class, 'rekapCpl'])->name('export.cpl');
+        Route::get('/export/cpl/excel', [ExportController::class, 'rekapCplExcel'])->name('export.cpl.excel');
         Route::get('/export/nilai-asesmen', [ExportController::class, 'rekapNilaiAssessment'])->name('export.nilai');
+        Route::get('/export/nilai-asesmen/excel', [ExportController::class, 'rekapNilaiAssessmentExcel'])->name('export.nilai.excel');
     });
     Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
     Route::get('/notifikasi', [LearningController::class, 'dosenNotifications'])->name('notifications');
@@ -155,12 +162,7 @@ Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function
 });
 
 Route::middleware('role:dosen')->group(function () {
-    Route::get('/dosen/course/{course}/akademik', [AcademicController::class, 'settings'])->whereNumber('course')->name('dosen.academic');
-    Route::post('/dosen/course/{course}/akademik', [AcademicController::class, 'saveSettings'])->whereNumber('course')->name('dosen.academic.save');
-    Route::get('/dosen/gradebook', [AcademicController::class, 'gradebook'])->name('dosen.gradebook');
-    Route::post('/dosen/gradebook/{course}', [AcademicController::class, 'saveScores'])->whereNumber('course')->name('dosen.scores.save');
-    Route::post('/dosen/gradebook/{course}/bulk', [AcademicController::class, 'bulkScores'])->whereNumber('course')->name('dosen.scores.bulk');
-    Route::post('/dosen/penilaian/{item}', [AcademicController::class, 'gradeItem'])->whereNumber('item')->name('dosen.grade.save');
+    Route::post('/dosen/penilaian/{item}', [AcademicController::class, 'gradeItem'])->name('dosen.grade.save');
     Route::get('/dosen/course/{course}/item/{item}/penilaian', [AcademicController::class, 'assessmentGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian');
     Route::get('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex?}', [AcademicController::class, 'evaluateEssay'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai');
     Route::post('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex}', [AcademicController::class, 'saveEssayScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai.save');

@@ -15,8 +15,16 @@
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('dosen.penilaian.export.cpmk', $section->id) }}" class="button-secondary text-xs">
-                ⬇ Export CSV
+            <a href="{{ route('dosen.penilaian.export.cpmk.excel', $section->id) }}" 
+               class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+               title="Export ke Excel (.xlsx) dengan Kop Surat resmi dan format berwarna">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                </svg>
+                <span>Export Excel (.xlsx)</span>
             </a>
         </div>
     </header>
@@ -72,6 +80,14 @@
                         </div>
                         <div class="mt-2 h-1.5 w-full rounded-full bg-canvas overflow-hidden">
                             <div class="h-full bg-brand rounded-full transition-all" style="width: {{ $rate ?? 0 }}%"></div>
+                        </div>
+                        <div class="mt-2.5 pt-2 border-t border-line/40 flex justify-end">
+                            <a href="{{ route('dosen.penilaian.export.cpmk.excel', [$section->id, 'cpmk_id' => $cpmk->id]) }}" 
+                               class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                               title="Download Rekap Excel untuk {{ $cpmk->code }}">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                <span>Unduh Excel {{ $cpmk->code }}</span>
+                            </a>
                         </div>
                     </div>
                 </div>

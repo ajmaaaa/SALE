@@ -186,7 +186,7 @@
                 <div class="assessment-save-actions flex flex-col items-end gap-2">
                     <span hidden data-grading-dirty class="text-xs text-amber-600 font-semibold">Ada perubahan yang belum disimpan</span>
                     <div class="flex gap-3">
-                        <a class="button-secondary text-xs" href="{{ route('dosen.gradebook', ['course'=>$courseId]) }}">Lihat Rekap CPMK</a>
+                        <a class="button-secondary text-xs" href="{{ route('dosen.rekap.index') }}">Lihat Rekap CPMK</a>
                         <button class="button-primary text-xs" @disabled(!$selectedAssessment['mapping_valid'] || !$students)>Simpan Nilai</button>
                     </div>
                 </div>

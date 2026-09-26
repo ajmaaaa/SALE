@@ -67,46 +67,20 @@ class AcademicAndAuthEnhancementTest extends TestCase
         $this->assertDatabaseHasOrSessionUsers('231011409002', 'Doni Saputra');
     }
 
-    public function test_lecturer_academic_settings_requires_100_percent_weight(): void
+    public function test_lecturer_academic_settings_url_is_inaccessible(): void
     {
         $this->post('/switch-role/dosen')->assertRedirect();
 
-        $payload = [
-            'cpl' => [
-                ['code' => 'CPL-01', 'description' => 'Mampu menganalisis masalah'],
-            ],
-            'cpmk' => [
-                ['code' => 'CPMK-01', 'cpl' => 'CPL-01', 'description' => 'Konsep dasar algoritma'],
-            ],
-            'components' => [
-                ['code' => 'tugas', 'name' => 'Tugas', 'weight' => 50],
-                ['code' => 'uas', 'name' => 'UAS', 'weight' => 40], // total 90%, invalid!
-            ],
-        ];
-
-        $failResponse = $this->post(route('dosen.academic.save', 1), $payload);
-        $failResponse->assertSessionHasErrors('components');
-
-        // Valid with 100% total
-        $payload['components'][] = ['code' => 'uts', 'name' => 'UTS', 'weight' => 10];
-        $successResponse = $this->post(route('dosen.academic.save', 1), $payload);
-        $successResponse->assertSessionHasNoErrors();
+        $response = $this->get('/dosen/course/1/akademik');
+        $response->assertNotFound();
     }
 
-    public function test_lecturer_can_bulk_import_student_scores(): void
+    public function test_lecturer_gradebook_url_is_inaccessible(): void
     {
         $this->post('/switch-role/dosen')->assertRedirect();
 
-        $bulkScores = '231011401234, 90, 85, 95, 88, 92, 100';
-
-        $response = $this->post(route('dosen.scores.bulk', 1), [
-            'raw_scores' => $bulkScores,
-        ]);
-
-        $response->assertSessionHasNoErrors();
-        $studentScores = session('academic.scores.1.1');
-        $this->assertNotEmpty($studentScores);
-        $this->assertEquals(90, $studentScores['tugas'] ?? null);
+        $response = $this->get('/dosen/gradebook');
+        $response->assertNotFound();
     }
 
     public function test_student_grades_page_renders_transparent_components(): void
