@@ -1,0 +1,29 @@
+PERBAIKAN WARNING MBSTRING DAN VERSI NODE
+=========================================
+
+1. Hentikan proses "composer run dev" dengan menekan Ctrl+C.
+
+2. Jalankan perintah berikut satu per satu di terminal:
+
+sudo sed -i.bak 's/^extension=mbstring$/;extension=mbstring/' /etc/php/php.ini
+
+sudo pacman -S nodejs-lts-jod
+
+3. Jika muncul pertanyaan konflik antara nodejs-lts-jod dan nodejs,
+   ketik y lalu tekan Enter.
+
+4. Verifikasi hasilnya dengan:
+
+php -v
+php -m | grep mbstring
+node -v
+npm -v
+
+Versi Node yang diharapkan adalah v22.x.
+Perintah PHP tidak boleh lagi menampilkan warning mbstring.
+
+5. Jalankan kembali aplikasi:
+
+cd /home/ajmaaa/Projects/SALE
+composer run setup
+composer run dev
