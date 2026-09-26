@@ -357,11 +357,11 @@ class LearningWorkflowTest extends TestCase
                     'options' => "QuickSort = O(n log n)\nBubbleSort = O(n^2)",
                 ],
                 [
-                    'type' => 'coding',
-                    'prompt' => 'Tuliskan fungsi pencarian binary search.',
+                    'type' => 'uraian',
+                    'prompt' => 'Tuliskan analisis perbandingan binary search dan linear search.',
                     'points' => 50,
                     'cpmk' => 'CPMK-02',
-                    'options' => 'def binary_search(): pass',
+                    'options' => '',
                 ],
             ],
         ])->assertSessionHasNoErrors()->assertRedirect('/dosen/course/1');
@@ -381,7 +381,7 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('Selanjutnya')
             ->assertSee('Kumpulkan Kuis')
             ->assertSee('QuickSort')
-            ->assertSee('sale@sandbox')
+            ->assertSee('Instruksi / Pertanyaan')
             ->assertSee('id="exit-confirm-modal"', false)
             ->assertSee('id="btn-top-prev"', false)
             ->assertSee('id="btn-top-next"', false)
@@ -509,7 +509,7 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('Praktikum Coding: Binary Search Tree')
             ->assertSee('Kerjakan')
             ->assertDontSee('Buka Editor &amp; AI', false)
-            ->assertSee('(Saya)')
+            ->assertDontSee('(Saya)')
             ->assertSee('Hari ini')
             ->assertSee('id="course-discuss-form"', false)
             ->assertSee('id="course_discuss_message"', false)
