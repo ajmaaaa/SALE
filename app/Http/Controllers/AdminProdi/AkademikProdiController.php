@@ -158,7 +158,7 @@ class AkademikProdiController extends Controller
                 'exists:users,id',
                 function ($attribute, $value, $fail) use ($mataKuliah) {
                     $user = User::with('role')->find($value);
-                    if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
                     } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
                         $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
@@ -172,7 +172,7 @@ class AkademikProdiController extends Controller
                 function ($attribute, $value, $fail) use ($mataKuliah) {
                     if ($value) {
                         $user = User::with('role')->find($value);
-                        if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
+                        if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
                         } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
                             $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
@@ -212,7 +212,7 @@ class AkademikProdiController extends Controller
                 'exists:users,id',
                 function ($attribute, $value, $fail) {
                     $user = User::with('role')->find($value);
-                    if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
                     }
                 },
@@ -224,7 +224,7 @@ class AkademikProdiController extends Controller
                 function ($attribute, $value, $fail) {
                     if ($value) {
                         $user = User::with('role')->find($value);
-                        if ($user && ! in_array($user->role?->name, [Role::DOSEN, Role::KAPRODI], true)) {
+                        if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
                         }
                     }
