@@ -41,9 +41,9 @@ class AdminPreviewController extends Controller
         $data = $request->validate([
             'id' => 'nullable|integer', 'name' => 'required|string|max:100',
             'email' => 'required|email|max:150', 'number' => 'required|string|max:30',
-            'role' => ['nullable', Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])],
+            'role' => ['nullable', Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi'])],
             'roles' => 'nullable|array|min:1',
-            'roles.*' => [Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi'])],
+            'roles.*' => [Rule::in(['mahasiswa', 'dosen', 'admin', 'admin_prodi'])],
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
         ]);
         $roles = array_values(array_unique($data['roles'] ?? array_filter([$data['role'] ?? null])));
@@ -118,7 +118,7 @@ class AdminPreviewController extends Controller
             $number = $cols[0];
             $name = $cols[1];
             $email = $cols[2];
-            $role = isset($cols[3]) && in_array(strtolower($cols[3]), ['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi']) ? strtolower($cols[3]) : 'mahasiswa';
+            $role = isset($cols[3]) && in_array(strtolower($cols[3]), ['mahasiswa', 'dosen', 'admin', 'admin_prodi']) ? strtolower($cols[3]) : 'mahasiswa';
             $status = isset($cols[4]) && in_array(strtolower($cols[4]), ['aktif', 'nonaktif']) ? strtolower($cols[4]) : 'aktif';
 
             $exists = false;
