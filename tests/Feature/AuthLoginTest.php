@@ -117,18 +117,6 @@ class AuthLoginTest extends TestCase
         $this->assertEquals('admin_prodi', session('auth_user.role'));
     }
 
-    public function test_can_login_as_kaprodi(): void
-    {
-        $response = $this->post('/login', [
-            'login_id' => 'kaprodi@example.test',
-            'password' => 'password',
-        ]);
-
-        $response->assertRedirect('/kaprodi/monitoring/cpmk');
-        $this->assertAuthenticated();
-        $this->assertEquals('kaprodi', session('auth_user.role'));
-    }
-
     public function test_can_login_as_admin(): void
     {
         $response = $this->post('/login', [
@@ -141,9 +129,9 @@ class AuthLoginTest extends TestCase
         $this->assertEquals('admin', session('auth_user.role'));
     }
 
-    public function test_all_five_roles_can_switch_smoothly(): void
+    public function test_all_four_roles_can_switch_smoothly(): void
     {
-        $roles = ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'];
+        $roles = ['mahasiswa', 'dosen', 'admin_prodi', 'admin'];
 
         foreach ($roles as $role) {
             $response = $this->post("/switch-role/{$role}");
@@ -163,7 +151,6 @@ class AuthLoginTest extends TestCase
         $this->get('/mahasiswa/dashboard')->assertOk();
         $this->get('/dosen/dashboard')->assertForbidden();
         $this->get('/admin/dashboard')->assertForbidden();
-        $this->get('/kaprodi/monitoring/cpmk')->assertForbidden();
         $this->get('/admin-prodi/dashboard')->assertForbidden();
         $this->get('/switch-role/admin')->assertMethodNotAllowed();
     }
@@ -174,7 +161,6 @@ class AuthLoginTest extends TestCase
             '/mahasiswa/dashboard',
             '/dosen/dashboard',
             '/admin/dashboard',
-            '/kaprodi/monitoring/cpmk',
             '/admin-prodi/dashboard',
         ] as $path) {
             $this->get($path)->assertRedirect(route('login'));
