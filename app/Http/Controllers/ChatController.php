@@ -67,7 +67,7 @@ class ChatController extends Controller
 
             if (! $member) {
                 $roleName = $user->role?->name ?? (session('auth_user.role') ?? 'mahasiswa');
-                $chatRole = in_array($roleName, [Role::DOSEN, Role::KAPRODI], true) ? 'dosen' : 'mahasiswa';
+                $chatRole = $roleName === Role::DOSEN ? 'dosen' : 'mahasiswa';
 
                 RoomMember::create([
                     'room_id' => $room->id,
@@ -83,7 +83,7 @@ class ChatController extends Controller
             $allUsers = User::with('role')->get();
             foreach ($allUsers as $u) {
                 $roleName = $u->role?->name ?? 'mahasiswa';
-                $chatRole = in_array($roleName, [Role::DOSEN, Role::KAPRODI], true) ? 'dosen' : 'mahasiswa';
+                $chatRole = $roleName === Role::DOSEN ? 'dosen' : 'mahasiswa';
                 RoomMember::firstOrCreate(
                     ['room_id' => $room->id, 'user_id' => $u->id],
                     ['role' => $chatRole, 'joined_at' => now()]
@@ -301,11 +301,16 @@ class ChatController extends Controller
         $roomId = $message->room_id;
         $messageId = $message->id;
 
-        $message->delete();
-
         try {
             event(new MessageDeleted($message));
         } catch (\Throwable $e) {
+        }
+
+        $message->delete();
+
+        if ($message->room?->course_id) {
+            $totalCount = Message::where('room_id', $roomId)->count();
+            session(["learning.discussion_reads.{$message->room->course_id}" => $totalCount]);
         }
 
         return response()->json([
