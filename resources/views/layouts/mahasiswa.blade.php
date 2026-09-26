@@ -18,9 +18,8 @@
         <div class="px-6 pb-4 pt-6">
             @php
                 $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
-                    (request()->is('kaprodi*') ? route('kaprodi.monitoring.cpmk') :
                     (request()->is('admin*') ? route('admin.page', 'dashboard') :
-                    (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard'))));
+                    (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
             @endphp
             <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
                 <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
@@ -139,25 +138,6 @@
             </div>
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
-        @elseif(request()->is('kaprodi*'))
-        <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi kaprodi">
-            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Kaprodi</p>
-            <div class="space-y-1">
-                <a href="{{ route('kaprodi.monitoring.cpmk') }}" 
-                   @if(request()->routeIs('kaprodi.monitoring.cpmk')) aria-current="page" @endif 
-                   class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('kaprodi.monitoring.cpmk') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
-                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    Monitoring CPMK
-                </a>
-                <a href="{{ route('kaprodi.monitoring.cpl') }}" 
-                   @if(request()->routeIs('kaprodi.monitoring.cpl')) aria-current="page" @endif 
-                   class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('kaprodi.monitoring.cpl') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
-                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
-                    Monitoring CPL
-                </a>
-            </div>
-            <p class="px-3 pt-5 text-xs leading-5 text-muted">Akses pemantauan evaluasi mutu &amp; ketercapaian kurikulum OBE program studi.</p>
-        </nav>
         @else
         @php
             $forumUnreadCount = \App\Support\LearningPreview::unreadDiscussionCount();
@@ -221,8 +201,7 @@
             $rawRole = auth()->check() ? (is_string(auth()->user()->role) ? auth()->user()->role : (auth()->user()->role?->name ?? 'dosen')) : (session('auth_user.role') ?? (
                 request()->is('admin-prodi*') ? 'admin_prodi' :
                 (request()->is('admin*') ? 'admin' :
-                (request()->is('dosen*') ? 'dosen' :
-                (request()->is('kaprodi*') ? 'kaprodi' : 'mahasiswa')))
+                (request()->is('dosen*') ? 'dosen' : 'mahasiswa'))
             ));
 
             $activeUser = auth()->check() ? [
@@ -233,7 +212,6 @@
                     match($rawRole) {
                         'admin' => 'Admin Sistem',
                         'admin_prodi' => 'Admin Prodi',
-                        'kaprodi' => 'Kaprodi',
                         'dosen' => 'Dosen',
                         'mahasiswa' => 'Mahasiswa',
                         default => ucfirst($rawRole)
@@ -244,8 +222,7 @@
                 request()->is('admin-prodi*') ? ['id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi', 'status' => 'aktif'] :
                 (request()->is('admin*') ? \App\Support\AdminPreview::users()[3] :
                 (request()->is('dosen*') ? \App\Support\AdminPreview::users()[2] :
-                (request()->is('kaprodi*') ? ['id' => 5, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi', 'status' => 'aktif'] :
-                \App\Support\AdminPreview::users()[1])))
+                \App\Support\AdminPreview::users()[1]))
             ));
 
             $roleName = is_string($activeUser['role'] ?? '') ? $activeUser['role'] : ($activeUser['role']['name'] ?? 'user');
@@ -253,7 +230,6 @@
                 match($roleName) {
                     'admin' => 'Admin Sistem',
                     'admin_prodi' => 'Admin Prodi',
-                    'kaprodi' => 'Kaprodi',
                     'dosen' => 'Dosen',
                     'mahasiswa' => 'Mahasiswa',
                     default => ucfirst($roleName)
@@ -299,11 +275,7 @@
                                         Peralihan Peran
                                     </span>
                                     <span class="text-[10px] text-muted font-normal">
-                                        @if(in_array($roleName, ['dosen', 'kaprodi'], true))
-                                            Beralih Peran (Dosen &amp; Kaprodi)
-                                        @else
-                                            Mode Pengujian
-                                        @endif
+                                        Mode Pengujian
                                     </span>
                                 </div>
                                 <div class="space-y-0.5">
@@ -311,7 +283,6 @@
                                         $rolesList = [
                                             'mahasiswa' => ['label' => 'Mahasiswa', 'desc' => 'Ruang Belajar, Tugas & Nilai'],
                                             'dosen' => ['label' => 'Dosen Pengampu', 'desc' => 'Ruang Mengajar & Penilaian'],
-                                            'kaprodi' => ['label' => 'Ketua Prodi (Kaprodi)', 'desc' => 'Monitoring Kurikulum & OBE'],
                                             'admin_prodi' => ['label' => 'Admin Prodi', 'desc' => 'Kelola Kelas, Kurikulum, MK'],
                                             'admin' => ['label' => 'Admin Sistem', 'desc' => 'Kelola Pengguna & Pengaturan'],
                                         ];
