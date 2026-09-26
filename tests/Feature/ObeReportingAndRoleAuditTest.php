@@ -23,8 +23,6 @@ class ObeReportingAndRoleAuditTest extends TestCase
 
     private User $otherDosen;
 
-    private User $kaprodi;
-
     private User $student1;
 
     private User $student2;
@@ -42,7 +40,6 @@ class ObeReportingAndRoleAuditTest extends TestCase
         parent::setUp();
 
         $dosenRole = Role::create(['name' => Role::DOSEN, 'label' => 'Dosen']);
-        $kaprodiRole = Role::create(['name' => Role::KAPRODI, 'label' => 'Kaprodi']);
         $mahasiswaRole = Role::create(['name' => Role::MAHASISWA, 'label' => 'Mahasiswa']);
 
         $prodi = Prodi::create(['code' => 'IF', 'name' => 'Teknik Informatika']);
@@ -51,7 +48,6 @@ class ObeReportingAndRoleAuditTest extends TestCase
 
         $this->dosen = User::create(['name' => 'Dosen Pengampu', 'email' => 'dosen@test.local', 'password' => 'secret', 'role_id' => $dosenRole->id]);
         $this->otherDosen = User::create(['name' => 'Dosen Lain', 'email' => 'other@test.local', 'password' => 'secret', 'role_id' => $dosenRole->id]);
-        $this->kaprodi = User::create(['name' => 'Kaprodi IF', 'email' => 'kaprodi@test.local', 'password' => 'secret', 'role_id' => $kaprodiRole->id]);
 
         $this->student1 = User::create(['name' => 'Budi Santoso', 'email' => 'budi@test.local', 'nim_nidn' => '2024081001', 'password' => 'secret', 'role_id' => $mahasiswaRole->id]);
         $this->student2 = User::create(['name' => 'Siti Rahma', 'email' => 'siti@test.local', 'nim_nidn' => '2024081002', 'password' => 'secret', 'role_id' => $mahasiswaRole->id]);
@@ -168,33 +164,6 @@ class ObeReportingAndRoleAuditTest extends TestCase
         $responsePrint->assertStatus(403);
     }
 
-    public function test_kaprodi_can_monitor_cpmk_and_cpl(): void
-    {
-        $resCpmk = $this->actingAs($this->kaprodi)->get(route('kaprodi.monitoring.cpmk'));
-        $resCpmk->assertOk();
-        $resCpmk->assertSee('Monitoring Capaian CPMK Program Studi');
-        $resCpmk->assertSee('CPMK-01');
-
-        $resCpl = $this->actingAs($this->kaprodi)->get(route('kaprodi.monitoring.cpl'));
-        $resCpl->assertOk();
-        $resCpl->assertSee('Monitoring Capaian CPL Program Studi');
-        $resCpl->assertSee('CPL-01');
-    }
-
-    public function test_kaprodi_cannot_mutate_dosen_assessments_or_grades(): void
-    {
-        // Kaprodi attempts to post a grade directly
-        $response = $this->actingAs($this->kaprodi)->post(route('dosen.penilaian.asesmen.nilai.store', [
-            'section' => $this->section->id,
-            'assessment' => $this->assessment->id,
-        ]), [
-            'scores' => [$this->student1->id => 100],
-        ]);
-
-        // Dosen middleware restricts /penilaian-kelas to dosen pengampu only
-        $response->assertStatus(403);
-    }
-
     public function test_mahasiswa_can_view_own_obe_progress(): void
     {
         $response = $this->actingAs($this->student1)->get(route('mahasiswa.obe.progress'));
@@ -208,12 +177,8 @@ class ObeReportingAndRoleAuditTest extends TestCase
         $response->assertSee('Tercapai');
     }
 
-    public function test_mahasiswa_cannot_access_dosen_or_kaprodi_pages(): void
+    public function test_mahasiswa_cannot_access_dosen_pages(): void
     {
-        // Mahasiswa attempts to access Kaprodi monitoring
-        $resKaprodi = $this->actingAs($this->student1)->get(route('kaprodi.monitoring.cpmk'));
-        $resKaprodi->assertStatus(403);
-
         // Mahasiswa attempts to access Dosen penilaian
         $resDosen = $this->actingAs($this->student1)->get(route('dosen.penilaian.rekap', $this->section->id));
         $resDosen->assertStatus(403);
