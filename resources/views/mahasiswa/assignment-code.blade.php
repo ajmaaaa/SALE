@@ -82,7 +82,7 @@
 <body class="min-h-screen bg-canvas font-sans text-ink antialiased">
     @php
     $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa'));
-    $isLecturer = in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->routeIs('dosen.*');
+    $isLecturer = ($currentRole === 'dosen') || request()->routeIs('dosen.*');
     if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
         $isLecturer = false;
     }
