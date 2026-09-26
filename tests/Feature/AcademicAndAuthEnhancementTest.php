@@ -117,7 +117,7 @@ class AcademicAndAuthEnhancementTest extends TestCase
         $response->assertOk();
         $response->assertSee('Transkrip Nilai');
         $response->assertSee('Rincian Komponen Nilai');
-        $response->assertSee('Capaian CPMK');
+        $response->assertDontSee('Capaian CPMK');
     }
 
     private function assertDatabaseHasOrSessionUsers(string $number, string $name): void
