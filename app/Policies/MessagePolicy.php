@@ -20,7 +20,9 @@ class MessagePolicy
             ->where('user_id', $user->id)
             ->value('role');
 
-        $isDosen = ($roomRole === 'dosen') || $user->hasRole(Role::DOSEN) || $user->hasRole('kaprodi');
+        $isDosen = ($roomRole === 'dosen')
+            || $user->hasRole(Role::DOSEN)
+            || (session('auth_role') === 'dosen');
 
         return $isDosen || ($message->user_id === $user->id);
     }
@@ -35,6 +37,8 @@ class MessagePolicy
             ->where('user_id', $user->id)
             ->value('role');
 
-        return ($roomRole === 'dosen') || $user->hasRole(Role::DOSEN) || $user->hasRole('kaprodi');
+        return ($roomRole === 'dosen')
+            || $user->hasRole(Role::DOSEN)
+            || (session('auth_role') === 'dosen');
     }
 }
