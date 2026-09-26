@@ -199,7 +199,7 @@ class AcademicPreview
             $groupCount = max(1, (int) ($groupCounts[$cCode] ?? 1));
             $porsiSoal = 100 / $groupCount;
             $bobotCpmk = ($groupCount / $totalQuestions) * 100;
-            $isEssay = in_array($q['type'] ?? 'pilihan', ['uraian', 'coding'], true);
+            $isEssay = in_array($q['type'] ?? 'pilihan', ['uraian'], true);
 
             $formattedQuestions[$qIdx] = array_merge($q, [
                 'index' => $qIdx,
