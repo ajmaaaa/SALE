@@ -22,9 +22,6 @@ class AuthController extends Controller
             'dosen' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'dosen')) ?? [
                 'id' => 2, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'budi@example.test', 'number' => '198501012010121001', 'role' => 'dosen',
             ],
-            'kaprodi' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'kaprodi')) ?? [
-                'id' => 5, 'name' => 'Budi Santoso, M.Kom.', 'email' => 'kaprodi@example.test', 'number' => '197501012000031001', 'role' => 'kaprodi',
-            ],
             'admin_prodi' => collect($users)->first(fn ($user) => AdminPreview::hasRole($user, 'admin_prodi')) ?? [
                 'id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi',
             ],
@@ -34,7 +31,7 @@ class AuthController extends Controller
         ] : [];
 
         $defaultRole = $request->query('role', request()->is('dosen*') ? 'dosen' : 'mahasiswa');
-        if (! in_array($defaultRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'])) {
+        if (! in_array($defaultRole, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'])) {
             $defaultRole = 'mahasiswa';
         }
 
@@ -64,7 +61,7 @@ class AuthController extends Controller
         }
 
         $selectedRole = $request->input('role');
-        if ($selectedRole !== null && ! in_array($selectedRole, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'], true)) {
+        if ($selectedRole !== null && ! in_array($selectedRole, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'], true)) {
             $selectedRole = null;
         }
         $loginId = trim((string) $request->input('login_id', $request->input('email', '')));
@@ -145,7 +142,7 @@ class AuthController extends Controller
     public function switchRole(Request $request, string $role)
     {
         abort_unless($this->demoMode(), 404);
-        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin', 'admin_prodi', 'kaprodi']), 404);
+        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin', 'admin_prodi']), 404);
 
         if (Schema::hasTable('users')) {
             try {
@@ -182,7 +179,6 @@ class AuthController extends Controller
                     ];
                     session(['auth_user' => $user]);
                     $roleLabel = match ($role) {
-                        'kaprodi' => 'Kaprodi',
                         'dosen' => 'Dosen',
                         'admin_prodi' => 'Admin Prodi',
                         'admin' => 'Admin Sistem',
@@ -200,14 +196,6 @@ class AuthController extends Controller
 
         if (! $user) {
             $user = match ($role) {
-                'kaprodi' => [
-                    'id' => 5,
-                    'name' => 'Budi Santoso, M.Kom.',
-                    'email' => 'kaprodi@example.test',
-                    'number' => '197501012000031001',
-                    'role' => 'kaprodi',
-                    'status' => 'aktif',
-                ],
                 'admin_prodi' => [
                     'id' => 4,
                     'name' => 'Admin Prodi TI',
@@ -316,7 +304,7 @@ class AuthController extends Controller
         }
 
         $role = $user->role?->name;
-        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin_prodi', 'kaprodi', 'admin'], true), 403, 'Akun belum memiliki peran yang didukung.');
+        abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'], true), 403, 'Akun belum memiliki peran yang didukung.');
 
         Auth::login($user);
         session(['auth_user' => [
@@ -351,7 +339,6 @@ class AuthController extends Controller
     private function redirectForRole(string $role, string $message)
     {
         return match ($role) {
-            'kaprodi' => redirect()->route('kaprodi.monitoring.cpmk')->with('notice', $message),
             'admin_prodi' => redirect()->route('admin-prodi.dashboard')->with('notice', $message),
             'dosen' => redirect()->route('dosen.dashboard')->with('notice', $message),
             'admin' => redirect()->route('admin.page', 'dashboard')->with('notice', $message),
