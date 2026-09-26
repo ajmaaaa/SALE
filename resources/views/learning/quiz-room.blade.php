@@ -223,13 +223,13 @@
 
                         {{-- Tombol Navigasi --}}
                         <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                            <p class="text-xs text-slate-500">Periksa hasil koreksi jawaban pada daftar butir soal di bawah.</p>
+                            <p class="text-xs text-slate-500"></p>
                             <div class="flex items-center gap-2.5">
                                 <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2 px-4 font-semibold">
                                     Lihat Rincian Tugas
                                 </a>
                                 <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
-                                    ← Kembali ke Course
+                                     Kembali ke Course
                                 </a>
                             </div>
                         </div>
@@ -274,8 +274,7 @@
                                                     @elseif($qType === 'kompleks') Pilihan Ganda Kompleks
                                                     @elseif($qType === 'benar_salah') Benar / Salah
                                                     @elseif($qType === 'mencocokkan') Menjodohkan Pasangan
-                                                    @elseif($qType === 'coding') Praktikum Coding
-                                                    @else Uraian / Essay
+                                                    @else Isian Singkat / Uraian
                                                     @endif
                                                 </span>
                                                 <span class="text-slate-300 mx-1">·</span>
@@ -453,18 +452,9 @@
                                                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Jawaban Anda:</span>
                                                 {{ $ans['text'] ?? '(Tidak ada jawaban tertulis)' }}
                                             </div>
-                                            <p class="text-[11px] text-slate-500 italic">* Jawaban uraian tersimpan di sistem dan dinilai secara manual oleh dosen pengampu.</p>
+                                            <p class="text-[11px] text-slate-500 italic">* Jawaban uraian Anda tersimpan dan siap ditinjau oleh dosen pengampu.</p>
                                         </div>
 
-                                    {{-- Coding --}}
-                                    @elseif($qType === 'coding')
-                                        <div class="space-y-2 pt-1">
-                                            <div class="rounded-lg bg-slate-900 text-slate-100 p-4 text-xs font-mono overflow-x-auto">
-                                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 font-sans">Kode Program Anda:</span>
-                                                <code>{{ $ans['text'] ?? '# Tidak ada kode yang dikirim' }}</code>
-                                            </div>
-                                            <p class="text-[11px] text-slate-500 italic">* Kode program Anda telah tersimpan dan siap ditinjau oleh pengampu praktikum.</p>
-                                        </div>
                                     @endif
                                 </div>
                             @endforeach
@@ -565,9 +555,7 @@
                                         {{ $qIdx + 1 }}
                                     </span>
                                     <span class="text-xs font-semibold text-ink">
-                                        @if($q['type'] === 'coding')
-                                            Pemrograman
-                                        @elseif($q['type'] === 'mencocokkan')
+                                        @if($q['type'] === 'mencocokkan')
                                             Mencocokkan Pasangan
                                         @elseif($q['type'] === 'pilihan')
                                             Pilihan Ganda
@@ -576,7 +564,7 @@
                                         @elseif($q['type'] === 'benar_salah')
                                             Benar / Salah
                                         @else
-                                            Uraian / Esai
+                                            Isian Singkat / Uraian
                                         @endif
                                     </span>
                                 </div>
@@ -624,91 +612,8 @@
                         {{-- PANEL KANAN: AREA LEMBAR KERJA / TEMPAT MENJAWAB --}}
                         <section class="h-full flex flex-col rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
                             
-                            {{-- TIPE 1: CODING (Integrated Workbench - Mirip Assignment Code Sebelumnya Tanpa AI) --}}
-                            @if($q['type'] === 'coding')
-                                <div id="panel-editor-{{ $qIdx }}" class="flex-1 min-w-[320px] flex flex-col h-full overflow-hidden transition-none p-1">
-                                    {{-- Editor Section --}}
-                                    <section class="flex-1 flex flex-col min-h-0 rounded-xl bg-white shadow-sm border border-slate-200 overflow-hidden" aria-labelledby="editor-heading-{{ $qIdx }}">
-                                        {{-- Single Integrated Toolbar: Tab Berkas di kiri, Aksi & Terminal Toggle di kanan --}}
-                                        <div class="flex items-center justify-between border-b border-slate-200/80 bg-slate-50 px-2.5 py-1.5 gap-2 select-none">
-                                            {{-- File Tabs (Kiri) --}}
-                                            <div data-file-tabs class="flex items-center gap-1 overflow-x-auto min-w-0" role="tablist" aria-label="Berkas kode">
-                                                <div class="flex items-center gap-1 min-w-0">
-                                                    <span class="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-mono font-semibold text-slate-800 shadow-2xs">
-                                                        solution.py
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {{-- Action Buttons (Kanan): Terminal (Icon) | Play (Icon) (tanpa AI) --}}
-                                            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                                                <button type="button" data-terminal-toggle-btn="{{ $qIdx }}" class="h-8 w-8 !p-0 !min-h-0 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white hover:bg-slate-50 text-slate-700 transition hover:border-ink shadow-2xs leading-none cursor-pointer" title="Buka / Tutup Terminal" aria-label="Terminal">
-                                                    <svg class="h-3.5 w-3.5 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                                                </button>
-                                                <button type="button" data-run-code-btn="{{ $qIdx }}" class="button-primary !p-0 !min-h-0 h-8 w-8 text-white shadow-xs transition leading-none cursor-pointer" title="Jalankan kode" aria-label="Jalankan kode">
-                                                    <svg class="h-3.5 w-3.5 fill-current text-white ml-0.5" viewBox="0 0 24 24" aria-hidden="true">
-                                                        <polygon points="5 3 19 12 5 21 5 3"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {{-- Textarea / Code Editor --}}
-                                        <textarea name="question_answers[{{ $qIdx }}][text]" data-code-textarea="{{ $qIdx }}" class="flex-1 w-full bg-[#282c34] text-slate-100 font-mono text-xs p-4 leading-relaxed resize-none focus:outline-none focus:ring-0 border-0 selection:bg-brand/30 selection:text-white" placeholder="# Tuliskan implementasi solusi Python Anda di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? ($q['options'] ?? '')) }}</textarea>
-
-                                        {{-- Status Bar Bawah Editor --}}
-                                        <div class="flex items-center justify-between gap-3 px-3 py-1.5 bg-[#20242b] text-[11px] text-[#aeb8c4] font-mono select-none">
-                                            <span class="flex items-center gap-1.5 text-slate-400">
-                                                <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-                                                <span>Draf tersimpan di browser</span>
-                                            </span>
-                                            <span class="flex items-center gap-3 text-slate-400">
-                                                <span id="code-chars-{{ $qIdx }}">0 karakter</span>
-                                                <span>UTF-8, 4 Spasi</span>
-                                            </span>
-                                        </div>
-                                    </section>
-
-                                    {{-- Terminal Wrapper: Resizer di atas + Terminal Panel (On-demand / Hidden by default!) --}}
-                                    <div id="terminal-wrapper-{{ $qIdx }}" class="flex flex-col shrink-0 mt-2" hidden>
-                                        {{-- Resizer Handle Tinggi Terminal --}}
-                                        <div class="h-3 w-full shrink-0 cursor-row-resize flex items-center justify-center bg-slate-200/80 hover:bg-brand/30 group transition-colors rounded-t-lg select-none" title="Geser ke atas/bawah untuk mengatur tinggi terminal">
-                                            <div class="h-1 w-14 rounded-full bg-slate-400 group-hover:bg-brand transition-colors"></div>
-                                        </div>
-
-                                        <section class="flex flex-col rounded-b-xl bg-[#0d1117] text-[#c9d1d9] shadow-sm border border-slate-200/40 overflow-hidden" style="height: 220px; min-height: 120px;" aria-labelledby="terminal-heading-{{ $qIdx }}">
-                                            <div class="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-white/10 select-none">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="flex items-center gap-1.5">
-                                                        <button type="button" data-terminal-close-dot="{{ $qIdx }}" class="h-3 w-3 rounded-full bg-[#ff5f56] hover:opacity-80 transition inline-block shadow-xs cursor-pointer" title="Tutup Terminal" aria-label="Tutup Terminal"></button>
-                                                        <button type="button" class="h-3 w-3 rounded-full bg-[#ffbd2e] hover:opacity-80 transition inline-block shadow-xs" title="Perkecil Terminal" aria-label="Perkecil Terminal"></button>
-                                                        <button type="button" class="h-3 w-3 rounded-full bg-[#27c93f] hover:opacity-80 transition inline-block shadow-xs" title="Perbesar Terminal" aria-label="Perbesar Terminal"></button>
-                                                    </div>
-                                                    <div class="flex items-center gap-1.5 text-slate-300">
-                                                        <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                                                        <span class="text-xs font-mono text-slate-300 font-medium">Output Python (Terminal)</span>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <button type="button" data-clear-terminal="{{ $qIdx }}" class="text-xs font-mono text-slate-400 hover:text-white px-2 py-1 transition cursor-pointer">
-                                                        Bersihkan
-                                                    </button>
-                                                    <button type="button" data-terminal-close-btn="{{ $qIdx }}" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-white/10 transition cursor-pointer" title="Tutup Terminal">
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div id="terminal-output-{{ $qIdx }}" class="p-3.5 flex-1 overflow-y-auto space-y-1 text-xs font-mono text-slate-300">
-                                                <div class="text-slate-500">sale@sandbox:~/soal-{{ $qIdx + 1 }}$ python3 -u solution.py</div>
-                                                <div class="text-slate-400">Tekan tombol play untuk menguji kode solusi Anda.</div>
-                                            </div>
-                                        </section>
-                                    </div>
-                                </div>
-
-                            {{-- TIPE 2: MENCOCOKKAN PASANGAN (Interactive Line Canvas) --}}
-                            @elseif($q['type'] === 'mencocokkan')
+                            {{-- TIPE: MENCOCOKKAN PASANGAN (Interactive Line Canvas) --}}
+                            @if($q['type'] === 'mencocokkan')
                                 @php
                                     $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
                                     $pairs = [];
@@ -1464,78 +1369,7 @@
                     redrawCurrentMatchingLines();
                 });
 
-                // ==========================================
-                // 7. CODE TEXTAREA CHARACTERS COUNTER & RUNNER
-                // ==========================================
-                document.querySelectorAll('[data-code-textarea]').forEach(textarea => {
-                    const idx = textarea.dataset.codeTextarea;
-                    const counter = document.getElementById(`code-chars-${idx}`);
-                    const updateChars = () => {
-                        if (counter) counter.textContent = `${textarea.value.length} karakter`;
-                    };
-                    textarea.addEventListener('input', updateChars);
-                    updateChars();
-                });
-                // Terminal Toggle, Close & Clear Handlers
-                document.querySelectorAll('[data-terminal-toggle-btn]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const qIdx = btn.dataset.terminalToggleBtn;
-                        const wrapper = document.getElementById(`terminal-wrapper-${qIdx}`);
-                        if (wrapper) {
-                            wrapper.hidden = !wrapper.hidden;
-                        }
-                    });
-                });
 
-                document.querySelectorAll('[data-terminal-close-btn], [data-terminal-close-dot]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const qIdx = btn.dataset.terminalCloseBtn || btn.dataset.terminalCloseDot;
-                        const wrapper = document.getElementById(`terminal-wrapper-${qIdx}`);
-                        if (wrapper) {
-                            wrapper.hidden = true;
-                        }
-                    });
-                });
-
-                document.querySelectorAll('[data-clear-terminal]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const qIdx = btn.dataset.clearTerminal;
-                        const terminal = document.getElementById(`terminal-output-${qIdx}`);
-                        if (terminal) {
-                            terminal.innerHTML = `<div class="text-slate-500 font-mono">sale@sandbox:~/soal-${Number(qIdx)+1}$ </div>`;
-                        }
-                    });
-                });
-
-                document.querySelectorAll('[data-run-code-btn]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const qIdx = btn.dataset.runCodeBtn || btn.closest('[data-exam-card]')?.dataset.examCard || '0';
-                        const wrapper = document.getElementById(`terminal-wrapper-${qIdx}`);
-                        if (wrapper && wrapper.hidden) {
-                            wrapper.hidden = false;
-                        }
-                        const card = btn.closest('[data-exam-card]');
-                        const textarea = card?.querySelector('textarea');
-                        const terminal = document.getElementById(`terminal-output-${qIdx}`);
-                        if (!terminal || !textarea) return;
-
-                        terminal.innerHTML = `
-                            <div class="text-slate-400 font-mono">sale@sandbox:~/soal-${Number(qIdx)+1}$ python3 -u solution.py</div>
-                            <div class="text-amber-400 font-mono">Menjalankan kompilasi &amp; pengujian kode...</div>
-                        `;
-
-                        setTimeout(() => {
-                            terminal.innerHTML = `
-                                <div class="text-slate-400 font-mono">sale@sandbox:~/soal-${Number(qIdx)+1}$ python3 -u solution.py</div>
-                                <div class="text-slate-300 font-mono">>>> bst = BST()</div>
-                                <div class="text-slate-300 font-mono">>>> bst.insert(15) # Simpul root berhasil dibuat</div>
-                                <div class="text-slate-300 font-mono">>>> bst.insert(10) # Cabang kiri tervalidasi (10 < 15)</div>
-                                <div class="text-slate-300 font-mono">>>> bst.insert(20) # Cabang kanan tervalidasi (20 > 15)</div>
-                                <div class="text-emerald-400 font-semibold font-mono mt-1">✓ Seluruh pengujian berhasil lolos (Exit code: 0).</div>
-                            `;
-                        }, 400);
-                    });
-                });
 
                 // ==========================================
                 // 8. ESSAY WORD COUNTER
