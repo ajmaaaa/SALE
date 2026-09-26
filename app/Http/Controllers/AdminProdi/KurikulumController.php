@@ -14,13 +14,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-class KurikulumController extends Controller
+class KurikulumController extends AdminProdiController
 {
     public function index(Request $request): View
     {
-        $prodis = Prodi::orderBy('name')->get();
-        $selectedProdiId = $request->integer('prodi_id') ?: ($prodis->first()?->id ?? 0);
-        $activeProdi = $prodis->firstWhere('id', $selectedProdiId) ?? $prodis->first();
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
 
         $cpls = $activeProdi ? $activeProdi->cpls()->withCount('cpmks')->orderBy('code')->get() : collect();
 
@@ -61,6 +60,7 @@ class KurikulumController extends Controller
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
+        $this->assertProdiScope($validated['prodi_id']);
         Cpl::create($validated);
 
         return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $validated['prodi_id'], 'tab' => 'cpl'])
@@ -69,6 +69,7 @@ class KurikulumController extends Controller
 
     public function updateCpl(Request $request, Cpl $cpl): RedirectResponse
     {
+        $this->assertCplScope($cpl);
         $validated = $request->validate([
             'code' => [
                 'required', 'string', 'max:20',
@@ -89,6 +90,7 @@ class KurikulumController extends Controller
 
     public function destroyCpl(Cpl $cpl): RedirectResponse
     {
+        $this->assertCplScope($cpl);
         $prodiId = $cpl->prodi_id;
         $code = $cpl->code;
 
@@ -128,6 +130,9 @@ class KurikulumController extends Controller
 
         $validated['code'] = strtoupper(trim($validated['code']));
 
+        $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
+        $this->assertMataKuliahScope($mk);
+
         DB::transaction(function () use ($validated, $request) {
             $cpmk = Cpmk::create([
                 'mata_kuliah_id' => $validated['mata_kuliah_id'],
@@ -146,14 +151,13 @@ class KurikulumController extends Controller
             $cpmk->cpls()->sync($syncData);
         });
 
-        $mk = MataKuliah::find($validated['mata_kuliah_id']);
-
         return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $mk->prodi_id, 'tab' => 'cpmk'])
             ->with('notice', "CPMK {$validated['code']} untuk mata kuliah {$mk->name} berhasil ditetapkan. Dosen kini dapat memilih CPMK ini.");
     }
 
     public function updateCpmk(Request $request, Cpmk $cpmk): RedirectResponse
     {
+        $this->assertCpmkScope($cpmk);
         $validated = $request->validate([
             'code' => [
                 'required', 'string', 'max:20',
@@ -193,6 +197,7 @@ class KurikulumController extends Controller
 
     public function destroyCpmk(Cpmk $cpmk): RedirectResponse
     {
+        $this->assertCpmkScope($cpmk);
         $prodiId = $cpmk->mataKuliah->prodi_id;
         $code = $cpmk->code;
 
@@ -217,6 +222,7 @@ class KurikulumController extends Controller
         ]);
 
         $prodiId = $request->integer('prodi_id');
+        $this->assertProdiScope($prodiId);
         $matrix = $request->input('matrix', []);
 
         DB::transaction(function () use ($matrix, $prodiId) {

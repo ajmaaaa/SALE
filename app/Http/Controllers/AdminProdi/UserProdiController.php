@@ -14,13 +14,12 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class UserProdiController extends Controller
+class UserProdiController extends AdminProdiController
 {
     public function index(Request $request): View
     {
-        $prodis = Prodi::orderBy('name')->get();
-        $selectedProdiId = $request->integer('prodi_id') ?: ($prodis->first()?->id ?? 0);
-        $activeProdi = $prodis->firstWhere('id', $selectedProdiId) ?? $prodis->first();
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
 
         $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
         $mahasiswaRoleId = Role::where('name', Role::MAHASISWA)->value('id');
@@ -75,6 +74,9 @@ class UserProdiController extends Controller
             'email.unique' => 'Email sudah terdaftar pada sistem.',
         ]);
 
+        // Pastikan admin hanya bisa menambah user ke prodinya sendiri
+        $this->assertProdiScope($validated['prodi_id']);
+
         $password = ! empty($validated['password']) ? $validated['password'] : 'password123';
 
         User::create([
@@ -95,7 +97,7 @@ class UserProdiController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $this->assertManageableUser($user);
+        $this->assertUserScope($user);
         $roleType = $user->hasRole(Role::DOSEN) ? 'dosen' : 'mahasiswa';
         $idLabel = $roleType === 'dosen' ? 'NIDN / NIP' : 'NIM';
 
@@ -129,7 +131,7 @@ class UserProdiController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
-        $this->assertManageableUser($user);
+        $this->assertUserScope($user);
         $roleType = $user->hasRole(Role::DOSEN) ? 'dosen' : 'mahasiswa';
         $name = $user->name;
         $prodiId = $user->prodi_id;
@@ -184,6 +186,9 @@ class UserProdiController extends Controller
         ]);
 
         $prodiId = $request->integer('prodi_id');
+
+        // Pastikan admin hanya bisa import ke prodinya sendiri
+        $this->assertProdiScope($prodiId);
         $roleType = $request->input('role_type');
         $roleName = $roleType === 'dosen' ? Role::DOSEN : Role::MAHASISWA;
         $role = Role::where('name', $roleName)->firstOrFail();
@@ -280,6 +285,8 @@ class UserProdiController extends Controller
 
     private function assertManageableUser(User $user): void
     {
+        // Metode ini dipertahankan untuk kompatibilitas;
+        // gunakan assertUserScope() untuk pengecekan lengkap dengan scope prodi.
         abort_unless(
             $user->hasRole(Role::DOSEN) || $user->hasRole(Role::MAHASISWA),
             404,

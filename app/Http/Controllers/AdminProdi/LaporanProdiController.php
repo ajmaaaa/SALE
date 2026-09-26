@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class LaporanProdiController extends Controller
+class LaporanProdiController extends AdminProdiController
 {
     public function __construct(private ObeCalculationService $obe) {}
 
@@ -89,9 +89,8 @@ class LaporanProdiController extends Controller
 
     private function prepareReportData(Request $request): array
     {
-        $prodis = Prodi::orderBy('name')->get();
-        $selectedProdiId = $request->integer('prodi_id') ?: ($prodis->first()?->id ?? 0);
-        $activeProdi = $prodis->firstWhere('id', $selectedProdiId) ?? $prodis->first();
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
 
         $semesters = Semester::orderByDesc('id')->get();
         $selectedSemesterId = $request->integer('semester_id') ?: ($semesters->firstWhere('is_active', true)?->id ?? $semesters->first()?->id ?? 0);

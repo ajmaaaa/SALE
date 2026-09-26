@@ -115,15 +115,11 @@ class LearningController extends Controller
 
         if ($section && $user) {
             $canAccess = $user->hasRole(Role::DOSEN)
-                ? (in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true) || empty($section->dosen_id))
+                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
                 : ($user->hasRole(Role::MAHASISWA)
                     && $section->students()->where('users.id', $user->id)->exists());
 
             if ($canAccess) {
-                if ($user->hasRole(Role::DOSEN) && empty($section->dosen_id)) {
-                    $section->update(['dosen_id' => $user->id]);
-                }
-
                 $courseData = Learning::databaseCourse($section);
                 $items = $section->assessments
                     ->mapWithKeys(fn ($assessment) => [$assessment->id => Learning::databaseAssessment($assessment)])
@@ -451,11 +447,28 @@ class LearningController extends Controller
 
     public function createItem(int $course)
     {
+        $user = auth()->user();
+        if ($user && $user->hasRole(Role::DOSEN) && Schema::hasTable('class_sections')) {
+            $section = ClassSection::find($course);
+            if ($section && ! in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+                abort(403, 'Anda bukan pengampu kelas ini.');
+            }
+        }
+
         return view('dosen.item-form', ['course' => Learning::course($course)]);
     }
 
     public function storeItem(Request $request, int $course)
     {
+        // Pastikan dosen adalah pengampu kelas sebelum membuat konten apapun
+        $user = auth()->user();
+        if ($user && $user->hasRole(Role::DOSEN) && Schema::hasTable('class_sections')) {
+            $section = ClassSection::find($course);
+            if ($section && ! in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+                abort(403, 'Anda bukan pengampu kelas ini.');
+            }
+        }
+
         Learning::course($course);
         $academic = AcademicPreview::config($course);
 

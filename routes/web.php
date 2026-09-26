@@ -71,7 +71,7 @@ Route::middleware('role:mahasiswa')->group(function () {
 Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen')->whereUuid('file')->name('preview.file');
 
 // Chat Real-Time & Diskusi Kelas
-Route::prefix('chat')->name('chat.')->group(function () {
+Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(function () {
     Route::get('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'getMessages'])->whereNumber('course')->name('messages.index');
     Route::post('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'sendMessage'])->whereNumber('course')->name('messages.store');
     Route::post('/messages/{message}/pin', [\App\Http\Controllers\ChatController::class, 'pinMessage'])->whereNumber('message')->name('messages.pin');

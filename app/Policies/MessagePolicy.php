@@ -2,43 +2,63 @@
 
 namespace App\Policies;
 
+use App\Models\ClassSection;
 use App\Models\Message;
 use App\Models\Role;
+use App\Models\Room;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 class MessagePolicy
 {
     /**
+     * Periksa apakah dosen adalah pengampu kelas dari room pesan ini.
+     * Mencegah dosen kelas lain memoderasi pesan kelas yang bukan miliknya.
+     */
+    private function isDosenOfRoom(User $user, Message $message): bool
+    {
+        if (! $user->hasRole(Role::DOSEN)) {
+            return false;
+        }
+
+        $room = $message->room;
+        if (! $room || ! $room->course_id) {
+            // Fallback: izinkan jika room tidak terhubung ke section (demo mode)
+            return true;
+        }
+
+        if (! Schema::hasTable('class_sections')) {
+            return true;
+        }
+
+        $section = ClassSection::find($room->course_id);
+        if (! $section) {
+            return false;
+        }
+
+        return in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+    }
+
+    /**
      * Determine whether the user can delete the message.
-     * - Dosen dapat menghapus pesan siapapun di kelasnya (moderasi).
+     * - Dosen pengampu dapat menghapus pesan siapapun di kelasnya (moderasi).
      * - Mahasiswa hanya dapat menghapus pesannya sendiri.
      */
     public function delete(User $user, Message $message): bool
     {
-        // Cek role user di room terkait
-        $roomRole = $message->room?->members()
-            ->where('user_id', $user->id)
-            ->value('role');
+        if ($message->user_id === $user->id) {
+            return true;
+        }
 
-        $isDosen = ($roomRole === 'dosen')
-            || $user->hasRole(Role::DOSEN)
-            || (session('auth_role') === 'dosen');
-
-        return $isDosen || ($message->user_id === $user->id);
+        return $this->isDosenOfRoom($user, $message);
     }
 
     /**
      * Determine whether the user can pin / unpin the message.
-     * - Hanya Dosen kelas yang berhak melakukan Pin / Unpin pesan penting.
+     * - Hanya Dosen pengampu kelas yang berhak melakukan Pin / Unpin pesan.
      */
     public function pin(User $user, Message $message): bool
     {
-        $roomRole = $message->room?->members()
-            ->where('user_id', $user->id)
-            ->value('role');
-
-        return ($roomRole === 'dosen')
-            || $user->hasRole(Role::DOSEN)
-            || (session('auth_role') === 'dosen');
+        return $this->isDosenOfRoom($user, $message);
     }
 }

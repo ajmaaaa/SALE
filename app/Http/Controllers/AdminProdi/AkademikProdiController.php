@@ -16,13 +16,12 @@ use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-class AkademikProdiController extends Controller
+class AkademikProdiController extends AdminProdiController
 {
     public function matakuliahIndex(Request $request): View
     {
-        $prodis = Prodi::orderBy('name')->get();
-        $selectedProdiId = $request->integer('prodi_id') ?: ($prodis->first()?->id ?? 0);
-        $activeProdi = $prodis->firstWhere('id', $selectedProdiId) ?? $prodis->first();
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
 
         $mataKuliahs = $activeProdi
             ? $activeProdi->mataKuliahs()
@@ -54,6 +53,8 @@ class AkademikProdiController extends Controller
             'sks.required' => 'Bobot SKS wajib diisi.',
         ]);
 
+        $this->assertProdiScope($validated['prodi_id']);
+
         MataKuliah::create($validated);
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $validated['prodi_id']])
@@ -62,6 +63,7 @@ class AkademikProdiController extends Controller
 
     public function updateMataKuliah(Request $request, MataKuliah $mataKuliah): RedirectResponse
     {
+        $this->assertMataKuliahScope($mataKuliah);
         $validated = $request->validate([
             'code' => [
                 'required', 'string', 'max:20',
@@ -82,6 +84,7 @@ class AkademikProdiController extends Controller
 
     public function destroyMataKuliah(MataKuliah $mataKuliah): RedirectResponse
     {
+        $this->assertMataKuliahScope($mataKuliah);
         $prodiId = $mataKuliah->prodi_id;
         $name = $mataKuliah->name;
 
@@ -99,9 +102,8 @@ class AkademikProdiController extends Controller
 
     public function kelasIndex(Request $request): View
     {
-        $prodis = Prodi::orderBy('name')->get();
-        $selectedProdiId = $request->integer('prodi_id') ?: ($prodis->first()?->id ?? 0);
-        $activeProdi = $prodis->firstWhere('id', $selectedProdiId) ?? $prodis->first();
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
 
         $semesters = Semester::orderByDesc('id')->get();
         $selectedSemesterId = $request->integer('semester_id') ?: ($semesters->firstWhere('is_active', true)?->id ?? $semesters->first()?->id ?? 0);
@@ -142,6 +144,9 @@ class AkademikProdiController extends Controller
     {
         $request->merge(['section_code' => strtoupper(trim((string) $request->input('section_code')))]);
         $mataKuliah = MataKuliah::findOrFail($request->integer('mata_kuliah_id'));
+
+        // Pastikan mata kuliah milik prodi yang boleh dikelola admin ini
+        $this->assertMataKuliahScope($mataKuliah);
 
         $validated = $request->validate([
             'mata_kuliah_id' => ['required', 'exists:mata_kuliahs,id'],
@@ -198,6 +203,7 @@ class AkademikProdiController extends Controller
 
     public function updateKelas(Request $request, ClassSection $section): RedirectResponse
     {
+        $this->assertSectionScope($section);
         $validated = $request->validate([
             'section_code' => [
                 'required', 'string', 'max:10',
@@ -246,6 +252,7 @@ class AkademikProdiController extends Controller
 
     public function destroyKelas(ClassSection $section): RedirectResponse
     {
+        $this->assertSectionScope($section);
         $prodiId = $section->mataKuliah->prodi_id;
         $semesterId = $section->semester_id;
         $name = $section->display_code;
@@ -266,6 +273,7 @@ class AkademikProdiController extends Controller
 
     public function regenerateCode(ClassSection $section): RedirectResponse
     {
+        $this->assertSectionScope($section);
         $newCode = ClassSection::generateUniqueEnrollmentCode();
         $section->update(['enrollment_code' => $newCode]);
 

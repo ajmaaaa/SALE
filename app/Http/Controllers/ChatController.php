@@ -6,90 +6,72 @@ use App\Events\MessageDeleted;
 use App\Events\MessagePinned;
 use App\Events\MessageSent;
 use App\Models\ChatNotification;
+use App\Models\ClassSection;
 use App\Models\Message;
 use App\Models\MessageMention;
 use App\Models\Role;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
-use App\Support\LearningPreview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 
 class ChatController extends Controller
 {
     /**
-     * Get or resolve current authenticated user with fallback to session user.
+     * Kembalikan user yang sedang login. TIDAK ada fallback User::first().
+     * Middleware 'role:mahasiswa,dosen' sudah memastikan user selalu terautentikasi.
      */
     protected function currentUser(): ?User
     {
-        $user = auth()->user();
-
-        if (! $user && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $user = User::with('role')
-                ->where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-
-            if (! $user && ! empty($sessionUser['role'])) {
-                $user = User::with('role')
-                    ->whereHas('role', fn ($q) => $q->where('name', $sessionUser['role']))
-                    ->first();
-            }
-
-            if ($user) {
-                auth()->login($user);
-            }
-        }
-
-        if (! $user) {
-            $user = User::with('role')->first();
-        }
-
-        return $user;
+        return auth()->user();
     }
 
     /**
-     * Ensure the room exists and the user is a registered member.
+     * Periksa apakah user boleh mengakses room kelas ini.
+     * Mahasiswa harus terdaftar (enrolled), dosen harus pengampu kelas tersebut.
      */
-    protected function ensureRoomAndMembership(int $courseId, ?User $user = null): Room
+    protected function canAccessCourse(int $courseId, User $user): bool
     {
-        $courses = LearningPreview::courses();
-        $courseTitle = $courses[$courseId]['title'] ?? "Course {$courseId}";
+        if (! Schema::hasTable('class_sections')) {
+            // Fallback demo mode: izinkan akses
+            return true;
+        }
+
+        $section = ClassSection::find($courseId);
+        if (! $section) {
+            return false;
+        }
+
+        if ($user->hasRole(Role::DOSEN)) {
+            return in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+        }
+
+        if ($user->hasRole(Role::MAHASISWA)) {
+            return $section->students()->where('users.id', $user->id)->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * Pastikan room ada dan user terdaftar sebagai member.
+     * Auto-seed semua user dihapus — hanya user yang memang terdaftar di kelas yang boleh masuk.
+     */
+    protected function ensureRoomAndMembership(int $courseId, User $user): Room
+    {
+        $section = Schema::hasTable('class_sections') ? ClassSection::find($courseId) : null;
+        $courseTitle = $section?->mataKuliah?->name ?? "Course {$courseId}";
         $room = Room::forCourse($courseId, $courseTitle);
 
-        if ($user) {
-            $member = RoomMember::where('room_id', $room->id)
-                ->where('user_id', $user->id)
-                ->first();
-
-            if (! $member) {
-                $roleName = $user->role?->name ?? (session('auth_user.role') ?? 'mahasiswa');
-                $chatRole = $roleName === Role::DOSEN ? 'dosen' : 'mahasiswa';
-
-                RoomMember::create([
-                    'room_id' => $room->id,
-                    'user_id' => $user->id,
-                    'role' => $chatRole,
-                    'joined_at' => now(),
-                ]);
-            }
-        }
-
-        // Auto-seed default course members if room is new/empty
-        if ($room->members()->count() === 0) {
-            $allUsers = User::with('role')->get();
-            foreach ($allUsers as $u) {
-                $roleName = $u->role?->name ?? 'mahasiswa';
-                $chatRole = $roleName === Role::DOSEN ? 'dosen' : 'mahasiswa';
-                RoomMember::firstOrCreate(
-                    ['room_id' => $room->id, 'user_id' => $u->id],
-                    ['role' => $chatRole, 'joined_at' => now()]
-                );
-            }
-        }
+        // Daftarkan user ke room jika belum terdaftar
+        $chatRole = $user->hasRole(Role::DOSEN) ? 'dosen' : 'mahasiswa';
+        RoomMember::firstOrCreate(
+            ['room_id' => $room->id, 'user_id' => $user->id],
+            ['role' => $chatRole, 'joined_at' => now()]
+        );
 
         return $room;
     }
@@ -101,6 +83,14 @@ class ChatController extends Controller
     public function getMessages(Request $request, int $course): JsonResponse
     {
         $user = $this->currentUser();
+        if (! $user) {
+            return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        if (! $this->canAccessCourse($course, $user)) {
+            return response()->json(['success' => false, 'error' => 'Anda tidak terdaftar pada kelas ini.'], 403);
+        }
+
         $room = $this->ensureRoomAndMembership($course, $user);
 
         $limit = min((int) ($request->query('limit', 30)), 100);
@@ -180,6 +170,10 @@ class ChatController extends Controller
         $user = $this->currentUser();
         if (! $user) {
             return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        if (! $this->canAccessCourse($course, $user)) {
+            return response()->json(['success' => false, 'error' => 'Anda tidak terdaftar pada kelas ini.'], 403);
         }
 
         $room = $this->ensureRoomAndMembership($course, $user);
@@ -327,6 +321,14 @@ class ChatController extends Controller
     public function getMembers(Request $request, int $course): JsonResponse
     {
         $user = $this->currentUser();
+        if (! $user) {
+            return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        if (! $this->canAccessCourse($course, $user)) {
+            return response()->json(['success' => false, 'error' => 'Anda tidak terdaftar pada kelas ini.'], 403);
+        }
+
         $room = $this->ensureRoomAndMembership($course, $user);
 
         $members = $room->members()
