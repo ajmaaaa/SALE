@@ -11,8 +11,6 @@ class Role extends Model
 
     const ADMIN_PRODI = 'admin_prodi';
 
-    const KAPRODI = 'kaprodi';
-
     const DOSEN = 'dosen';
 
     const MAHASISWA = 'mahasiswa';
