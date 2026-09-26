@@ -496,7 +496,7 @@ class LearningController extends Controller
             'points' => 'nullable|integer|min:1|max:1000',
             'component' => ['nullable', Rule::in(array_column($academic['components'], 'code'))],
             'questions' => 'nullable|array|min:1|max:30',
-            'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
+            'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'benar_salah', 'mencocokkan'])],
             'questions.*.prompt' => 'required|string|max:10000',
             'questions.*.points' => 'nullable|integer|min:1|max:1000',
             'questions.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
@@ -1100,7 +1100,7 @@ class LearningController extends Controller
             if (! empty($questions)) {
                 $earnedPoints = 0;
                 $answers = $data['question_answers'] ?? [];
-                $hasEssay = collect($questions)->contains(fn ($q) => in_array($q['type'] ?? 'pilihan', ['uraian', 'coding', 'esai'], true));
+                $hasEssay = collect($questions)->contains(fn ($q) => in_array($q['type'] ?? 'pilihan', ['uraian', 'esai'], true));
 
                 $groupCounts = array_count_values(array_filter(array_column($questions, 'cpmk')));
                 $totalQuestions = max(1, count($questions));
