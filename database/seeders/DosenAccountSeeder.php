@@ -12,7 +12,6 @@ class DosenAccountSeeder extends Seeder
     public function run(): void
     {
         $dosenRole = Role::where('name', Role::DOSEN)->first();
-        $kaprodiRole = Role::where('name', Role::KAPRODI)->first();
         $adminProdiRole = Role::where('name', Role::ADMIN_PRODI)->first();
         $adminRole = Role::where('name', Role::ADMIN)->first();
         $mahasiswaRole = Role::where('name', Role::MAHASISWA)->first();
@@ -41,10 +40,9 @@ class DosenAccountSeeder extends Seeder
         );
 
         // Repair role_id when an older local database was seeded before the
-        // five demo roles were finalized. Passwords and other user data stay intact.
+        // demo roles were finalized. Passwords and other user data stay intact.
         $repairDemoRole('ahmad.maulana@student.test', $mahasiswaRole?->id);
         $repairDemoRole('budi@example.test', $dosenRole?->id);
-        $repairDemoRole('kaprodi@example.test', $kaprodiRole?->id);
         $repairDemoRole('adminprodi@example.test', $adminProdiRole?->id);
         $repairDemoRole('admin@example.test', $adminRole?->id);
 
@@ -55,16 +53,6 @@ class DosenAccountSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'role_id' => $dosenRole?->id,
                 'nim_nidn' => '198501012010121001',
-            ]
-        );
-
-        User::firstOrCreate(
-            ['email' => 'kaprodi@example.test'],
-            [
-                'name' => 'Budi Santoso, M.Kom.',
-                'password' => Hash::make('password'),
-                'role_id' => $kaprodiRole?->id,
-                'nim_nidn' => '197501012000031001',
             ]
         );
 
