@@ -432,26 +432,25 @@
                 @endphp
 
                 {{-- Banner Pesan yang Disematkan Dosen --}}
-                <div id="pinned-announcements-container" class="{{ $pinnedMessages->isEmpty() ? 'hidden' : '' }} shrink-0 mt-2 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-orange-50/70 p-3 text-xs shadow-2xs">
-                    <div class="flex items-center justify-between gap-2 border-b border-amber-200/60 pb-1.5 mb-2">
-                        <div class="flex items-center gap-1.5 font-bold text-amber-900">
-                            <svg class="h-3.5 w-3.5 text-amber-600 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                <div id="pinned-announcements-container" class="{{ $pinnedMessages->isEmpty() ? 'hidden' : '' }} shrink-0 mt-2 rounded-xl bg-[#edf4fb] p-3 text-xs">
+                    <div class="flex items-center justify-between gap-2 pb-1.5 mb-2">
+                        <div class="flex items-center gap-1.5 font-bold text-[#1f4b7a]">
+                            <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                             <span>Pesan Disematkan Dosen</span>
                         </div>
-                        <span id="pinned-count-badge" class="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                        <span id="pinned-count-badge" class="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#1f4b7a]">
                             {{ $pinnedMessages->count() }}
                         </span>
                     </div>
                     <div id="pinned-messages-list" class="space-y-1.5 max-h-24 overflow-y-auto pr-1">
                         @foreach($pinnedMessages as $pinMsg)
-                            <div id="pinned-item-{{ $pinMsg['id'] }}" class="flex items-start justify-between gap-2 rounded-lg bg-white/80 p-2 border border-amber-200/40">
+                            <div id="pinned-item-{{ $pinMsg['id'] }}" class="flex items-start gap-2 rounded-lg bg-white/70 p-2">
                                 <div class="min-w-0 flex-1">
-                                    <span class="font-bold text-amber-950">{{ $pinMsg['author'] }}:</span>
+                                    @unless($pinMsg['is_me'])
+                                        <span class="font-bold text-[#1f4b7a]">{{ $pinMsg['author'] }}:</span>
+                                    @endunless
                                     <span class="text-slate-800 line-clamp-2">{{ $pinMsg['content'] }}</span>
                                 </div>
-                                @if($isDosenUser)
-                                    <button type="button" onclick="togglePinMessage({{ $pinMsg['id'] }})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>
-                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -481,24 +480,38 @@
                                 <span class="shrink-0 w-[3.5px] self-stretch {{ $isMe ? 'bg-[#1f4b7a]' : 'bg-[#c2c8d0]' }}" aria-hidden="true"></span>
                                 <div class="p-3 min-w-0 flex-1">
                                 <div class="flex items-start gap-2.5 min-w-0">
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 {{ $isMe ? 'bg-brand text-white' : 'bg-slate-200 text-slate-700' }}">
-                                        {{ $initials }}
-                                    </span>
+                                    @unless($isMe)
+                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700">
+                                            {{ $initials }}
+                                        </span>
+                                    @endunless
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-1.5 leading-snug">
-                                            <span class="text-xs font-bold text-ink break-words">{{ $msg['author'] }}</span>
-                                            @if($isMe)
-                                                <span class="text-[10px] font-medium text-brand shrink-0">(Saya)</span>
-                                            @endif
-                                            @if(($msg['role'] ?? '') === 'dosen')
-                                                <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>
-                                            @endif
+                                            @unless($isMe)
+                                                <span class="text-xs font-bold text-ink break-words">{{ $msg['author'] }}</span>
+                                                @if(($msg['role'] ?? '') === 'dosen')
+                                                    <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>
+                                                @endif
+                                            @endunless
                                             @if($isPinned)
-                                                <span id="pin-badge-{{ $msg['id'] }}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100/80 px-1 rounded border border-amber-200 shrink-0">
-                                                    📌 Disematkan
+                                                <span id="pin-badge-{{ $msg['id'] }}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0">
+                                                    Disematkan
                                                 </span>
                                             @endif
-                                            <time class="ml-auto shrink-0 text-[10px] text-muted">{{ $msg['time'] }}</time>
+                                            <details class="chat-action-details ml-auto shrink-0" ontoggle="positionChatActionMenu(this)">
+                                                <summary class="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                                                </summary>
+                                                <div data-chat-action-menu class="hidden fixed z-[80] min-w-36 overflow-hidden rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
+                                                    <button type="button" onclick="this.closest('details').open=false; setReplyTarget({{ $msg['id'] }}, @js($msg['author']), @js(Str::limit($msg['content'], 50)))" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
+                                                    @if($isDosenUser)
+                                                        <button type="button" onclick="this.closest('details').open=false; togglePinMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">{{ $isPinned ? 'Lepas sematan' : 'Sematkan' }}</button>
+                                                    @endif
+                                                    @if($canDelete)
+                                                        <button type="button" onclick="this.closest('details').open=false; deleteMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Hapus</button>
+                                                    @endif
+                                                </div>
+                                            </details>
                                         </div>
 
                                         {{-- Kutipan Balasan (Reply Quote Bubble) --}}
@@ -511,25 +524,8 @@
 
                                         {{-- Isi Pesan (Render Mention @User dengan badge) --}}
                                         <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{!! preg_replace('/@([A-Za-z0-9_.\\s]+?)(?=[,\\s\\n]|$)/', '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>', e(trim($msg['content']))) !!}</p>
-
-                                        {{-- Bar Aksi Cepat (Balas, Pin, Hapus) --}}
-                                        <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
-                                            <button type="button" onclick="setReplyTarget({{ $msg['id'] }}, '{{ addslashes($msg['author']) }}', '{{ addslashes(Str::limit($msg['content'], 50)) }}')" class="hover:text-brand font-medium flex items-center gap-0.5">
-                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                                Balas
-                                            </button>
-                                            @if($isDosenUser)
-                                                <span class="text-line">|</span>
-                                                <button type="button" onclick="togglePinMessage({{ $msg['id'] }})" class="hover:text-amber-700 font-medium">
-                                                    {{ $isPinned ? 'Lepas Pin' : 'Pin' }}
-                                                </button>
-                                            @endif
-                                            @if($canDelete)
-                                                <span class="text-line">|</span>
-                                                <button type="button" onclick="deleteMessage({{ $msg['id'] }})" class="hover:text-rose-600 font-medium">
-                                                    Hapus
-                                                </button>
-                                            @endif
+                                        <div class="mt-1 flex justify-end">
+                                            <time class="text-[10px] text-muted">{{ $msg['time'] }}</time>
                                         </div>
                                     </div>
                                 </div>
@@ -822,12 +818,11 @@
                         pinnedContainer.classList.remove('hidden');
                         if (pinnedCountBadge) pinnedCountBadge.textContent = data.pinned_messages.length;
                         pinnedList.innerHTML = data.pinned_messages.map(p => `
-                            <div id="pinned-item-${p.id}" class="flex items-start justify-between gap-2 rounded-lg bg-white/80 p-2 border border-amber-200/40">
+                            <div id="pinned-item-${p.id}" class="flex items-start gap-2 rounded-lg bg-white/70 p-2">
                                 <div class="min-w-0 flex-1">
-                                    <span class="font-bold text-amber-950">${p.author}:</span>
+                                    <span class="font-bold text-[#1f4b7a]">${p.author}:</span>
                                     <span class="text-slate-800 line-clamp-2">${p.content}</span>
                                 </div>
-                                ${isDosenUser ? `<button type="button" onclick="togglePinMessage(${p.id})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>` : ''}
                             </div>
                         `).join('');
                     } else {
@@ -858,7 +853,7 @@
                             const isMe = m.is_me;
                             const initials = (m.author || 'P').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
                             const canDelete = isDosenUser || isMe;
-                            const pinBadge = m.is_pinned ? `<span id="pin-badge-${m.id}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100/80 px-1 rounded border border-amber-200 shrink-0">📌 Disematkan</span>` : '';
+                            const pinBadge = m.is_pinned ? `<span id="pin-badge-${m.id}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0">Disematkan</span>` : '';
                             const replyBox = m.reply_to ? `
                                 <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
                                     <span class="font-bold text-brand block leading-tight">${m.reply_to.sender_name}</span>
@@ -867,6 +862,8 @@
                             ` : '';
 
                             const formattedContent = m.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/g, '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>');
+                            const replyAuthor = JSON.stringify(m.author).replace(/'/g, '&#39;');
+                            const replyExcerpt = JSON.stringify(m.content.slice(0, 50)).replace(/'/g, '&#39;');
 
                             return `
                                 <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${m.author}">
@@ -883,28 +880,22 @@
                                                         ${isMe ? '<span class="text-[10px] font-medium text-[#1f4b7a] shrink-0">(Saya)</span>' : ''}
                                                         ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
                                                         ${pinBadge}
-                                                        <time class="ml-auto shrink-0 text-[10px] text-muted">${m.time}</time>
+                                                        <div class="ml-auto flex shrink-0 items-center gap-1.5">
+                                                            <time class="text-[10px] text-muted">${m.time}</time>
+                                                            <details class="relative">
+                                                                <summary class="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
+                                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                                                                </summary>
+                                                                <div class="absolute right-0 top-full z-30 mt-1 min-w-32 overflow-hidden rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
+                                                                    <button type="button" onclick='this.closest("details").open=false; setReplyTarget(${m.id}, ${replyAuthor}, ${replyExcerpt})' class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
+                                                                    ${isDosenUser ? `<button type="button" onclick="this.closest('details').open=false; togglePinMessage(${m.id})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">${m.is_pinned ? 'Lepas sematan' : 'Sematkan'}</button>` : ''}
+                                                                    ${canDelete ? `<button type="button" onclick="this.closest('details').open=false; deleteMessage(${m.id})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Hapus</button>` : ''}
+                                                                </div>
+                                                            </details>
+                                                        </div>
                                                     </div>
                                                     ${replyBox}
                                                     <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
-                                                    <div class="mt-2 pt-1 border-t border-line/40 flex items-center justify-end gap-2 text-[10px] text-muted opacity-80 group-hover:opacity-100 transition-opacity">
-                                                        <button type="button" onclick="setReplyTarget(${m.id}, '${m.author.replace(/'/g, "\\'")}', '${m.content.slice(0, 50).replace(/'/g, "\\'")}')\" class=\"hover:text-[#1f4b7a] font-medium flex items-center gap-0.5">
-                                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                                                            Balas
-                                                        </button>
-                                                        ${isDosenUser ? `
-                                                            <span class="text-line">|</span>
-                                                            <button type="button" onclick="togglePinMessage(${m.id})" class="hover:text-amber-700 font-medium">
-                                                                ${m.is_pinned ? 'Lepas Pin' : 'Pin'}
-                                                            </button>
-                                                        ` : ''}
-                                                        ${canDelete ? `
-                                                            <span class="text-line">|</span>
-                                                            <button type="button" onclick="deleteMessage(${m.id})" class="hover:text-rose-600 font-medium">
-                                                                Hapus
-                                                            </button>
-                                                        ` : ''}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
