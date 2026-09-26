@@ -22,7 +22,6 @@
             <a data-settings-link id="tab-profil" href="#profil" class="shrink-0 border-b-2 border-brand px-4 py-3 text-sm font-semibold text-brand" role="tab" aria-controls="profil" aria-selected="true">Informasi profil</a>
             <a data-settings-link id="tab-keamanan" href="#keamanan" class="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted hover:text-ink" role="tab" aria-controls="keamanan" aria-selected="false" tabindex="-1">Keamanan akun</a>
             <a data-settings-link id="tab-notifikasi" href="#notifikasi" class="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted hover:text-ink" role="tab" aria-controls="notifikasi" aria-selected="false" tabindex="-1">Notifikasi</a>
-            <a data-settings-link id="tab-tampilan" href="#tampilan" class="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted hover:text-ink" role="tab" aria-controls="tampilan" aria-selected="false" tabindex="-1">Tampilan</a>
         </nav>
 
         <div class="mt-6 min-w-0">
@@ -114,15 +113,6 @@
                 </form>
             </section>
 
-            <section data-settings-panel id="tampilan" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-tampilan" tabindex="0">
-                <h2 id="display-heading" class="section-heading">Tampilan</h2>
-                <p class="mt-1 text-sm text-muted">Atur tema antarmuka sesuai kenyamanan membaca.</p>
-                <fieldset class="mt-5 grid max-w-md gap-3 sm:grid-cols-2">
-                    <legend class="sr-only">Pilihan tema</legend>
-                    <label class="flex cursor-pointer items-center gap-3 rounded-lg bg-brand-dark p-4 text-white"><input type="radio" name="theme" value="light" checked class="h-4 w-4 text-brand focus:ring-brand"><span><span class="block font-semibold text-white">Terang</span><span class="text-sm text-white">Latar netral terang</span></span></label>
-                    <label class="flex cursor-pointer items-center gap-3 rounded-lg bg-brand-soft p-4"><input type="radio" name="theme" value="system" class="h-4 w-4 text-brand focus:ring-brand"><span><span class="block font-semibold text-ink">Ikuti sistem</span><span class="text-sm text-muted">Sesuai perangkat</span></span></label>
-                </fieldset>
-            </section>
         </div>
     </div>
 </div>
