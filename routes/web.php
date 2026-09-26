@@ -18,7 +18,6 @@ use App\Http\Controllers\Dosen\ExportController;
 use App\Http\Controllers\Dosen\InputNilaiController;
 use App\Http\Controllers\Dosen\PenilaianController;
 use App\Http\Controllers\Dosen\RubricController;
-use App\Http\Controllers\Kaprodi\KaprodiMonitoringController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\Mahasiswa\AssignmentController;
 use App\Http\Controllers\Mahasiswa\DashboardController;
@@ -53,11 +52,11 @@ Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
         Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.photo');
     });
 
-    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen,kaprodi')->name('assignment.code');
+    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen')->name('assignment.code');
 });
 
-Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen,kaprodi')->name('mahasiswa.course.item');
-Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen,kaprodi')->name('mahasiswa.course.discuss');
+Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.item');
+Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.discuss');
 
 Route::middleware('role:mahasiswa')->group(function () {
     Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::class, 'quizRoom'])->whereNumber(['course', 'item'])->name('mahasiswa.quiz.room');
@@ -183,10 +182,6 @@ Route::post('/join-kelas-langsung', [EnrollmentController::class, 'joinDirect'])
 Route::get('/kelas/{section}/qr', [AkademikProdiController::class, 'qrCode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.qr');
 Route::get('/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.barcode');
 
-Route::prefix('kaprodi')->name('kaprodi.')->middleware('role:kaprodi')->group(function () {
-    Route::get('/monitoring/cpmk', [KaprodiMonitoringController::class, 'cpmk'])->name('monitoring.cpmk');
-    Route::get('/monitoring/cpl', [KaprodiMonitoringController::class, 'cpl'])->name('monitoring.cpl');
-});
 
 Route::prefix('admin-prodi')->name('admin-prodi.')->middleware('admin_prodi.auth')->group(function () {
     Route::get('/', fn () => redirect()->route('admin-prodi.dashboard'));
