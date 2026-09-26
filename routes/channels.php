@@ -16,6 +16,5 @@ Broadcast::channel('room.{roomId}', function (User $user, int $roomId) {
 
     return $room->members()->where('user_id', $user->id)->exists()
         || $user->hasRole('dosen')
-        || $user->hasRole('kaprodi')
         || $user->hasRole('admin');
 });
