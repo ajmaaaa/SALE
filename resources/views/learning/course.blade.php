@@ -6,7 +6,7 @@
 @section('content')
 @php
     $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa'));
-    $isDosen = (in_array($currentRole, ['dosen', 'kaprodi'], true) || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
+    $isDosen = ($currentRole === 'dosen' || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
     $role = $isDosen ? 'dosen' : 'mahasiswa';
     $materiItems = collect($items)->where('type', 'materi');
     $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
@@ -365,8 +365,8 @@
                             }
                         }
                     }
-                    $isDosenUser = ($chatUser && ($chatUser->hasRole(\App\Models\Role::DOSEN) || $chatUser->hasRole(\App\Models\Role::KAPRODI)))
-                        || (is_array(session('auth_user')) && in_array(session('auth_user')['role'] ?? '', [\App\Models\Role::DOSEN, \App\Models\Role::KAPRODI], true));
+                    $isDosenUser = ($chatUser && $chatUser->hasRole(\App\Models\Role::DOSEN))
+                        || (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === \App\Models\Role::DOSEN);
 
                     $meName = $chatUser?->name ?? session('auth_user.name', 'Ahmad Maulana');
                     $meRole = $chatUser?->role?->name ?? session('auth_user.role', 'mahasiswa');
@@ -451,6 +451,9 @@
                                     @endunless
                                     <span class="text-slate-800 line-clamp-2">{{ $pinMsg['content'] }}</span>
                                 </div>
+                                @if($isDosenUser)
+                                    <button type="button" onclick="togglePinMessage({{ $pinMsg['id'] }})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -475,9 +478,9 @@
                             @php($previousMessageDate = $msgDateKey)
                         @endif
                         <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-hidden flex {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row' }}">
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row' }}">
                                 {{-- Garis Vertikal (brand untuk pesan saya, abu untuk pesan lain) --}}
-                                <span class="shrink-0 w-[3.5px] self-stretch {{ $isMe ? 'bg-[#1f4b7a]' : 'bg-[#c2c8d0]' }}" aria-hidden="true"></span>
+                                <span class="shrink-0 w-[3.5px] self-stretch {{ $isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl' }}" aria-hidden="true"></span>
                                 <div class="p-3 min-w-0 flex-1">
                                 <div class="flex items-start gap-2.5 min-w-0">
                                     @unless($isMe)
@@ -498,17 +501,17 @@
                                                     Disematkan
                                                 </span>
                                             @endif
-                                            <details class="chat-action-details ml-auto shrink-0" ontoggle="positionChatActionMenu(this)">
-                                                <summary class="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
+                                            <details class="chat-action-details relative ml-auto shrink-0">
+                                                <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
                                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                                                 </summary>
-                                                <div data-chat-action-menu class="hidden fixed z-[80] min-w-36 overflow-hidden rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
-                                                    <button type="button" onclick="this.closest('details').open=false; setReplyTarget({{ $msg['id'] }}, @js($msg['author']), @js(Str::limit($msg['content'], 50)))" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
+                                                <div class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
+                                                    <button type="button" onclick="this.closest('details').removeAttribute('open'); setReplyTarget({{ $msg['id'] }}, @js($msg['author']), @js(Str::limit($msg['content'], 50)))" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
                                                     @if($isDosenUser)
-                                                        <button type="button" onclick="this.closest('details').open=false; togglePinMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">{{ $isPinned ? 'Lepas sematan' : 'Sematkan' }}</button>
+                                                        <button type="button" onclick="this.closest('details').removeAttribute('open'); togglePinMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">{{ $isPinned ? 'Lepas sematan' : 'Sematkan' }}</button>
                                                     @endif
                                                     @if($canDelete)
-                                                        <button type="button" onclick="this.closest('details').open=false; deleteMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Hapus</button>
+                                                        <button type="button" onclick="this.closest('details').removeAttribute('open'); deleteMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50 font-medium">Hapus</button>
                                                     @endif
                                                 </div>
                                             </details>
@@ -820,9 +823,10 @@
                         pinnedList.innerHTML = data.pinned_messages.map(p => `
                             <div id="pinned-item-${p.id}" class="flex items-start gap-2 rounded-lg bg-white/70 p-2">
                                 <div class="min-w-0 flex-1">
-                                    <span class="font-bold text-[#1f4b7a]">${p.author}:</span>
+                                    ${!p.is_me ? `<span class="font-bold text-[#1f4b7a]">${p.author}:</span> ` : ''}
                                     <span class="text-slate-800 line-clamp-2">${p.content}</span>
                                 </div>
+                                ${isDosenUser ? `<button type="button" onclick="togglePinMessage(${p.id})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>` : ''}
                             </div>
                         `).join('');
                     } else {
@@ -867,35 +871,38 @@
 
                             return `
                                 <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${m.author}">
-                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-hidden flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}">
-                                        <span class="shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a]' : 'bg-[#c2c8d0]'}" aria-hidden="true"></span>
+                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}">
+                                        <span class="shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl'}" aria-hidden="true"></span>
                                         <div class="p-3 min-w-0 flex-1">
                                             <div class="flex items-start gap-2.5 min-w-0">
-                                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${isMe ? 'bg-[#1f4b7a] text-white' : 'bg-slate-200 text-slate-700'}">
-                                                    ${initials}
-                                                </span>
+                                                ${!isMe ? `
+                                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700">
+                                                        ${initials}
+                                                    </span>
+                                                ` : ''}
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex flex-wrap items-center gap-1.5 leading-snug">
-                                                        <span class="text-xs font-bold text-ink break-words">${m.author}</span>
-                                                        ${isMe ? '<span class="text-[10px] font-medium text-[#1f4b7a] shrink-0">(Saya)</span>' : ''}
-                                                        ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
+                                                        ${!isMe ? `
+                                                            <span class="text-xs font-bold text-ink break-words">${m.author}</span>
+                                                            ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
+                                                        ` : ''}
                                                         ${pinBadge}
-                                                        <div class="ml-auto flex shrink-0 items-center gap-1.5">
-                                                            <time class="text-[10px] text-muted">${m.time}</time>
-                                                            <details class="relative">
-                                                                <summary class="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
-                                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
-                                                                </summary>
-                                                                <div class="absolute right-0 top-full z-30 mt-1 min-w-32 overflow-hidden rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
-                                                                    <button type="button" onclick='this.closest("details").open=false; setReplyTarget(${m.id}, ${replyAuthor}, ${replyExcerpt})' class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
-                                                                    ${isDosenUser ? `<button type="button" onclick="this.closest('details').open=false; togglePinMessage(${m.id})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">${m.is_pinned ? 'Lepas sematan' : 'Sematkan'}</button>` : ''}
-                                                                    ${canDelete ? `<button type="button" onclick="this.closest('details').open=false; deleteMessage(${m.id})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Hapus</button>` : ''}
-                                                                </div>
-                                                            </details>
-                                                        </div>
+                                                        <details class="chat-action-details relative ml-auto shrink-0">
+                                                            <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
+                                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                                                            </summary>
+                                                            <div class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
+                                                                <button type="button" onclick='this.closest("details").removeAttribute("open"); setReplyTarget(${m.id}, ${replyAuthor}, ${replyExcerpt})' class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
+                                                                ${isDosenUser ? `<button type="button" onclick="this.closest('details').removeAttribute('open'); togglePinMessage(${m.id})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">${m.is_pinned ? 'Lepas sematan' : 'Sematkan'}</button>` : ''}
+                                                                ${canDelete ? `<button type="button" onclick="this.closest('details').removeAttribute('open'); deleteMessage(${m.id})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50 font-medium">Hapus</button>` : ''}
+                                                            </div>
+                                                        </details>
                                                     </div>
                                                     ${replyBox}
                                                     <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
+                                                    <div class="mt-1 flex justify-end">
+                                                        <time class="text-[10px] text-muted">${m.time}</time>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -913,6 +920,20 @@
             }
         }
 
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.chat-action-details')) {
+                document.querySelectorAll('.chat-action-details[open]').forEach(el => el.removeAttribute('open'));
+            }
+        });
+
+        document.addEventListener('toggle', function(e) {
+            if (e.target.matches && e.target.matches('.chat-action-details[open]')) {
+                document.querySelectorAll('.chat-action-details[open]').forEach(el => {
+                    if (el !== e.target) el.removeAttribute('open');
+                });
+            }
+        }, true);
+
         let pollTimer = setInterval(() => {
             if (document.visibilityState === 'visible') {
                 refreshChatStream();
@@ -924,7 +945,14 @@
                 window.Echo.private(`room.${roomId}`)
                     .listen('MessageSent', () => refreshChatStream(true))
                     .listen('MessagePinned', () => refreshChatStream())
-                    .listen('MessageDeleted', () => refreshChatStream());
+                    .listen('MessageDeleted', (e) => {
+                        const id = e.message_id || e.id;
+                        if (id) {
+                            const row = document.getElementById(`msg-bubble-${id}`);
+                            if (row) row.remove();
+                        }
+                        refreshChatStream();
+                    });
             } catch (echoErr) {
             }
         }
