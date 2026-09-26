@@ -80,7 +80,7 @@
     <div class="surface overflow-hidden">
         <div class="border-b border-line/60 px-5 py-3.5 flex items-center justify-between">
             <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah Semester</h2>
-            <span class="text-xs text-muted">Klik baris untuk melihat Rincian Komponen Nilai &amp; CPMK</span>
+            <span class="text-xs text-muted">Klik baris untuk melihat Rincian Komponen Nilai</span>
         </div>
 
         <div class="overflow-x-auto">
@@ -162,34 +162,6 @@
                                                     <span class="font-semibold text-ink mt-0.5 block">
                                                         {{ $score !== null ? number_format($score, 1, ',', '.') : '—' }}
                                                     </span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-
-                                    {{-- Capaian CPMK dengan evaluasi skor otentik --}}
-                                    <div class="pt-3 border-t border-line/40">
-                                        <p class="text-xs font-semibold text-ink mb-2">Capaian CPMK (Evaluasi Pembelajaran):</p>
-                                        <div class="space-y-2">
-                                            @foreach(\App\Support\AcademicPreview::breakdown($course['id'])['cpmk'] as $cpmk)
-                                                @php
-                                                    $cpmkScore = $cpmk['score'];
-                                                    $isPassed = $cpmk['passed'];
-                                                @endphp
-                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-white border border-line/40 text-xs">
-                                                    <div class="min-w-0 flex-1">
-                                                        <span class="font-bold text-ink">{{ $cpmk['code'] }}</span>
-                                                        <span class="text-muted ml-1.5">{{ $cpmk['description'] }} (Batas {{ $cpmk['threshold'] }}/100)</span>
-                                                    </div>
-                                                    <div class="shrink-0 font-medium sm:text-right">
-                                                        @if($cpmkScore !== null)
-                                                            <span class="font-bold text-ink">{{ number_format($cpmkScore, 1, ',', '.') }}</span>
-                                                            <span class="text-muted">/ 100</span>
-                                                            <span class="ml-2 {{ $isPassed ? 'text-ink' : 'text-danger' }}">({{ $isPassed ? 'Tercapai' : 'Belum Tercapai' }})</span>
-                                                        @else
-                                                            <span class="text-muted">Belum lengkap dinilai</span>
-                                                        @endif
-                                                    </div>
                                                 </div>
                                             @endforeach
                                         </div>
