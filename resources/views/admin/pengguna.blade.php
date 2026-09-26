@@ -52,8 +52,8 @@
                 <p class="text-xs font-semibold text-muted">ADMINISTRATOR &amp; PRODI</p>
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <p class="mt-2.5 text-2xl font-bold text-ink">{{ count(array_filter($users, fn($u) => collect(['admin', 'admin_prodi', 'kaprodi'])->contains(fn($role) => \App\Support\AdminPreview::hasRole($u, $role)))) }}</p>
-            <p class="mt-1 text-xs text-muted">Pengelola sistem &amp; kaprodi</p>
+            <p class="mt-2.5 text-2xl font-bold text-ink">{{ count(array_filter($users, fn($u) => collect(['admin', 'admin_prodi'])->contains(fn($role) => \App\Support\AdminPreview::hasRole($u, $role)))) }}</p>
+            <p class="mt-1 text-xs text-muted">Pengelola sistem &amp; prodi</p>
         </div>
 
         <div class="surface p-5 border border-line/60">
@@ -127,7 +127,7 @@
                     <span class="form-label">Peran akses</span>
                     @php($selectedRoles = old('roles', $record['roles'] ?? (isset($record['role']) ? [$record['role']] : ['mahasiswa'])))
                     <div class="grid grid-cols-2 gap-2 rounded-lg border border-line bg-white p-3">
-                        @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'] as $key => $label)
+                        @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'] as $key => $label)
                             <label class="flex cursor-pointer items-center gap-2 text-xs text-ink"><input type="checkbox" name="roles[]" value="{{ $key }}" class="rounded border-line text-brand" @checked(in_array($key, $selectedRoles, true))><span>{{ $label }}</span></label>
                         @endforeach
                     </div>
@@ -157,7 +157,7 @@
         <label class="sr-only" for="role-filter">Filter peran</label>
         <select class="field sm:w-44" id="role-filter" name="role">
             <option value="">Semua peran</option>
-            @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'] as $key => $label)
+            @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'] as $key => $label)
                 <option value="{{ $key }}" @selected(request('role') === $key)>{{ $label }}</option>
             @endforeach
         </select>
@@ -191,7 +191,7 @@
                         </td>
                         <td>
                             @foreach($user['roles'] ?? [$user['role']] as $role)
-                                {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'kaprodi' => 'Kaprodi', 'admin' => 'Administrator'][$role] ?? ucfirst($role) }}@if(!$loop->last), @endif
+                                {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'][$role] ?? ucfirst($role) }}@if(!$loop->last), @endif
                             @endforeach
                         </td>
                         <td>
