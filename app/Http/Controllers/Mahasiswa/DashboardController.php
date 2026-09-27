@@ -81,6 +81,8 @@ class DashboardController extends Controller
                 });
             }
         } elseif (! $user) {
+            // PERBAIKAN M-04: Preview items hanya untuk user null (belum login).
+            // User login tanpa enrollment mendapat empty state, bukan data contoh.
             $activeItems = collect(LearningPreview::items())
                 ->filter(fn ($item) => in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
                 ->reject(fn ($item) => session("learning.submissions.{$item['id']}") !== null || session("learning.grades.{$item['id']}") !== null)

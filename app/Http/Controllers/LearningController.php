@@ -178,9 +178,6 @@ class LearningController extends Controller
 
         $user = auth()->user();
         $section = $user && Schema::hasTable('class_sections') ? ClassSection::find($course) : null;
-        $assessment = $section ? Assessment::where('class_section_id', $course)->find($item) : null;
-        if ($assessment) {
-            abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
 
         // PERBAIKAN M-03: Jika course merupakan ClassSection di database,
         // assessment HARUS diambil dari database juga — tidak boleh fallback ke preview items.
@@ -205,6 +202,8 @@ class LearningController extends Controller
             $courseData = Learning::course($course);
         }
         abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding', 'uts', 'uas']), 404);
+
+
 
 
         $submission = session("learning.submissions.$item", null);
@@ -327,19 +326,20 @@ class LearningController extends Controller
                     }
                 }
 
-                $sessionItems = array_filter(Learning::items(), fn ($i) => ($i['course'] ?? null) === $sec->id);
-                foreach ($sessionItems as $sItem) {
-                    if (! isset($items[$sItem['id']])) {
-                        $items[$sItem['id']] = $sItem;
-                    }
-                }
+                // PERBAIKAN M-04: Jangan campur session preview items ke dalam data
+                // assignment user database. Session items adalah data contoh, bukan
+                // milik section ini — bisa menyebabkan tugas contoh muncul di kelas nyata.
+                // $sessionItems dihapus dari pipeline DB user.
             }
         }
 
-        if (empty($courses)) {
+        // PERBAIKAN M-04: Jika user login, HANYA tampilkan data dari DB.
+        // Preview items hanya muncul jika user == null (belum login sama sekali).
+        // User login tanpa enrollment melihat empty state, bukan data contoh.
+        if (empty($courses) && ! $user) {
             $courses = Learning::courses();
         }
-        if (empty($items)) {
+        if (empty($items) && ! $user) {
             $items = Learning::items();
         }
 
@@ -402,7 +402,12 @@ class LearningController extends Controller
             $courses = Learning::courses();
         }
 
-        return view('learning.discussions', ['items' => Learning::items(), 'courses' => $courses]);
+        // PERBAIKAN M-04: Discussions hanya tampilkan kelas DB untuk user login.
+        // Jika belum login (preview mode), gunakan preview items.
+        // User login tanpa enrollment melihat halaman kosong.
+        $discussionItems = $user ? [] : Learning::items();
+
+        return view('learning.discussions', ['items' => $discussionItems, 'courses' => $courses]);
     }
 
     public function createCourse()

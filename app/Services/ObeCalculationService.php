@@ -451,8 +451,17 @@ class ObeCalculationService
         if ($classSectionId !== null) {
             $measuringAssessments = $cpmk->assessments()->where('class_section_id', $classSectionId)->get();
         } else {
+            // PERBAIKAN M-05: Jika classSectionId tidak dipass (context lintas-kelas),
+            // pilih kelas TERBARU berdasarkan semesters.code DESC (format '2026-2' > '2026-1').
+            // Semester aktif diprioritaskan. Ini mencegah skor kelas lama muncul saat mahasiswa
+            // mengulang mata kuliah (reproduksi A28).
+            // Sebelumnya: ->first() → memilih kelas pertama secara ARBITRARY (berpotensi kelas lama).
             $studentSection = ClassSection::whereHas('students', fn ($q) => $q->where('users.id', $studentId))
                 ->where('mata_kuliah_id', $cpmk->mata_kuliah_id)
+                ->join('semesters', 'class_sections.semester_id', '=', 'semesters.id')
+                ->orderByDesc('semesters.is_active')   // semester aktif didahulukan
+                ->orderByDesc('semesters.code')         // lalu semester terbaru (leksikografis DESC)
+                ->select('class_sections.*')
                 ->first();
 
             if ($studentSection) {

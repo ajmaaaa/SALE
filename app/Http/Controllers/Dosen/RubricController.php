@@ -219,7 +219,15 @@ class RubricController extends Controller
             $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
         }
 
-        abort_unless($currentUserId && $section->dosen_id === $currentUserId, 403, 'Anda tidak memiliki akses ke kelas ini.');
+        // PERBAIKAN M-06: Izinkan dosen_pendamping_id juga — sebelumnya hanya dosen_id (dosen ketua).
+        // Inkonsistensi ini menyebabkan dosen pendamping ditolak di RubricController,
+        // padahal controller lain (PenilaianController, LearningController) menerima keduanya.
+        abort_unless(
+            $currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId),
+            403,
+            'Anda tidak memiliki akses ke kelas ini.'
+        );
+
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void

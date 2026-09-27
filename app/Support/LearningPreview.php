@@ -542,6 +542,12 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             }
         }
 
+        // PERBAIKAN M-04: User login tanpa enrollment mendapat 0 tugas menunggu.
+        // Preview items hanya untuk user null (belum login).
+        if ($user) {
+            return 0;
+        }
+
         return collect(self::items())
             ->filter(fn ($item) => in_array($item['type'] ?? '', ['tugas', 'coding', 'kuis', 'uts', 'uas'], true))
             ->reject(fn ($item) => session("learning.submissions.{$item['id']}") !== null || session("learning.grades.{$item['id']}") !== null)
@@ -656,19 +662,18 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     }
                 }
 
-                $sessionItems = array_filter(self::items(), fn ($i) => ($i['course'] ?? null) === $sec->id);
-                foreach ($sessionItems as $sItem) {
-                    if (! isset($items[$sItem['id']])) {
-                        $items[$sItem['id']] = $sItem;
-                    }
-                }
+                // PERBAIKAN M-04: Jangan campur session preview items ke notifikasi user DB.
+                // Preview items adalah data contoh — bukan milik section DB ini.
+                // Dihapus untuk mencegah notifikasi tugas contoh muncul di akun nyata.
             }
         }
 
-        if (empty($courses)) {
+        // PERBAIKAN M-04: Preview data hanya untuk user null (belum login).
+        // User login tanpa enrollment mendapat notifikasi kosong — bukan data contoh.
+        if (empty($courses) && ! $user) {
             $courses = self::courses();
         }
-        if (empty($items)) {
+        if (empty($items) && ! $user) {
             $items = self::items();
         }
 
@@ -780,46 +785,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             }
         }
 
-        // Notifikasi Sistem
-        $systemNotifs = [
-            [
-                'id' => 'system_ai_ready',
-                'title' => 'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
-                'message' => 'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
-                'timestamp' => now()->subMinutes(2)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.assignment.index'),
-                'action_label' => 'Buka Lab Coding',
-                'category' => 'sistem',
-            ],
-            [
-                'id' => 'system_sync_krs',
-                'title' => 'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
-                'message' => 'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
-                'timestamp' => now()->subHours(4)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.obe.progress'),
-                'action_label' => 'Lihat Pemetaan OBE',
-                'category' => 'sistem',
-            ],
-            [
-                'id' => 'system_calendar_update',
-                'title' => 'Pembaruan Kalender Akademik & Jadwal Kuliah',
-                'message' => 'Jadwal tatap muka, batas submisi tugas, dan periode evaluasi tengah semester telah diperbarui oleh Program Studi.',
-                'timestamp' => now()->subDays(1)->setHour(9)->setMinute(30)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.dashboard'),
-                'action_label' => 'Lihat Jadwal Kuliah',
-                'category' => 'sistem',
-            ],
-        ];
-
-        foreach ($systemNotifs as $sys) {
-            $notifKey = $sys['id'];
-            $sys['time'] = self::formatNotificationTime($sys['timestamp']);
-            $sys['is_read'] = $allRead || in_array($notifKey, $readNotifs, true);
-            $notifications[] = $sys;
-        }
+        // PERBAIKAN M-04: Hapus notifikasi sistem hardcoded yang tidak bersumber dari event nyata.
+        // Notifikasi palsu (AI siap, sinkronisasi KRS, pembaruan kalender) membuat user
+        // mengira ada aktivitas sistem padahal tidak — A19 dan A21 membuktikan ini menipu.
+        // Notifikasi sistem nyata harus dihasilkan dari tabel events/audit_logs di masa depan.
 
         if (! empty($clearedNotifs) || $clearedTimestamp) {
             $notifications = array_values(array_filter($notifications, function ($n) use ($clearedNotifs, $allCleared, $clearedTimestamp) {

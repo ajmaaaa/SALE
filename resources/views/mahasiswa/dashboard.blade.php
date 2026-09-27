@@ -30,6 +30,9 @@
         </div>
     </section>
 
+    @if(! $student)
+    {{-- PERBAIKAN M-04: Rekomendasi contoh hanya tampil di mode preview (belum login). --}}
+    {{-- User database mendapat empty state atau rekomendasi berbasis data nyata di masa depan. --}}
     <section class="rounded-xl border border-[#1b3f68] bg-[#102f50] p-6 text-white shadow-2xs sm:p-7" aria-labelledby="recommendation-heading">
         <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div class="max-w-3xl space-y-2">
@@ -40,6 +43,7 @@
             <a href="{{ route('mahasiswa.course.item', [1, 3]) }}" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-white px-5 text-xs font-bold text-[#102f50] shadow-xs transition hover:bg-slate-100">Buka Materi Rekomendasi</a>
         </div>
     </section>
+    @endif
 
     <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)] xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
         <section aria-labelledby="course-heading" class="min-w-0">
