@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\AdminProdi;
 
-use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
@@ -165,7 +164,7 @@ class AkademikProdiController extends AdminProdiController
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
-                    } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
+                    } elseif ($user && (int) $user->prodi_id !== (int) $mataKuliah->prodi_id) {
                         $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
                     }
                 },
@@ -179,7 +178,7 @@ class AkademikProdiController extends AdminProdiController
                         $user = User::with('role')->find($value);
                         if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
-                        } elseif ($user && $user->prodi_id && $user->prodi_id !== $mataKuliah->prodi_id) {
+                        } elseif ($user && (int) $user->prodi_id !== (int) $mataKuliah->prodi_id) {
                             $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
                         }
                     }
@@ -216,10 +215,12 @@ class AkademikProdiController extends AdminProdiController
             'dosen_id' => [
                 'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($section) {
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
+                    } elseif ($user && (int) $user->prodi_id !== (int) $section->mataKuliah->prodi_id) {
+                        $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
                     }
                 },
             ],
@@ -227,11 +228,13 @@ class AkademikProdiController extends AdminProdiController
                 'nullable',
                 'exists:users,id',
                 'different:dosen_id',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($section) {
                     if ($value) {
                         $user = User::with('role')->find($value);
                         if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                             $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        } elseif ($user && (int) $user->prodi_id !== (int) $section->mataKuliah->prodi_id) {
+                            $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
                         }
                     }
                 },
@@ -306,17 +309,21 @@ class AkademikProdiController extends AdminProdiController
 
     private function authorizeEnrollmentCode(ClassSection $section): void
     {
-        if (config('app.demo_mode') && app()->environment(['local', 'testing'])) {
-            return;
-        }
-
         $user = auth()->user();
         abort_unless($user, 403);
 
-        $isAdministrator = $user->hasRole(Role::ADMIN) || $user->hasRole(Role::ADMIN_PRODI);
-        $isTeaching = $user->hasRole(Role::DOSEN)
-            && in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+        if ($user->hasRole(Role::ADMIN)) {
+            return;
+        }
 
-        abort_unless($isAdministrator || $isTeaching, 403, 'Anda tidak berhak melihat kode pendaftaran kelas ini.');
+        if ($user->hasRole(Role::ADMIN_PRODI)) {
+            $this->assertSectionScope($section);
+
+            return;
+        }
+
+        $isTeaching = $user->can('manage', $section);
+
+        abort_unless($isTeaching, 403, 'Anda tidak berhak melihat kode pendaftaran kelas ini.');
     }
 }

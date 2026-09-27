@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\AdminProdi;
 
-use App\Http\Controllers\Controller;
 use App\Models\Prodi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class ProdiManagementController extends Controller
+class ProdiManagementController extends AdminProdiController
 {
     public function index(): RedirectResponse
     {
@@ -17,6 +16,8 @@ class ProdiManagementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->assertGlobalAdmin();
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:10', 'alpha_num', 'unique:prodis,code'],
             'name' => ['required', 'string', 'max:120'],
@@ -37,6 +38,8 @@ class ProdiManagementController extends Controller
 
     public function update(Request $request, Prodi $prodi): RedirectResponse
     {
+        $this->assertProdiScope($prodi->id);
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:10', 'alpha_num', Rule::unique('prodis', 'code')->ignore($prodi->id)],
             'name' => ['required', 'string', 'max:120'],
@@ -57,6 +60,8 @@ class ProdiManagementController extends Controller
 
     public function destroy(Prodi $prodi): RedirectResponse
     {
+        $this->assertProdiScope($prodi->id);
+
         if ($prodi->mataKuliahs()->exists() || $prodi->cpls()->exists() || $prodi->users()->exists()) {
             return back()->withErrors([
                 'prodi' => "Program Studi {$prodi->name} tidak dapat dihapus karena masih memiliki relasi mata kuliah, kurikulum CPL, atau pengguna terdaftar.",

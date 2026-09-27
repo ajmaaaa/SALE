@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\AdminProdi;
 
-use App\Http\Controllers\Controller;
 use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
-use App\Models\Prodi;
 use App\Models\StudentAssessmentCpmkScore;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,6 +130,7 @@ class KurikulumController extends AdminProdiController
 
         $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
         $this->assertMataKuliahScope($mk);
+        $this->assertCplIdsBelongToProdi($request->input('cpl_ids', []), $mk->prodi_id);
 
         DB::transaction(function () use ($validated, $request) {
             $cpmk = Cpmk::create([
@@ -171,6 +170,7 @@ class KurikulumController extends AdminProdiController
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
+        $this->assertCplIdsBelongToProdi($request->input('cpl_ids', []), $cpmk->mataKuliah->prodi_id);
 
         DB::transaction(function () use ($cpmk, $validated, $request) {
             $cpmk->update([
@@ -224,6 +224,12 @@ class KurikulumController extends AdminProdiController
         $prodiId = $request->integer('prodi_id');
         $this->assertProdiScope($prodiId);
         $matrix = $request->input('matrix', []);
+        $cplIds = collect($matrix)
+            ->flatMap(fn ($mappings) => array_keys(is_array($mappings) ? $mappings : []))
+            ->unique()
+            ->values()
+            ->all();
+        $this->assertCplIdsBelongToProdi($cplIds, $prodiId);
 
         DB::transaction(function () use ($matrix, $prodiId) {
             $mkIds = MataKuliah::where('prodi_id', $prodiId)->pluck('id');
@@ -245,5 +251,19 @@ class KurikulumController extends AdminProdiController
 
         return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'mapping'])
             ->with('notice', 'Matriks pemetaan CPL ke CPMK berhasil disimpan.');
+    }
+
+    private function assertCplIdsBelongToProdi(array $cplIds, int $prodiId): void
+    {
+        $ids = collect($cplIds)->map(fn ($id) => (int) $id)->filter()->unique();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        abort_unless(
+            Cpl::where('prodi_id', $prodiId)->whereIn('id', $ids)->count() === $ids->count(),
+            403,
+            'CPL yang dipilih bukan milik program studi ini.'
+        );
     }
 }

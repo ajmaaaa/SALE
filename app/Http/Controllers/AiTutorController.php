@@ -55,21 +55,6 @@ class AiTutorController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        if (Auth::user() && $assignmentId === 1 && Schema::hasTable('ai_access')) {
-            if (Schema::hasTable('ai_tasks')) {
-                DB::table('ai_tasks')->insertOrIgnore([
-                    'id' => 1,
-                    'title' => 'Praktikum Binary Tree',
-                    'body' => 'Lengkapi metode insert() pada Binary Search Tree. Jelaskan penanganan cabang kiri, kanan, dan nilai duplikat.',
-                    'enabled' => true,
-                ]);
-            }
-            DB::table('ai_access')->insertOrIgnore([
-                'user_id' => Auth::id(),
-                'task_id' => 1,
-            ]);
-        }
-
         return redirect($destination);
     }
 

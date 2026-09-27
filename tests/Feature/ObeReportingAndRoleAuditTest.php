@@ -13,6 +13,7 @@ use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class ObeReportingAndRoleAuditTest extends TestCase
@@ -149,7 +150,7 @@ class ObeReportingAndRoleAuditTest extends TestCase
     public function test_xlsx_export_sanitizes_student_name_against_formula_injection(): void
     {
         $this->student1->update(['name' => '=1+1', 'nim_nidn' => '+62812345']);
-        $this->student2->update(['name' => "@SUM(A1:A2)\tTest", 'nim_nidn' => "-999"]);
+        $this->student2->update(['name' => "@SUM(A1:A2)\tTest", 'nim_nidn' => '-999']);
 
         $endpoints = [
             route('dosen.penilaian.rekap.export.excel', $this->section->id),
@@ -214,6 +215,40 @@ class ObeReportingAndRoleAuditTest extends TestCase
         // Other dosen attempts to view printable rekap
         $responsePrint = $this->actingAs($this->otherDosen)->get(route('dosen.penilaian.rekap.print', $this->section->id));
         $responsePrint->assertStatus(403);
+    }
+
+    public function test_assistant_lecturer_uses_the_same_class_management_policy_as_primary_lecturer(): void
+    {
+        $outsider = User::create([
+            'name' => 'Dosen Luar',
+            'email' => 'outsider@test.local',
+            'password' => 'secret',
+            'role_id' => $this->otherDosen->role_id,
+        ]);
+        $this->section->update(['dosen_pendamping_id' => $this->otherDosen->id]);
+        $this->section->refresh();
+
+        $this->assertTrue(Gate::forUser($this->dosen)->allows('manage', $this->section));
+        $this->assertTrue(Gate::forUser($this->otherDosen)->allows('manage', $this->section));
+        $this->assertFalse(Gate::forUser($outsider)->allows('manage', $this->section));
+
+        $this->actingAs($this->otherDosen)
+            ->get(route('dosen.penilaian.dashboard', $this->section))
+            ->assertRedirect(route('dosen.penilaian.asesmen', $this->section));
+        $this->get(route('dosen.penilaian.asesmen.edit', [$this->section, $this->assessment]))
+            ->assertOk();
+        $this->get(route('dosen.penilaian.asesmen.nilai', [$this->section, $this->assessment]))
+            ->assertOk();
+        $this->get(route('dosen.penilaian.asesmen.rubrik', [$this->section, $this->assessment]))
+            ->assertOk();
+        $this->get(route('dosen.penilaian.rekap.export', $this->section))
+            ->assertOk();
+
+        $this->actingAs($outsider)
+            ->get(route('dosen.penilaian.asesmen.rubrik', [$this->section, $this->assessment]))
+            ->assertForbidden();
+        $this->get(route('dosen.penilaian.rekap.export', $this->section))
+            ->assertForbidden();
     }
 
     public function test_mahasiswa_can_view_own_obe_progress(): void

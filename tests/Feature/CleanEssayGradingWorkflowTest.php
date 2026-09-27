@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
-use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
@@ -20,6 +19,7 @@ class CleanEssayGradingWorkflowTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private ClassSection $section;
 
     protected function setUp(): void
@@ -49,6 +49,8 @@ class CleanEssayGradingWorkflowTest extends TestCase
             'section_code' => 'A',
             'capacity' => 40,
         ]);
+
+        $this->actingAs($this->dosen);
     }
 
     public function test_assessment_grading_dashboard_renders_pending_and_results_tabs(): void

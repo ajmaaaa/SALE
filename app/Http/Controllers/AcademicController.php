@@ -7,13 +7,12 @@ use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\Submission;
 use App\Models\User;
+use App\Services\ObeCalculationService;
 use App\Support\AcademicPreview as Academic;
 use App\Support\AdminPreview;
 use App\Support\LearningPreview as Learning;
-use App\Services\ObeCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 
 class AcademicController extends Controller
 {
@@ -71,8 +70,40 @@ class AcademicController extends Controller
         return view('learning.grades', ['courses' => $courses]);
     }
 
-    private function authorizeOwnership(int $course, int $item = 0)
+    private function authorizeOwnership(int $course, int $item = 0): void
     {
+        $section = Schema::hasTable('class_sections') ? ClassSection::find($course) : null;
+
+        if ($section) {
+            $user = auth()->user();
+            abort_unless(
+                $user
+                && $user->can('manage', $section),
+                403,
+                'Anda bukan pengampu kelas ini.'
+            );
+
+            if ($item !== 0) {
+                $databaseItemExists = Assessment::where('class_section_id', $section->id)
+                    ->whereKey($item)
+                    ->exists();
+                $previewItem = Learning::items()[$item] ?? null;
+                $previewAllowed = config('app.demo_mode')
+                    && app()->environment(['local', 'testing'])
+                    && $previewItem
+                    && ($previewItem['course'] ?? null) === $course;
+
+                abort_unless($databaseItemExists || $previewAllowed, 404, 'Item tidak ditemukan atau bukan milik course ini.');
+            }
+
+            return;
+        }
+
+        abort_unless(
+            config('app.demo_mode') && app()->environment(['local', 'testing']),
+            404
+        );
+
         $courseData = Learning::course($course);
         abort_unless($courseData, 404);
 
@@ -87,6 +118,30 @@ class AcademicController extends Controller
             $itemData ??= Learning::items()[$item] ?? null;
             abort_unless($itemData && ($itemData['course'] ?? null) === $course, 404, 'Item tidak ditemukan atau bukan milik course ini.');
         }
+    }
+
+    private function authorizeStudentEnrollment(int $course, int $item, int $student): void
+    {
+        if (! Schema::hasTable('class_sections')) {
+            return;
+        }
+
+        $section = ClassSection::find($course);
+        if (! $section) {
+            return;
+        }
+
+        $isDatabaseAssessment = Schema::hasTable('assessments')
+            && Assessment::where('class_section_id', $section->id)->whereKey($item)->exists();
+        if (! $isDatabaseAssessment && config('app.demo_mode') && app()->environment(['local', 'testing'])) {
+            return;
+        }
+
+        abort_unless(
+            $section->students()->where('users.id', $student)->exists(),
+            403,
+            'Mahasiswa tidak terdaftar pada kelas ini.'
+        );
     }
 
     public function assessmentGrading(int $course, int $item)
@@ -121,7 +176,9 @@ class AcademicController extends Controller
 
         $essayItems = [];
         foreach ($questions as $qIdx => $q) {
-            if (! $q['is_essay']) continue;
+            if (! $q['is_essay']) {
+                continue;
+            }
 
             $answerText = $submission['question_answers'][(string) $q['id']]['text']
                 ?? $submission['question_answers'][$qIdx]['text']
@@ -160,6 +217,7 @@ class AcademicController extends Controller
     public function saveEssayScore(Request $request, int $course, int $item, int $student, int $questionIndex)
     {
         $this->authorizeOwnership($course, $item);
+        $this->authorizeStudentEnrollment($course, $item, $student);
         $evaluation = Academic::assessmentEvaluation($course, $item);
         $questions = $evaluation['questions'];
         $question = $questions[$questionIndex] ?? null;
@@ -167,7 +225,7 @@ class AcademicController extends Controller
 
         $maxPoints = (float) $question['points'];
         $validated = $request->validate([
-            'score' => ['required', 'numeric', 'min:0', 'max:' . $maxPoints],
+            'score' => ['required', 'numeric', 'min:0', 'max:'.$maxPoints],
         ], [
             'score.required' => 'Masukkan skor nilai untuk jawaban ini.',
             'score.numeric' => 'Skor harus berupa angka.',
@@ -194,6 +252,7 @@ class AcademicController extends Controller
                         $cpmkModel = $assessment->cpmks->first(function ($c) use ($cCode) {
                             $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
                             $c2 = strtoupper(trim(str_replace(' ', '-', $cCode)));
+
                             return $c1 === $c2;
                         }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $cCode)->first() : null);
 
@@ -248,7 +307,7 @@ class AcademicController extends Controller
         ];
         $students = $baseStudents;
         foreach ($extraStudents as $extra) {
-            if (!collect($students)->contains('id', $extra['id'])) {
+            if (! collect($students)->contains('id', $extra['id'])) {
                 $students[] = $extra;
             }
         }
@@ -256,11 +315,11 @@ class AcademicController extends Controller
             $section = ClassSection::find($course);
             if ($section) {
                 $dbStudents = $section->students()->get()->map(fn ($u) => [
-                    'id'     => $u->id,
-                    'name'   => $u->name,
-                    'email'  => $u->email,
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
                     'number' => $u->nim_nidn ?? (string) $u->id,
-                    'role'   => 'mahasiswa',
+                    'role' => 'mahasiswa',
                 ])->toArray();
                 foreach ($dbStudents as $dbStu) {
                     if (! collect($students)->contains('id', $dbStu['id'])) {
@@ -276,10 +335,10 @@ class AcademicController extends Controller
         foreach ($students as $stu) {
             $stuId = $stu['id'];
             $submission = $this->resolveSubmission($item, $stuId);
-            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
+            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && ! session()->has("learning.submissions.{$item}.{$stuId}")) {
                 $submission = null;
             }
-            $hasSubmitted = !empty($submission);
+            $hasSubmitted = ! empty($submission);
 
             // Skor tunggal yang sudah diinput dosen
             $skorRaw = session("academic.item_grades.{$item}.{$stuId}.skor_tugas");
@@ -334,13 +393,20 @@ class AcademicController extends Controller
     public function saveTugasScore(Request $request, int $course, int $item, int $student)
     {
         $this->authorizeOwnership($course, $item);
-        $itemData = Learning::items()[$item] ?? null;
+        $this->authorizeStudentEnrollment($course, $item, $student);
+
+        $assessment = Schema::hasTable('assessments')
+            ? Assessment::with('cpmks')->where('class_section_id', $course)->find($item)
+            : null;
+        $itemData = $assessment
+            ? Learning::databaseAssessment($assessment)
+            : (Learning::items()[$item] ?? null);
         abort_unless($itemData && in_array($itemData['type'], ['tugas', 'coding'], true), 404);
 
         $poinTugas = (float) ($itemData['points'] ?? 100);
 
         $validated = $request->validate([
-            'skor' => ['required', 'numeric', 'min:0', 'max:' . $poinTugas],
+            'skor' => ['required', 'numeric', 'min:0', 'max:'.$poinTugas],
         ], [
             'skor.required' => 'Masukkan skor tugas.',
             'skor.numeric' => 'Skor harus berupa angka.',
@@ -367,7 +433,6 @@ class AcademicController extends Controller
 
         // Simpan nilai assessment dan breakdown CPMK melalui satu sumber perhitungan.
         if (Schema::hasTable('student_assessment_scores')) {
-            $assessment = Assessment::with('cpmks')->find($item);
             if ($assessment) {
                 $this->grades->syncDirectScore($assessment, $student, $nilaiTugas, auth()->id(), true);
             }
@@ -375,7 +440,7 @@ class AcademicController extends Controller
 
         return redirect()
             ->route('dosen.item.penilaian.tugas', [$course, $item])
-            ->with('notice', "Skor tugas disimpan. Nilai tugas: " . number_format($nilaiTugas, 2, ',', '.') . " dari 100.");
+            ->with('notice', 'Skor tugas disimpan. Nilai tugas: '.number_format($nilaiTugas, 2, ',', '.').' dari 100.');
     }
 
     private function resolveSubmission(int $item, ?int $studentId = null): ?array
@@ -392,15 +457,15 @@ class AcademicController extends Controller
             $dbSub = $query->latest('id')->first();
             if ($dbSub) {
                 $submission = [
-                    'answer'           => $dbSub->answer,
-                    'link'             => $dbSub->link,
+                    'answer' => $dbSub->answer,
+                    'link' => $dbSub->link,
                     'question_answers' => $dbSub->question_answers ?? [],
-                    'files'            => $dbSub->file_ids ?? [],
-                    'student_number'   => $dbSub->student_number,
-                    'time'             => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
-                    'status'           => $dbSub->status,
-                    'attempt'          => $dbSub->attempt,
-                    'version'          => $dbSub->version,
+                    'files' => $dbSub->file_ids ?? [],
+                    'student_number' => $dbSub->student_number,
+                    'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                    'status' => $dbSub->status,
+                    'attempt' => $dbSub->attempt,
+                    'version' => $dbSub->version,
                 ];
             }
         }

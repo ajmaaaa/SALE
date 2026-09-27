@@ -41,7 +41,7 @@ class EnrollmentController extends Controller
             'code' => $section->enrollment_code,
             'isDosen' => $isDosen,
             'alreadyEnrolled' => $isDosen
-                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                ? $user->can('manage', $section)
                 : $section->students()->where('users.id', $user->id)->exists(),
         ]);
     }
@@ -69,7 +69,7 @@ class EnrollmentController extends Controller
                 ->firstOrFail();
 
             if ($user->hasRole(Role::DOSEN)) {
-                if (in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+                if ($user->can('manage', $section)) {
                     return [$section, 'already_enrolled'];
                 }
 
@@ -151,7 +151,7 @@ class EnrollmentController extends Controller
                 ->firstOrFail();
 
             if ($user->hasRole(Role::DOSEN)) {
-                if (in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+                if ($user->can('manage', $section)) {
                     return [$section, 'already_enrolled'];
                 }
 

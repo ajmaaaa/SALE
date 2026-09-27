@@ -65,6 +65,7 @@ class AdminProdiManagementTest extends TestCase
             'prodi_id' => $this->prodi->id,
             'nim_nidn' => 'AP001',
         ]);
+        $this->adminProdi->update(['prodi_id' => $this->prodi->id]);
 
         $this->dosenKetua = User::where('email', 'budi@example.test')->first() ?? User::create([
             'name' => 'Budi Santoso, M.Kom.',
@@ -74,6 +75,7 @@ class AdminProdiManagementTest extends TestCase
             'prodi_id' => $this->prodi->id,
             'nim_nidn' => '198501012010121001',
         ]);
+        $this->dosenKetua->update(['prodi_id' => $this->prodi->id]);
 
         $this->dosenWakil = User::create([
             'name' => 'Hendra Wijaya, S.Kom., M.Cs.',
@@ -92,14 +94,19 @@ class AdminProdiManagementTest extends TestCase
             'prodi_id' => $this->prodi->id,
             'nim_nidn' => '231011401234',
         ]);
+        $this->mahasiswa->update(['prodi_id' => $this->prodi->id]);
     }
 
     /**
      * Test Requirement 1: CRUD Prodi
      */
-    public function test_admin_prodi_can_crud_prodi(): void
+    public function test_global_admin_can_crud_prodi(): void
     {
-        $this->actingAs($this->adminProdi);
+        $globalAdmin = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN)->value('id'),
+            'prodi_id' => null,
+        ]);
+        $this->actingAs($globalAdmin);
 
         // Index redirects to dashboard
         $response = $this->get(route('admin-prodi.prodi.index'));
@@ -264,15 +271,15 @@ class AdminProdiManagementTest extends TestCase
             'nim_nidn' => '231011409999',
             'prodi_id' => $this->prodi->id,
             'role_type' => 'mahasiswa',
-            'password' => 'secret123',
+            'password' => 'secret123456',
         ]);
         $response->assertRedirect();
         $this->assertDatabaseHas('users', ['email' => 'fajar@student.test', 'nim_nidn' => '231011409999']);
 
         // 3. Impor CSV Massal Mahasiswa
         $csvContent = "NIM,Nama Mahasiswa,Email Mahasiswa,Password\n"
-            ."231011405001,Rina Kurnia,rina@student.test,password123\n"
-            ."231011405002,Dimas Anggara,dimas@student.test,password123\n";
+            ."231011405001,Rina Kurnia,rina@student.test,password1234\n"
+            ."231011405002,Dimas Anggara,dimas@student.test,\n";
 
         $file = UploadedFile::fake()->createWithContent('import_students.csv', $csvContent);
 
@@ -284,6 +291,14 @@ class AdminProdiManagementTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('users', ['email' => 'rina@student.test']);
         $this->assertDatabaseHas('users', ['email' => 'dimas@student.test']);
+        $this->assertDatabaseHas('users', ['email' => 'rina@student.test', 'must_change_password' => true]);
+        $temporaryCredentials = $response->getSession()->get('temporary_credentials');
+        $this->assertCount(1, $temporaryCredentials);
+        $this->assertSame('dimas@student.test', $temporaryCredentials[0]['email']);
+        $this->assertTrue(Hash::check(
+            $temporaryCredentials[0]['password'],
+            User::where('email', 'dimas@student.test')->firstOrFail()->password
+        ));
 
         // 4. Mahasiswa join kelas via Link / Barcode (`enrollment_code`)
         $mk = MataKuliah::create([
@@ -304,6 +319,7 @@ class AdminProdiManagementTest extends TestCase
 
         // Login sebagai mahasiswa baru yang diimpor
         $rina = User::where('email', 'rina@student.test')->first();
+        $rina->update(['must_change_password' => false]);
         $this->actingAs($rina);
 
         // GET hanya menampilkan konfirmasi; mutasi dilakukan melalui POST + CSRF.
@@ -412,18 +428,42 @@ class AdminProdiManagementTest extends TestCase
             'prodi_id' => $this->prodi->id,
         ];
 
-        $this->post(route('admin-prodi.users.store'), $payload)
+        $response = $this->post(route('admin-prodi.users.store'), $payload)
             ->assertSessionHasNoErrors()
             ->assertRedirect();
 
         $created = User::where('email', $payload['email'])->firstOrFail();
-        $this->assertTrue(Hash::check('password123', $created->password));
+        $notice = (string) $response->getSession()->get('notice');
+        $this->assertMatchesRegularExpression('/Password sementara: (\S{16}) /', $notice);
+        preg_match('/Password sementara: (\S{16}) /', $notice, $matches);
+        $this->assertTrue(Hash::check($matches[1], $created->password));
+        $this->assertFalse(Hash::check('password123', $created->password));
+        $this->assertTrue($created->must_change_password);
 
         $this->post(route('admin-prodi.users.store'), array_merge($payload, [
             'email' => 'invalid.password@student.test',
             'nim_nidn' => '231011409098',
             'password' => '123',
         ]))->assertSessionHasErrors('password');
+
+        $created->update(['must_change_password' => false]);
+        $updatePayload = [
+            'name' => $created->name,
+            'email' => $created->email,
+            'nim_nidn' => $created->nim_nidn,
+            'prodi_id' => $created->prodi_id,
+        ];
+
+        $this->put(route('admin-prodi.users.update', $created), array_merge($updatePayload, [
+            'password' => 'short12',
+        ]))->assertSessionHasErrors('password');
+
+        $this->put(route('admin-prodi.users.update', $created), array_merge($updatePayload, [
+            'password' => 'Resetpass1234',
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertTrue(Hash::check('Resetpass1234', $created->fresh()->password));
+        $this->assertTrue($created->fresh()->must_change_password);
     }
 
     public function test_unauthorized_user_is_blocked_from_admin_prodi(): void
@@ -459,6 +499,82 @@ class AdminProdiManagementTest extends TestCase
             'email' => $admin->email,
             'role_id' => $adminRole->id,
         ]);
+    }
+
+    public function test_admin_prodi_cannot_access_or_mutate_foreign_prodi_data(): void
+    {
+        $foreignProdi = Prodi::create(['code' => 'SI', 'name' => 'Sistem Informasi']);
+        $foreignMk = MataKuliah::create([
+            'prodi_id' => $foreignProdi->id,
+            'code' => 'SI101',
+            'name' => 'Pengantar Sistem Informasi',
+            'sks' => 3,
+        ]);
+        $foreignSection = ClassSection::create([
+            'mata_kuliah_id' => $foreignMk->id,
+            'semester_id' => $this->semester->id,
+            'section_code' => 'A',
+            'capacity' => 30,
+        ]);
+        $foreignCpl = Cpl::create([
+            'prodi_id' => $foreignProdi->id,
+            'code' => 'CPL-SI',
+            'description' => 'CPL prodi lain',
+        ]);
+        $foreignStudent = User::factory()->create([
+            'role_id' => Role::where('name', Role::MAHASISWA)->value('id'),
+            'prodi_id' => $foreignProdi->id,
+            'nim_nidn' => 'SI-STUDENT-01',
+        ]);
+
+        $this->actingAs($this->adminProdi);
+
+        $this->get(route('admin-prodi.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Pengantar Sistem Informasi');
+        $this->get(route('admin-prodi.users.index', ['prodi_id' => $foreignProdi->id]))->assertForbidden();
+        $this->get(route('admin-prodi.laporan.index', ['prodi_id' => $foreignProdi->id]))->assertForbidden();
+        $this->post(route('admin-prodi.prodi.store'), [
+            'code' => 'NEW',
+            'name' => 'Prodi Baru Tanpa Izin',
+        ])->assertForbidden();
+        $this->put(route('admin-prodi.prodi.update', $foreignProdi), [
+            'code' => 'SI',
+            'name' => 'Diambil Alih',
+        ])->assertForbidden();
+        $this->put(route('admin-prodi.users.update', $foreignStudent), [
+            'name' => 'Diambil Alih',
+            'email' => $foreignStudent->email,
+            'nim_nidn' => $foreignStudent->nim_nidn,
+            'prodi_id' => $foreignProdi->id,
+        ])->assertForbidden();
+        $this->put(route('admin-prodi.users.update', $this->mahasiswa), [
+            'name' => $this->mahasiswa->name,
+            'email' => $this->mahasiswa->email,
+            'nim_nidn' => $this->mahasiswa->nim_nidn,
+            'prodi_id' => $foreignProdi->id,
+        ])->assertForbidden();
+        $this->get(route('admin-prodi.akademik.kelas.qr', $foreignSection))->assertForbidden();
+
+        $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
+            'mata_kuliah_id' => MataKuliah::create([
+                'prodi_id' => $this->prodi->id,
+                'code' => 'IF999',
+                'name' => 'Mata Kuliah Lokal',
+                'sks' => 3,
+            ])->id,
+            'code' => 'CPMK-X',
+            'description' => 'Tidak boleh terhubung lintas prodi',
+            'threshold' => 60,
+            'cpl_ids' => [$foreignCpl->id],
+            'weights' => [$foreignCpl->id => 100],
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('prodis', ['id' => $foreignProdi->id, 'name' => 'Sistem Informasi']);
+        $this->assertDatabaseMissing('prodis', ['code' => 'NEW']);
+        $this->assertDatabaseHas('users', ['id' => $foreignStudent->id, 'name' => $foreignStudent->name]);
+        $this->assertDatabaseHas('users', ['id' => $this->mahasiswa->id, 'prodi_id' => $this->prodi->id]);
+        $this->assertDatabaseMissing('cpmks', ['code' => 'CPMK-X']);
     }
 
     /**

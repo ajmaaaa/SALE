@@ -10,6 +10,7 @@ use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 /**
  * Base controller untuk semua admin-prodi.
@@ -28,16 +29,25 @@ abstract class AdminProdiController extends Controller
     protected function adminProdiId(): ?int
     {
         $user = auth()->user();
-        if (! $user) {
-            return null;
-        }
+        abort_unless($user, 403);
 
         // Admin global tidak dibatasi prodi
         if ($user->hasRole(Role::ADMIN)) {
             return null;
         }
 
-        return $user->prodi_id ?: null;
+        abort_unless(
+            $user->hasRole(Role::ADMIN_PRODI) && $user->prodi_id,
+            403,
+            'Akun Admin Program Studi belum terhubung ke program studi.'
+        );
+
+        return (int) $user->prodi_id;
+    }
+
+    protected function assertGlobalAdmin(): void
+    {
+        abort_unless(auth()->user()?->hasRole(Role::ADMIN), 403, 'Tindakan ini hanya dapat dilakukan Admin global.');
     }
 
     /**
@@ -88,9 +98,8 @@ abstract class AdminProdiController extends Controller
             'Pengguna tidak termasuk lingkup pengelolaan Admin Program Studi.'
         );
 
-        if ($user->prodi_id) {
-            $this->assertProdiScope($user->prodi_id);
-        }
+        abort_unless($user->prodi_id, 403, 'Pengguna belum terhubung ke program studi.');
+        $this->assertProdiScope((int) $user->prodi_id);
     }
 
     /**
@@ -128,7 +137,7 @@ abstract class AdminProdiController extends Controller
      * Jika prodi_id tidak diberikan, gunakan prodi sendiri (untuk admin prodi)
      * atau prodi pertama (untuk admin global).
      */
-    protected function resolveActiveProdi(\Illuminate\Http\Request $request): ?Prodi
+    protected function resolveActiveProdi(Request $request): ?Prodi
     {
         $prodis = $this->allowedProdis();
         $ownProdiId = $this->adminProdiId();
@@ -138,6 +147,7 @@ abstract class AdminProdiController extends Controller
         if ($requestedId) {
             // Pastikan prodi yang diminta boleh diakses
             $this->assertProdiScope($requestedId);
+
             return $prodis->firstWhere('id', $requestedId) ?? $prodis->first();
         }
 

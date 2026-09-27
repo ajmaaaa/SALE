@@ -123,7 +123,7 @@ class LearningController extends Controller
 
         if ($section && $user) {
             $canAccess = $user->hasRole(Role::DOSEN)
-                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                ? $user->can('manage', $section)
                 : ($user->hasRole(Role::MAHASISWA)
                     && $section->students()->where('users.id', $user->id)->exists());
 
@@ -153,7 +153,7 @@ class LearningController extends Controller
         if ($user && Schema::hasTable('class_sections')) {
             $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->find($course);
             $canAccess = $section && ($user->hasRole(Role::DOSEN)
-                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                ? $user->can('manage', $section)
                 : ($user->hasRole(Role::MAHASISWA)
                     && $section->students()->where('users.id', $user->id)->exists()));
 
@@ -508,7 +508,7 @@ class LearningController extends Controller
         $user = auth()->user();
         if ($user && $user->hasRole(Role::DOSEN) && Schema::hasTable('class_sections')) {
             $section = ClassSection::find($course);
-            if ($section && ! in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+            if ($section && ! $user->can('manage', $section)) {
                 abort(403, 'Anda bukan pengampu kelas ini.');
             }
         }
@@ -522,7 +522,7 @@ class LearningController extends Controller
         $user = auth()->user();
         if ($user && $user->hasRole(Role::DOSEN) && Schema::hasTable('class_sections')) {
             $section = ClassSection::find($course);
-            if ($section && ! in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)) {
+            if ($section && ! $user->can('manage', $section)) {
                 abort(403, 'Anda bukan pengampu kelas ini.');
             }
         }
@@ -844,6 +844,15 @@ class LearningController extends Controller
                     'allow_late' => $data['allow_late'],
                 ]);
 
+                if (Schema::hasTable('attachments') && $fileIds->isNotEmpty()) {
+                    Attachment::whereIn('uuid', $fileIds)
+                        ->where('user_id', $user->id)
+                        ->update([
+                            'class_section_id' => $section->id,
+                            'assessment_id' => $assessment->id,
+                        ]);
+                }
+
 
                 // Sinkronisasi bobot CPMK ke database (tabel assessment_cpmk)
                 $syncData = [];
@@ -1058,7 +1067,7 @@ class LearningController extends Controller
         }
 
         $canAccess = $user->hasRole(Role::DOSEN)
-            ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+            ? $user->can('manage', $section)
             : ($user->hasRole(Role::MAHASISWA)
                 && $section->students()->where('users.id', $user->id)->exists());
 
@@ -1516,22 +1525,7 @@ class LearningController extends Controller
                 if ($attachment) {
                     $user = auth()->user();
                     abort_unless($user, 401);
-                    $sectionId = $attachment->class_section_id;
-                    if (! $sectionId && $attachment->assessment_id && Schema::hasTable('assessments')) {
-                        $sectionId = Assessment::where('id', $attachment->assessment_id)->value('class_section_id');
-                    }
-                    if ($sectionId && Schema::hasTable('class_sections')) {
-                        $section = ClassSection::find($sectionId);
-                        if ($section) {
-                            $authorized = $user->hasRole(Role::DOSEN)
-                                ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
-                                : ($user->hasRole(Role::MAHASISWA)
-                                    && ($attachment->user_id === $user->id || $section->students()->where('users.id', $user->id)->exists()));
-                            abort_unless($authorized, 403);
-                        }
-                    } elseif ($attachment->user_id !== $user->id && ! $user->hasRole(Role::DOSEN)) {
-                        abort(403);
-                    }
+                    $this->authorizeAttachmentAccess($attachment, $user);
                     $meta = ['path' => $attachment->path, 'name' => $attachment->name, 'mime' => $attachment->mime];
                 } else {
                     // Berkas berasal dari database — wajib verifikasi relasi pengguna dengan kelas.
@@ -1546,7 +1540,7 @@ class LearningController extends Controller
                     $section = ClassSection::find($sectionId);
                     if ($section) {
                         $authorized = $user->hasRole(Role::DOSEN)
-                            ? in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true)
+                            ? $user->can('manage', $section)
                             : ($user->hasRole(Role::MAHASISWA)
                                 && $section->students()->where('users.id', $user->id)->exists());
                         abort_unless($authorized, 403);
@@ -1568,6 +1562,52 @@ class LearningController extends Controller
         }
 
         return Storage::disk('local')->download($meta['path'], $meta['name'], $headers);
+    }
+
+    private function authorizeAttachmentAccess(Attachment $attachment, User $user): void
+    {
+        $submission = $attachment->submission_id && Schema::hasTable('submissions')
+            ? Submission::with('assessment')->find($attachment->submission_id)
+            : null;
+        $sectionId = $attachment->class_section_id
+            ?? $attachment->assessment?->class_section_id
+            ?? $submission?->assessment?->class_section_id;
+        $section = $sectionId && Schema::hasTable('class_sections')
+            ? ClassSection::find($sectionId)
+            : null;
+
+        if ($section && $user->hasRole(Role::DOSEN)) {
+            abort_unless($user->can('manage', $section), 403);
+
+            return;
+        }
+
+        if ($attachment->submission_id) {
+            $ownerIds = collect([
+                $submission?->user_id,
+                $submission?->mahasiswa_id,
+                $attachment->user_id,
+            ])->filter()->map(fn ($id) => (int) $id);
+
+            abort_unless(
+                $user->hasRole(Role::MAHASISWA) && $ownerIds->contains((int) $user->id),
+                403
+            );
+
+            return;
+        }
+
+        if ($section) {
+            abort_unless(
+                $user->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists(),
+                403
+            );
+
+            return;
+        }
+
+        abort_unless((int) $attachment->user_id === (int) $user->id, 403);
     }
 
     public function notifications(Request $request)
@@ -1705,7 +1745,11 @@ class LearningController extends Controller
             return redirect($target);
         }
 
-        return back();
+        $fallbackRoute = $request->user()?->hasRole(Role::DOSEN)
+            ? 'dosen.notifications'
+            : 'mahasiswa.notifications';
+
+        return redirect()->route($fallbackRoute);
     }
 
     /**
@@ -1721,35 +1765,66 @@ class LearningController extends Controller
      */
     protected function isInternalUrl(string $target): bool
     {
-        // Tolak string kosong
-        if ($target === '') {
+        if ($target === '' || $target !== trim($target)) {
             return false;
         }
 
-        // Terima path relatif (dimulai '/') tapi bukan protocol-relative ('//')
-        if (str_starts_with($target, '/') && ! str_starts_with($target, '//')) {
-            return true;
+        // Tolak karakter kontrol, backslash, dan bentuk protocol-relative, termasuk
+        // yang disamarkan dengan percent encoding berlapis.
+        $decodedTarget = $target;
+        for ($i = 0; $i < 3; $i++) {
+            $decodedTarget = rawurldecode($decodedTarget);
         }
 
-        // Untuk URL absolut: parse dan bandingkan scheme + host + port secara tepat
-        if (filter_var($target, FILTER_VALIDATE_URL)) {
-            $appParsed = parse_url(url('/'));
-            $targetParsed = parse_url($target);
-
-            $appHost   = strtolower($appParsed['host'] ?? '');
-            $appScheme = strtolower($appParsed['scheme'] ?? 'https');
-            $appPort   = $appParsed['port'] ?? null;
-
-            $targetHost   = strtolower($targetParsed['host'] ?? '');
-            $targetScheme = strtolower($targetParsed['scheme'] ?? 'https');
-            $targetPort   = $targetParsed['port'] ?? null;
-
-            return $targetHost === $appHost
-                && $targetScheme === $appScheme
-                && $targetPort === $appPort;
+        if (preg_match('/[\\x00-\\x1F\\x7F\\\\]/', $decodedTarget)) {
+            return false;
         }
 
-        return false;
+        if (str_starts_with($target, '/')) {
+            return ! str_starts_with($decodedTarget, '//');
+        }
+
+        if (! filter_var($target, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        $appParsed = parse_url((string) config('app.url'));
+        $targetParsed = parse_url($target);
+        if (! is_array($appParsed) || ! is_array($targetParsed)) {
+            return false;
+        }
+
+        if (isset($targetParsed['user']) || isset($targetParsed['pass'])) {
+            return false;
+        }
+
+        $appScheme = strtolower($appParsed['scheme'] ?? '');
+        $targetScheme = strtolower($targetParsed['scheme'] ?? '');
+        if (! in_array($targetScheme, ['http', 'https'], true) || $targetScheme !== $appScheme) {
+            return false;
+        }
+
+        $appHost = strtolower($appParsed['host'] ?? '');
+        $targetHost = strtolower($targetParsed['host'] ?? '');
+        if ($appHost === '' || $targetHost !== $appHost) {
+            return false;
+        }
+
+        $defaultPort = $appScheme === 'https' ? 443 : 80;
+        $appPort = (int) ($appParsed['port'] ?? $defaultPort);
+        $targetPort = (int) ($targetParsed['port'] ?? $defaultPort);
+
+        if ($targetPort !== $appPort) {
+            return false;
+        }
+
+        $targetPath = $targetParsed['path'] ?? '/';
+
+        if ($targetPath === '' || ! str_starts_with($targetPath, '/')) {
+            return false;
+        }
+
+        return true;
     }
 
 

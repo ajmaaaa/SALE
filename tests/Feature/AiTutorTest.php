@@ -66,6 +66,28 @@ class AiTutorTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    public function test_real_login_does_not_grant_ai_access(): void
+    {
+        config(['app.demo_mode' => false]);
+        $user = User::factory()->create([
+            'email' => 'student-without-access@example.test',
+            'password' => 'correct-password',
+        ]);
+
+        $this->post('/ai/login', [
+            'assignment' => 1,
+            'email' => $user->email,
+            'password' => 'correct-password',
+        ])->assertRedirect(route('mahasiswa.assignment.code', 1));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseMissing('ai_access', [
+            'user_id' => $user->id,
+            'task_id' => 1,
+        ]);
+        $this->postJson('/ai/tasks/1', ['question' => 'Jelaskan binary tree.'])->assertForbidden();
+    }
+
     public function test_quick_demo_ai_login_provisions_account_and_access(): void
     {
         $this->post('/ai/login', [

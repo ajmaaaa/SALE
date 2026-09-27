@@ -46,7 +46,7 @@ class ChatController extends Controller
         }
 
         if ($user->hasRole(Role::DOSEN)) {
-            return in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+            return $user->can('manage', $section);
         }
 
         if ($user->hasRole(Role::MAHASISWA)) {

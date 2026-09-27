@@ -36,7 +36,7 @@ class MessagePolicy
             return false;
         }
 
-        return in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+        return $user->can('manage', $section);
     }
 
     /**

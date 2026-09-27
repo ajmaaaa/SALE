@@ -90,4 +90,33 @@ class NotificationFeatureTest extends TestCase
         $response->assertOk();
         $response->assertSee('opacity-60', false);
     }
+
+    public function test_notification_target_only_redirects_to_the_application_origin(): void
+    {
+        $internalPath = '/mahasiswa/dashboard?from=notification#latest';
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.notifications.read', ['id' => 'internal', 'target' => $internalPath]))
+            ->assertRedirect($internalPath);
+
+        $sameOrigin = url('/mahasiswa/dashboard?from=notification');
+        $this->get(route('mahasiswa.notifications.read', ['id' => 'same-origin', 'target' => $sameOrigin]))
+            ->assertRedirect($sameOrigin);
+
+        $maliciousTargets = [
+            url('/').'.attacker.example/audit',
+            '//attacker.example/audit',
+            '/\\attacker.example/audit',
+            '/%255C%255Cattacker.example/audit',
+            'https://'.parse_url((string) config('app.url'), PHP_URL_HOST).'@attacker.example/audit',
+        ];
+
+        foreach ($maliciousTargets as $index => $target) {
+            $this->from('https://attacker.example/referrer')
+                ->get(route('mahasiswa.notifications.read', [
+                    'id' => "malicious-{$index}",
+                    'target' => $target,
+                ]))
+                ->assertRedirect(route('mahasiswa.notifications'));
+        }
+    }
 }

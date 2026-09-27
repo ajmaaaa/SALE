@@ -6,10 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
-use App\Models\Role;
-use App\Models\User;
 use App\Services\ObeCalculationService;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -467,21 +465,7 @@ class ExportController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        $currentUserId = Auth::guard('web')->id();
-
-        if (! $currentUserId && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $user = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
-        }
-
-        abort_unless(
-            $currentUserId && in_array($currentUserId, [$section->dosen_id, $section->dosen_pendamping_id], true),
-            403,
-            'Anda tidak memiliki akses ke kelas ini.'
-        );
+        Gate::authorize('manage', $section);
     }
 
     private function sanitizeCsv(mixed $value): string

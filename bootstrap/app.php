@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdminProdiAuth;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,10 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
+        $middleware->appendToGroup('web', ForcePasswordChange::class);
         $middleware->alias([
             'admin_prodi.auth' => EnsureAdminProdiAuth::class,
             'role' => EnsureRole::class,
-            'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
+            'force_password_change' => ForcePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {})

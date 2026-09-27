@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Message;
 use App\Models\ClassSection;
 use App\Models\MataKuliah;
+use App\Models\Message;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Room;
@@ -20,8 +20,11 @@ class ChatSystemTest extends TestCase
     use RefreshDatabase;
 
     protected User $dosen;
+
     protected User $mahasiswa1;
+
     protected User $mahasiswa2;
+
     protected Room $room;
 
     protected function setUp(): void
@@ -271,5 +274,16 @@ class ChatSystemTest extends TestCase
         $response->assertOk()->assertSessionHas('learning.discussion_reads.1', 1);
         // Ensure no prose-content in chat bubble
         $response->assertDontSee('<p class="prose-content mt-1.5', false);
+    }
+
+    public function test_polling_renderer_never_interpolates_user_chat_data_into_html(): void
+    {
+        $source = file_get_contents(resource_path('views/learning/course.blade.php'));
+
+        $this->assertStringContainsString('chatMessages.replaceChildren(...data.messages.map(buildChatMessage).filter(Boolean))', $source);
+        $this->assertStringContainsString("heading.appendChild(chatElement('span', 'text-xs font-bold text-ink break-words', author))", $source);
+        $this->assertStringContainsString("replyBox.appendChild(chatElement('span', 'line-clamp-1 italic text-slate-700 mt-0.5', message.reply_to.excerpt))", $source);
+        $this->assertStringContainsString('appendChatContent(messageContent, content)', $source);
+        $this->assertStringNotContainsString('chatMessages.innerHTML = data.messages.map', $source);
     }
 }

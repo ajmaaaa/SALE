@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
+use App\Models\Attachment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
@@ -124,6 +125,42 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $response->assertSee('Tugas 2: Graph Traversal');
         $response->assertSee('Belum dikumpulkan');
         $response->assertSee('Tenggat');
+    }
+
+    public function test_legacy_grading_route_rejects_unassigned_lecturer_and_unenrolled_student(): void
+    {
+        $otherDosen = User::create([
+            'name' => 'Dosen Kelas Lain',
+            'email' => 'dosen.lain@example.test',
+            'password' => Hash::make('password'),
+            'role_id' => Role::where('name', Role::DOSEN)->value('id'),
+            'nim_nidn' => '198501012010121099',
+        ]);
+        $unenrolledStudent = User::create([
+            'name' => 'Mahasiswa Tidak Terdaftar',
+            'email' => 'tidak.terdaftar@student.test',
+            'password' => Hash::make('password'),
+            'role_id' => Role::where('name', Role::MAHASISWA)->value('id'),
+            'nim_nidn' => '231011409999',
+        ]);
+        $url = route('dosen.item.penilaian.tugas.save', [
+            $this->section->id,
+            $this->ungradedTask->id,
+            $this->student->id,
+        ]);
+
+        $this->actingAs($otherDosen)->post($url, ['skor' => 90])->assertForbidden();
+
+        $this->actingAs($this->dosen)->post(route('dosen.item.penilaian.tugas.save', [
+            $this->section->id,
+            $this->ungradedTask->id,
+            $unenrolledStudent->id,
+        ]), ['skor' => 90])->assertForbidden();
+
+        $this->assertDatabaseMissing('student_assessment_scores', [
+            'assessment_id' => $this->ungradedTask->id,
+            'mahasiswa_id' => $unenrolledStudent->id,
+        ]);
     }
 
     public function test_student_assignment_tab_nilai_only_shows_graded_items(): void
@@ -314,7 +351,7 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
     public function test_database_material_and_late_task_render_generated_pdf_and_image_files(): void
     {
-        $this->seed(\Database\Seeders\DemoLearningContentSeeder::class);
+        $this->seed(DemoLearningContentSeeder::class);
 
         $material = Assessment::where('class_section_id', $this->section->id)
             ->where('code', 'MATERI-DEMO')
@@ -405,6 +442,42 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
         $cancel = $this->post(route('mahasiswa.course.submission.cancel', [$this->section->id, $this->ungradedTask->id]));
         $cancel->assertSessionHasErrors('submission');
+    }
+
+    public function test_submission_attachment_is_private_from_other_students_in_same_class(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('submissions/private-answer.pdf', '%PDF private answer');
+
+        $submission = Submission::create([
+            'assessment_id' => $this->ungradedTask->id,
+            'user_id' => $this->student->id,
+            'mahasiswa_id' => $this->student->id,
+            'status' => 'pending',
+            'submitted_at' => now(),
+        ]);
+        $attachment = Attachment::create([
+            'uuid' => '10000000-0000-4000-8000-000000000001',
+            'user_id' => $this->student->id,
+            'class_section_id' => $this->section->id,
+            'assessment_id' => $this->ungradedTask->id,
+            'submission_id' => $submission->id,
+            'path' => 'submissions/private-answer.pdf',
+            'name' => 'private-answer.pdf',
+            'mime' => 'application/pdf',
+        ]);
+        $otherStudent = User::factory()->create([
+            'role_id' => Role::where('name', Role::MAHASISWA)->value('id'),
+        ]);
+        $otherDosen = User::factory()->create([
+            'role_id' => Role::where('name', Role::DOSEN)->value('id'),
+        ]);
+        $this->section->students()->attach($otherStudent->id);
+
+        $this->actingAs($otherStudent)->get(route('preview.file', $attachment->uuid))->assertForbidden();
+        $this->actingAs($otherDosen)->get(route('preview.file', $attachment->uuid))->assertForbidden();
+        $this->actingAs($this->student)->get(route('preview.file', $attachment->uuid))->assertOk();
+        $this->actingAs($this->dosen)->get(route('preview.file', $attachment->uuid))->assertOk();
     }
 
     public function test_graded_assignment_cannot_be_submitted_again(): void
@@ -963,7 +1036,7 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
     public function test_database_quiz_loads_all_six_question_variations_and_renders_clean_evaluation(): void
     {
-        $this->seed(\Database\Seeders\DemoLearningContentSeeder::class);
+        $this->seed(DemoLearningContentSeeder::class);
 
         $quiz = Assessment::where('class_section_id', $this->section->id)
             ->where('code', 'KUIS-01')

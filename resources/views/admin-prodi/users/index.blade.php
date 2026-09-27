@@ -38,6 +38,18 @@
     </div>
     @endif
 
+    @if(session('temporary_credentials') && count(session('temporary_credentials')) > 0)
+    <div class="rounded-xl border border-sky-300 bg-sky-50 p-4 text-xs text-sky-950">
+        <p class="font-bold mb-1">Password sementara hasil impor (hanya ditampilkan sekali):</p>
+        <p class="mb-2 text-sky-800">Salin dan kirimkan masing-masing password melalui kanal yang aman. Pengguna wajib menggantinya saat login pertama.</p>
+        <ul class="space-y-1 max-h-40 overflow-y-auto font-mono">
+            @foreach(session('temporary_credentials') as $credential)
+                <li>{{ $credential['identity'] }} · {{ $credential['email'] }} · <strong>{{ $credential['password'] }}</strong></li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
     <!-- Tabs Nav -->
     <div class="flex border-b border-line gap-2">
         <a href="{{ route('admin-prodi.users.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'dosen']) }}" 
@@ -225,8 +237,9 @@
             </div>
 
             <div>
-                <label for="create_password" class="block text-xs font-semibold text-ink mb-1">Kata Sandi (Opsional, Default: password123)</label>
-                <input type="password" name="password" id="create_password" placeholder="password123" class="field text-xs font-semibold">
+                <label for="create_password" class="block text-xs font-semibold text-ink mb-1">Kata Sandi (Opsional, minimal 12 karakter)</label>
+                <input type="password" name="password" id="create_password" minlength="12" autocomplete="new-password" placeholder="Kosongkan untuk membuat password acak" class="field text-xs font-semibold">
+                <p class="mt-1 text-[11px] text-muted">Password sementara acak akan ditampilkan sekali setelah akun dibuat.</p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
@@ -265,8 +278,9 @@
             </div>
 
             <div>
-                <label for="edit_password" class="block text-xs font-semibold text-ink mb-1">Ganti Password (Kosongkan jika tidak diubah)</label>
-                <input type="password" name="password" id="edit_password" placeholder="••••••••" class="field text-xs font-semibold">
+                <label for="edit_password" class="block text-xs font-semibold text-ink mb-1">Ganti Password (Kosongkan jika tidak diubah, minimal 12 karakter)</label>
+                <input type="password" name="password" id="edit_password" minlength="12" autocomplete="new-password" placeholder="Minimal 12 karakter" class="field text-xs font-semibold">
+                <p class="mt-1 text-[11px] text-muted">Jika diubah, pengguna wajib menggantinya kembali saat login berikutnya.</p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
@@ -294,7 +308,7 @@
                 <p class="text-muted">Kolom 1: Nomor Identitas (NIM / NIDN)</p>
                 <p class="text-muted">Kolom 2: Nama Lengkap</p>
                 <p class="text-muted">Kolom 3: Email</p>
-                <p class="text-muted">Kolom 4: Password (opsional)</p>
+                <p class="text-muted">Kolom 4: Password (opsional, minimal 12 karakter; kosong = dibuat acak)</p>
             </div>
 
             <div>

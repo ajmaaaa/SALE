@@ -593,10 +593,6 @@
         const isDosenUser = {{ $isDosenUser ? 'true' : 'false' }};
         const roomMembers = @json($roomMembersList ?? []);
 
-        // Encode any user-supplied string as safe HTML text — never interpolate raw into innerHTML.
-        const _escNode = document.createElement('span');
-        function esc(str) { _escNode.textContent = str == null ? '' : String(str); return _escNode.innerHTML; }
-
         const chatMessages = document.getElementById('chat-messages');
         const discussForm = document.getElementById('course-discuss-form');
         const discussInput = document.getElementById('course_discuss_message');
@@ -741,6 +737,144 @@
             discussInput.focus();
         }
 
+        function chatElement(tag, className = '', text = null) {
+            const element = document.createElement(tag);
+            if (className) element.className = className;
+            if (text !== null) element.textContent = String(text);
+
+            return element;
+        }
+
+        function appendChatContent(container, content) {
+            const value = content == null ? '' : String(content);
+            const mentionPattern = /@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/g;
+            let cursor = 0;
+            let match;
+
+            while ((match = mentionPattern.exec(value)) !== null) {
+                container.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+                container.appendChild(chatElement(
+                    'span',
+                    'inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]',
+                    match[0]
+                ));
+                cursor = match.index + match[0].length;
+            }
+
+            container.appendChild(document.createTextNode(value.slice(cursor)));
+        }
+
+        function chatActionsIcon() {
+            const namespace = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(namespace, 'svg');
+            svg.setAttribute('class', 'h-4 w-4');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('fill', 'currentColor');
+            svg.setAttribute('aria-hidden', 'true');
+            [5, 12, 19].forEach(cx => {
+                const circle = document.createElementNS(namespace, 'circle');
+                circle.setAttribute('cx', String(cx));
+                circle.setAttribute('cy', '12');
+                circle.setAttribute('r', '1.7');
+                svg.appendChild(circle);
+            });
+
+            return svg;
+        }
+
+        function buildChatMessage(message) {
+            const messageId = Number(message.id);
+            if (!Number.isSafeInteger(messageId) || messageId < 1) return null;
+
+            const author = message.author == null ? '' : String(message.author);
+            const content = message.content == null ? '' : String(message.content);
+            const isMe = Boolean(message.is_me);
+            const canDelete = isDosenUser || isMe;
+            const initials = (author || 'P').split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+            const row = chatElement('div', `chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}`);
+            row.id = `msg-bubble-${messageId}`;
+            row.dataset.messageId = String(messageId);
+            row.dataset.author = author;
+
+            const article = chatElement('article', `min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}`);
+            article.appendChild(chatElement('span', `shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl'}`));
+
+            const padding = chatElement('div', 'p-3 min-w-0 flex-1');
+            const layout = chatElement('div', 'flex items-start gap-2.5 min-w-0');
+            if (!isMe) {
+                layout.appendChild(chatElement('span', 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700', initials));
+            }
+
+            const body = chatElement('div', 'min-w-0 flex-1');
+            const heading = chatElement('div', 'flex flex-wrap items-center gap-1.5 leading-snug');
+            if (!isMe) {
+                heading.appendChild(chatElement('span', 'text-xs font-bold text-ink break-words', author));
+                if (message.role === 'dosen') {
+                    heading.appendChild(chatElement('span', 'status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0', 'Dosen'));
+                }
+            }
+            if (message.is_pinned) {
+                const pinBadge = chatElement('span', 'inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0', 'Disematkan');
+                pinBadge.id = `pin-badge-${messageId}`;
+                heading.appendChild(pinBadge);
+            }
+
+            const actions = chatElement('details', 'chat-action-details relative ml-auto shrink-0');
+            const actionSummary = chatElement('summary', 'flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden');
+            actionSummary.setAttribute('aria-label', 'Aksi pesan');
+            actionSummary.appendChild(chatActionsIcon());
+            actions.appendChild(actionSummary);
+            const actionMenu = chatElement('div', 'absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg');
+            const replyButton = chatElement('button', 'block w-full px-3 py-2 text-left text-ink hover:bg-canvas', 'Balas');
+            replyButton.type = 'button';
+            replyButton.addEventListener('click', () => {
+                actions.removeAttribute('open');
+                setReplyTarget(messageId, author, content.slice(0, 50));
+            });
+            actionMenu.appendChild(replyButton);
+            if (isDosenUser) {
+                const pinButton = chatElement('button', 'block w-full px-3 py-2 text-left text-ink hover:bg-canvas', message.is_pinned ? 'Lepas sematan' : 'Sematkan');
+                pinButton.type = 'button';
+                pinButton.addEventListener('click', () => {
+                    actions.removeAttribute('open');
+                    togglePinMessage(messageId);
+                });
+                actionMenu.appendChild(pinButton);
+            }
+            if (canDelete) {
+                const deleteButton = chatElement('button', 'block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50 font-medium', 'Hapus');
+                deleteButton.type = 'button';
+                deleteButton.addEventListener('click', () => {
+                    actions.removeAttribute('open');
+                    deleteMessage(messageId);
+                });
+                actionMenu.appendChild(deleteButton);
+            }
+            actions.appendChild(actionMenu);
+            heading.appendChild(actions);
+            body.appendChild(heading);
+
+            if (message.reply_to) {
+                const replyBox = chatElement('div', 'mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs');
+                replyBox.appendChild(chatElement('span', 'font-bold text-brand block leading-tight', message.reply_to.sender_name));
+                replyBox.appendChild(chatElement('span', 'line-clamp-1 italic text-slate-700 mt-0.5', message.reply_to.excerpt));
+                body.appendChild(replyBox);
+            }
+
+            const messageContent = chatElement('p', 'mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800');
+            appendChatContent(messageContent, content);
+            body.appendChild(messageContent);
+            const timeWrapper = chatElement('div', 'mt-1 flex justify-end');
+            timeWrapper.appendChild(chatElement('time', 'text-[10px] text-muted', message.time));
+            body.appendChild(timeWrapper);
+            layout.appendChild(body);
+            padding.appendChild(layout);
+            article.appendChild(padding);
+            row.appendChild(article);
+
+            return row;
+        }
+
         // 5. Enter Key and AJAX Submit
         if (discussInput && discussForm) {
             discussInput.addEventListener('keydown', function(e) {
@@ -875,63 +1009,7 @@
                     if (isDifferent) {
                         const wasAtBottom = chatMessages.scrollHeight - chatMessages.clientHeight <= chatMessages.scrollTop + 50;
 
-                        chatMessages.innerHTML = data.messages.map(m => {
-                            const isMe = m.is_me;
-                            const initials = esc((m.author || 'P').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
-                            const canDelete = isDosenUser || isMe;
-                            const pinBadge = m.is_pinned ? `<span id="pin-badge-${m.id}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0">Disematkan</span>` : '';
-                            const replyBox = m.reply_to ? `
-                                <div class="mt-2 mb-1 rounded border-l-2 border-brand bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 shadow-2xs">
-                                    <span class="font-bold text-brand block leading-tight">${esc(m.reply_to.sender_name)}</span>
-                                    <span class="line-clamp-1 italic text-slate-700 mt-0.5">${esc(m.reply_to.excerpt)}</span>
-                                </div>
-                            ` : '';
-
-                            const formattedContent = m.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/g, '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>');
-                            const replyAuthor = JSON.stringify(m.author).replace(/'/g, '&#39;');
-                            const replyExcerpt = JSON.stringify(m.content.slice(0, 50)).replace(/'/g, '&#39;');
-
-                            return `
-                                <div id="msg-bubble-${m.id}" class="chat-message-row group flex w-full ${isMe ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}" data-author="${esc(m.author)}">
-                                    <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}">
-                                        <span class="shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl'}" aria-hidden="true"></span>
-                                        <div class="p-3 min-w-0 flex-1">
-                                            <div class="flex items-start gap-2.5 min-w-0">
-                                                ${!isMe ? `
-                                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700">
-                                                        ${initials}
-                                                    </span>
-                                                ` : ''}
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex flex-wrap items-center gap-1.5 leading-snug">
-                                                        ${!isMe ? `
-                                                            <span class="text-xs font-bold text-ink break-words">${esc(m.author)}</span>
-                                                            ${m.role === 'dosen' ? '<span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>' : ''}
-                                                        ` : ''}
-                                                        ${pinBadge}
-                                                        <details class="chat-action-details relative ml-auto shrink-0">
-                                                            <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
-                                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
-                                                            </summary>
-                                                            <div class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
-                                                                <button type="button" onclick='this.closest("details").removeAttribute("open"); setReplyTarget(${m.id}, ${replyAuthor}, ${replyExcerpt})' class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
-                                                                ${isDosenUser ? `<button type="button" onclick="this.closest('details').removeAttribute('open'); togglePinMessage(${m.id})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">${m.is_pinned ? 'Lepas sematan' : 'Sematkan'}</button>` : ''}
-                                                                ${canDelete ? `<button type="button" onclick="this.closest('details').removeAttribute('open'); deleteMessage(${m.id})" class="block w-full px-3 py-2 text-left text-rose-700 hover:bg-rose-50 font-medium">Hapus</button>` : ''}
-                                                            </div>
-                                                        </details>
-                                                    </div>
-                                                    ${replyBox}
-                                                    <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">${formattedContent}</p>
-                                                    <div class="mt-1 flex justify-end">
-                                                        <time class="text-[10px] text-muted">${esc(m.time)}</time>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </article>
-                                </div>
-                            `;
-                        }).join('');
+                        chatMessages.replaceChildren(...data.messages.map(buildChatMessage).filter(Boolean));
 
 
                         if (scrollToBottom || wasAtBottom) {

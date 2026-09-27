@@ -21,7 +21,7 @@ class ForcePasswordChange
         }
 
         // Jika user wajib ganti password tapi belum di halaman ganti password
-        if ($user->must_change_password && ! $request->routeIs('password.change*')) {
+        if ($user->must_change_password && ! $request->routeIs('password.change*', 'logout', 'ai.logout')) {
             return redirect()->route('password.change');
         }
 

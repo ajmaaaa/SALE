@@ -9,8 +9,8 @@ use App\Models\Cpl;
 use App\Models\Cpmk;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -303,8 +303,7 @@ class AssessmentController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        $userId = Auth::guard('web')->id();
-        abort_unless($section->dosen_id === $userId || $section->dosen_pendamping_id === $userId, 403);
+        Gate::authorize('manage', $section);
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void

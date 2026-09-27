@@ -5,15 +5,14 @@ namespace App\Http\Controllers\Dosen;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\ClassSection;
-use App\Models\Role;
 use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
-use App\Models\User;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -478,17 +477,7 @@ class InputNilaiController extends Controller
 
     private function authorizeOwnership(ClassSection $section): void
     {
-        $currentUserId = Auth::guard('web')->id();
-
-        if (! $currentUserId && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $user = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-            $currentUserId = $user?->hasRole(Role::DOSEN) ? $user->id : null;
-        }
-
-        abort_unless($currentUserId && ($section->dosen_id === $currentUserId || $section->dosen_pendamping_id === $currentUserId), 403, 'Anda tidak memiliki akses ke kelas ini.');
+        Gate::authorize('manage', $section);
     }
 
     private function authorizeAssessmentBelongsToSection(ClassSection $section, Assessment $assessment): void
