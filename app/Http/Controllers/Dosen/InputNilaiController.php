@@ -8,7 +8,6 @@ use App\Models\ClassSection;
 use App\Models\Role;
 use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
-use App\Models\StudentRubricScore;
 use App\Models\User;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\RedirectResponse;
@@ -70,38 +69,23 @@ class InputNilaiController extends Controller
         $cpmks = $assessment->cpmks()->orderBy('code')->get();
         $enrolledIds = $section->students()->pluck('users.id');
         $dosenId = Auth::guard('web')->id();
+        $publish = $request->input('intent') === 'publish';
 
         if ($request->has('rubric_scores') && $assessment->uses_rubric && $assessment->rubric) {
-            $criteria = $assessment->rubric->criteria;
             $request->validate([
                 'rubric_scores' => ['required', 'array'],
                 'rubric_scores.*' => ['array'],
-                'rubric_scores.*.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'rubric_scores.*.*' => ['nullable', 'numeric', 'min:0'],
             ]);
 
-            DB::transaction(function () use ($request, $assessment, $criteria, $enrolledIds, $dosenId) {
+            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId, $publish) {
                 foreach ($request->input('rubric_scores', []) as $mahasiswaId => $criterionScores) {
                     $mahasiswaId = (int) $mahasiswaId;
                     if (! $enrolledIds->contains($mahasiswaId)) {
                         continue;
                     }
 
-                    foreach ($criteria as $criterion) {
-                        $rawScore = $criterionScores[$criterion->id] ?? null;
-                        $scoreValue = ($rawScore !== null && $rawScore !== '') ? (float) $rawScore : null;
-
-                        StudentRubricScore::updateOrCreate(
-                            [
-                                'rubric_criterion_id' => $criterion->id,
-                                'mahasiswa_id' => $mahasiswaId,
-                            ],
-                            [
-                                'score' => $scoreValue,
-                            ]
-                        );
-                    }
-
-                    $this->obe->syncRubricToAssessmentScore($assessment, $mahasiswaId, $dosenId);
+                    $this->obe->syncRubricScores($assessment, $mahasiswaId, $criterionScores, $dosenId, $publish);
                 }
             });
         } elseif ($request->has('scores') || $cpmks->isEmpty()) {
@@ -111,7 +95,7 @@ class InputNilaiController extends Controller
                 'scores.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
             ]);
 
-            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId) {
+            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId, $publish) {
                 foreach ($request->input('scores', []) as $mahasiswaId => $score) {
                     $mahasiswaId = (int) $mahasiswaId;
                     if (! $enrolledIds->contains($mahasiswaId)) {
@@ -120,18 +104,7 @@ class InputNilaiController extends Controller
 
                     $scoreValue = ($score !== null && $score !== '') ? (float) $score : null;
 
-                    StudentAssessmentScore::updateOrCreate(
-                        [
-                            'assessment_id' => $assessment->id,
-                            'mahasiswa_id' => $mahasiswaId,
-                        ],
-                        [
-                            'score' => $scoreValue,
-                            'feedback' => null,
-                            'graded_by' => $scoreValue !== null ? $dosenId : null,
-                            'graded_at' => $scoreValue !== null ? now() : null,
-                        ]
-                    );
+                    $this->obe->syncDirectScore($assessment, $mahasiswaId, $scoreValue, $dosenId, $publish);
                 }
             });
         } else {
@@ -151,50 +124,14 @@ class InputNilaiController extends Controller
 
             $request->validate($rules, $messages);
 
-            DB::transaction(function () use ($request, $assessment, $cpmks, $enrolledIds, $dosenId) {
+            DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId, $publish) {
                 foreach ($request->input('cpmk_scores', []) as $mahasiswaId => $cpmkValues) {
                     $mahasiswaId = (int) $mahasiswaId;
                     if (! $enrolledIds->contains($mahasiswaId)) {
                         continue;
                     }
 
-                    $sumOfPoints = 0.0;
-                    $hasAnyScore = false;
-                    foreach ($cpmks as $cpmk) {
-                        $rawScore = $cpmkValues[$cpmk->id] ?? null;
-                        $scoreValue = ($rawScore !== null && $rawScore !== '') ? (float) $rawScore : null;
-
-                        StudentAssessmentCpmkScore::updateOrCreate(
-                            [
-                                'assessment_id' => $assessment->id,
-                                'cpmk_id' => $cpmk->id,
-                                'mahasiswa_id' => $mahasiswaId,
-                            ],
-                            [
-                                'score' => $scoreValue,
-                            ]
-                        );
-
-                        if ($scoreValue !== null) {
-                            $hasAnyScore = true;
-                            $sumOfPoints += $scoreValue;
-                        }
-                    }
-
-                    $overallScore = $hasAnyScore ? round($sumOfPoints, 2) : null;
-
-                    StudentAssessmentScore::updateOrCreate(
-                        [
-                            'assessment_id' => $assessment->id,
-                            'mahasiswa_id' => $mahasiswaId,
-                        ],
-                        [
-                            'score' => $overallScore,
-                            'feedback' => null,
-                            'graded_by' => $overallScore !== null ? $dosenId : null,
-                            'graded_at' => $overallScore !== null ? now() : null,
-                        ]
-                    );
+                    $this->obe->syncCpmkScores($assessment, $mahasiswaId, $cpmkValues, $dosenId, $publish);
                 }
             });
         }
@@ -501,63 +438,20 @@ class InputNilaiController extends Controller
         DB::transaction(function () use ($preview, $assessment, $dosenId, $mode, &$saved) {
             foreach ($preview['rows'] as $row) {
                 if ($mode === 'cpmk') {
-                    foreach ($row['cpmk_scores'] as $cpmkId => $val) {
-                        StudentAssessmentCpmkScore::updateOrCreate(
-                            [
-                                'assessment_id' => $assessment->id,
-                                'cpmk_id' => $cpmkId,
-                                'mahasiswa_id' => $row['mahasiswa_id'],
-                            ],
-                            [
-                                'score' => $val,
-                            ],
-                        );
-                    }
-
-                    StudentAssessmentScore::updateOrCreate(
-                        [
-                            'assessment_id' => $assessment->id,
-                            'mahasiswa_id' => $row['mahasiswa_id'],
-                        ],
-                        [
-                            'score' => $row['overall_score'],
-                            'feedback' => null,
-                            'graded_by' => $row['overall_score'] !== null ? $dosenId : null,
-                            'graded_at' => $row['overall_score'] !== null ? now() : null,
-                        ],
-                    );
+                    $this->obe->syncCpmkScores($assessment, $row['mahasiswa_id'], $row['cpmk_scores'], $dosenId);
 
                     if ($row['overall_score'] !== null) {
                         $saved++;
                     }
                 } else {
-                    StudentAssessmentScore::updateOrCreate(
-                        [
-                            'assessment_id' => $assessment->id,
-                            'mahasiswa_id' => $row['mahasiswa_id'],
-                        ],
-                        [
-                            'score' => $row['score'],
-                            'feedback' => $row['feedback'] ?: null,
-                            'graded_by' => $row['score'] !== null ? $dosenId : null,
-                            'graded_at' => $row['score'] !== null ? now() : null,
-                        ],
+                    $this->obe->syncDirectScore(
+                        $assessment,
+                        $row['mahasiswa_id'],
+                        $row['score'],
+                        $dosenId,
+                        false,
+                        $row['feedback'] ?: null
                     );
-
-                    // Jika asesmen memiliki 1 CPMK, sinkronkan juga ke StudentAssessmentCpmkScore
-                    if ($assessment->cpmks()->count() === 1) {
-                        $singleCpmk = $assessment->cpmks()->first();
-                        StudentAssessmentCpmkScore::updateOrCreate(
-                            [
-                                'assessment_id' => $assessment->id,
-                                'cpmk_id' => $singleCpmk->id,
-                                'mahasiswa_id' => $row['mahasiswa_id'],
-                            ],
-                            [
-                                'score' => $row['score'],
-                            ],
-                        );
-                    }
 
                     if ($row['score'] !== null) {
                         $saved++;

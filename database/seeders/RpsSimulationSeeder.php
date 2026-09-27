@@ -264,7 +264,7 @@ class RpsSimulationSeeder extends Seeder
         // UTS = 85
         StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $uts->id, 'mahasiswa_id' => $mhsAditya->id],
-            ['score' => 85, 'graded_by' => $dosen->id, 'graded_at' => now()]
+            ['score' => 85, 'status' => 'published', 'graded_by' => $dosen->id, 'graded_at' => now(), 'published_at' => now()]
         );
 
         // Case Method:
@@ -281,7 +281,7 @@ class RpsSimulationSeeder extends Seeder
         );
         StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $caseMethod->id, 'mahasiswa_id' => $mhsAditya->id],
-            ['score' => 26, 'graded_by' => $dosen->id, 'graded_at' => now()]
+            ['score' => 26, 'status' => 'published', 'graded_by' => $dosen->id, 'graded_at' => now(), 'published_at' => now()]
         );
 
         // PJBL: Dinilai via Rubrik (3 kriteria masing-masing 90) -> Total = 90
@@ -299,19 +299,19 @@ class RpsSimulationSeeder extends Seeder
         );
         StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $pjbl->id, 'mahasiswa_id' => $mhsAditya->id],
-            ['score' => 90, 'graded_by' => $dosen->id, 'graded_at' => now()]
+            ['score' => 90, 'status' => 'published', 'graded_by' => $dosen->id, 'graded_at' => now(), 'published_at' => now()]
         );
 
         // UAS = 80
         StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $uas->id, 'mahasiswa_id' => $mhsAditya->id],
-            ['score' => 80, 'graded_by' => $dosen->id, 'graded_at' => now()]
+            ['score' => 80, 'status' => 'published', 'graded_by' => $dosen->id, 'graded_at' => now(), 'published_at' => now()]
         );
 
         // 13. Nilai Awal untuk Citra Dewi (Dinilai Sebagian: baru UTS = 75)
         StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $uts->id, 'mahasiswa_id' => $mhsCitra->id],
-            ['score' => 75, 'graded_by' => $dosen->id, 'graded_at' => now()]
+            ['score' => 75, 'status' => 'published', 'graded_by' => $dosen->id, 'graded_at' => now(), 'published_at' => now()]
         );
 
         // Catatan: Bella Safitri sengaja dibiarkan KOSONG agar Anda dapat menguji input nilai manual di browser!

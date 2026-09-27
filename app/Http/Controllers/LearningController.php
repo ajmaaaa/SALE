@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Assessment;
+use App\Models\AssessmentAttempt;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\CourseDiscussion;
@@ -17,6 +18,8 @@ use App\Models\SubmissionAnswer;
 use App\Models\User;
 use App\Support\AcademicPreview;
 use App\Support\LearningPreview as Learning;
+use App\Support\QuizQuestion;
+use App\Services\ObeCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +30,8 @@ use Illuminate\Validation\Rule;
 
 class LearningController extends Controller
 {
+    public function __construct(private ObeCalculationService $grades) {}
+
     public function courses(Request $request)
     {
         $q = mb_strtolower((string) $request->query('q', ''));
@@ -154,6 +159,7 @@ class LearningController extends Controller
 
             if ($canAccess) {
                 $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
+                abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
 
                 return view('learning.item', [
                     'course' => Learning::databaseCourse($section),
@@ -174,6 +180,7 @@ class LearningController extends Controller
         $section = $user && Schema::hasTable('class_sections') ? ClassSection::find($course) : null;
         $assessment = $section ? Assessment::where('class_section_id', $course)->find($item) : null;
         if ($assessment) {
+            abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
             abort_unless(
                 $user->hasRole(Role::MAHASISWA)
                 && $section->students()->where('users.id', $user->id)->exists(),
@@ -208,13 +215,22 @@ class LearningController extends Controller
             }
         }
         $dbScore = $user && Schema::hasTable('student_assessment_scores')
-            ? StudentAssessmentScore::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->whereNotNull('score')->first()
+            ? StudentAssessmentScore::where('assessment_id', $item)
+                ->where('mahasiswa_id', $user->id)
+                ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
+                ->whereNotNull('score')
+                ->first()
             : null;
-        $sessionGrade = session("learning.grades.$item") ?? session("academic.item_grades.$item.1");
+        $sessionGrade = $user ? null : (session("learning.grades.$item") ?? session("academic.item_grades.$item.1"));
         $scoreValue = $dbScore?->score ?? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : $sessionGrade);
+        $attemptDeadline = null;
+
+        if ($assessment && ! $submission && $scoreValue === null && $this->timedDurationMinutes($resource) !== null) {
+            $attemptDeadline = $this->startTimedAssessmentAttempt($assessment, $user, $resource)->deadline_at;
+        }
 
         if (! empty($resource['randomize_questions']) && ! empty($resource['questions'])) {
-            $studentId = session('auth_user.id', 1);
+            $studentId = $user?->id ?? session('auth_user.id', 1);
             $cacheKey = "learning.quiz_order.{$item}.{$studentId}";
             $order = session($cacheKey);
             if (! is_array($order) || count($order) !== count($resource['questions'])) {
@@ -241,6 +257,7 @@ class LearningController extends Controller
             'submission' => $submission,
             'isCompleted' => ! empty($submission) || $scoreValue !== null,
             'scoreValue' => $scoreValue,
+            'attemptDeadline' => $attemptDeadline,
         ]);
     }
 
@@ -263,6 +280,7 @@ class LearningController extends Controller
 
         if ($user && Schema::hasTable('student_assessment_scores')) {
             $studentScores = StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
                 ->get()
                 ->keyBy('assessment_id');
         }
@@ -325,8 +343,8 @@ class LearningController extends Controller
             if ($request->query('tab') === 'nilai') {
                 $assessmentId = $item['id'];
                 $hasDbScore = isset($studentScores[$assessmentId]) && $studentScores[$assessmentId]->score !== null;
-                $hasSessionGrade = session("learning.grades.{$assessmentId}") !== null
-                    || session("academic.item_grades.{$assessmentId}.1") !== null;
+                $hasSessionGrade = auth()->user() === null && (session("learning.grades.{$assessmentId}") !== null
+                    || session("academic.item_grades.{$assessmentId}.1") !== null);
 
                 return $hasDbScore || $hasSessionGrade;
             }
@@ -643,7 +661,7 @@ class LearningController extends Controller
                 $question['cpl'] = $mapping['cpl'] ?? 'CPL';
             }
             unset($question);
-            $data['questions'] = array_values($data['questions']);
+            $data['questions'] = QuizQuestion::canonicalizeQuestions($data['questions']);
             $data['points'] = array_sum(array_column($data['questions'], 'points'));
             $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas'], true) ? $category : 'tugas';
             $data['scoring_mode'] = 'automatic_cpmk';
@@ -1032,6 +1050,8 @@ class LearningController extends Controller
     public function submit(Request $request, int $course, int $item)
     {
         $user = auth()->user();
+        $assessment = null;
+        $assessmentAttempt = null;
         $resource = null;
 
         if ($user && Schema::hasTable('assessments')) {
@@ -1040,6 +1060,7 @@ class LearningController extends Controller
                 $isEnrolled = $user->hasRole(Role::MAHASISWA)
                     && $user->classSectionsEnrolled()->where('class_sections.id', $course)->exists();
                 abort_unless($isEnrolled, 403);
+                abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
                 $resource = Learning::databaseAssessment($assessment);
             }
         }
@@ -1048,6 +1069,55 @@ class LearningController extends Controller
 
         abort_unless(in_array($resource['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true), 404);
 
+        if ($assessment) {
+            $assessmentAttempt = AssessmentAttempt::where('assessment_id', $assessment->id)
+                ->where('mahasiswa_id', $user->id)
+                ->latest('attempt')
+                ->first();
+
+            if (! $assessmentAttempt && $this->timedDurationMinutes($resource) !== null) {
+                return back()->withErrors([
+                    'submission' => 'Attempt belum dimulai. Buka ruang kuis terlebih dahulu.',
+                ])->withInput();
+            }
+
+            if ($assessmentAttempt && $assessmentAttempt->status !== AssessmentAttempt::STATUS_IN_PROGRESS) {
+                return back()->withErrors([
+                    'submission' => $assessmentAttempt->rejection_reason ?? 'Attempt ini sudah selesai dan tidak dapat dikirim ulang.',
+                ])->withInput();
+            }
+
+            if ($assessmentAttempt && now()->greaterThanOrEqualTo($assessmentAttempt->deadline_at)) {
+                $reason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
+                $assessmentAttempt->update([
+                    'status' => AssessmentAttempt::STATUS_REJECTED,
+                    'rejected_at' => now(),
+                    'rejection_reason' => $reason,
+                ]);
+
+                return back()->withErrors(['submission' => $reason])->withInput();
+            }
+        }
+
+        if ($assessment && Schema::hasTable('student_assessment_scores')) {
+            $hasBeenGraded = StudentAssessmentScore::where('assessment_id', $assessment->id)
+                ->where('mahasiswa_id', $user->id)
+                ->where(function ($query) {
+                    $query->whereIn('status', [
+                        StudentAssessmentScore::STATUS_PARTIAL,
+                        StudentAssessmentScore::STATUS_FINAL,
+                        StudentAssessmentScore::STATUS_PUBLISHED,
+                    ])->orWhereNotNull('score');
+                })
+                ->exists();
+
+            if ($hasBeenGraded) {
+                return back()->withErrors([
+                    'submission' => 'Jawaban tidak dapat dikirim ulang karena tugas ini sudah dinilai.',
+                ])->withInput();
+            }
+        }
+
         $allowLate = $resource['allow_late'] ?? true;
         if (! $allowLate && ! empty($resource['due']) && Carbon::parse($resource['due'])->isPast()) {
             return back()->withErrors(['answer' => 'Batas waktu pengumpulan telah berakhir. Pengampu mengunci tugas ini dan tidak menerima pengumpulan terlambat.'])->withInput();
@@ -1055,6 +1125,11 @@ class LearningController extends Controller
 
         $data = $request->validate([
             'question_answers' => 'nullable|array|max:30',
+            'question_answers.*.question_id' => 'nullable|string|max:100',
+            'question_answers.*.option_ids' => 'nullable|array|max:20',
+            'question_answers.*.option_ids.*' => 'string|max:100',
+            'question_answers.*.matches' => 'nullable|array|max:50',
+            'question_answers.*.matches.*' => 'nullable|string|max:100',
             'question_answers.*.text' => 'nullable|string|max:30000',
             'question_answers.*.choices' => 'nullable|array|max:20',
             'question_answers.*.choices.*' => 'string|max:1000',
@@ -1070,28 +1145,33 @@ class LearningController extends Controller
         $isFromQuizRoom = $request->boolean('from_quiz_room');
 
         if (! empty($resource['questions'])) {
-            $answers = $data['question_answers'] ?? [];
+            $resource['questions'] = QuizQuestion::canonicalizeQuestions($resource['questions']);
+            $displayOrder = $user ? session("learning.quiz_order.{$item}.{$user->id}") : null;
+            $answers = QuizQuestion::normalizeAnswers(
+                $resource['questions'],
+                $data['question_answers'] ?? [],
+                is_array($displayOrder) ? $displayOrder : null
+            );
             if (! $isFromQuizRoom && count($answers) !== count($resource['questions'])) {
                 return back()->withErrors(['question_answers' => 'Jawab seluruh soal sebelum mengumpulkan.'])->withInput();
             }
             foreach ($resource['questions'] as $index => $question) {
-                $answer = $answers[$index] ?? [];
+                $answer = $answers[(string) $question['id']] ?? [];
                 if (in_array($question['type'], ['pilihan', 'kompleks'])) {
-                    $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
-                    $choices = $answer['choices'] ?? [];
+                    $choices = $answer['option_ids'] ?? [];
                     if (! empty($choices)) {
-                        if (array_diff($choices, $options) || ($question['type'] === 'pilihan' && count($choices) !== 1)) {
+                        if ($question['type'] === 'pilihan' && count($choices) !== 1) {
                             return back()->withErrors(['question_answers' => 'Periksa pilihan pada soal '.($index + 1).'.'])->withInput();
                         }
                     } elseif (! $isFromQuizRoom) {
                         return back()->withErrors(['question_answers' => 'Periksa pilihan pada soal '.($index + 1).'.'])->withInput();
                     }
                 } elseif ($question['type'] === 'benar_salah') {
-                    if (empty($answer['boolean_choice']) && ! $isFromQuizRoom) {
+                    if (empty($answer['option_ids']) && ! $isFromQuizRoom) {
                         return back()->withErrors(['question_answers' => 'Pilih Benar atau Salah pada soal '.($index + 1).'.'])->withInput();
                     }
                 } elseif ($question['type'] === 'mencocokkan') {
-                    if (empty($answer['matching']) && ! $isFromQuizRoom) {
+                    if (empty($answer['matches']) && ! $isFromQuizRoom) {
                         return back()->withErrors(['question_answers' => 'Pasangkan seluruh item pada soal '.($index + 1).'.'])->withInput();
                     }
                 } elseif (trim($answer['text'] ?? '') === '' && ! $isFromQuizRoom) {
@@ -1130,56 +1210,56 @@ class LearningController extends Controller
         $data['files'] = array_merge($keep, array_map(fn ($file) => $this->upload($file), $request->file('files', [])));
         $data['time'] = now()->format('d M Y, H:i');
         $data['student_number'] = session('auth_user.number');
-        session(["learning.submissions.$item" => $data]);
 
-        if ($user) {
-            session(["learning.submissions.{$item}.{$user->id}" => $data]);
-        }
+        $gradeForSession = null;
+
+        DB::transaction(function () use ($user, $item, $course, $data, $resource, $isFromQuizRoom, $assessmentAttempt, $assessment, &$gradeForSession) {
 
         // Persist attempt, waktu kirim, status, owner, dan versi jawaban dalam transaksi.
-        if ($user && Schema::hasTable('submissions')) {
-            try {
-                DB::transaction(function () use ($user, $item, $course, $data) {
-                    $existing = Submission::where('assessment_id', $item)
-                        ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
-                        ->first();
+        // Only write to the submissions table when the assessment exists in the database;
+        // session-only (preview) items must not trigger FK violations.
+        if ($user && $assessment && Schema::hasTable('submissions')) {
+            $existing = Submission::where('assessment_id', $item)
+                ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                ->first();
 
-                    $attempt = $existing ? ($existing->attempt + 1) : 1;
-                    $version = $existing ? ($existing->version + 1) : 1;
+            $attempt = $existing ? ($existing->attempt + 1) : 1;
+            $version = $existing ? ($existing->version + 1) : 1;
 
-                    $submission = Submission::updateOrCreate(
-                        ['assessment_id' => $item, 'user_id' => $user->id],
-                        [
-                            'mahasiswa_id'     => $user->id,
-                            'attempt'          => $attempt,
-                            'version'          => $version,
-                            'status'           => 'pending',
-                            'submitted_at'     => now(),
-                            'answer'           => $data['answer'] ?? null,
-                            'link'             => $data['link'] ?? null,
-                            'question_answers' => $data['question_answers'] ?? null,
-                            'file_ids'         => $data['files'] ?? [],
-                            'student_number'   => $data['student_number'] ?? null,
-                        ]
-                    );
+            $submission = Submission::updateOrCreate(
+                ['assessment_id' => $item, 'user_id' => $user->id],
+                [
+                    'mahasiswa_id'     => $user->id,
+                    'attempt'          => $attempt,
+                    'version'          => $version,
+                    'status'           => 'pending',
+                    'submitted_at'     => now(),
+                    'answer'           => $data['answer'] ?? null,
+                    'link'             => $data['link'] ?? null,
+                    'question_answers' => $data['question_answers'] ?? null,
+                    'file_ids'         => $data['files'] ?? [],
+                    'student_number'   => $data['student_number'] ?? null,
+                ]
+            );
 
-                    // Simpan versi jawaban ke tabel submission_answers
-                    if (Schema::hasTable('submission_answers')) {
-                        if (! empty($data['question_answers'])) {
-                            foreach ($data['question_answers'] as $index => $ans) {
-                                SubmissionAnswer::create([
-                                    'submission_id'  => $submission->id,
-                                    'question_index' => $index,
-                                    'version'        => $version,
-                                    'answer_text'    => $ans['text'] ?? null,
-                                    'link'           => $ans['link'] ?? null,
-                                    'choices'        => $ans['choices'] ?? null,
-                                    'boolean_choice' => $ans['boolean_choice'] ?? null,
-                                    'matching'       => $ans['matching'] ?? null,
-                                ]);
-                            }
-                        } elseif (! empty($data['answer']) || ! empty($data['link']) || ! empty($data['choices']) || ! empty($data['boolean_choice']) || ! empty($data['matching'])) {
-                            SubmissionAnswer::create([
+            // Simpan versi jawaban ke tabel submission_answers
+            if (Schema::hasTable('submission_answers')) {
+                if (! empty($data['question_answers'])) {
+                    foreach ($data['question_answers'] as $index => $ans) {
+                        SubmissionAnswer::create([
+                            'submission_id'  => $submission->id,
+                            'question_index' => null,
+                            'question_id' => $ans['question_id'],
+                            'version'        => $version,
+                            'answer_text'    => $ans['text'] ?? null,
+                            'link'           => $ans['link'] ?? null,
+                            'choices'        => $ans['option_ids'] ?? null,
+                            'boolean_choice' => null,
+                            'matching'       => $ans['matches'] ?? null,
+                        ]);
+                    }
+                } elseif (! empty($data['answer']) || ! empty($data['link']) || ! empty($data['choices']) || ! empty($data['boolean_choice']) || ! empty($data['matching'])) {
+                    SubmissionAnswer::create([
                                 'submission_id'  => $submission->id,
                                 'question_index' => null,
                                 'version'        => $version,
@@ -1188,31 +1268,27 @@ class LearningController extends Controller
                                 'choices'        => $data['choices'] ?? null,
                                 'boolean_choice' => $data['boolean_choice'] ?? null,
                                 'matching'       => $data['matching'] ?? null,
-                            ]);
-                        }
-                    }
+                    ]);
+                }
+            }
 
-                    // Simpan atau hubungkan berkas ke tabel attachments
-                    if (Schema::hasTable('attachments') && ! empty($data['files'])) {
-                        foreach ($data['files'] as $fileUuid) {
-                            $meta = session("learning.files.{$fileUuid}") ?? Learning::fileMeta($fileUuid);
-                            Attachment::updateOrCreate(
-                                ['uuid' => $fileUuid],
-                                [
-                                    'user_id'          => $user->id,
-                                    'class_section_id' => $course,
-                                    'assessment_id'    => $item,
-                                    'submission_id'    => $submission->id,
-                                    'path'             => $meta['path'] ?? '',
-                                    'name'             => $meta['name'] ?? '',
-                                    'mime'             => $meta['mime'] ?? null,
-                                ]
-                            );
-                        }
-                    }
-                });
-            } catch (\Throwable) {
-                // Session write already succeeded; DB failure is logged but not surfaced to the student.
+            // Simpan atau hubungkan berkas ke tabel attachments
+            if (Schema::hasTable('attachments') && ! empty($data['files'])) {
+                foreach ($data['files'] as $fileUuid) {
+                    $meta = session("learning.files.{$fileUuid}") ?? Learning::fileMeta($fileUuid);
+                    Attachment::updateOrCreate(
+                        ['uuid' => $fileUuid],
+                        [
+                            'user_id'          => $user->id,
+                            'class_section_id' => $course,
+                            'assessment_id'    => $item,
+                            'submission_id'    => $submission->id,
+                            'path'             => $meta['path'] ?? '',
+                            'name'             => $meta['name'] ?? '',
+                            'mime'             => $meta['mime'] ?? null,
+                        ]
+                    );
+                }
             }
         }
 
@@ -1240,74 +1316,25 @@ class LearningController extends Controller
                         ];
                     }
 
-                    $ans = $answers[$index] ?? [];
-                    $qType = $q['type'] ?? 'pilihan';
+                    $ans = $answers[(string) $q['id']] ?? [];
                     $qPoints = (float) ($q['points'] ?? 25);
-                    $isCorrect = false;
-                    $earned = 0.0;
-
-                    if ($qType === 'pilihan') {
-                        $choices = $ans['choices'] ?? [];
-                        $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ''));
-                        if (! empty($correct) && count($choices) === 1 && $choices[0] === $correct) {
-                            $isCorrect = true;
-                            $earned = $qPoints;
-                        }
-                    } elseif ($qType === 'benar_salah') {
-                        $choice = $ans['boolean_choice'] ?? '';
-                        $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
-                        if (! empty($choice) && $choice === $correct) {
-                            $isCorrect = true;
-                            $earned = $qPoints;
-                        }
-                    } elseif ($qType === 'kompleks') {
-                        $choices = $ans['choices'] ?? [];
-                        $correct = $q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'];
-                        sort($choices);
-                        $sortedCorrect = $correct;
-                        sort($sortedCorrect);
-                        if ($choices === $sortedCorrect) {
-                            $isCorrect = true;
-                            $earned = $qPoints;
-                        }
-                    } elseif ($qType === 'mencocokkan') {
-                        $matching = $ans['matching'] ?? [];
-                        $pairs = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => str_contains($v, '='));
-                        $totalPairs = count($pairs);
-                        $matchedCorrect = 0;
-                        foreach (array_values($pairs) as $pIdx => $pairStr) {
-                            [$term, $def] = array_map('trim', explode('=', $pairStr, 2));
-                            if (isset($matching[$pIdx]) && $matching[$pIdx] === $def) {
-                                $matchedCorrect++;
-                            }
-                        }
-                        if ($totalPairs > 0 && $matchedCorrect === $totalPairs) {
-                            $isCorrect = true;
-                            $earned = $qPoints;
-                        } elseif ($totalPairs > 0 && $matchedCorrect > 0) {
-                            $earned = ($matchedCorrect / $totalPairs) * $qPoints;
-                        }
-                    }
-
-                    if ($isCorrect) {
-                        $earnedPoints += $qPoints;
-                    }
+                    $earned = QuizQuestion::evaluate($q, $ans) ?? 0.0;
+                    $earnedPoints += $earned;
 
                     $persen = $qPoints > 0 ? ($earned / $qPoints) : 0;
                     $nilaiSoal = $persen * $porsiSoal;
                     $cpmkScores[$cCode]['total_nilai'] += $nilaiSoal;
                 }
 
-                session(["learning.grades.$item" => round($earnedPoints, 1)]);
+                $gradeForSession = round($earnedPoints, 1);
 
                 // Integrasi Database
                 if ($user && Schema::hasTable('student_assessment_scores')) {
+                    $assessmentModel = Assessment::with('cpmks')->find($item);
                     if ($hasEssay) {
-                        // Ada soal esai -> status MENUNGGU penilaian dosen (score = null)
-                        StudentAssessmentScore::updateOrCreate(
-                            ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
-                            ['score' => null]
-                        );
+                        if ($assessmentModel) {
+                            $this->grades->syncDirectScore($assessmentModel, $user->id, null, null);
+                        }
                     } else {
                         // Semua soal otomatis -> hitung nilai total asesmen (skala 100) dan simpan
                         $totalAsesmen = 0.0;
@@ -1316,29 +1343,25 @@ class LearningController extends Controller
                         }
                         $totalAsesmen = round($totalAsesmen, 2);
 
-                        StudentAssessmentScore::updateOrCreate(
-                            ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
-                            ['score' => $totalAsesmen, 'graded_at' => now()]
-                        );
-
-                        if (Schema::hasTable('student_assessment_cpmk_scores')) {
-                            $asmtModel = Assessment::with('cpmks')->find($item);
-                            if ($asmtModel) {
+                        if ($assessmentModel) {
+                            $cpmkValues = [];
+                            if (Schema::hasTable('student_assessment_cpmk_scores')) {
                                 foreach ($cpmkScores as $cCode => $cInfo) {
-                                    $cpmkModel = $asmtModel->cpmks->first(function ($c) use ($cCode) {
+                                    $cpmkModel = $assessmentModel->cpmks->first(function ($c) use ($cCode) {
                                         $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
                                         $c2 = strtoupper(trim(str_replace(' ', '-', $cCode)));
                                         return $c1 === $c2;
                                     }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $cCode)->first() : null);
 
                                     if ($cpmkModel) {
-                                        $proportionalScore = round(($cInfo['total_nilai'] * $cInfo['bobot_cpmk']) / 100, 2);
-                                        StudentAssessmentCpmkScore::updateOrCreate(
-                                            ['assessment_id' => $item, 'cpmk_id' => $cpmkModel->id, 'mahasiswa_id' => $user->id],
-                                            ['score' => $proportionalScore]
-                                        );
+                                        $cpmkValues[$cpmkModel->id] = round(($cInfo['total_nilai'] * $cInfo['bobot_cpmk']) / 100, 2);
                                     }
                                 }
+                            }
+                            if ($assessmentModel->cpmks->isNotEmpty()) {
+                                $this->grades->syncCpmkScores($assessmentModel, $user->id, $cpmkValues, null, true);
+                            } else {
+                                $this->grades->syncDirectScore($assessmentModel, $user->id, $totalAsesmen, null, true);
                             }
                         }
                     }
@@ -1347,11 +1370,31 @@ class LearningController extends Controller
         } elseif (in_array($resource['type'], ['tugas', 'coding'], true)) {
             // Pengumpulan Tugas -> status MENUNGGU penilaian dosen (score = null)
             if ($user && Schema::hasTable('student_assessment_scores')) {
-                StudentAssessmentScore::updateOrCreate(
-                    ['assessment_id' => $item, 'mahasiswa_id' => $user->id],
-                    ['score' => null]
-                );
+                $assessmentModel = Assessment::find($item);
+                if ($assessmentModel) {
+                    $this->grades->syncDirectScore($assessmentModel, $user->id, null, null);
+                }
             }
+        }
+
+        if ($assessmentAttempt) {
+            $assessmentAttempt->update([
+                'status' => AssessmentAttempt::STATUS_SUBMITTED,
+                'submitted_at' => now(),
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+        }
+        });
+
+        session(["learning.submissions.$item" => $data]);
+
+        if ($user) {
+            session(["learning.submissions.{$item}.{$user->id}" => $data]);
+        }
+
+        if ($gradeForSession !== null) {
+            session(["learning.grades.$item" => $gradeForSession]);
         }
 
         if ($request->boolean('from_quiz_room')) {
@@ -1359,6 +1402,35 @@ class LearningController extends Controller
         }
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban dikumpulkan dalam sesi pratinjau. Belum dinilai.');
+    }
+
+    private function timedDurationMinutes(array $resource): ?int
+    {
+        if (empty($resource['duration_enabled'])) {
+            return null;
+        }
+
+        $duration = (int) ($resource['duration_minutes'] ?? 0);
+
+        return $duration > 0 ? $duration : null;
+    }
+
+    private function startTimedAssessmentAttempt(Assessment $assessment, User $user, array $resource): AssessmentAttempt
+    {
+        $startedAt = now();
+
+        return AssessmentAttempt::firstOrCreate(
+            [
+                'assessment_id' => $assessment->id,
+                'mahasiswa_id' => $user->id,
+                'attempt' => 1,
+            ],
+            [
+                'status' => AssessmentAttempt::STATUS_IN_PROGRESS,
+                'started_at' => $startedAt,
+                'deadline_at' => $startedAt->copy()->addMinutes($this->timedDurationMinutes($resource)),
+            ]
+        );
     }
 
     public function cancelSubmission(Request $request, int $course, int $item)

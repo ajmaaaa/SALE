@@ -11,6 +11,7 @@ use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
 use App\Models\StudentRubricScore;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Single source of truth for every OBE calculation: assessment score
@@ -45,6 +46,211 @@ class ObeCalculationService
             ->value('score');
 
         return $score === null ? null : (float) $score;
+    }
+
+    public function publishedAssessmentScore(int $assessmentId, int $studentId): ?float
+    {
+        $score = StudentAssessmentScore::query()
+            ->where('assessment_id', $assessmentId)
+            ->where('mahasiswa_id', $studentId)
+            ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
+            ->value('score');
+
+        return $score === null ? null : (float) $score;
+    }
+
+    public function syncDirectScore(
+        Assessment $assessment,
+        int $studentId,
+        ?float $score,
+        ?int $gradedById,
+        bool $publish = false,
+        ?string $feedback = null
+    ): StudentAssessmentScore {
+        if ($score !== null && ($score < 0 || $score > 100)) {
+            throw ValidationException::withMessages(['score' => 'Nilai asesmen harus berada pada rentang 0 sampai 100.']);
+        }
+
+        $assessment->loadMissing('cpmks');
+        foreach ($assessment->cpmks as $cpmk) {
+            $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
+            StudentAssessmentCpmkScore::updateOrCreate(
+                ['assessment_id' => $assessment->id, 'cpmk_id' => $cpmk->id, 'mahasiswa_id' => $studentId],
+                ['score' => $score === null ? null : round(($score / 100) * $maxScore, 2)]
+            );
+        }
+
+        return $this->persistAssessmentScore(
+            $assessment,
+            $studentId,
+            $score === null ? StudentAssessmentScore::STATUS_PENDING : ($publish ? StudentAssessmentScore::STATUS_PUBLISHED : StudentAssessmentScore::STATUS_FINAL),
+            $score,
+            $gradedById,
+            $feedback
+        );
+    }
+
+    public function syncCpmkScores(
+        Assessment $assessment,
+        int $studentId,
+        array $scores,
+        ?int $gradedById,
+        bool $publish = false
+    ): StudentAssessmentScore {
+        $assessment->loadMissing('cpmks');
+        if ($assessment->cpmks->isEmpty()) {
+            return $this->syncDirectScore($assessment, $studentId, $scores === [] ? null : (float) array_sum($scores), $gradedById, $publish);
+        }
+
+        $hasAny = false;
+        $isComplete = true;
+        $overallScore = 0.0;
+
+        foreach ($assessment->cpmks as $cpmk) {
+            $raw = $scores[$cpmk->id] ?? null;
+            $score = ($raw === null || $raw === '') ? null : (float) $raw;
+            $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
+            if ($score !== null && ($score < 0 || $score > $maxScore)) {
+                throw ValidationException::withMessages([
+                    "cpmk_scores.{$studentId}.{$cpmk->id}" => "Nilai {$cpmk->code} tidak boleh melebihi {$maxScore}.",
+                ]);
+            }
+
+            StudentAssessmentCpmkScore::updateOrCreate(
+                ['assessment_id' => $assessment->id, 'cpmk_id' => $cpmk->id, 'mahasiswa_id' => $studentId],
+                ['score' => $score]
+            );
+
+            $hasAny = $hasAny || $score !== null;
+            $isComplete = $isComplete && $score !== null;
+            if ($score !== null) {
+                $overallScore += $score;
+            }
+        }
+
+        $status = ! $hasAny
+            ? StudentAssessmentScore::STATUS_PENDING
+            : ($isComplete
+                ? ($publish ? StudentAssessmentScore::STATUS_PUBLISHED : StudentAssessmentScore::STATUS_FINAL)
+                : StudentAssessmentScore::STATUS_PARTIAL);
+
+        return $this->persistAssessmentScore(
+            $assessment,
+            $studentId,
+            $status,
+            $isComplete ? round($overallScore, 2) : null,
+            $gradedById
+        );
+    }
+
+    public function syncRubricScores(
+        Assessment $assessment,
+        int $studentId,
+        array $scores,
+        ?int $gradedById,
+        bool $publish = false
+    ): StudentAssessmentScore {
+        $assessment->loadMissing('rubric.criteria');
+        $criteria = $assessment->rubric?->criteria ?? collect();
+        $hasAny = false;
+        $isComplete = $criteria->isNotEmpty();
+        $weightedScore = 0.0;
+
+        foreach ($criteria as $criterion) {
+            $raw = $scores[$criterion->id] ?? null;
+            $score = ($raw === null || $raw === '') ? null : (float) $raw;
+            $maxScore = (float) $criterion->max_score;
+            if ($score !== null && ($score < 0 || $score > $maxScore)) {
+                throw ValidationException::withMessages([
+                    "rubric_scores.{$studentId}.{$criterion->id}" => "Skor {$criterion->name} tidak boleh melebihi {$maxScore}.",
+                ]);
+            }
+
+            StudentRubricScore::updateOrCreate(
+                ['rubric_criterion_id' => $criterion->id, 'mahasiswa_id' => $studentId],
+                ['score' => $score]
+            );
+
+            $hasAny = $hasAny || $score !== null;
+            $isComplete = $isComplete && $score !== null;
+            if ($score !== null && $maxScore > 0) {
+                $weightedScore += ($score / $maxScore) * (float) $criterion->weight;
+            }
+        }
+
+        $score = $isComplete ? round($weightedScore, 2) : null;
+        $status = ! $hasAny
+            ? StudentAssessmentScore::STATUS_PENDING
+            : ($isComplete
+                ? ($publish ? StudentAssessmentScore::STATUS_PUBLISHED : StudentAssessmentScore::STATUS_FINAL)
+                : StudentAssessmentScore::STATUS_PARTIAL);
+
+        $assessmentScore = $this->persistAssessmentScore($assessment, $studentId, $status, $score, $gradedById);
+        $this->syncBreakdownFromOverall($assessment, $studentId, $score);
+
+        return $assessmentScore;
+    }
+
+    public function publishScore(Assessment $assessment, int $studentId): StudentAssessmentScore
+    {
+        $score = StudentAssessmentScore::query()
+            ->where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $studentId)
+            ->firstOrFail();
+
+        if ($score->status !== StudentAssessmentScore::STATUS_FINAL || $score->score === null) {
+            throw ValidationException::withMessages(['score' => 'Nilai hanya dapat diterbitkan setelah seluruh komponen lengkap.']);
+        }
+
+        $score->update(['status' => StudentAssessmentScore::STATUS_PUBLISHED, 'published_at' => now()]);
+
+        return $score->refresh();
+    }
+
+    public function syncIncompleteState(Assessment $assessment, int $studentId, bool $hasAnyScore): StudentAssessmentScore
+    {
+        return $this->persistAssessmentScore(
+            $assessment,
+            $studentId,
+            $hasAnyScore ? StudentAssessmentScore::STATUS_PARTIAL : StudentAssessmentScore::STATUS_PENDING,
+            null,
+            null
+        );
+    }
+
+    private function syncBreakdownFromOverall(Assessment $assessment, int $studentId, ?float $score): void
+    {
+        $assessment->loadMissing('cpmks');
+        foreach ($assessment->cpmks as $cpmk) {
+            $maxScore = $this->assessmentCpmkMaxScore($assessment, $cpmk);
+            StudentAssessmentCpmkScore::updateOrCreate(
+                ['assessment_id' => $assessment->id, 'cpmk_id' => $cpmk->id, 'mahasiswa_id' => $studentId],
+                ['score' => $score === null ? null : round(($score / 100) * $maxScore, 2)]
+            );
+        }
+    }
+
+    private function persistAssessmentScore(
+        Assessment $assessment,
+        int $studentId,
+        string $status,
+        ?float $score,
+        ?int $gradedById,
+        ?string $feedback = null
+    ): StudentAssessmentScore {
+        $isComplete = in_array($status, [StudentAssessmentScore::STATUS_FINAL, StudentAssessmentScore::STATUS_PUBLISHED], true);
+
+        return StudentAssessmentScore::updateOrCreate(
+            ['assessment_id' => $assessment->id, 'mahasiswa_id' => $studentId],
+            [
+                'score' => $isComplete ? $score : null,
+                'status' => $status,
+                'feedback' => $feedback,
+                'graded_by' => $isComplete ? $gradedById : null,
+                'graded_at' => $isComplete ? now() : null,
+                'published_at' => $status === StudentAssessmentScore::STATUS_PUBLISHED ? now() : null,
+            ]
+        );
     }
 
     /**
@@ -119,19 +325,14 @@ class ObeCalculationService
      */
     public function syncRubricToAssessmentScore(Assessment $assessment, int $studentId, int $gradedById): void
     {
-        $score = $this->assessmentScoreFromRubric($assessment, $studentId);
+        $assessment->loadMissing('rubric.criteria');
+        $scores = StudentRubricScore::query()
+            ->whereIn('rubric_criterion_id', $assessment->rubric?->criteria->pluck('id') ?? [])
+            ->where('mahasiswa_id', $studentId)
+            ->pluck('score', 'rubric_criterion_id')
+            ->all();
 
-        StudentAssessmentScore::updateOrCreate(
-            [
-                'assessment_id' => $assessment->id,
-                'mahasiswa_id' => $studentId,
-            ],
-            [
-                'score' => $score,
-                'graded_by' => $gradedById,
-                'graded_at' => now(),
-            ],
-        );
+        $this->syncRubricScores($assessment, $studentId, $scores, $gradedById);
     }
 
     /**
@@ -160,8 +361,17 @@ class ObeCalculationService
      *      atau menggunakan rubrik umum, atau memang asesmen dengan skor tunggal tanpa breakdown CPMK).
      * 3. Nilai yang belum ada tidak pernah dianggap 0 (return null).
      */
-    public function studentScoreForAssessmentCpmk(Assessment $assessment, Cpmk $cpmk, int $studentId): ?float
+    public function studentScoreForAssessmentCpmk(Assessment $assessment, Cpmk $cpmk, int $studentId, bool $publishedOnly = false): ?float
     {
+        if ($publishedOnly && ! StudentAssessmentScore::query()
+            ->where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $studentId)
+            ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
+            ->whereNotNull('score')
+            ->exists()) {
+            return null;
+        }
+
         // 1. Cek nilai spesifik per-CPMK untuk mahasiswa ini jika ada
         $cpmkScoreRow = StudentAssessmentCpmkScore::query()
             ->where('assessment_id', $assessment->id)
@@ -236,7 +446,7 @@ class ObeCalculationService
      *     is_complete: bool
      * }
      */
-    public function cpmkScoreDetails(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): array
+    public function cpmkScoreDetails(Cpmk $cpmk, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): array
     {
         if ($classSectionId !== null) {
             $measuringAssessments = $cpmk->assessments()->where('class_section_id', $classSectionId)->get();
@@ -264,7 +474,7 @@ class ObeCalculationService
 
             $weightTotalPossible += $effectiveWeight;
 
-            $score = $this->studentScoreForAssessmentCpmk($assessment, $cpmk, $studentId);
+            $score = $this->studentScoreForAssessmentCpmk($assessment, $cpmk, $studentId, $publishedOnly);
 
             if ($score !== null) {
                 $weightedSum += (float) $score * $effectiveWeight;
@@ -288,9 +498,9 @@ class ObeCalculationService
      * CPMK score for one student (Poin 2, 3, 6, 8):
      * CPMK = Σ (nilai asesmen × bobot efektif asesmen→CPMK) / Σ (bobot efektif asesmen→CPMK yang dinilai)
      */
-    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null): ?float
+    public function cpmkScore(Cpmk $cpmk, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): ?float
     {
-        return $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId)['score'];
+        return $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId, $publishedOnly)['score'];
     }
 
     /**
@@ -375,7 +585,7 @@ class ObeCalculationService
      *     is_complete: bool
      * }
      */
-    public function cplScoreDetails(Cpl $cpl, int $studentId, ?int $classSectionId = null): array
+    public function cplScoreDetails(Cpl $cpl, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): array
     {
         $contributingCpmks = $cpl->cpmks; // has pivot 'weight'
 
@@ -388,7 +598,7 @@ class ObeCalculationService
             $pivotWeight = (float) $cpmk->pivot->weight;
             $weightTotalPossible += $pivotWeight;
 
-            $cpmkDetails = $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId);
+            $cpmkDetails = $this->cpmkScoreDetails($cpmk, $studentId, $classSectionId, $publishedOnly);
             $score = $cpmkDetails['score'];
 
             if ($score !== null) {
@@ -416,9 +626,9 @@ class ObeCalculationService
      * CPL score for one student (Poin 4, 8):
      * CPL = Σ (nilai CPMK × bobot CPMK→CPL) / Σ (bobot CPMK→CPL yang dinilai)
      */
-    public function cplScore(Cpl $cpl, int $studentId, ?int $classSectionId = null): ?float
+    public function cplScore(Cpl $cpl, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): ?float
     {
-        return $this->cplScoreDetails($cpl, $studentId, $classSectionId)['score'];
+        return $this->cplScoreDetails($cpl, $studentId, $classSectionId, $publishedOnly)['score'];
     }
 
     /**
@@ -438,7 +648,7 @@ class ObeCalculationService
      *
      * @return array{score: ?float, coverage: float} coverage is 0–100.
      */
-    public function finalScore(ClassSection $section, int $studentId): array
+    public function finalScore(ClassSection $section, int $studentId, bool $publishedOnly = false): array
     {
         $assessments = $section->assessments;
 
@@ -451,12 +661,14 @@ class ObeCalculationService
             $weightTotal += $weight;
 
             // Sumber utama: student_assessment_scores.score
-            $score = $this->assessmentScore($assessment->id, $studentId);
+            $score = $publishedOnly
+                ? $this->publishedAssessmentScore($assessment->id, $studentId)
+                : $this->assessmentScore($assessment->id, $studentId);
 
             // Fallback cadangan HANYA jika student_assessment_scores belum tersimpan/null,
             // asesmen mengukur CPMK, dan secara data terbukti bahwa seluruh nilai per-CPMK
             // mahasiswa ini adalah poin kontribusi yang valid (0 <= score <= maxScore, bukan 0-100).
-            if ($score === null && $assessment->cpmks()->exists()) {
+            if (! $publishedOnly && $score === null && $assessment->cpmks()->exists()) {
                 $cpmks = $assessment->relationLoaded('cpmks') ? $assessment->cpmks : $assessment->cpmks()->get();
                 $cpmkScores = StudentAssessmentCpmkScore::query()
                     ->where('assessment_id', $assessment->id)
@@ -588,9 +800,9 @@ class ObeCalculationService
      *
      * @return Collection<int, ?float>
      */
-    public function cpmkScoresFor(Collection $cpmks, int $studentId, ?int $classSectionId = null): Collection
+    public function cpmkScoresFor(Collection $cpmks, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): Collection
     {
-        return $cpmks->mapWithKeys(fn (Cpmk $cpmk) => [$cpmk->id => $this->cpmkScore($cpmk, $studentId, $classSectionId)]);
+        return $cpmks->mapWithKeys(fn (Cpmk $cpmk) => [$cpmk->id => $this->cpmkScore($cpmk, $studentId, $classSectionId, $publishedOnly)]);
     }
 
     /**
@@ -599,9 +811,9 @@ class ObeCalculationService
      *
      * @return Collection<int, ?float>
      */
-    public function cplScoresFor(Collection $cpls, int $studentId, ?int $classSectionId = null): Collection
+    public function cplScoresFor(Collection $cpls, int $studentId, ?int $classSectionId = null, bool $publishedOnly = false): Collection
     {
-        return $cpls->mapWithKeys(fn (Cpl $cpl) => [$cpl->id => $this->cplScore($cpl, $studentId, $classSectionId)]);
+        return $cpls->mapWithKeys(fn (Cpl $cpl) => [$cpl->id => $this->cplScore($cpl, $studentId, $classSectionId, $publishedOnly)]);
     }
 
     /**

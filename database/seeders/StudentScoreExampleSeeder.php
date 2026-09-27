@@ -70,8 +70,10 @@ class StudentScoreExampleSeeder extends Seeder
                     ['assessment_id' => $assessments[$code]->id, 'mahasiswa_id' => $student->id],
                     [
                         'score' => min(100, max(0, $base + $variation)),
+                        'status' => 'published',
                         'feedback' => $feedback,
                         'graded_at' => now(),
+                        'published_at' => now(),
                     ]
                 );
             }

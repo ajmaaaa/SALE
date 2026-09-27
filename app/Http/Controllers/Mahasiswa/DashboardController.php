@@ -67,6 +67,7 @@ class DashboardController extends Controller
                 $scoredIds = [];
                 if (Schema::hasTable('student_assessment_scores')) {
                     $scoredIds = StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                        ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
                         ->whereNotNull('score')
                         ->pluck('assessment_id')
                         ->toArray();

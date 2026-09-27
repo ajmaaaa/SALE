@@ -105,7 +105,8 @@
                 </p>
                 <div class="flex items-center gap-3">
                     <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="quiet-link text-sm">Kembali</a>
-                    <button type="submit" class="button-primary">Simpan Nilai Rubrik</button>
+                    <button type="submit" name="intent" value="save" class="button-secondary">Simpan Draft</button>
+                    <button type="submit" name="intent" value="publish" class="button-primary">Simpan &amp; Terbitkan</button>
                 </div>
             </div>
         </form>

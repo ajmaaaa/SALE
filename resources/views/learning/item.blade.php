@@ -21,10 +21,11 @@
     if (\Illuminate\Support\Facades\Schema::hasTable('student_assessment_scores')) {
         $dbScore = \App\Models\StudentAssessmentScore::where('assessment_id', $item['id'])
             ->where('mahasiswa_id', $studentId)
+            ->where('status', \App\Models\StudentAssessmentScore::STATUS_PUBLISHED)
             ->first();
     }
     $hasDbGrade = $dbScore && $dbScore->score !== null;
-    $hasSessionGrade = $sessionGrade !== null;
+    $hasSessionGrade = auth()->user() === null && $sessionGrade !== null;
     $isGraded = $hasDbGrade || $hasSessionGrade;
     $scoreValue = $hasDbGrade ? (float)$dbScore->score : ($hasSessionGrade ? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : (float)$sessionGrade) : null);
     $isSubmitted = !empty($submission) || $isGraded;
@@ -305,6 +306,7 @@
                     <div class="space-y-5">
                         @foreach($item['questions'] as $qIdx => $q)
                             <section class="surface p-6 sm:p-7 space-y-4">
+                                <input type="hidden" name="question_answers[{{ $q['id'] }}][question_id]" value="{{ $q['id'] }}">
                                 <div class="flex items-center justify-between border-b border-line/50 pb-3">
                                     <div class="flex items-center gap-2">
                                         <span class="rounded bg-brand-soft text-brand text-xs font-bold px-2 py-0.5">Soal {{ $qIdx + 1 }}</span>
@@ -316,31 +318,17 @@
 
                                 @if($q['type'] === 'benar_salah')
                                     <div class="flex items-center gap-4 pt-1">
-                                        <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs cursor-pointer hover:bg-slate-100 transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Benar" @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Benar')>
-                                            <span class="font-medium text-ink">Benar</span>
-                                        </label>
-                                        <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs cursor-pointer hover:bg-slate-100 transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Salah" @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Salah')>
-                                            <span class="font-medium text-ink">Salah</span>
-                                        </label>
+                                        @foreach($q['option_items'] ?? [] as $option)
+                                            <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs cursor-pointer hover:bg-slate-100 transition">
+                                                <input type="radio" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}" @checked(in_array($option['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
+                                                <span class="font-medium text-ink">{{ $option['text'] }}</span>
+                                            </label>
+                                        @endforeach
                                     </div>
                                 @elseif($q['type'] === 'mencocokkan')
                                     @php
-                                        $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
-                                        $pairs = [];
-                                        foreach($pairLines as $pLine) {
-                                            if (str_contains($pLine, ' = ')) {
-                                                [$left, $right] = explode(' = ', $pLine, 2);
-                                                $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                            } elseif (str_contains($pLine, '=')) {
-                                                [$left, $right] = explode('=', $pLine, 2);
-                                                $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                            } else {
-                                                $pairs[] = ['left' => $pLine, 'right' => $pLine];
-                                            }
-                                        }
-                                        $allRights = array_column($pairs, 'right');
+                                        $pairs = $q['matching_items'] ?? [];
+                                        $allRights = array_map(fn($pair) => ['id' => $pair['option_id'], 'text' => $pair['answer']], $pairs);
                                         // Randomize target order deterministically per student so that:
                                         // 1) Different students see different positions (beda orang beda susunan)
                                         // 2) The choices in the dropdown are NOT in the same line/order as the premises (tidak sebaris)
@@ -354,22 +342,22 @@
                                     <div class="space-y-3 pt-1">
                                         @foreach($pairs as $pIdx => $pair)
                                             @php
-                                                $isLeftImg = str_starts_with($pair['left'], 'http') || str_starts_with($pair['left'], 'data:image') || str_starts_with($pair['left'], '/');
+                                                    $isLeftImg = str_starts_with($pair['prompt'], 'http') || str_starts_with($pair['prompt'], 'data:image') || str_starts_with($pair['prompt'], '/');
                                             @endphp
                                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg bg-canvas border border-line/50">
                                                 <div class="min-w-0 flex-1">
                                                     <span class="text-[11px] font-bold text-muted block mb-1">Premis {{ $pIdx + 1 }}</span>
                                                     @if($isLeftImg)
-                                                        <img src="{{ $pair['left'] }}" alt="Premis {{ $pIdx + 1 }}" class="h-14 max-w-xs object-contain rounded border border-line/60 bg-white p-1">
+                                                        <img src="{{ $pair['prompt'] }}" alt="Premis {{ $pIdx + 1 }}" class="h-14 max-w-xs object-contain rounded border border-line/60 bg-white p-1">
                                                     @else
-                                                        <span class="text-xs font-medium text-ink">{{ $pair['left'] }}</span>
+                                                        <span class="text-xs font-medium text-ink">{{ $pair['prompt'] }}</span>
                                                     @endif
                                                 </div>
-                                                <select name="question_answers[{{ $qIdx }}][matching][{{ $pIdx }}]" class="field text-xs sm:w-64" @disabled($submission || $isLocked)>
+                                                <select name="question_answers[{{ $q['id'] }}][matches][{{ $pair['id'] }}]" class="field text-xs sm:w-64" @disabled($submission || $isLocked)>
                                                     <option value="">-- Pilih Pasangan --</option>
                                                     @foreach($shuffledRights as $target)
-                                                        <option value="{{ $target }}" @selected(old("question_answers.$qIdx.matching.$pIdx", $submission['question_answers'][$qIdx]['matching'][$pIdx] ?? '') === $target)>
-                                                            {{ str_starts_with($target, 'data:image') ? 'Gambar Pasangan' : $target }}
+                                                        <option value="{{ $target['id'] }}" @selected(old('question_answers.'.$q['id'].'.matches.'.$pair['id'], $submission['question_answers'][$q['id']]['matches'][$pair['id']] ?? '') === $target['id'])>
+                                                            {{ str_starts_with($target['text'], 'data:image') ? 'Gambar Pasangan' : $target['text'] }}
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -378,21 +366,21 @@
                                     </div>
                                 @elseif(in_array($q['type'], ['pilihan', 'kompleks']))
                                     @php
-                                        $options = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($option) => $option !== '');
+                                        $options = $q['option_items'] ?? [];
                                         $isMultiple = $q['type'] === 'kompleks';
                                     @endphp
                                     <div class="space-y-2 pt-1">
                                         @foreach($options as $option)
                                             <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs {{ $submission || $isLocked ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
-                                                <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}" name="question_answers[{{ $qIdx }}][choices][]" value="{{ $option }}"
-                                                    @checked(in_array($option, old("question_answers.$qIdx.choices", $submission['question_answers'][$qIdx]['choices'] ?? [])))
+                                                <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}"
+                                                    @checked(in_array($option['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))
                                                     @disabled($submission || $isLocked)>
-                                                <span class="text-ink">{{ $option }}</span>
+                                                <span class="text-ink">{{ $option['text'] }}</span>
                                             </label>
                                         @endforeach
                                     </div>
                                 @else
-                                    <textarea name="question_answers[{{ $qIdx }}][text]" rows="4" class="field text-xs" @readonly($submission || $isLocked) placeholder="Tulis jawaban di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? '') }}</textarea>
+                                    <textarea name="question_answers[{{ $q['id'] }}][text]" rows="4" class="field text-xs" @readonly($submission || $isLocked) placeholder="Tulis jawaban di sini...">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
                                 @endif
                             </section>
                         @endforeach

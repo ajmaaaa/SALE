@@ -61,7 +61,7 @@ class LearningPreview
                 'prompt' => 'Pada struktur Binary Search Tree (BST), jika suatu simpul memiliki nilai kunci 15, manakah pernyataan yang paling benar mengenai posisi simpul dengan nilai kunci 12 dan 18?',
                 'options' => "Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan\nSimpul 12 dan 18 keduanya harus berada di subtree kiri\nSimpul 12 dan 18 keduanya harus berada di subtree kanan\nPosisi simpul 12 dan 18 ditentukan secara acak tanpa aturan",
                 'correct_answer' => 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan',
-                'points' => 20,
+                'points' => 15,
                 'cpmk' => 'CPMK-01',
                 'cpl' => 'CPL-01',
             ],
@@ -74,7 +74,7 @@ class LearningPreview
                     'Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)',
                     'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)',
                 ],
-                'points' => 20,
+                'points' => 15,
                 'cpmk' => 'CPMK-01',
                 'cpl' => 'CPL-01',
             ],
@@ -84,7 +84,7 @@ class LearningPreview
                 'prompt' => 'Jika sebuah Binary Search Tree dibangun dari deretan angka yang sudah terurut sempurna [1, 2, 3, 4, 5, 6], maka pohon akan mengalami degenerasi (skewed) dengan tinggi pohon O(n) sehingga performa pencarian menurun setara linked list.',
                 'options' => '',
                 'correct_answer' => 'Benar',
-                'points' => 20,
+                'points' => 15,
                 'cpmk' => 'CPMK-01',
                 'cpl' => 'CPL-01',
             ],
@@ -101,10 +101,19 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             ],
             [
                 'id' => 5,
+                'type' => 'coding',
+                'prompt' => 'Lengkapi implementasi metode insert(val) pada Binary Search Tree berikut agar simpul baru terpasang di cabang yang tepat:',
+                'options' => "class Node:\n    def __init__(self, val):\n        self.val = val\n        self.left = None\n        self.right = None\n\nclass BST:\n    def __init__(self):\n        self.root = None\n\n    def insert(self, val):\n        # Implementasikan logika insert di sini\n        pass",
+                'points' => 20,
+                'cpmk' => 'CPMK-01',
+                'cpl' => 'CPL-01',
+            ],
+            [
+                'id' => 6,
                 'type' => 'uraian',
                 'prompt' => 'Jelaskan mengapa self-balancing binary search tree (seperti AVL Tree atau Red-Black Tree) dibutuhkan pada sistem komputasi skala besar dibandingkan BST standar tanpa penyeimbangan otomatis!',
                 'options' => '',
-                'points' => 20,
+                'points' => 15,
                 'cpmk' => 'CPMK-01',
                 'cpl' => 'CPL-01',
             ],
@@ -283,6 +292,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $payload['duration_minutes'] = $payload['duration_minutes'] ?? 60;
             $payload['points'] = 100;
         }
+        if (! empty($payload['questions'])) {
+            $payload['questions'] = QuizQuestion::canonicalizeQuestions($payload['questions']);
+        }
 
         return array_merge(self::item(
             $assessment->id,
@@ -334,6 +346,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         self::course($course);
         $resource = self::items()[$item] ?? null;
         abort_unless($resource && $resource['course'] === $course, 404);
+
+        if (! empty($resource['questions'])) {
+            $resource['questions'] = QuizQuestion::canonicalizeQuestions($resource['questions']);
+        }
 
         return $resource;
     }
@@ -496,6 +512,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 $scoredIds = [];
                 if (Schema::hasTable('student_assessment_scores')) {
                     $scoredIds = StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                        ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
                         ->whereNotNull('score')
                         ->pluck('assessment_id')
                         ->toArray();
@@ -588,9 +605,11 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $studentScores = [];
 
         if ($user && Schema::hasTable('student_assessment_scores')) {
-            $studentScores = StudentAssessmentScore::where('mahasiswa_id', $user->id)
-                ->get()
-                ->keyBy('assessment_id');
+            $scoreQuery = StudentAssessmentScore::where('mahasiswa_id', $user->id);
+            if ($user->hasRole(Role::MAHASISWA)) {
+                $scoreQuery->where('status', StudentAssessmentScore::STATUS_PUBLISHED);
+            }
+            $studentScores = $scoreQuery->get()->keyBy('assessment_id');
         }
 
         if ($user && Schema::hasTable('class_sections')) {

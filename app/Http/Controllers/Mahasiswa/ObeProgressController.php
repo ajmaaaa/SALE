@@ -31,7 +31,7 @@ class ObeProgressController extends Controller
 
         $courseProgress = $enrolledSections->map(function ($section) use ($student) {
             $cpmks = Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->get();
-            $cpmkScores = $this->obe->cpmkScoresFor($cpmks, $student->id);
+            $cpmkScores = $this->obe->cpmkScoresFor($cpmks, $student->id, $section->id, true);
 
             $cpmkDetails = $cpmks->map(function ($cpmk) use ($cpmkScores) {
                 $score = $cpmkScores[$cpmk->id];
@@ -44,9 +44,9 @@ class ObeProgressController extends Controller
             });
 
             $cpls = Cpl::whereHas('cpmks', fn ($q) => $q->whereIn('cpmks.id', $cpmks->pluck('id')))->get();
-            $cplScores = $this->obe->cplScoresFor($cpls, $student->id);
+            $cplScores = $this->obe->cplScoresFor($cpls, $student->id, $section->id, true);
 
-            $final = $this->obe->finalScore($section, $student->id);
+            $final = $this->obe->finalScore($section, $student->id, true);
 
             return [
                 'section' => $section,

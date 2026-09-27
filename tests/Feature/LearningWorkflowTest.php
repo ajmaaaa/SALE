@@ -406,7 +406,12 @@ class LearningWorkflowTest extends TestCase
 
         $submission = session("learning.submissions.{$quizId}");
         $this->assertNotNull($submission);
-        $this->assertEquals('O(n log n)', $submission['question_answers'][0]['matching'][0]);
+        $matchingQuestion = $savedItem['questions'][0];
+        $firstPair = $matchingQuestion['matching_items'][0];
+        $this->assertSame(
+            $firstPair['option_id'],
+            $submission['question_answers'][$matchingQuestion['id']]['matches'][$firstPair['id']]
+        );
 
         // 4. Completed quiz is locked and displays radiant checkmark receipt screen
         $completedRoom = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");
@@ -459,6 +464,7 @@ class LearningWorkflowTest extends TestCase
         ])->assertRedirect('/dosen/course/1');
 
         $quizId = max(array_keys(session('learning.items')));
+        $quiz = session('learning.items')[$quizId];
 
         // 2. Student enters quiz room
         session(['auth_user' => ['id' => 1, 'name' => 'Ahmad Maulana', 'role' => 'mahasiswa']]);
@@ -475,7 +481,10 @@ class LearningWorkflowTest extends TestCase
         // 4. Answers are saved in session
         $submission = session("learning.submissions.{$quizId}");
         $this->assertNotNull($submission);
-        $this->assertEquals('Tree adalah struktur data hierarkis.', $submission['question_answers'][0]['text']);
+        $this->assertEquals(
+            'Tree adalah struktur data hierarkis.',
+            $submission['question_answers'][$quiz['questions'][0]['id']]['text']
+        );
 
         // 5. Quiz room is now permanently locked
         $room = $this->get("/mahasiswa/course/1/item/{$quizId}/quiz");

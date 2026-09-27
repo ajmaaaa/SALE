@@ -277,7 +277,9 @@ class AcademicPreview
             $hasSubmitted = !empty($submission);
 
             foreach ($formattedQuestions as $qIdx => $q) {
-                $ans = $submission['question_answers'][$qIdx] ?? [];
+                $ans = $submission['question_answers'][(string) $q['id']]
+                    ?? $submission['question_answers'][$qIdx]
+                    ?? [];
                 $qPoints = (float) $q['points'];
                 $porsi = $q['porsi_soal_raw'];
 
@@ -383,53 +385,14 @@ class AcademicPreview
 
     public static function evaluateAutoQuestion(array $question, array $answer): ?float
     {
-        $type = $question['type'] ?? 'pilihan';
-        $points = (float) ($question['points'] ?? 100);
+        $question = QuizQuestion::canonicalizeQuestion($question);
+        $normalized = QuizQuestion::normalizeAnswers(
+            [$question],
+            [[...$answer, 'question_id' => (string) $question['id']]]
+        );
+        $score = QuizQuestion::evaluate($question, $normalized[(string) $question['id']] ?? []);
 
-        if ($type === 'pilihan') {
-            $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
-            $correctOption = $options[0] ?? '';
-            $chosen = $answer['choices'][0] ?? ($answer['choice'] ?? null);
-            if ($chosen === null) return null;
-            return ($chosen === $correctOption) ? $points : 0.0;
-        }
-
-        if ($type === 'kompleks') {
-            $options = array_values(array_filter(array_map('trim', explode("\n", $question['options'] ?? '')), fn ($v) => $v !== ''));
-            $correctKeys = array_slice($options, 0, max(1, (int) round(count($options) / 2)));
-            $chosen = $answer['choices'] ?? [];
-            if (empty($chosen)) return null;
-
-            $benar = count(array_intersect($chosen, $correctKeys));
-            $salah = count(array_diff($chosen, $correctKeys));
-            $jumlahKunci = max(1, count($correctKeys));
-
-            $persen = max(0.0, ($benar - $salah) / $jumlahKunci);
-            return round($persen * $points, 2);
-        }
-
-        if ($type === 'benar_salah') {
-            $chosen = $answer['boolean_choice'] ?? null;
-            if ($chosen === null) return null;
-            $correct = 'Benar';
-            return ($chosen === $correct) ? $points : 0.0;
-        }
-
-        if ($type === 'mencocokkan') {
-            $matching = $answer['matching'] ?? [];
-            if (empty($matching)) return null;
-            $correctCount = 0;
-            $totalPairs = count($matching);
-            foreach ($matching as $pIdx => $target) {
-                if ($target !== null && $target !== '') {
-                    $correctCount++;
-                }
-            }
-            $persen = $totalPairs > 0 ? ($correctCount / $totalPairs) : 0.0;
-            return round($persen * $points, 2);
-        }
-
-        return null;
+        return $score ?? (! empty(array_filter($answer)) ? 0.0 : null);
     }
 
     public static function getEssayToGrade(int $course, int $item, int $studentId, ?int $questionIndex = null): array
@@ -478,7 +441,9 @@ class AcademicPreview
         }
 
         $submission = self::resolveSubmission($item, $studentId);
-        $answerText = $submission['question_answers'][$questionIndex]['text']
+        $questionId = (string) ($questions[$questionIndex]['id'] ?? $questionIndex);
+        $answerText = $submission['question_answers'][$questionId]['text']
+            ?? $submission['question_answers'][$questionIndex]['text']
             ?? ($submission['answer'] ?? '');
 
         $currentScore = $grades[$questionIndex] ?? null;

@@ -52,7 +52,7 @@
                 $dbScore = $studentScores[$item['id']] ?? null;
                 $hasDbGrade = $dbScore && $dbScore->score !== null;
                 $sessionGrade = session('learning.grades.'.$item['id']) ?? session('academic.item_grades.'.$item['id'].'.1');
-                $hasSessionGrade = $sessionGrade !== null;
+                $hasSessionGrade = auth()->user() === null && $sessionGrade !== null;
                 $isGraded = $hasDbGrade || $hasSessionGrade;
                 $scoreValue = $hasDbGrade ? (float)$dbScore->score : ($hasSessionGrade ? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : (float)$sessionGrade) : null);
                 $isSubmitted = session('learning.submissions.'.$item['id']) || $isGraded;

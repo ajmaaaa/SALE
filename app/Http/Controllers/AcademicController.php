@@ -5,19 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
-use App\Models\StudentAssessmentScore;
-use App\Models\StudentAssessmentCpmkScore;
 use App\Models\Submission;
 use App\Models\User;
 use App\Support\AcademicPreview as Academic;
 use App\Support\AdminPreview;
 use App\Support\LearningPreview as Learning;
+use App\Services\ObeCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AcademicController extends Controller
 {
+    public function __construct(private ObeCalculationService $grades) {}
+
     public function gradeItem(Request $request, int $item)
     {
         $resource = Learning::items()[$item] ?? null;
@@ -122,7 +123,8 @@ class AcademicController extends Controller
         foreach ($questions as $qIdx => $q) {
             if (! $q['is_essay']) continue;
 
-            $answerText = $submission['question_answers'][$qIdx]['text']
+            $answerText = $submission['question_answers'][(string) $q['id']]['text']
+                ?? $submission['question_answers'][$qIdx]['text']
                 ?? ($submission['answer'] ?? '');
 
             $currentScore = isset($grades[$qIdx]) && is_numeric($grades[$qIdx]) ? (float) $grades[$qIdx] : null;
@@ -184,20 +186,10 @@ class AcademicController extends Controller
             $isCompleted = ($studentResult['status_key'] ?? '') === 'selesai';
             $finalScore = $isCompleted ? ($studentResult['nilai_asesmen'] ?? null) : null;
 
-            if (Schema::hasTable('student_assessment_scores')) {
-                StudentAssessmentScore::updateOrCreate(
-                    ['assessment_id' => $item, 'mahasiswa_id' => $student],
-                    [
-                        'score' => $finalScore,
-                        'graded_by' => auth()->id(),
-                        'graded_at' => $isCompleted ? now() : null,
-                    ]
-                );
-            }
-
-            if ($isCompleted && Schema::hasTable('student_assessment_cpmk_scores')) {
-                $assessment = Assessment::with('cpmks')->find($item);
-                if ($assessment) {
+            $assessment = Assessment::with('cpmks')->find($item);
+            if ($assessment && Schema::hasTable('student_assessment_scores')) {
+                if ($isCompleted) {
+                    $cpmkValues = [];
                     foreach ($studentResult['cpmk_breakdown'] ?? [] as $cCode => $cInfo) {
                         $cpmkModel = $assessment->cpmks->first(function ($c) use ($cCode) {
                             $c1 = strtoupper(trim(str_replace(' ', '-', $c->code)));
@@ -206,13 +198,16 @@ class AcademicController extends Controller
                         }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $cCode)->first() : null);
 
                         if ($cpmkModel) {
-                            $propScore = round(($cInfo['score'] * $cInfo['weight']) / 100, 2);
-                            StudentAssessmentCpmkScore::updateOrCreate(
-                                ['assessment_id' => $item, 'cpmk_id' => $cpmkModel->id, 'mahasiswa_id' => $student],
-                                ['score' => $propScore]
-                            );
+                            $cpmkValues[$cpmkModel->id] = round(($cInfo['score'] * $cInfo['weight']) / 100, 2);
                         }
                     }
+                    if ($assessment->cpmks->isNotEmpty()) {
+                        $this->grades->syncCpmkScores($assessment, $student, $cpmkValues, auth()->id(), true);
+                    } else {
+                        $this->grades->syncDirectScore($assessment, $student, $finalScore, auth()->id(), true);
+                    }
+                } else {
+                    $this->grades->syncIncompleteState($assessment, $student, count(array_filter($grades, 'is_numeric')) > 0);
                 }
             }
         }
@@ -370,27 +365,11 @@ class AcademicController extends Controller
             "academic.item_grades.{$item}.{$student}.nilai_cpmk" => $nilaiCpmk,
         ]);
 
-        // Simpan ke database
+        // Simpan nilai assessment dan breakdown CPMK melalui satu sumber perhitungan.
         if (Schema::hasTable('student_assessment_scores')) {
-            StudentAssessmentScore::updateOrCreate(
-                ['assessment_id' => $item, 'mahasiswa_id' => $student],
-                [
-                    'score' => $nilaiTugas,
-                    'graded_by' => auth()->id(),
-                    'graded_at' => now(),
-                ]
-            );
-        }
-
-        if (Schema::hasTable('student_assessment_cpmk_scores')) {
             $assessment = Assessment::with('cpmks')->find($item);
-            if ($assessment && $assessment->cpmks->isNotEmpty()) {
-                foreach ($assessment->cpmks as $cpmk) {
-                    StudentAssessmentCpmkScore::updateOrCreate(
-                        ['assessment_id' => $item, 'cpmk_id' => $cpmk->id, 'mahasiswa_id' => $student],
-                        ['score' => $nilaiTugas]
-                    );
-                }
+            if ($assessment) {
+                $this->grades->syncDirectScore($assessment, $student, $nilaiTugas, auth()->id(), true);
             }
         }
 

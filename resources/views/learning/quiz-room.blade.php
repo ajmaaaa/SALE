@@ -58,91 +58,37 @@
             foreach ($questions as $qIdx => $q) {
                 $qType = $q['type'] ?? 'pilihan';
                 $qPoints = (float) ($q['points'] ?? 25);
-                $ans = $submission['question_answers'][$qIdx] ?? [];
-                if (empty($ans) && $totalQuestions === 1) {
-                    $ans = [
-                        'choices' => $submission['choices'] ?? [],
-                        'boolean_choice' => $submission['boolean_choice'] ?? null,
-                        'matching' => $submission['matching'] ?? [],
-                        'text' => $submission['answer'] ?? null,
-                    ];
-                }
+                $questionId = (string) $q['id'];
+                $ans = $submission['question_answers'][$questionId] ?? $submission['question_answers'][$qIdx] ?? [];
 
                 $status = 'wrong';
-                $earned = 0;
+                $earned = \App\Support\QuizQuestion::evaluate($q, $ans) ?? 0;
                 $pairResults = [];
 
-                if ($qType === 'pilihan') {
-                    $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => $v !== ''));
-                    $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ($options[0] ?? '')));
-                    $userChoice = $ans['choices'][0] ?? null;
-                    if ($userChoice !== null && $userChoice === $correct) {
-                        $status = 'correct';
-                        $earned = $qPoints;
-                        $totalCorrect++;
-                    } else {
-                        $status = 'wrong';
-                        $totalWrong++;
-                    }
-                } elseif ($qType === 'benar_salah') {
-                    $correct = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
-                    $userChoice = $ans['boolean_choice'] ?? null;
-                    if ($userChoice !== null && $userChoice === $correct) {
-                        $status = 'correct';
-                        $earned = $qPoints;
-                        $totalCorrect++;
-                    } else {
-                        $status = 'wrong';
-                        $totalWrong++;
-                    }
-                } elseif ($qType === 'kompleks') {
-                    $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => $v !== ''));
-                    $correct = $q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'];
-                    $userChoices = $ans['choices'] ?? [];
-                    $uSorted = $userChoices;
-                    $cSorted = $correct;
-                    sort($uSorted);
-                    sort($cSorted);
-                    if (! empty($uSorted) && $uSorted === $cSorted) {
-                        $status = 'correct';
-                        $earned = $qPoints;
-                        $totalCorrect++;
-                    } else {
-                        $status = 'wrong';
-                        $totalWrong++;
-                    }
-                } elseif ($qType === 'mencocokkan') {
-                    $matching = $ans['matching'] ?? [];
-                    $pairs = array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn ($v) => str_contains($v, '='));
-                    $totalPairs = count($pairs);
-                    $matchedCount = 0;
-                    foreach (array_values($pairs) as $pIdx => $pairStr) {
-                        [$term, $def] = array_map('trim', explode('=', $pairStr, 2));
-                        $uMatch = $matching[$pIdx] ?? null;
-                        $isMatchCorrect = ($uMatch !== null && $uMatch === $def);
-                        if ($isMatchCorrect) $matchedCount++;
+                if ($qType === 'mencocokkan') {
+                    $optionTexts = array_column($q['option_items'] ?? [], 'text', 'id');
+                    foreach ($q['matching_items'] ?? [] as $pair) {
+                        $selectedId = $ans['matches'][$pair['id']] ?? null;
                         $pairResults[] = [
-                            'term' => $term,
-                            'user' => $uMatch,
-                            'expected' => $def,
-                            'is_correct' => $isMatchCorrect,
+                            'term' => $pair['prompt'],
+                            'user' => $optionTexts[$selectedId] ?? null,
+                            'expected' => $pair['answer'],
+                            'is_correct' => $selectedId === $pair['option_id'],
                         ];
                     }
-                    if ($totalPairs > 0 && $matchedCount === $totalPairs) {
-                        $status = 'correct';
-                        $earned = $qPoints;
-                        $totalCorrect++;
-                    } elseif ($matchedCount > 0) {
-                        $status = 'partial';
-                        $earned = ($matchedCount / $totalPairs) * $qPoints;
-                        $totalWrong++;
-                    } else {
-                        $status = 'wrong';
-                        $totalWrong++;
-                    }
-                } else {
+                }
+
+                if (in_array($qType, ['uraian', 'esai'], true)) {
                     $status = 'pending';
                     $totalPending++;
+                } elseif ($earned >= $qPoints) {
+                    $status = 'correct';
+                    $totalCorrect++;
+                } elseif ($earned > 0) {
+                    $status = 'partial';
+                    $totalWrong++;
+                } else {
+                    $totalWrong++;
                 }
 
                 $computedScore += $earned;
@@ -251,15 +197,7 @@
                                     $eval = $evaluations[$qIdx] ?? [];
                                     $status = $eval['status'] ?? 'wrong';
                                     $qType = $q['type'] ?? 'pilihan';
-                                    $ans = $submission['question_answers'][$qIdx] ?? [];
-                                    if (empty($ans) && $totalQuestions === 1) {
-                                        $ans = [
-                                            'choices' => $submission['choices'] ?? [],
-                                            'boolean_choice' => $submission['boolean_choice'] ?? null,
-                                            'matching' => $submission['matching'] ?? [],
-                                            'text' => $submission['answer'] ?? null,
-                                        ];
-                                    }
+                                    $ans = $submission['question_answers'][(string) $q['id']] ?? $submission['question_answers'][$qIdx] ?? [];
                                 @endphp
                                 <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-4">
                                     {{-- Header Soal --}}
@@ -274,6 +212,8 @@
                                                     @elseif($qType === 'kompleks') Pilihan Ganda Kompleks
                                                     @elseif($qType === 'benar_salah') Benar / Salah
                                                     @elseif($qType === 'mencocokkan') Menjodohkan Pasangan
+                                                    @elseif($qType === 'coding') Praktikum Coding
+                                                    @elseif($qType === 'uraian' || $qType === 'esai') Uraian / Essay
                                                     @else Isian Singkat / Uraian
                                                     @endif
                                                 </span>
@@ -327,17 +267,15 @@
                                     {{-- Opsi Pilihan Ganda & Kompleks --}}
                                     @if(in_array($qType, ['pilihan', 'kompleks']))
                                         @php
-                                            $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($v) => $v !== ''));
-                                            $correctList = $qType === 'kompleks'
-                                                ? ($q['correct_answers'] ?? ['Traversal In-order pada BST akan menghasilkan urutan data terurut menaik (ascending)', 'Kompleksitas pencarian rata-rata pada balanced BST adalah O(log n)'])
-                                                : [$q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', 'imbalance') ? 'F1-Score dan ROC-AUC' : (str_contains($q['prompt'] ?? '', 'BST') ? 'Simpul 12 berada di subtree kiri dan simpul 18 berada di subtree kanan' : ($options[0] ?? '')))];
-                                            $userChoices = $ans['choices'] ?? [];
+                                            $options = $q['option_items'] ?? [];
+                                            $correctList = $q['answer_key']['option_ids'] ?? [];
+                                            $userChoices = $ans['option_ids'] ?? [];
                                         @endphp
                                         <div class="space-y-2 pt-1">
                                             @foreach($options as $opt)
                                                 @php
-                                                    $isUserPicked = in_array($opt, $userChoices, true);
-                                                    $isOptCorrect = in_array($opt, $correctList, true);
+                                                    $isUserPicked = in_array($opt['id'], $userChoices, true);
+                                                    $isOptCorrect = in_array($opt['id'], $correctList, true);
                                                 @endphp
                                                 <div class="flex items-center justify-between gap-3 p-3 rounded-lg border text-xs {{ $isUserPicked ? 'border-slate-300 bg-slate-50/80 font-medium text-slate-900' : ($isOptCorrect ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-white text-slate-600') }}">
                                                     <div class="flex items-center gap-2.5 min-w-0">
@@ -347,7 +285,7 @@
                                                             @elseif($isOptCorrect) ✓
                                                             @endif
                                                         </span>
-                                                        <span class="break-words leading-relaxed">{{ $opt }}</span>
+                                                        <span class="break-words leading-relaxed">{{ $opt['text'] }}</span>
                                                     </div>
                                                     <div class="shrink-0 flex items-center gap-1.5">
                                                         @if($isUserPicked && $isOptCorrect)
@@ -365,14 +303,15 @@
                                     {{-- Opsi Benar / Salah --}}
                                     @elseif($qType === 'benar_salah')
                                         @php
-                                            $correctChoice = $q['correct_answer'] ?? (str_contains($q['prompt'] ?? '', '95%') ? 'Salah' : 'Benar');
-                                            $userChoice = $ans['boolean_choice'] ?? null;
+                                            $booleanOptions = $q['option_items'] ?? [];
+                                            $correctChoice = $q['answer_key']['option_ids'][0] ?? null;
+                                            $userChoice = $ans['option_ids'][0] ?? null;
                                         @endphp
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                            @foreach(['Benar', 'Salah'] as $opt)
+                                            @foreach($booleanOptions as $opt)
                                                 @php
-                                                    $isUserPicked = ($userChoice === $opt);
-                                                    $isOptCorrect = ($correctChoice === $opt);
+                                                    $isUserPicked = ($userChoice === $opt['id']);
+                                                    $isOptCorrect = ($correctChoice === $opt['id']);
                                                 @endphp
                                                 <div class="flex items-center justify-between gap-3 p-3 rounded-lg border text-xs {{ $isUserPicked ? 'border-slate-300 bg-slate-50/80 font-medium text-slate-900' : ($isOptCorrect ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-white text-slate-600') }}">
                                                     <div class="flex items-center gap-2.5">
@@ -382,7 +321,7 @@
                                                             @elseif($isOptCorrect) ✓
                                                             @endif
                                                         </span>
-                                                        <span class="font-bold">{{ $opt }}</span>
+                                                        <span class="font-bold">{{ $opt['text'] }}</span>
                                                     </div>
                                                     <div class="shrink-0 flex items-center gap-1.5">
                                                         @if($isUserPicked && $isOptCorrect)
@@ -495,7 +434,9 @@
                 @if($durationMinutes)
                     <div id="timer-badge" class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono font-bold text-slate-700">
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        <span id="quiz-countdown" data-duration="{{ $durationMinutes * 60 }}">--:--</span>
+                        <span id="quiz-countdown"
+                              data-duration="{{ $durationMinutes * 60 }}"
+                              @if($attemptDeadline ?? null) data-deadline="{{ $attemptDeadline->toIso8601String() }}" @endif>--:--</span>
                     </div>
                 @else
                     <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded text-xs text-slate-600 border border-slate-200">
@@ -563,6 +504,10 @@
                                             Pilihan Ganda Kompleks
                                         @elseif($q['type'] === 'benar_salah')
                                             Benar / Salah
+                                        @elseif($q['type'] === 'coding')
+                                            Pemrograman
+                                        @elseif($q['type'] === 'uraian' || $q['type'] === 'esai')
+                                            Uraian / Esai
                                         @else
                                             Isian Singkat / Uraian
                                         @endif
@@ -611,30 +556,17 @@
 
                         {{-- PANEL KANAN: AREA LEMBAR KERJA / TEMPAT MENJAWAB --}}
                         <section class="h-full flex flex-col rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xs">
+                            <input type="hidden" name="question_answers[{{ $q['id'] }}][question_id]" value="{{ $q['id'] }}">
                             
                             {{-- TIPE: MENCOCOKKAN PASANGAN (Interactive Line Canvas) --}}
                             @if($q['type'] === 'mencocokkan')
                                 @php
-                                    $pairLines = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
-                                    $pairs = [];
-                                    foreach($pairLines as $pLine) {
-                                        if (str_contains($pLine, ' = ')) {
-                                            [$left, $right] = explode(' = ', $pLine, 2);
-                                            $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                        } elseif (str_contains($pLine, '=')) {
-                                            [$left, $right] = explode('=', $pLine, 2);
-                                            $pairs[] = ['left' => trim($left), 'right' => trim($right)];
-                                        } else {
-                                            $pairs[] = ['left' => $pLine, 'right' => $pLine];
-                                        }
-                                    }
-                                    if (empty($pairs)) {
-                                        $pairs = [
-                                            ['left' => 'Pre-order', 'right' => 'Akar - Kiri - Kanan'],
-                                            ['left' => 'In-order', 'right' => 'Kiri - Akar - Kanan'],
-                                            ['left' => 'Post-order', 'right' => 'Kiri - Kanan - Akar'],
-                                        ];
-                                    }
+                                    $pairs = array_map(fn($pair) => [
+                                        'id' => $pair['id'],
+                                        'left' => $pair['prompt'],
+                                        'option_id' => $pair['option_id'],
+                                        'right' => $pair['answer'],
+                                    ], $q['matching_items'] ?? []);
                                     $colors = ['#1d4ed8', '#047857', '#b45309', '#6d28d9', '#0f766e', '#be123c', '#4338ca'];
                                 @endphp
 
@@ -687,9 +619,9 @@
                                                         </button>
 
                                                         <input type="hidden"
-                                                            name="question_answers[{{ $qIdx }}][matching][{{ $pIdx }}]"
+                                                            name="question_answers[{{ $q['id'] }}][matches][{{ $pair['id'] }}]"
                                                             id="hidden-match-{{ $qIdx }}-{{ $pIdx }}"
-                                                            value="{{ old("question_answers.$qIdx.matching.$pIdx", $submission['question_answers'][$qIdx]['matching'][$pIdx] ?? '') }}">
+                                                            value="{{ old('question_answers.'.$q['id'].'.matches.'.$pair['id'], $submission['question_answers'][$q['id']]['matches'][$pair['id']] ?? '') }}">
                                                     </div>
                                                 @endforeach
                                             </div>
@@ -698,7 +630,7 @@
                                             <div class="space-y-4" id="match-right-col-{{ $qIdx }}">
                                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">Kolom Jawaban</p>
                                                 @php
-                                                    $targets = array_column($pairs, 'right');
+                                                    $targets = array_map(fn($pair) => ['id' => $pair['option_id'], 'text' => $pair['right']], $pairs);
                                                     $userSeed = auth()->id() ?? (session('auth_user.id') ?? (session('auth_user.number') ? crc32((string) session('auth_user.number')) : 1));
                                                     $seed = (int) ($item['id'] ?? 1) * 31 + (int) $userSeed * 17 + ($qIdx + 1) * 7;
                                                     mt_srand($seed);
@@ -707,9 +639,9 @@
                                                 @endphp
                                                 @foreach($targets as $tIdx => $target)
                                                     @php
-                                                        $isTargetImg = str_starts_with($target, 'http') || str_starts_with($target, 'data:image') || str_starts_with($target, '/');
+                                                        $isTargetImg = str_starts_with($target['text'], 'http') || str_starts_with($target['text'], 'data:image') || str_starts_with($target['text'], '/');
                                                     @endphp
-                                                    <div class="relative flex items-center p-3.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition cursor-pointer select-none" data-match-right-card="{{ $tIdx }}" data-target-val="{{ $target }}">
+                                                    <div class="relative flex items-center p-3.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition cursor-pointer select-none" data-match-right-card="{{ $tIdx }}" data-target-val="{{ $target['id'] }}">
                                                         <button type="button"
                                                             data-dot-side="right"
                                                             data-dot-idx="{{ $tIdx }}"
@@ -722,10 +654,10 @@
                                                             <span class="text-[11px] font-semibold text-slate-400 block mb-1">Jawaban {{ $tIdx + 1 }}</span>
                                                             @if($isTargetImg)
                                                                 <div class="flex items-center justify-center p-1 bg-slate-50 rounded border border-slate-100">
-                                                                    <img src="{{ $target }}" alt="Jawaban {{ $tIdx + 1 }}" class="max-h-16 max-w-full object-contain">
+                                                                    <img src="{{ $target['text'] }}" alt="Jawaban {{ $tIdx + 1 }}" class="max-h-16 max-w-full object-contain">
                                                                 </div>
                                                             @else
-                                                                <p class="text-xs sm:text-sm font-medium text-slate-800 leading-snug">{{ $target }}</p>
+                                                                <p class="text-xs sm:text-sm font-medium text-slate-800 leading-snug">{{ $target['text'] }}</p>
                                                             @endif
                                                         </div>
                                                     </div>
@@ -738,7 +670,7 @@
                             {{-- TIPE 3: PILIHAN GANDA & KOMPLEKS --}}
                             @elseif(in_array($q['type'], ['pilihan', 'kompleks']))
                                 @php
-                                    $options = array_values(array_filter(array_map('trim', explode("\n", $q['options'] ?? '')), fn($o) => $o !== ''));
+                                    $options = $q['option_items'] ?? [];
                                     $isMultiple = $q['type'] === 'kompleks';
                                 @endphp
                                 <div class="h-full flex flex-col">
@@ -749,11 +681,11 @@
                                         @foreach($options as $optIdx => $opt)
                                             <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
                                                 <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}"
-                                                    name="question_answers[{{ $qIdx }}][choices][]"
-                                                    value="{{ $opt }}"
+                                                    name="question_answers[{{ $q['id'] }}][option_ids][]"
+                                                    value="{{ $opt['id'] }}"
                                                     class="h-4 w-4 text-slate-900 focus:ring-slate-900 rounded"
-                                                    @checked(in_array($opt, old("question_answers.$qIdx.choices", $submission['question_answers'][$qIdx]['choices'] ?? [])))>
-                                                <span class="text-sm font-medium text-slate-800 leading-relaxed">{{ $opt }}</span>
+                                                    @checked(in_array($opt['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
+                                                <span class="text-sm font-medium text-slate-800 leading-relaxed">{{ $opt['text'] }}</span>
                                             </label>
                                         @endforeach
                                     </div>
@@ -766,16 +698,13 @@
                                         Tentukan kebenaran dari pernyataan pada panel kiri:
                                     </div>
                                     <div class="p-6 flex-1 flex flex-col justify-start max-w-md mx-auto w-full space-y-3 pt-6">
-                                        <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Benar" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
-                                                @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Benar')>
-                                            <span class="text-sm font-bold text-slate-900">Benar</span>
-                                        </label>
-                                        <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
-                                            <input type="radio" name="question_answers[{{ $qIdx }}][boolean_choice]" value="Salah" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
-                                                @checked(old("question_answers.$qIdx.boolean_choice", $submission['question_answers'][$qIdx]['boolean_choice'] ?? '') === 'Salah')>
-                                            <span class="text-sm font-bold text-slate-900">Salah</span>
-                                        </label>
+                                        @foreach($q['option_items'] ?? [] as $option)
+                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
+                                                <input type="radio" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
+                                                    @checked(in_array($option['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
+                                                <span class="text-sm font-bold text-slate-900">{{ $option['text'] }}</span>
+                                            </label>
+                                        @endforeach
                                     </div>
                                 </div>
 
@@ -787,7 +716,7 @@
                                         <span id="essay-word-count-{{ $qIdx }}" class="font-mono text-slate-400">0 kata</span>
                                     </div>
                                     <div class="p-5 flex-1 flex flex-col">
-                                        <textarea data-essay-input="{{ $qIdx }}" name="question_answers[{{ $qIdx }}][text]" class="flex-1 w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-800 leading-relaxed resize-none focus:outline-none focus:border-slate-800 focus:ring-0" placeholder="Tuliskan jawaban Anda di sini...">{{ old("question_answers.$qIdx.text", $submission['question_answers'][$qIdx]['text'] ?? '') }}</textarea>
+                                        <textarea data-essay-input="{{ $qIdx }}" name="question_answers[{{ $q['id'] }}][text]" class="flex-1 w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-800 leading-relaxed resize-none focus:outline-none focus:border-slate-800 focus:ring-0" placeholder="Tuliskan jawaban Anda di sini...">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
                                     </div>
                                 </div>
                             @endif
@@ -1096,11 +1025,11 @@
                 if (timerEl) {
                     const totalDurationSeconds = Number(timerEl.dataset.duration || 3600);
                     const deadlineKey = `sale.exam.deadline.{{ $item['id'] }}`;
-                    
-                    let deadline = localStorage.getItem(deadlineKey);
                     const now = Date.now();
+                    const serverDeadline = Date.parse(timerEl.dataset.deadline || '');
+                    let deadline = Number.isFinite(serverDeadline) ? serverDeadline : localStorage.getItem(deadlineKey);
 
-                    if (!deadline || isNaN(Number(deadline))) {
+                    if (!Number.isFinite(serverDeadline) && (!deadline || isNaN(Number(deadline)))) {
                         // Pertama kali masuk: tentukan batas akhir waktu absolut
                         deadline = now + (totalDurationSeconds * 1000);
                         localStorage.setItem(deadlineKey, String(deadline));

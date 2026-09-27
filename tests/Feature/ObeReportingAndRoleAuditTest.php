@@ -83,11 +83,17 @@ class ObeReportingAndRoleAuditTest extends TestCase
             'assessment_id' => $this->assessment->id,
             'mahasiswa_id' => $this->student1->id,
             'score' => 85,
+            'status' => StudentAssessmentScore::STATUS_PUBLISHED,
+            'graded_at' => now(),
+            'published_at' => now(),
         ]);
         StudentAssessmentScore::create([
             'assessment_id' => $this->assessment->id,
             'mahasiswa_id' => $this->student2->id,
             'score' => 55,
+            'status' => StudentAssessmentScore::STATUS_PUBLISHED,
+            'graded_at' => now(),
+            'published_at' => now(),
         ]);
     }
 
@@ -138,6 +144,52 @@ class ObeReportingAndRoleAuditTest extends TestCase
         $this->assertStringContainsString('CPL-01', $content);
         $this->assertStringContainsString('Tercapai', $content);
         $this->assertStringContainsString('Belum Tercapai', $content);
+    }
+
+    public function test_xlsx_export_sanitizes_student_name_against_formula_injection(): void
+    {
+        $this->student1->update(['name' => '=1+1', 'nim_nidn' => '+62812345']);
+        $this->student2->update(['name' => "@SUM(A1:A2)\tTest", 'nim_nidn' => "-999"]);
+
+        $endpoints = [
+            route('dosen.penilaian.rekap.export.excel', $this->section->id),
+            route('dosen.penilaian.cpmk.export.excel', $this->section->id),
+            route('dosen.penilaian.cpl.export.excel', $this->section->id),
+            route('dosen.penilaian.export.nilai.excel', $this->section->id),
+        ];
+
+        foreach ($endpoints as $url) {
+            $response = $this->actingAs($this->dosen)->get($url);
+            $response->assertOk();
+
+            $path = tempnam(sys_get_temp_dir(), 'test-xlsx-');
+            try {
+                file_put_contents($path, $response->streamedContent());
+                $zip = new \ZipArchive;
+                $this->assertTrue($zip->open($path));
+
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $filename = $zip->getNameIndex($i);
+                    if (str_starts_with($filename, 'xl/worksheets/')) {
+                        $sheetXml = $zip->getFromIndex($i);
+                        $this->assertStringNotContainsString('<f>1+1</f>', $sheetXml);
+                        $this->assertStringNotContainsString('<f>=1+1</f>', $sheetXml);
+                        $this->assertStringNotContainsString('<f>SUM', $sheetXml);
+                    }
+                }
+
+                $sharedStrings = $zip->getFromName('xl/sharedStrings.xml') ?: '';
+                $zip->close();
+
+                $this->assertTrue(
+                    str_contains($sharedStrings, "'=1+1") || str_contains($sheetXml, "'=1+1")
+                );
+            } finally {
+                if (file_exists($path)) {
+                    unlink($path);
+                }
+            }
+        }
     }
 
     public function test_dosen_can_view_printable_rekap(): void

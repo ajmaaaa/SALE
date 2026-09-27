@@ -173,10 +173,9 @@ class RubricController extends Controller
         $rubric = $assessment->rubric;
         abort_unless($rubric, 404);
 
-        $criteria = $rubric->criteria()->orderBy('id')->get();
-        $criteriaById = $criteria->keyBy('id');
         $enrolledIds = $section->students()->pluck('users.id');
         $dosenId = Auth::guard('web')->id();
+        $publish = $request->input('intent') === 'publish';
 
         $request->validate([
             'rubric_scores' => ['required', 'array'],
@@ -184,48 +183,13 @@ class RubricController extends Controller
             'rubric_scores.*.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        DB::transaction(function () use ($request, $assessment, $criteriaById, $enrolledIds, $dosenId) {
-            $affectedStudentIds = [];
-
+        DB::transaction(function () use ($request, $assessment, $enrolledIds, $dosenId, $publish) {
             foreach ($request->input('rubric_scores', []) as $mahasiswaId => $criterionScores) {
                 $mahasiswaId = (int) $mahasiswaId;
-
                 if (! $enrolledIds->contains($mahasiswaId)) {
                     continue;
                 }
-
-                foreach ($criterionScores as $criterionId => $score) {
-                    $criterionId = (int) $criterionId;
-                    $criterion = $criteriaById[$criterionId] ?? null;
-
-                    if (! $criterion) {
-                        continue;
-                    }
-
-                    $scoreValue = ($score !== null && $score !== '') ? (float) $score : null;
-
-                    // Validate against max_score
-                    if ($scoreValue !== null && $scoreValue > (float) $criterion->max_score) {
-                        $scoreValue = (float) $criterion->max_score;
-                    }
-
-                    StudentRubricScore::updateOrCreate(
-                        [
-                            'rubric_criterion_id' => $criterionId,
-                            'mahasiswa_id' => $mahasiswaId,
-                        ],
-                        [
-                            'score' => $scoreValue,
-                        ],
-                    );
-                }
-
-                $affectedStudentIds[] = $mahasiswaId;
-            }
-
-            // Sync calculated assessment scores from rubric for all affected students
-            foreach (array_unique($affectedStudentIds) as $studentId) {
-                $this->obe->syncRubricToAssessmentScore($assessment, $studentId, $dosenId);
+                $this->obe->syncRubricScores($assessment, $mahasiswaId, $criterionScores, $dosenId, $publish);
             }
         });
 

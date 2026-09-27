@@ -147,9 +147,9 @@ class ObeExcelExportService
             $w = $cpmkWeights[$cpmk->id] ?? 0;
             $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
-            $sheet->setCellValue("A{$currRow}", $cpmk->code);
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpmk->code), DataType::TYPE_STRING);
             $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValue("B{$currRow}", $cpmk->description ?? $cpmk->name ?? '—');
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '—'), DataType::TYPE_STRING);
             $sheet->setCellValue("F{$currRow}", '≥ ' . (int) ($cpmk->threshold ?: 60));
             $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
 
@@ -237,8 +237,8 @@ class ObeExcelExportService
             $rowBg = ($i % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
             $sheet->setCellValue("A{$currRow}", $i + 1);
-            $sheet->setCellValueExplicit("B{$currRow}", (string) ($student->nim_nidn ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", $student->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
 
             $colIdx = 4;
             foreach ($cpmks as $cpmk) {
@@ -435,9 +435,9 @@ class ObeExcelExportService
             $currRow++;
             $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
-            $sheet->setCellValue("A{$currRow}", $cpl->code);
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpl->code), DataType::TYPE_STRING);
             $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValue("B{$currRow}", $cpl->description ?? $cpl->name ?? '—');
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpl->description ?? $cpl->name ?? '—'), DataType::TYPE_STRING);
             $sheet->setCellValue("{$lastColLetter}{$currRow}", (int) ($cpl->target_score ?? 65));
 
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -493,8 +493,8 @@ class ObeExcelExportService
             $rowBg = ($i % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
             $sheet->setCellValue("A{$currRow}", $i + 1);
-            $sheet->setCellValueExplicit("B{$currRow}", (string) ($student->nim_nidn ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", $student->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
 
             $colIdx = 4;
             foreach ($cpls as $cpl) {
@@ -640,9 +640,9 @@ class ObeExcelExportService
             $currRow++;
             $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
-            $sheet->setCellValue("A{$currRow}", $asmt->code ?: $asmt->name);
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($asmt->code ?: $asmt->name), DataType::TYPE_STRING);
             $sheet->mergeCells("B{$currRow}:D{$currRow}");
-            $sheet->setCellValue("B{$currRow}", $asmt->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
             $sheet->setCellValue("E{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
             $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format((float) $asmt->final_weight, 1), '0'), '.') . '%');
 
@@ -680,7 +680,7 @@ class ObeExcelExportService
         foreach ($assessments as $asmt) {
             $cLet = Coordinate::stringFromColumnIndex($colIdx);
             $w = rtrim(rtrim(number_format((float) $asmt->final_weight, 1), '0'), '.');
-            $sheet->setCellValue("{$cLet}{$currRow}", $asmt->name . "\n(" . $w . '%)');
+            $sheet->setCellValueExplicit("{$cLet}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name) . "\n(" . $w . '%)', DataType::TYPE_STRING);
             $colIdx++;
         }
 
@@ -696,8 +696,8 @@ class ObeExcelExportService
             $rowBg = ($i % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
             $sheet->setCellValue("A{$currRow}", $i + 1);
-            $sheet->setCellValueExplicit("B{$currRow}", (string) ($student->nim_nidn ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", $student->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
 
             $colIdx = 4;
             foreach ($assessments as $asmt) {
@@ -834,7 +834,7 @@ class ObeExcelExportService
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
             $sheet->mergeCells("{$splitColLetter}{$currRow}:{$penultimateLetter}{$currRow}");
-            $sheet->setCellValue("{$splitColLetter}{$currRow}", $asmt->name);
+            $sheet->setCellValueExplicit("{$splitColLetter}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
             $sheet->getStyle("{$splitColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
             $sheet->getStyle("{$splitColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
@@ -868,7 +868,7 @@ class ObeExcelExportService
         $colIdx = 4;
         foreach ($measuringAssessments as $asmt) {
             $cLet = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$cLet}{$currRow}", $asmt->name);
+            $sheet->setCellValueExplicit("{$cLet}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
             $colIdx++;
         }
 
@@ -894,8 +894,8 @@ class ObeExcelExportService
             $rowBg = ($sIdx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
             $sheet->setCellValue("A{$currRow}", $sIdx + 1);
-            $sheet->setCellValueExplicit("B{$currRow}", (string) ($student->nim_nidn ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", $student->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
 
             $colIdx = 4;
             foreach ($measuringAssessments as $asmt) {
@@ -1129,7 +1129,7 @@ class ObeExcelExportService
             $endLet = Coordinate::stringFromColumnIndex($colIdx + $subColCount - 1);
 
             $sheet->mergeCells("{$startLet}{$h1Row}:{$endLet}{$h1Row}");
-            $sheet->setCellValue("{$startLet}{$h1Row}", $asmt->name . ' (' . ucfirst($asmt->type ?? 'Asesmen') . ')');
+            $sheet->setCellValueExplicit("{$startLet}{$h1Row}", $this->sanitizeSpreadsheetText($asmt->name) . ' (' . ucfirst($asmt->type ?? 'Asesmen') . ')', DataType::TYPE_STRING);
 
             foreach ($col['cpmk_cols'] as $cc) {
                 $subLet = Coordinate::stringFromColumnIndex($colIdx);
@@ -1156,8 +1156,8 @@ class ObeExcelExportService
             $rowBg = ($sIdx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
 
             $sheet->setCellValue("A{$currRow}", $sIdx + 1);
-            $sheet->setCellValueExplicit("B{$currRow}", (string) ($student->nim_nidn ?? ''), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", $student->name);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
 
             $colIdx = 4;
             foreach ($columns as $col) {
@@ -1358,10 +1358,10 @@ class ObeExcelExportService
         $sheet->mergeCells('A6:B6');
         $sheet->setCellValue('A6', 'Dosen Pengampu');
         $sheet->mergeCells("C6:{$leftValEnd}6");
-        $sheet->setCellValue('C6', ': ' . $dosenName);
+        $sheet->setCellValueExplicit('C6', ': ' . $this->sanitizeSpreadsheetText($dosenName), DataType::TYPE_STRING);
         $sheet->setCellValue("{$rightLabelCol}6", 'NIP / NIDN');
         $sheet->mergeCells("{$rightValStart}6:{$lastColLetter}6");
-        $sheet->setCellValue("{$rightValStart}6", ': ' . $dosenNip);
+        $sheet->setCellValueExplicit("{$rightValStart}6", ': ' . $this->sanitizeSpreadsheetText($dosenNip), DataType::TYPE_STRING);
 
         // Row 7
         $sheet->mergeCells('A7:B7');
@@ -1597,14 +1597,14 @@ class ObeExcelExportService
 
         $nameRow = $signRow + 4;
         $sheet->mergeCells("{$signLet}{$nameRow}:{$lastColLet}{$nameRow}");
-        $sheet->setCellValue("{$signLet}{$nameRow}", '( ' . $dosenName . ' )');
+        $sheet->setCellValueExplicit("{$signLet}{$nameRow}", '( ' . $this->sanitizeSpreadsheetText($dosenName) . ' )', DataType::TYPE_STRING);
         $sheet->getStyle("{$signLet}{$nameRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->setUnderline(true);
         $sheet->getStyle("{$signLet}{$nameRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         if ($dosenNidn) {
             $nidnRow = $nameRow + 1;
             $sheet->mergeCells("{$signLet}{$nidnRow}:{$lastColLet}{$nidnRow}");
-            $sheet->setCellValue("{$signLet}{$nidnRow}", $dosenNidn);
+            $sheet->setCellValueExplicit("{$signLet}{$nidnRow}", $this->sanitizeSpreadsheetText($dosenNidn), DataType::TYPE_STRING);
             $sheet->getStyle("{$signLet}{$nidnRow}")->getFont()->setName('Times New Roman')->setSize(9.5)->getColor()->setARGB('FF64748B');
             $sheet->getStyle("{$signLet}{$nidnRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
@@ -1693,6 +1693,20 @@ class ObeExcelExportService
             'BC', 'C' => ['bg' => self::COLOR_GRADE_C_BG, 'text' => self::COLOR_GRADE_C_TEXT],
             default => ['bg' => self::COLOR_FAIL_BG, 'text' => self::COLOR_FAIL_TEXT],
         };
+    }
+
+    /**
+     * Sanitasi teks pengguna untuk mencegah spreadsheet formula injection.
+     * Awalan '=', '+', '-', '@', '\t', '\r' diprefiks dengan tanda kutip tunggal.
+     */
+    private function sanitizeSpreadsheetText(mixed $value): string
+    {
+        $string = (string) $value;
+        if ($string !== '' && in_array($string[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $string;
+        }
+
+        return $string;
     }
 
     private function downloadSpreadsheet(Spreadsheet $spreadsheet, string $filename): StreamedResponse

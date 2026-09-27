@@ -7,13 +7,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudentAssessmentScore extends Model
 {
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_PARTIAL = 'partial';
+
+    public const STATUS_FINAL = 'final';
+
+    public const STATUS_PUBLISHED = 'published';
+
     protected $fillable = [
         'assessment_id',
         'mahasiswa_id',
         'score',
+        'status',
         'feedback',
         'graded_by',
         'graded_at',
+        'published_at',
     ];
 
     protected function casts(): array
@@ -23,6 +33,7 @@ class StudentAssessmentScore extends Model
             // and must never be treated as 0 by calculations.
             'score' => 'decimal:2',
             'graded_at' => 'datetime',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -43,6 +54,12 @@ class StudentAssessmentScore extends Model
 
     public function isGraded(): bool
     {
-        return $this->score !== null;
+        return in_array($this->status, [self::STATUS_FINAL, self::STATUS_PUBLISHED], true)
+            && $this->score !== null;
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED && $this->score !== null;
     }
 }

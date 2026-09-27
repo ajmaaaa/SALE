@@ -112,7 +112,7 @@
                         @foreach($students as $i => $student)
                             @php
                                 $existing = $existingScores[$student->id] ?? null;
-                                $isGraded = $existing && $existing->score !== null;
+                                $gradeStatus = $existing?->status ?? \App\Models\StudentAssessmentScore::STATUS_PENDING;
                             @endphp
                             <tr class="student-row hover:bg-canvas/30 transition-colors" data-student-id="{{ $student->id }}">
                                 <td class="py-3 px-3 text-center text-xs text-muted/70 font-mono">{{ $i + 1 }}</td>
@@ -174,15 +174,14 @@
 
                                 {{-- Kolom Status --}}
                                 <td class="py-3 px-3 text-center border-l border-line/40 status-col-{{ $student->id }}">
-                                    @if($isGraded)
-                                        <span class="text-xs font-semibold text-emerald-700">
-                                            Sudah Dinilai
-                                        </span>
-                                    @else
-                                        <span class="text-xs text-muted">
-                                            Belum Dinilai
-                                        </span>
-                                    @endif
+                                    <span class="text-xs font-semibold {{ $gradeStatus === 'published' ? 'text-emerald-700' : ($gradeStatus === 'partial' ? 'text-amber-700' : 'text-muted') }}">
+                                        {{ match($gradeStatus) {
+                                            'partial' => 'Sebagian',
+                                            'final' => 'Final',
+                                            'published' => 'Diterbitkan',
+                                            default => 'Menunggu',
+                                        } }}
+                                    </span>
                                 </td>
                             </tr>
                         @endforeach
@@ -194,7 +193,8 @@
                 <p class="text-xs text-muted">Total dihitung otomatis skala 0&ndash;100. Kosongkan jika mahasiswa belum dinilai.</p>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-secondary text-xs">Kembali</a>
-                    <button type="submit" id="btn-simpan-nilai" class="button-primary text-xs py-2 px-4 font-semibold shadow-2xs">Simpan Nilai</button>
+                    <button type="submit" name="intent" value="save" id="btn-simpan-nilai" class="button-secondary text-xs py-2 px-4 font-semibold">Simpan Draft Nilai</button>
+                    <button type="submit" name="intent" value="publish" class="button-primary text-xs py-2 px-4 font-semibold shadow-2xs">Simpan &amp; Terbitkan</button>
                 </div>
             </div>
         </form>

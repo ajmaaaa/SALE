@@ -10,6 +10,7 @@ class SubmissionAnswer extends Model
     protected $fillable = [
         'submission_id',
         'question_index',
+        'question_id',
         'version',
         'answer_text',
         'link',
