@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin_prodi.auth' => EnsureAdminProdiAuth::class,
             'role' => EnsureRole::class,
+            'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {})

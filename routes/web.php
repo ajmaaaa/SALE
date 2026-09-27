@@ -24,6 +24,7 @@ use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\EnrollmentController;
 use App\Http\Controllers\Mahasiswa\ObeProgressController;
 use App\Http\Controllers\Mahasiswa\ProfileController;
+use App\Http\Controllers\PasswordChangeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -35,9 +36,15 @@ Route::post('/login', [AuthController::class, 'authenticate'])->middleware('thro
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/switch-role/{role}', [AuthController::class, 'switchRole'])->name('switch-role');
 
+// Ganti password wajib — hanya untuk user yang sudah login dengan must_change_password = true
+Route::middleware('auth')->group(function () {
+    Route::get('/password/change', [PasswordChangeController::class, 'show'])->name('password.change');
+    Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.change.update');
+});
+
 // Demo personas still require an active matching role; operational environments use database users.
 Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
-    Route::middleware('role:mahasiswa')->group(function () {
+    Route::middleware(['role:mahasiswa', 'force_password_change'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
@@ -79,7 +86,7 @@ Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(
     Route::get('/course/{course}/members', [\App\Http\Controllers\ChatController::class, 'getMembers'])->whereNumber('course')->name('members');
 });
 
-Route::prefix('dosen')->name('dosen.')->middleware('role:dosen')->group(function () {
+Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_password_change'])->group(function () {
     Route::get('/dashboard', [DosenDashboardController::class, 'index'])->name('dashboard');
     Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
     Route::get('/course/create', [LearningController::class, 'createCourse'])->name('course.create');
@@ -161,7 +168,7 @@ Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
 
-Route::middleware('role:dosen')->group(function () {
+Route::middleware(['role:dosen', 'force_password_change'])->group(function () {
     Route::post('/dosen/penilaian/{item}', [AcademicController::class, 'gradeItem'])->name('dosen.grade.save');
     Route::get('/dosen/course/{course}/item/{item}/penilaian', [AcademicController::class, 'assessmentGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian');
     Route::get('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex?}', [AcademicController::class, 'evaluateEssay'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai');
@@ -185,7 +192,7 @@ Route::get('/kelas/{section}/qr', [AkademikProdiController::class, 'qrCode'])->m
 Route::get('/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.barcode');
 
 
-Route::prefix('admin-prodi')->name('admin-prodi.')->middleware('admin_prodi.auth')->group(function () {
+Route::prefix('admin-prodi')->name('admin-prodi.')->middleware(['admin_prodi.auth', 'force_password_change'])->group(function () {
     Route::get('/', fn () => redirect()->route('admin-prodi.dashboard'));
     Route::get('/dashboard', [AdminProdiDashboardController::class, 'index'])->name('dashboard');
 

@@ -34,7 +34,13 @@
 
     @php
         $questions = $item['questions'] ?? [];
-        if (empty($questions)) {
+        // PERBAIKAN M-03: Jangan injeksikan soal contoh (BST preview) ke kuis database.
+        // Jika soal kosong DAN ini adalah record database, tampilkan pesan "soal belum siap".
+        // Sebelumnya: empty($questions) → diisi LearningPreview::defaultQuizQuestions()
+        $isDbRecord = !empty($item['is_database_record']);
+        $questionsEmpty = $isDbRecord && empty($questions);
+        // Untuk item preview (bukan DB), tetap boleh menggunakan soal contoh bawaan
+        if (! $isDbRecord && empty($questions)) {
             $questions = \App\Support\LearningPreview::defaultQuizQuestions();
         }
         $totalQuestions = count($questions);
@@ -44,7 +50,23 @@
         $hasCompleted = !empty($isCompleted) || !empty($submission);
     @endphp
 
-    @if($hasCompleted)
+    @if($questionsEmpty)
+        {{-- Assessment database yang soalnya belum diisi dosen --}}
+        <div class="flex items-center justify-center min-h-screen bg-slate-100">
+            <div class="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
+                <div class="text-4xl mb-4">📋</div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">Soal Belum Tersedia</h2>
+                <p class="text-slate-500 text-sm mb-6">
+                    Dosen belum menambahkan soal untuk kuis ini.
+                    Silakan hubungi dosen Anda atau coba lagi nanti.
+                </p>
+                <a href="{{ url()->previous() }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition">
+                    ← Kembali
+                </a>
+            </div>
+        </div>
+    @elseif($hasCompleted)
+
         {{-- ================================================================= --}}
         {{-- LAYAR EVALUASI PURNA-PENGUMPULAN KUIS: NILAI & PEMERIKSAAN JAWABAN --}}
         {{-- ================================================================= --}}

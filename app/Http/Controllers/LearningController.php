@@ -181,18 +181,31 @@ class LearningController extends Controller
         $assessment = $section ? Assessment::where('class_section_id', $course)->find($item) : null;
         if ($assessment) {
             abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
+
+        // PERBAIKAN M-03: Jika course merupakan ClassSection di database,
+        // assessment HARUS diambil dari database juga — tidak boleh fallback ke preview items.
+        // Hal ini mencegah item preview (mis. "Praktikum Binary Tree") muncul untuk assessment berbeda.
+        if ($section) {
+            $assessment = Assessment::where('class_section_id', $section->id)->find($item);
+
+            // Jika user terdaftar di section ini, assessment harus ada di DB
             abort_unless(
-                $user->hasRole(Role::MAHASISWA)
+                $user?->hasRole(Role::MAHASISWA)
                 && $section->students()->where('users.id', $user->id)->exists(),
-                403
+                403,
+                'Anda tidak terdaftar pada kelas ini.'
             );
+            abort_unless($assessment, 404, 'Assessment tidak ditemukan pada kelas ini.');
+
             $resource = Learning::databaseAssessment($assessment);
             $courseData = Learning::databaseCourse($section->loadMissing(['mataKuliah', 'semester', 'dosen', 'dosenPendamping']));
         } else {
+            // Hanya jatuh ke preview jika course BUKAN ClassSection database
             $resource = Learning::resource($course, $item);
             $courseData = Learning::course($course);
         }
         abort_unless(in_array($resource['type'], ['kuis', 'tugas', 'coding', 'uts', 'uas']), 404);
+
 
         $submission = session("learning.submissions.$item", null);
         if (! $submission && $user && Schema::hasTable('submissions')) {
@@ -1683,14 +1696,57 @@ class LearningController extends Controller
         session(['learning.read_notifications' => array_values(array_unique($readNotifs))]);
 
         $target = $request->query('target');
-        if ($target) {
-            if ((filter_var($target, FILTER_VALIDATE_URL) && str_starts_with($target, url('/'))) || (str_starts_with($target, '/') && ! str_starts_with($target, '//'))) {
-                return redirect($target);
-            }
+        if ($target && $this->isInternalUrl($target)) {
+            return redirect($target);
         }
 
         return back();
     }
+
+    /**
+     * Validasi bahwa URL target merupakan URL internal aplikasi ini.
+     *
+     * Menerima:
+     *  - Path relatif: /mahasiswa/dashboard, /dosen/course/1
+     * Menolak:
+     *  - Protocol-relative: //evil.com/path
+     *  - URL absolut ke host berbeda: https://evil.com/path
+     *  - URL absolut yang memakai host lain walaupun diawali dengan URL aplikasi:
+     *    https://app.sale.attacker.example/evil  (false prefix match)
+     */
+    protected function isInternalUrl(string $target): bool
+    {
+        // Tolak string kosong
+        if ($target === '') {
+            return false;
+        }
+
+        // Terima path relatif (dimulai '/') tapi bukan protocol-relative ('//')
+        if (str_starts_with($target, '/') && ! str_starts_with($target, '//')) {
+            return true;
+        }
+
+        // Untuk URL absolut: parse dan bandingkan scheme + host + port secara tepat
+        if (filter_var($target, FILTER_VALIDATE_URL)) {
+            $appParsed = parse_url(url('/'));
+            $targetParsed = parse_url($target);
+
+            $appHost   = strtolower($appParsed['host'] ?? '');
+            $appScheme = strtolower($appParsed['scheme'] ?? 'https');
+            $appPort   = $appParsed['port'] ?? null;
+
+            $targetHost   = strtolower($targetParsed['host'] ?? '');
+            $targetScheme = strtolower($targetParsed['scheme'] ?? 'https');
+            $targetPort   = $targetParsed['port'] ?? null;
+
+            return $targetHost === $appHost
+                && $targetScheme === $appScheme
+                && $targetPort === $appPort;
+        }
+
+        return false;
+    }
+
 
     public function clearNotifications(Request $request)
     {

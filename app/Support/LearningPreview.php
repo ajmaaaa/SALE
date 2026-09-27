@@ -295,6 +295,11 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         if (! empty($payload['questions'])) {
             $payload['questions'] = QuizQuestion::canonicalizeQuestions($payload['questions']);
         }
+        // PERBAIKAN M-03: Jangan injeksikan soal contoh (BST preview) ke assessment database.
+        // Kuis yang belum punya soal tampilkan sebagai 'belum_siap' — dosen yang belum mengisi soal.
+        // Sebelumnya: empty($payload['questions']) → diisi self::defaultQuizQuestions()
+        // Sekarang: biarkan questions kosong, beri flag 'questions_empty' untuk UI.
+        $questionsEmpty = in_array($type, ['kuis', 'uts', 'uas'], true) && empty($payload['questions']);
 
         return array_merge(self::item(
             $assessment->id,
@@ -305,11 +310,16 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $body,
             $due
         ), $payload, [
-            'description' => $body,
-            'body' => $body,
-            'points' => $payload['points'] ?? 100,
-            'due' => $due,
-            'allow_late' => (bool) $assessment->allow_late,
+            'description'       => $body,
+            'body'              => $body,
+            'points'            => $payload['points'] ?? 100,
+            'due'               => $due,
+            'allow_late'        => (bool) $assessment->allow_late,
+            // Flag eksplisit bahwa ini adalah record database, bukan item preview.
+            // Gunakan ini di views dan controller untuk memastikan tidak ada campur-aduk.
+            'is_database_record' => true,
+            'assessment_id'     => $assessment->id,
+            'questions_empty'   => $questionsEmpty,
         ]);
     }
 
