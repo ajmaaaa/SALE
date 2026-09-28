@@ -847,16 +847,16 @@ class ObeCalculationService
     }
 
     /**
-     * CSS classes untuk badge predikat ketercapaian (clean, pastel, non-slopp).
+     * CSS classes untuk predikat ketercapaian (kontras/teks).
      */
     public function predicateBadgeClass(?string $predicate): string
     {
         return match ($predicate) {
-            'Sangat Baik' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'Baik' => 'bg-sky-50 text-sky-700 border-sky-200',
-            'Cukup' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'Kurang' => 'bg-rose-50 text-rose-700 border-rose-200',
-            default => 'bg-canvas text-muted border-line',
+            'Sangat Baik' => 'text-emerald-700 font-semibold',
+            'Baik' => 'text-sky-700 font-semibold',
+            'Cukup' => 'text-amber-700 font-semibold',
+            'Kurang' => 'text-rose-700 font-semibold',
+            default => 'text-muted font-medium',
         };
     }
 

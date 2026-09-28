@@ -237,8 +237,8 @@ class ObeRumusVerificationTest extends TestCase
         $res->assertOk()
             ->assertSee('CPMK-1')
             ->assertSee('CPMK-2')
-            ->assertSee('Bobot: 9%')
-            ->assertSee('Bobot: 12%')
+            ->assertDontSee('Bobot: 9%')
+            ->assertDontSee('Bobot: 12%')
             ->assertDontSee('Bobot: 30%')
             ->assertDontSee('Bobot: 40%')
             ->assertSee('Total Asesmen')
@@ -487,7 +487,6 @@ class ObeRumusVerificationTest extends TestCase
             ->assertDontSee('Belum Ada CPL yang Terhubung')
             ->assertSee('Rekap Capaian per CPMK')
             ->assertSee('CPMK-STAND')
-            ->assertSee('100%')
             ->assertSee('88.0');
     }
 
@@ -580,8 +579,8 @@ class ObeRumusVerificationTest extends TestCase
 
         $res->assertOk()
             ->assertSee('CPMK-EFF')
-            ->assertSee('15%')
-            ->assertDontSee('CPMK-EFF (100%)');
+            ->assertDontSee('(15%)')
+            ->assertDontSee('(100%)');
     }
 
     /**
@@ -616,9 +615,7 @@ class ObeRumusVerificationTest extends TestCase
         $res->assertOk()
             ->assertSee('CPMK-PURE')
             ->assertSee('Tugas Awal')
-            ->assertSee('20%')
             ->assertSee('UTS Tengah')
-            ->assertSee('30%')
             ->assertDontSee('Capaian CPL Terhubung (0–100)');
     }
 
@@ -716,13 +713,7 @@ class ObeRumusVerificationTest extends TestCase
             ->get(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $pbl->id]));
 
         $res->assertOk()
-            // Di header kolom tabel harus menampilkan 6% dan 14% sesuai matriks
-            ->assertSee('Bobot: 6%')
-            ->assertSee('Bobot: 14%')
-            // Menampilkan Maks poin proporsional: 30 dan 70
-            ->assertSee('Maks: 30')
-            ->assertSee('Maks: 70')
-            // data-max dan max atribut input
+            // data-max dan max atribut input tetap ada untuk validasi fungsional
             ->assertSee('data-max="30"', false)
             ->assertSee('data-max="70"', false)
             ->assertSee('max="30"', false)

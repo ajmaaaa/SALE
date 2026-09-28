@@ -294,7 +294,7 @@
                                     @if(!empty($q['image']))
                                         <div class="pt-1">
                                             <div class="rounded-xl border border-slate-200 p-2 bg-slate-50 max-w-md">
-                                                <img src="{{ route('preview.file', $q['image']) }}" alt="{{ $q['alt'] ?? 'Gambar soal' }}" class="max-h-52 mx-auto object-contain">
+                                                <img src="{{ route('preview.file', ['file' => $q['image'], 'inline' => 1], false) }}" alt="{{ $q['alt'] ?? 'Gambar soal' }}" class="max-h-52 mx-auto object-contain">
                                             </div>
                                         </div>
                                     @endif
@@ -481,7 +481,7 @@
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         <span id="quiz-countdown"
                               data-duration="{{ $durationMinutes * 60 }}"
-                              @if($attemptDeadline ?? null) data-deadline="{{ $attemptDeadline->toIso8601String() }}" @endif>--:--</span>
+                              @if($attemptDeadline ?? null) data-deadline="{{ $attemptDeadline->toIso8601String() }}" @endif>00:00</span>
                     </div>
                 @else
                     <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded text-xs text-slate-600 border border-slate-200">
@@ -537,7 +537,7 @@
                             @endphp
                             <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                 <div class="flex items-center gap-2.5">
-                                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold text-xs">
+                                    <span class="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-ink font-bold text-xs shadow-2xs">
                                         {{ $qIdx + 1 }}
                                     </span>
                                     <span class="text-xs font-semibold text-ink">
@@ -560,7 +560,7 @@
                                 </div>
                                 <div class="flex items-center gap-2">
                                     @if(!empty($cpmkCode))
-                                        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
+                                        <span class="hidden sm:inline font-mono text-xs font-semibold text-brand">
                                             {{ $cpmkCode }}
                                         </span>
                                     @endif
@@ -580,7 +580,7 @@
                                 @if(!empty($q['image']))
                                     <div class="pt-2">
                                         <div class="rounded border border-slate-200 p-2 bg-slate-50">
-                                            <img src="{{ route('preview.file', $q['image']) }}" alt="{{ $q['alt'] ?? 'Stimulus visual' }}" class="max-h-56 mx-auto object-contain">
+                                            <img src="{{ route('preview.file', ['file' => $q['image'], 'inline' => 1], false) }}" alt="{{ $q['alt'] ?? 'Stimulus visual' }}" class="max-h-56 mx-auto object-contain">
                                         </div>
                                         @if(!empty($q['alt']))
                                             <p class="text-[11px] text-slate-400 mt-1 italic">{{ $q['alt'] }}</p>
@@ -779,7 +779,9 @@
                     <h3 class="text-sm font-bold text-slate-900">Daftar Nomor Soal Ujian</h3>
                     <p class="text-[11px] text-slate-500 mt-0.5">Pilih nomor kotak untuk melompat langsung ke soal terkait.</p>
                 </div>
-                <button type="button" id="modal-grid-close" class="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer">✕</button>
+                <button type="button" id="modal-grid-close" class="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer" aria-label="Tutup">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
 
             {{-- Legenda Warna Status --}}
@@ -1058,6 +1060,10 @@
                     localStorage.removeItem(`sale.exam.deadline.{{ $item['id'] }}`);
                     sessionStorage.removeItem(`sale.exam.timer.{{ $item['id'] }}`);
                     form.requestSubmit();
+                });
+
+                [gridModal, submitModal, exitModal].forEach(m => {
+                    m?.addEventListener('click', (e) => { if (e.target === m) m.close(); });
                 });
 
                 // ==========================================

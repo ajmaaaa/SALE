@@ -48,13 +48,13 @@
                 <div class="surface p-4 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between gap-1 mb-1">
-                            <span class="font-mono text-xs font-bold text-brand bg-brand-soft px-2 py-0.5 rounded">{{ $cpmk->code }}</span>
-                            <div class="flex items-center gap-1">
-                                <span class="rounded border px-1.5 py-0.5 text-[10px] font-semibold bg-brand-soft/50 text-brand">
-                                    {{ rtrim(rtrim(number_format($cWeight, 1), '0'), '.') }}%
+                            <span class="font-mono text-xs font-bold text-brand">{{ $cpmk->code }}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[11px] font-semibold text-muted">
+                                    ({{ rtrim(rtrim(number_format($cWeight, 1), '0'), '.') }}%)
                                 </span>
                                 @if($pred)
-                                    <span class="rounded border px-1.5 py-0.5 text-[10px] font-semibold {{ $obe->predicateBadgeClass($pred) }}">
+                                    <span class="text-[11px] font-semibold {{ $pred === 'Kurang' ? 'text-rose-600' : 'text-ink' }}">
                                         {{ $pred }}
                                     </span>
                                 @endif
@@ -133,7 +133,7 @@
                                             <span class="font-mono font-bold text-sm {{ $isPassed ? 'text-ink' : 'text-rose-600' }}">
                                                 {{ number_format($score, 1) }}
                                             </span>
-                                            <span class="mt-0.5 rounded border px-1.5 py-0.2 text-[9px] font-medium {{ $obe->predicateBadgeClass($predicate) }}">
+                                            <span class="mt-0.5 text-[10px] font-medium {{ $predicate === 'Kurang' ? 'text-rose-600' : 'text-muted' }}">
                                                 {{ $predicate }}
                                             </span>
                                         </div>
@@ -203,7 +203,7 @@
                 </div>
                 <div>
                     <span class="font-semibold text-ink">Kategori Predikat Ketercapaian:</span>
-                    <p class="mt-0.5 text-[11px]">≥85: Sangat Baik, 70–84.9: Baik, 60–69.9: Cukup, &lt;60: Kurang</p>
+                    <p class="mt-0.5 text-[11px]">≥85: Sangat Baik, 70-84.9: Baik, 60-69.9: Cukup, &lt;60: Kurang</p>
                 </div>
             </div>
         </div>

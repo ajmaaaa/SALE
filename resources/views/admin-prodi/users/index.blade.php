@@ -210,11 +210,13 @@
 </div>
 
 <!-- Modal Tambah Pengguna Manual -->
-<div id="createUserModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="createUserModal" onclick="if(event.target === this) closeCreateUserModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="create_user_modal_title" class="text-base font-bold text-ink">Tambah Data Pengguna</h2>
-            <button type="button" onclick="closeCreateUserModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeCreateUserModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.users.store') }}" method="POST" class="space-y-4">
             @csrf
@@ -251,11 +253,13 @@
 </div>
 
 <!-- Modal Ubah Pengguna -->
-<div id="editUserModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="editUserModal" onclick="if(event.target === this) closeEditUserModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="edit_user_modal_title" class="text-base font-bold text-ink">Ubah Data Pengguna</h2>
-            <button type="button" onclick="closeEditUserModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeEditUserModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form id="editUserForm" method="POST" class="space-y-4">
             @csrf
@@ -292,11 +296,13 @@
 </div>
 
 <!-- Modal Impor Excel/CSV -->
-<div id="importUserModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="importUserModal" onclick="if(event.target === this) closeImportModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="import_modal_title" class="text-base font-bold text-ink">Impor Data via Excel / CSV</h2>
-            <button type="button" onclick="closeImportModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeImportModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.users.import') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
             @csrf

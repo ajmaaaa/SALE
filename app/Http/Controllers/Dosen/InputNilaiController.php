@@ -267,7 +267,7 @@ class InputNilaiController extends Controller
                     $attachedFiles[] = [
                         'id' => $fidStr,
                         'name' => $name,
-                        'url' => route('preview.file', $fidStr),
+                        'url' => route('preview.file', ['file' => $fidStr, 'inline' => 1], false),
                     ];
                 }
             }

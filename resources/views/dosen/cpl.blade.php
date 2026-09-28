@@ -45,9 +45,8 @@
                                 <span class="text-xs text-muted flex flex-wrap items-center gap-1.5">
                                     <span>Disusun dari CPMK:</span>
                                     @foreach($card['contributing_cpmks'] as $cItem)
-                                        <span class="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-xs font-medium text-ink border border-line/60">
-                                            <span>{{ $cItem['cpmk']->code }}</span>
-                                            <span class="text-muted font-normal">({{ $cItem['weight_formatted'] }})</span>
+                                        <span class="font-mono font-bold text-brand text-xs">
+                                            {{ $cItem['cpmk']->code }} <span class="text-muted font-normal font-sans">({{ $cItem['weight_formatted'] }})</span>
                                         </span>
                                     @endforeach
                                 </span>

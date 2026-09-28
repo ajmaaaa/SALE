@@ -1754,28 +1754,33 @@ class LearningController extends Controller
             // Berkas lama yang tersimpan di payload asesmen tetap harus memiliki
             // relasi assessment database dan melewati otorisasi kelas.
             $fileWithAssessment = Learning::fileMetaWithAssessment($file);
-            abort_unless($fileWithAssessment !== null, 404);
+            if ($fileWithAssessment !== null) {
+                $user = auth()->user();
+                $assessment = $fileWithAssessment['assessment'];
+                $sectionId = $assessment->class_section_id;
 
-            $user = auth()->user();
-            $assessment = $fileWithAssessment['assessment'];
-            $sectionId = $assessment->class_section_id;
-
-            if ($user && $sectionId && Schema::hasTable('class_sections')) {
-                $section = ClassSection::find($sectionId);
-                if ($section) {
-                    $authorized = $user->hasRole(Role::DOSEN)
-                        ? $user->can('manage', $section)
-                        : ($user->hasRole(Role::MAHASISWA)
-                            && $section->students()->where('users.id', $user->id)->exists());
-                    abort_unless($authorized, 403);
+                if ($user && $sectionId && Schema::hasTable('class_sections')) {
+                    $section = ClassSection::find($sectionId);
+                    if ($section) {
+                        $authorized = $user->hasRole(Role::DOSEN)
+                            ? $user->can('manage', $section)
+                            : ($user->hasRole(Role::MAHASISWA)
+                                && $section->students()->where('users.id', $user->id)->exists());
+                        abort_unless($authorized, 403);
+                    }
                 }
-            }
 
-            $meta = $fileWithAssessment['meta'];
+                $meta = $fileWithAssessment['meta'];
+            } else {
+                $sessionMeta = session("learning.files.$file");
+                abort_unless($sessionMeta !== null, 404);
+                $meta = $sessionMeta;
+            }
         }
 
         abort_unless($meta && Storage::disk('local')->exists($meta['path']), 404);
         $inline = in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain'])
+            || str_starts_with((string) $meta['mime'], 'image/')
             || str_starts_with((string) $meta['mime'], 'video/');
         $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
         if ($inline && ! $request->boolean('download')) {
@@ -1787,15 +1792,44 @@ class LearningController extends Controller
 
     private function authorizeAttachmentAccess(Attachment $attachment, User $user): void
     {
+        if ($user->hasRole(Role::ADMIN) || $user->hasRole(Role::ADMIN_PRODI)) {
+            return;
+        }
+
+        // Pengunggah berkas selalu diizinkan mengakses berkasnya sendiri
+        if ((int) $attachment->user_id === (int) $user->id) {
+            return;
+        }
+
         $submission = $attachment->submission_id && Schema::hasTable('submissions')
             ? Submission::with('assessment')->find($attachment->submission_id)
             : null;
+
+        if (! $submission && Schema::hasTable('submissions')) {
+            $submission = Submission::with('assessment')
+                ->where(function ($q) use ($attachment) {
+                    $q->whereJsonContains('file_ids', $attachment->uuid)
+                        ->orWhere('file_ids', 'like', '%'.$attachment->uuid.'%');
+                })
+                ->latest('id')
+                ->first();
+        }
+
+        $assessmentId = $attachment->assessment_id ?? $submission?->assessment_id;
+        if (! $assessmentId && Schema::hasTable('assessments')) {
+            $assessmentId = Assessment::where(function ($q) use ($attachment) {
+                $q->whereJsonContains('attachments', $attachment->uuid)
+                    ->orWhere('attachments', 'like', '%'.$attachment->uuid.'%')
+                    ->orWhere('question_image', $attachment->uuid);
+            })->value('id');
+        }
+
         $sectionId = $attachment->class_section_id
             ?? $attachment->assessment?->class_section_id
             ?? $submission?->assessment?->class_section_id;
 
-        if (! $sectionId && $attachment->assessment_id && Schema::hasTable('assessments')) {
-            $sectionId = Assessment::where('id', $attachment->assessment_id)->value('class_section_id');
+        if (! $sectionId && $assessmentId && Schema::hasTable('assessments')) {
+            $sectionId = Assessment::where('id', $assessmentId)->value('class_section_id');
         }
 
         $section = $sectionId && Schema::hasTable('class_sections')
@@ -1806,9 +1840,9 @@ class LearningController extends Controller
             if ($section) {
                 $canManage = $user->can('manage', $section)
                     || in_array((int) $user->id, array_map('intval', array_filter([(int) $section->dosen_id, (int) $section->dosen_pendamping_id])), true);
-                abort_unless($canManage, 403);
-
-                return;
+                if ($canManage) {
+                    return;
+                }
             }
 
             if ($submission && ($submission->mahasiswa_id || $submission->user_id)) {
@@ -1824,13 +1858,24 @@ class LearningController extends Controller
                 }
             }
 
+            if ($assessmentId && Schema::hasTable('assessments')) {
+                $ass = Assessment::find($assessmentId);
+                if ($ass && ($ass->user_id == $user->id || ($ass->class_section_id && ClassSection::where('id', $ass->class_section_id)->where(fn ($q) => $q->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id))->exists()))) {
+                    return;
+                }
+            }
+
+            if (! $sectionId && ! $submission) {
+                return;
+            }
+
             abort(403);
         }
 
-        if ($attachment->submission_id) {
+        if ($submission) {
             $ownerIds = collect([
-                $submission?->user_id,
-                $submission?->mahasiswa_id,
+                $submission->user_id,
+                $submission->mahasiswa_id,
                 $attachment->user_id,
             ])->filter()->map(fn ($id) => (int) $id);
 
@@ -1849,6 +1894,19 @@ class LearningController extends Controller
                 403
             );
 
+            return;
+        }
+
+        if ($assessmentId && Schema::hasTable('class_sections')) {
+            $isEnrolledInAssessment = ClassSection::whereHas('assessments', fn ($q) => $q->where('id', $assessmentId))
+                ->whereHas('students', fn ($q) => $q->where('users.id', $user->id))
+                ->exists();
+            if ($isEnrolledInAssessment) {
+                return;
+            }
+        }
+
+        if (! $sectionId && ! $attachment->submission_id && ! $submission) {
             return;
         }
 

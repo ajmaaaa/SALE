@@ -44,7 +44,7 @@
                 <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             </div>
             <div>
-                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider">
+                <span class="text-xs font-bold text-ink uppercase tracking-wider">
                     Informasi Akun
                 </span>
                 <h1 class="page-heading mt-3 text-xl">Tautan Khusus Mahasiswa</h1>

@@ -40,9 +40,9 @@
     {{-- Tab Navigasi: Transkrip Nilai & Capaian Pembelajaran OBE --}}
     <div class="bg-[#f4f5f7] pt-2 pb-1">
         <nav class="flex border-b border-line/60 gap-6" aria-label="Tab nilai dan capaian">
-            <a href="{{ route('mahasiswa.nilai') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
+            <a href="{{ route('mahasiswa.nilai') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-1.5 transition">
                 <span>Transkrip Nilai (KHS)</span>
-                <span class="rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{{ count($courses) }}</span>
+                <span class="text-xs text-muted">({{ count($courses) }})</span>
             </a>
             <a href="{{ route('mahasiswa.obe.progress') }}" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
                 <span>Capaian Pembelajaran OBE</span>

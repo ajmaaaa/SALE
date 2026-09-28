@@ -124,83 +124,94 @@
         </div>
 
         @forelse($mataKuliahs as $mk)
-        <div class="rounded-xl border border-line bg-white p-5 space-y-4 shadow-2xs">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="font-mono font-bold text-brand text-sm">{{ $mk->code }}</span>
-                    <span class="text-muted">•</span>
-                    <span class="font-bold text-sm text-ink">{{ $mk->name }}</span>
-                    <span class="text-xs text-muted">({{ $mk->sks }} SKS)</span>
+        <div class="rounded-xl border border-line bg-white shadow-2xs overflow-hidden">
+            {{-- Header MK: klik untuk toggle --}}
+            <button type="button"
+                onclick="toggleMk({{ $mk->id }})"
+                class="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-canvas/40 transition-colors">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="font-mono font-bold text-brand text-sm shrink-0">{{ $mk->code }}</span>
+                    <span class="font-semibold text-sm text-ink truncate">{{ $mk->name }}</span>
+                    <span class="text-xs text-muted shrink-0">{{ $mk->sks }} SKS</span>
+                    <span class="text-xs text-muted shrink-0">{{ $mk->cpmks->count() }} CPMK</span>
                 </div>
-                <button type="button" onclick="openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')" class="button-secondary text-[11px] py-1 px-2.5">
-                    + Tambah CPMK ke MK Ini
-                </button>
-            </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button"
+                        onclick="event.stopPropagation(); openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')"
+                        class="button-secondary text-[11px] py-1 px-2.5">
+                        + Tambah CPMK
+                    </button>
+                    <svg id="chevron-{{ $mk->id }}" class="h-4 w-4 text-muted transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </button>
 
-            @if($mk->cpmks->isEmpty())
-                <p class="text-xs text-muted italic py-3 text-center">Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini. Dosen belum dapat membuat asesmen OBE untuk MK ini.</p>
-            @else
-                <div class="overflow-x-auto">
-                    <table class="admin-table w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-line bg-canvas/60 text-muted">
-                                <th class="px-3.5 py-3 w-28 !align-middle">Kode</th>
-                                <th class="px-3.5 py-3 !align-middle">Deskripsi CPMK</th>
-                                <th class="px-3.5 py-3 text-center w-36 !align-middle">Standar Kelulusan</th>
-                                <th class="px-3.5 py-3 w-56 !align-middle">CPL Terkait &amp; Bobot</th>
-                                <th class="px-3.5 py-3 text-right w-32 !align-middle">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-line/60">
-                            @foreach($mk->cpmks as $cpmk)
-                            <tr class="hover:bg-canvas/30 transition-colors">
-                                <td class="px-3.5 py-3 font-mono font-bold text-brand !align-middle whitespace-nowrap">
-                                    {{ $cpmk->code }}
-                                </td>
-                                <td class="px-3.5 py-3 font-medium text-ink leading-relaxed !align-middle">
-                                    {{ $cpmk->description }}
-                                </td>
-                                <td class="px-3.5 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
-                                    {{ (float)$cpmk->threshold }}%
-                                </td>
-                                <td class="px-3.5 py-3 !align-middle">
-                                    @if($cpmk->cpls->isEmpty())
-                                        <span class="text-muted italic text-[11px]">Belum dipetakan</span>
-                                    @else
-                                        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                                            @foreach($cpmk->cpls as $cpl)
-                                                <span class="text-xs text-ink" title="Bobot kontribusi: {{ $cpl->pivot->weight }}%">
-                                                    <strong class="font-mono font-bold text-brand">{{ $cpl->code }}</strong> <span class="text-muted text-[11px]">({{ (float)$cpl->pivot->weight }}%)</span>
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-3.5 py-3 text-right !align-middle whitespace-nowrap">
-                                    <div class="inline-flex items-center justify-end gap-1.5">
-                                        <button type="button" 
-                                                onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})" 
-                                                class="button-secondary text-[11px] py-1 px-2.5">
-                                            Ubah
-                                        </button>
-                                        <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
-                                                Hapus
+            {{-- Body MK: tersembunyi default --}}
+            <div id="mk-body-{{ $mk->id }}" class="hidden border-t border-line">
+                @if($mk->cpmks->isEmpty())
+                    <p class="text-xs text-muted py-4 px-5">Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini.</p>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="admin-table w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-line bg-canvas/60 text-muted">
+                                    <th class="px-4 py-3 w-28 !align-middle">Kode</th>
+                                    <th class="px-4 py-3 !align-middle">Deskripsi CPMK</th>
+                                    <th class="px-4 py-3 text-center w-32 !align-middle">Standar Kelulusan</th>
+                                    <th class="px-4 py-3 w-32 !align-middle">CPL Terkait</th>
+                                    <th class="px-4 py-3 text-right w-28 !align-middle">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-line/60">
+                                @foreach($mk->cpmks as $cpmk)
+                                <tr class="hover:bg-canvas/30 transition-colors">
+                                    <td class="px-4 py-3 font-mono font-bold text-brand !align-middle whitespace-nowrap">
+                                        {{ $cpmk->code }}
+                                    </td>
+                                    <td class="px-4 py-3 font-medium text-ink leading-relaxed !align-middle">
+                                        {{ $cpmk->description }}
+                                    </td>
+                                    <td class="px-4 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
+                                        {{ (float)$cpmk->threshold }}%
+                                    </td>
+                                    <td class="px-4 py-3 !align-middle">
+                                        @if($cpmk->cpls->isEmpty())
+                                            <span class="text-muted text-[11px]">Belum dipetakan</span>
+                                        @else
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach($cpmk->cpls as $cpl)
+                                                    <span class="font-mono font-bold text-brand text-xs">{{ $cpl->code }}</span>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right !align-middle whitespace-nowrap">
+                                        <div class="inline-flex items-center justify-end gap-1.5">
+                                            <button type="button"
+                                                    onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})"
+                                                    class="button-secondary text-[11px] py-1 px-2.5">
+                                                Ubah
                                             </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+                                            <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
         </div>
         @empty
-        <div class="py-12 text-center text-muted">
+        <div class="py-12 text-center text-muted text-sm">
             Belum ada mata kuliah yang terdaftar pada program studi ini. Tambahkan mata kuliah di menu Mata Kuliah terlebih dahulu.
         </div>
         @endforelse
@@ -209,12 +220,16 @@
     @endif
 </div>
 
+
+
 <!-- Modal Tambah CPL -->
-<div id="createCplModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="createCplModal" onclick="if(event.target === this) closeCreateCplModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Tambah Butir CPL</h2>
-            <button type="button" onclick="closeCreateCplModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeCreateCplModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.kurikulum.cpl.store') }}" method="POST" class="space-y-4">
             @csrf
@@ -236,11 +251,13 @@
 </div>
 
 <!-- Modal Edit CPL -->
-<div id="editCplModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="editCplModal" onclick="if(event.target === this) closeEditCplModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Butir CPL</h2>
-            <button type="button" onclick="closeEditCplModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeEditCplModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form id="editCplForm" method="POST" class="space-y-4">
             @csrf
@@ -262,11 +279,13 @@
 </div>
 
 <!-- Modal Tambah CPMK -->
-<div id="createCpmkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-lg p-6 shadow-2xl">
+<div id="createCpmkModal" onclick="if(event.target === this) closeCreateCpmkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Tetapkan Butir CPMK Baru</h2>
-            <button type="button" onclick="closeCreateCpmkModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeCreateCpmkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.kurikulum.cpmk.store') }}" method="POST" class="space-y-4">
             @csrf
@@ -315,11 +334,13 @@
 </div>
 
 <!-- Modal Edit CPMK -->
-<div id="editCpmkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="editCpmkModal" onclick="if(event.target === this) closeEditCpmkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Butir CPMK</h2>
-            <button type="button" onclick="closeEditCpmkModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeEditCpmkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form id="editCpmkForm" method="POST" class="space-y-4">
             @csrf

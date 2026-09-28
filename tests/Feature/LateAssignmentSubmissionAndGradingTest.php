@@ -85,8 +85,8 @@ class LateAssignmentSubmissionAndGradingTest extends TestCase
         $studentItemView = $this->actingAs($student)->get(route('mahasiswa.course.item', [$section->id, $tugas->id]));
         $studentItemView->assertOk();
         $studentItemView->assertSee('Terlambat');
-        $studentItemView->assertSee('Belum diserahkan');
-        $studentItemView->assertSee('Kumpulkan Tugas (Terlambat)');
+        $studentItemView->assertSee('Kumpulkan Tugas');
+        $studentItemView->assertDontSee('Kumpulkan Tugas (Terlambat)');
 
         // 2. Student submits assignment late with file, text, and link
         $uploadedFile = UploadedFile::fake()->create('laporan_tugas_ahmad.pdf', 500, 'application/pdf');
@@ -199,10 +199,11 @@ class LateAssignmentSubmissionAndGradingTest extends TestCase
             ],
         ]);
 
-        // Student still sees Kumpulkan Tugas (Terlambat) and can submit
+        // Student still sees Kumpulkan Tugas and can submit
         $view = $this->actingAs($student)->get(route('mahasiswa.course.item', [$section->id, $tugas->id]));
         $view->assertOk();
-        $view->assertSee('Kumpulkan Tugas (Terlambat)');
+        $view->assertSee('Kumpulkan Tugas');
+        $view->assertDontSee('Kumpulkan Tugas (Terlambat)');
 
         $imageFile = UploadedFile::fake()->image('erd_diagram.png');
         $submit = $this->actingAs($student)->post(route('mahasiswa.course.submit', [$section->id, $tugas->id]), [

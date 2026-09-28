@@ -234,7 +234,7 @@
                 {{-- Header Panel Kiri --}}
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                     <div class="flex items-center gap-2.5">
-                        <span id="panel-step-badge" class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold text-xs">
+                        <span id="panel-step-badge" class="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-ink font-bold text-xs shadow-2xs">
                             1
                         </span>
                         <span class="text-xs font-semibold text-ink">
@@ -242,7 +242,7 @@
                         </span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span id="panel-step-cpmk" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
+                        <span id="panel-step-cpmk" class="font-mono text-xs font-semibold text-brand">
                             {{ $materialSteps[0]['cpmk'] ?? ($item['cpmk'] ?? 'CPMK-01') }}
                         </span>
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-white border border-line/70 text-ink shadow-2xs">
@@ -271,10 +271,10 @@
                                 @php $stepFile = \App\Models\Attachment::where('uuid', $step['attachment'])->first(); @endphp
                                 @if(str_starts_with($stepFile?->mime ?? '', 'image/'))
                                     <div class="rounded border border-slate-200 p-2 bg-slate-50">
-                                        <img class="max-h-44 w-full rounded-lg object-contain" src="{{ route('preview.file', $step['attachment']) }}" alt="Lampiran {{ $step['title'] }}">
+                                        <img class="max-h-44 w-full rounded-lg object-contain" src="{{ route('preview.file', ['file' => $step['attachment'], 'inline' => 1], false) }}" alt="Lampiran {{ $step['title'] }}">
                                     </div>
                                 @else
-                                    <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment']) }}">Buka lampiran{{ $stepFile?->name ? ': '.$stepFile->name : '' }}</a>
+                                    <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment'], false) }}">Buka lampiran{{ $stepFile?->name ? ': '.$stepFile->name : '' }}</a>
                                 @endif
                             @endif
 
@@ -304,8 +304,8 @@
                                     $imgMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
                                     $imgAlt = $item['image_alt'] ?? 'Gambar pendukung';
                                     $imgName = !empty($item['image_alt']) ? $item['image_alt'] : ($imgMeta['name'] ?? 'Gambar pendukung');
-                                    $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1]);
-                                    $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1]);
+                                    $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
+                                    $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1], false);
                                 @endphp
                                 <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
                                     <img src="{{ $imgUrl }}" alt="{{ $imgAlt }}" class="max-h-48 w-full object-contain rounded border border-line/40 bg-slate-50">
@@ -318,23 +318,36 @@
                             @foreach($allAttachments as $file)
                                 @php
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($file);
-                                    $isPdf = ($fileMeta['mime'] ?? '') === 'application/pdf';
+                                    $fileMime = $fileMeta['mime'] ?? '';
                                     $fileName = $fileMeta['name'] ?? 'Berkas lampiran';
-                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => $isPdf ? 1 : null]);
-                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1]);
+                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: 'file');
+                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf';
+                                    $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isImage) ? 1 : null], false);
+                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1], false);
                                 @endphp
-                                <div class="flex items-center justify-between gap-2 rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded {{ $isPdf ? 'bg-rose-50 text-rose-600' : 'bg-brand-soft text-brand' }} font-bold text-[10px]">
-                                            {{ $isPdf ? 'PDF' : 'FILE' }}
-                                        </span>
-                                        <span class="truncate text-xs font-medium text-ink" title="{{ $fileName }}">{{ $fileName }}</span>
+                                @if($isImage)
+                                    <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
+                                        <img src="{{ $fileUrl }}" alt="{{ $fileName }}" class="max-h-48 w-full object-contain rounded border border-line/40 bg-slate-50">
+                                        <div class="flex items-center justify-between text-xs pt-1">
+                                            <span class="truncate font-medium text-ink" title="{{ $fileName }}">{{ $fileName }}</span>
+                                            <a href="{{ $fileDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold shrink-0">Unduh</a>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center gap-1.5 shrink-0">
-                                        <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="button-secondary text-[11px] py-1 px-2">Buka</a>
-                                        <a href="{{ $fileDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2">Unduh</a>
+                                @else
+                                    <div class="flex items-center justify-between gap-2 rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-line bg-canvas font-mono font-bold text-[10px] {{ $isPdf ? 'text-rose-700' : 'text-brand' }}">
+                                                {{ $isPdf ? 'PDF' : 'FILE' }}
+                                            </span>
+                                            <span class="truncate text-xs font-medium text-ink" title="{{ $fileName }}">{{ $fileName }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="button-secondary text-[11px] py-1 px-2">Buka</a>
+                                            <a href="{{ $fileDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2">Unduh</a>
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
                             @endforeach
                             @if(!empty($item['link']))
                                 <div class="rounded-lg border border-line/70 bg-white p-2.5">
@@ -409,11 +422,6 @@
                     <section id="panel-terminal" class="flex flex-col rounded-b-xl bg-[#0d1117] text-[#c9d1d9] shadow-sm border border-line/60 overflow-hidden" style="height: 240px; min-height: 120px;" aria-labelledby="terminal-heading">
                         <div class="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-white/10 select-none">
                             <div class="flex items-center gap-3">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" data-terminal-close class="h-3 w-3 rounded-full bg-[#ff5f56] hover:opacity-80 transition inline-block shadow-xs" title="Tutup Terminal" aria-label="Tutup Terminal"></button>
-                                    <button type="button" data-terminal-minimize class="h-3 w-3 rounded-full bg-[#ffbd2e] hover:opacity-80 transition inline-block shadow-xs" title="Perkecil Terminal" aria-label="Perkecil Terminal"></button>
-                                    <button type="button" data-terminal-maximize class="h-3 w-3 rounded-full bg-[#27c93f] hover:opacity-80 transition inline-block shadow-xs" title="Perbesar Terminal" aria-label="Perbesar Terminal"></button>
-                                </div>
                                 <span class="text-xs font-mono text-slate-300 font-medium">{{ $language === 'web' ? 'Output Web / Pratinjau Browser' : 'Output Python / Terminal' }}</span>
                             </div>
                             <div class="flex items-center gap-2">
@@ -421,8 +429,8 @@
                                 <button type="button" data-clear-terminal class="text-xs font-mono text-slate-400 hover:text-white px-2 py-1 transition">
                                     Bersihkan
                                 </button>
-                                <button type="button" data-terminal-close-btn class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-white/10 transition" title="Tutup Terminal">
-                                    ✕
+                                <button type="button" data-terminal-close-btn class="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition" title="Tutup Terminal">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -459,7 +467,7 @@
                 <div class="border-b border-line/60 p-4 bg-white">
                     <div class="flex items-center justify-between">
                         <h2 id="assistant-heading" class="text-sm font-bold text-ink">Lumina AI</h2>
-                        <span class="text-xs font-semibold text-brand bg-brand-soft px-2 py-0.5 rounded">Asisten Belajar</span>
+                        <span class="text-xs font-semibold text-brand">Asisten Belajar</span>
                     </div>
                 </div>
 
@@ -472,7 +480,7 @@
                         <input type="hidden" name="assignment" value="{{ $item['id'] }}">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-bold text-ink">Akses Asisten AI</span>
-                            <button type="button" onclick="document.querySelector('#ai-login-email').value='demo.ai@sale.test';document.querySelector('#ai-login-password').value='password123456';this.closest('form').submit();" class="text-[10px] font-bold text-brand hover:underline inline-flex items-center gap-1 bg-brand-soft px-2 py-0.5 rounded border border-brand/20">
+                            <button type="button" onclick="document.querySelector('#ai-login-email').value='demo.ai@sale.test';document.querySelector('#ai-login-password').value='password123456';this.closest('form').submit();" class="text-xs font-bold text-brand hover:underline inline-flex items-center gap-1">
                                 <span>✦ 1-Klik Masuk Demo AI</span>
                             </button>
                         </div>
@@ -487,7 +495,7 @@
                 <div data-ai-messages class="flex-1 space-y-3 overflow-y-auto p-4 text-xs leading-5 flex flex-col" aria-live="polite">
                     <article class="self-start mr-auto max-w-[92%] rounded-2xl rounded-tl-xs bg-white p-3.5 border border-line/70 shadow-xs">
                         <div class="flex items-center gap-1.5 mb-1.5">
-                            <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
+                            <span class="text-brand text-xs font-bold">✦</span>
                             <p class="font-semibold text-ink">Lumina AI</p>
                         </div>
                         <p class="text-muted leading-relaxed">
@@ -535,7 +543,9 @@
                 <h3 class="text-sm font-bold text-slate-900">Daftar Bagian Materi</h3>
                 <p class="text-[11px] text-slate-500 mt-0.5">Pilih nomor bagian untuk langsung berpindah materi dan kode.</p>
             </div>
-            <button type="button" id="modal-material-close" class="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer">✕</button>
+            <button type="button" id="modal-material-close" class="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
 
         <div class="space-y-2 max-h-[50vh] overflow-y-auto p-1" id="material-steps-container">
@@ -544,7 +554,7 @@
                     data-grid-material-step="{{ $sIdx }}"
                     class="w-full text-left p-3 rounded-xl border text-xs font-medium transition flex items-center justify-between gap-3 cursor-pointer shadow-2xs {{ $sIdx === 0 ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white hover:border-slate-400 text-slate-700' }}">
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md {{ $sIdx === 0 ? 'bg-white/20 text-white' : 'bg-brand-soft text-brand' }} font-bold text-xs" data-badge-icon>
+                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md {{ $sIdx === 0 ? 'bg-white/20 text-white' : 'bg-slate-100 border border-slate-200 text-slate-800' }} font-bold text-xs" data-badge-icon>
                             {{ $sIdx + 1 }}
                         </span>
                         <span class="truncate font-semibold">{{ $s['title'] }}</span>
@@ -619,7 +629,7 @@
                     btn.className = `w-full text-left p-3 rounded-xl border text-xs font-medium transition flex items-center justify-between gap-3 cursor-pointer shadow-2xs ${isActive ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white hover:border-slate-400 text-slate-700'}`;
                     const badge = btn.querySelector('[data-badge-icon]');
                     if (badge) {
-                        badge.className = `flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-brand-soft text-brand'} font-bold text-xs`;
+                        badge.className = `flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 border border-slate-200 text-slate-800'} font-bold text-xs`;
                     }
                 });
 
@@ -634,6 +644,7 @@
 
             btnOpenMaterialModal?.addEventListener('click', () => gridModal?.showModal());
             modalMaterialClose?.addEventListener('click', () => gridModal?.close());
+            gridModal?.addEventListener('click', (e) => { if (e.target === gridModal) gridModal.close(); });
 
             gridStepBtns.forEach(btn => {
                 btn.addEventListener('click', () => {

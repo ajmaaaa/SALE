@@ -4,7 +4,7 @@
         <div><h3 class="text-sm font-semibold">{{ $chartTitle }}</h3><p class="mt-1 text-xs text-muted">Sorot grafik untuk melihat detail.</p></div>
         <div class="flex flex-wrap gap-4 text-xs text-muted">
             @foreach($chartTracks as $track)
-                <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full {{ $track['color'] }}" aria-hidden="true"></span>{{ $track['label'] }} ({{ $track['unit'] }})</span>
+                <span class="inline-flex items-center gap-1.5 font-medium {{ $track['color'] === 'bg-brand' ? 'text-brand' : 'text-ink' }}">{{ $track['label'] }} ({{ $track['unit'] }})</span>
             @endforeach
         </div>
     </div>
@@ -40,5 +40,5 @@
             </div>
         </div>
     </div>
-    @if(count($chartTracks) > 1)<p class="mt-3 text-xs leading-5 text-muted">Pengunjung memakai skala kiri, CPU memakai skala kanan (0–100%). Bandingkan perubahan keduanya sepanjang waktu; tinggi batang mewakili satuan yang berbeda.</p>@endif
+    @if(count($chartTracks) > 1)<p class="mt-3 text-xs leading-5 text-muted">Pengunjung memakai skala kiri, CPU memakai skala kanan (0-100%). Bandingkan perubahan keduanya sepanjang waktu; tinggi batang mewakili satuan yang berbeda.</p>@endif
 </div>

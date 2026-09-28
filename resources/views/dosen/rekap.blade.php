@@ -43,8 +43,7 @@
             <h3 class="text-base font-semibold text-ink mb-1.5">Belum Ada Komponen Asesmen</h3>
             <p class="text-sm text-muted mb-4">Komponen asesmen masih kosong. Silakan selesaikan atau cek pada menu Penilaian.</p>
             <div class="flex items-center justify-center gap-3">
-                <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-secondary text-xs">Cek Menu Penilaian</a>
-                <a href="{{ route('dosen.item.create', $section->id) }}" class="button-primary text-xs">+ Tambah Konten / Asesmen</a>
+                <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-primary text-xs">Cek Menu Penilaian</a>
             </div>
         </div>
     @else
@@ -58,7 +57,7 @@
                         <tr class="bg-[#f8fafc]">
                             <th class="py-2.5 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-r border-line/50 border-b-0 align-bottom">#</th>
                             <th class="py-2.5 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-r border-line/40 border-b-0 align-bottom">NIM</th>
-                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)] border-b-0 align-bottom">Nama Mahasiswa</th>
+                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-r border-line/50 border-b-0 align-bottom">Nama Mahasiswa</th>
 
                             @foreach($columns as $col)
                                 <th class="py-2.5 px-3 text-center font-semibold text-ink border-b border-l border-line/50 bg-[#f8fafc]"
@@ -75,18 +74,16 @@
                         <tr class="bg-[#f8fafc]">
                             <th class="py-1.5 px-3 text-center w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
                             <th class="py-1.5 px-3 text-left w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-b border-r border-line/40 border-t-0">&nbsp;</th>
-                            <th class="py-1.5 px-3 text-left w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-b border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)] border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-left w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
 
                             @foreach($columns as $col)
                                 @foreach($col['cpmk_cols'] as $cc)
                                     <th class="py-2 px-2 text-center min-w-[85px] border-b border-l border-line/40 bg-[#f8fafc]">
                                         <div class="font-bold text-ink text-[11px]">{{ $cc['cpmk']->code }}</div>
-                                        <div class="text-[10px] text-muted font-normal mt-0.5">{{ rtrim(rtrim(number_format($cc['effective_weight'], 1), '0'), '.') }}%</div>
                                     </th>
                                 @endforeach
                                 <th class="py-2 px-2 text-center min-w-[75px] border-b border-l border-line/40 bg-[#f8fafc]">
                                     <div class="font-bold text-ink text-[11px]">Total</div>
-                                    <div class="text-[10px] text-muted font-medium mt-0.5">/100</div>
                                 </th>
                             @endforeach
                         </tr>
@@ -97,7 +94,7 @@
                             <tr class="group bg-white hover:bg-slate-50 transition-colors">
                                 <td class="py-2.5 px-3 text-center text-muted/70 w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-white group-hover:bg-slate-50 z-20 border-b border-r border-line/40">{{ $idx + 1 }}</td>
                                 <td class="py-2.5 px-3 font-mono text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 z-20 text-[11px] border-b border-r border-line/40">{{ $row['student']->nim_nidn ?? '' }}</td>
-                                <td class="py-2.5 px-3 font-medium text-ink w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 z-20 border-b border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)]">
+                                <td class="py-2.5 px-3 font-medium text-ink w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 z-20 border-b border-r border-line/50">
                                     <div class="truncate" title="{{ $row['student']->name }}">{{ $row['student']->name }}</div>
                                 </td>
 

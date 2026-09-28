@@ -66,7 +66,7 @@
                    class="group flex items-center justify-between gap-3 px-5 py-4 hover:bg-canvas transition">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <span class="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{{ $c['code'] }}</span>
+                            <span class="font-mono text-xs font-bold text-brand">{{ $c['code'] }}</span>
                             <h3 class="text-sm font-semibold text-ink group-hover:text-brand transition">
                                 {{ $c['title'] }}
                             </h3>

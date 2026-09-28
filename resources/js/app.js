@@ -1236,7 +1236,7 @@ if (contentType) {
         const category = parseCategory(contentType.value);
         const selectedText = contentType.options[contentType.selectedIndex]?.text || '';
 
-        if (assessmentTitleLabel && selectedText) assessmentTitleLabel.textContent = `Susun Soal — ${selectedText}`;
+        if (assessmentTitleLabel && selectedText) assessmentTitleLabel.textContent = `Susun Soal (${selectedText})`;
 
         const showAssignment = ['tugas', 'coding'].includes(category);
         const showMaterialMode = category === 'materi';

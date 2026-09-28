@@ -132,10 +132,8 @@
                 <tbody class="divide-y divide-line/60">
                     @forelse($prodis as $prodi)
                     <tr class="hover:bg-canvas/30 transition-colors">
-                        <td class="px-4 py-3.5 font-bold text-brand font-mono !align-middle whitespace-nowrap">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded border border-brand/20 bg-brand-soft/50 text-brand-dark font-mono text-xs font-bold">
-                                {{ $prodi->code }}
-                            </span>
+                        <td class="px-4 py-3.5 font-bold text-brand font-mono text-xs !align-middle whitespace-nowrap">
+                            {{ $prodi->code }}
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $prodi->name }}</span>

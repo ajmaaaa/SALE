@@ -15,53 +15,53 @@
         <nav class="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-semibold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Kategori Notifikasi">
             {{-- Semua --}}
             <a href="{{ route('dosen.notifications') }}"
-               class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ empty($selectedCategory) ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ empty($selectedCategory) ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Semua</span>
-                <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ empty($selectedCategory) ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
-                    {{ $categoryCounts['all'] ?? count($notifications) }}
+                <span class="text-xs font-bold {{ empty($selectedCategory) ? 'text-white' : 'text-slate-600' }}">
+                    ({{ $categoryCounts['all'] ?? count($notifications) }})
                 </span>
             </a>
 
             {{-- Tugas & Kuis --}}
             <a href="{{ route('dosen.notifications', ['category' => 'tugas']) }}"
-               class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'tugas' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'tugas' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Tugas &amp; Kuis</span>
                 @if(isset($categoryCounts['tugas']))
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $selectedCategory === 'tugas' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
-                        {{ $categoryCounts['tugas'] }}
+                    <span class="text-xs font-bold {{ $selectedCategory === 'tugas' ? 'text-white' : 'text-slate-600' }}">
+                        ({{ $categoryCounts['tugas'] }})
                     </span>
                 @endif
             </a>
 
             {{-- Nilai --}}
             <a href="{{ route('dosen.notifications', ['category' => 'nilai']) }}"
-               class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'nilai' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'nilai' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Nilai</span>
                 @if(isset($categoryCounts['nilai']))
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $selectedCategory === 'nilai' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
-                        {{ $categoryCounts['nilai'] }}
+                    <span class="text-xs font-bold {{ $selectedCategory === 'nilai' ? 'text-white' : 'text-slate-600' }}">
+                        ({{ $categoryCounts['nilai'] }})
                     </span>
                 @endif
             </a>
 
             {{-- Sistem --}}
             <a href="{{ route('dosen.notifications', ['category' => 'sistem']) }}"
-               class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'sistem' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'sistem' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Sistem</span>
                 @if(isset($categoryCounts['sistem']))
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $selectedCategory === 'sistem' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
-                        {{ $categoryCounts['sistem'] }}
+                    <span class="text-xs font-bold {{ $selectedCategory === 'sistem' ? 'text-white' : 'text-slate-600' }}">
+                        ({{ $categoryCounts['sistem'] }})
                     </span>
                 @endif
             </a>
 
             {{-- Diskusi --}}
             <a href="{{ route('dosen.notifications', ['category' => 'diskusi']) }}"
-               class="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'diskusi' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'diskusi' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
                 <span>Diskusi</span>
                 @if(isset($categoryCounts['diskusi']))
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $selectedCategory === 'diskusi' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
-                        {{ $categoryCounts['diskusi'] }}
+                    <span class="text-xs font-bold {{ $selectedCategory === 'diskusi' ? 'text-white' : 'text-slate-600' }}">
+                        ({{ $categoryCounts['diskusi'] }})
                     </span>
                 @endif
             </a>

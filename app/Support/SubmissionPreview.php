@@ -28,8 +28,8 @@ class SubmissionPreview
                     'size' => number_format(Storage::disk('local')->size($meta['path']) / 1024, 1).' KB',
                     'time' => $submission['time'] ?? 'Belum tersedia',
                     'assessment' => $item['title'],
-                    'url' => route('preview.file', ['file' => $file, 'inline' => 1]),
-                    'download' => route('preview.file', ['file' => $file, 'download' => 1]),
+                    'url' => route('preview.file', ['file' => $file, 'inline' => 1], false),
+                    'download' => route('preview.file', ['file' => $file, 'download' => 1], false),
                 ];
             }
         }

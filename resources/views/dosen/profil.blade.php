@@ -50,7 +50,7 @@
                             @if(!empty($profilePhotoUrl))
                                 <img src="{{ $profilePhotoUrl }}" alt="Foto profil {{ $userName }}" class="h-16 w-16 shrink-0 rounded-full border border-[#cbd1d0] object-cover object-top group-hover:opacity-90 transition">
                             @else
-                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-lg font-semibold text-brand-dark group-hover:bg-slate-100 transition">{{ $userInitials }}</div>
+                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-lg font-semibold text-brand-dark group-hover:bg-slate-50 transition">{{ $userInitials }}</div>
                             @endif
                             <span class="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow-xs ring-2 ring-white group-hover:bg-brand-dark transition-colors">
                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -63,7 +63,7 @@
                         @if(!empty($profilePhotoUrl))
                             <img src="{{ $profilePhotoUrl }}" alt="Foto profil {{ $userName }}" class="h-16 w-16 shrink-0 rounded-full border border-[#cbd1d0] object-cover object-top">
                         @else
-                            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-lg font-semibold text-brand-dark">{{ $userInitials }}</div>
+                            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-lg font-semibold text-brand-dark">{{ $userInitials }}</div>
                         @endif
                     @endif
                     <div>
@@ -74,7 +74,7 @@
 
                 {{-- Popup pilihan foto profil dosen --}}
                 @if($settingsWritable)
-                <dialog id="dosen-avatar-picker-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-xs overflow-hidden rounded-xl border border-line bg-white p-0 text-ink shadow-xl backdrop:bg-slate-950/40">
+                <dialog id="dosen-avatar-picker-modal" onclick="if(event.target === this) this.close()" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-xs overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50">
                     <div class="p-4">
                         <div class="flex items-center justify-between mb-3">
                             <h2 class="text-sm font-semibold text-ink">Foto Profil</h2>
@@ -88,7 +88,7 @@
                             <form action="{{ route('dosen.profile.photo.destroy') }}" method="POST">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink hover:bg-slate-100 active:bg-slate-200 active:scale-[0.98] transition-all text-left">
-                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft border border-line/60 text-xs font-bold text-brand-dark">{{ $userInitials }}</span>
+                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#cbd1d0] text-xs font-bold text-brand-dark">{{ $userInitials }}</span>
                                     <span class="font-medium">Gunakan avatar default</span>
                                 </button>
                             </form>

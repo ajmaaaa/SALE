@@ -73,7 +73,7 @@
 
             {{-- Popup pilihan foto profil --}}
             @if($settingsWritable)
-            <dialog id="avatar-picker-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-xs overflow-hidden rounded-xl border border-line bg-white p-0 text-ink shadow-xl backdrop:bg-slate-950/40">
+            <dialog id="avatar-picker-modal" onclick="if(event.target === this) this.close()" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-xs overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50">
                 <div class="p-4">
                     <div class="flex items-center justify-between mb-3">
                         <h2 class="text-sm font-semibold text-ink">Foto Profil</h2>
@@ -87,7 +87,7 @@
                         <form action="{{ route('mahasiswa.profile.photo.destroy') }}" method="POST">
                             @csrf @method('DELETE')
                             <button type="submit" class="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink hover:bg-slate-100 active:bg-slate-200 active:scale-[0.98] transition-all text-left">
-                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-soft border border-line/60 text-xs font-bold text-brand-dark">{{ $userInitials }}</span>
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-[#cbd1d0] text-xs font-bold text-brand-dark">{{ $userInitials }}</span>
                                 <span class="font-medium">Gunakan avatar default</span>
                             </button>
                         </form>

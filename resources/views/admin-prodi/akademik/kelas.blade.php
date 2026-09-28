@@ -137,11 +137,13 @@
 </div>
 
 <!-- Modal Buka Kelas Baru -->
-<div id="createKelasModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-lg p-6 shadow-2xl">
+<div id="createKelasModal" onclick="if(event.target === this) closeCreateKelasModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Buka Kelas Perkuliahan Baru</h2>
-            <button type="button" onclick="closeCreateKelasModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeCreateKelasModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.akademik.kelas.store') }}" method="POST" class="space-y-4">
             @csrf
@@ -214,11 +216,13 @@
 </div>
 
 <!-- Modal Ubah Kelas -->
-<div id="editKelasModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-lg p-6 shadow-2xl">
+<div id="editKelasModal" onclick="if(event.target === this) closeEditKelasModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Data Kelas</h2>
-            <button type="button" onclick="closeEditKelasModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeEditKelasModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form id="editKelasForm" method="POST" class="space-y-4">
             @csrf
@@ -265,8 +269,8 @@
 </div>
 
 <!-- Modal Tampilkan QR Code Kelas -->
-<div id="barcodeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+<div id="barcodeModal" onclick="if(event.target === this) closeBarcodeModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line">
 
         {{-- Header --}}
         <div class="flex items-start justify-between px-6 pt-6 pb-4">

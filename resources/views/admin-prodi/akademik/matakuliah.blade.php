@@ -119,11 +119,13 @@
 </div>
 
 <!-- Modal Tambah MK -->
-<div id="createMkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="createMkModal" onclick="if(event.target === this) closeCreateMkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Tambah Mata Kuliah Baru</h2>
-            <button type="button" onclick="closeCreateMkModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeCreateMkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form action="{{ route('admin-prodi.akademik.matakuliah.store') }}" method="POST" class="space-y-4">
             @csrf
@@ -156,11 +158,13 @@
 </div>
 
 <!-- Modal Edit MK -->
-<div id="editMkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl">
+<div id="editMkModal" onclick="if(event.target === this) closeEditMkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Mata Kuliah</h2>
-            <button type="button" onclick="closeEditMkModal()" class="text-muted hover:text-ink text-xl">&times;</button>
+            <button type="button" onclick="closeEditMkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
         <form id="editMkForm" method="POST" class="space-y-4">
             @csrf

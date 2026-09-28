@@ -306,6 +306,38 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $publishedAt = $assessment->published_at ?? $assessment->created_at;
         $publishedAtFormatted = $publishedAt ? \Carbon\Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null;
 
+        // PERBAIKAN PREVIEW DOSEN: Jika array attachments kosong, backfill dari dua sumber:
+        // 1. Tabel attachments yang terhubung ke assessment_id ini
+        // 2. file_meta di payload (untuk attachment lama sebelum DB migration)
+        // Ini terjadi pada assessment yang file-nya berhasil diupload ke DB/file_meta
+        // tapi UUID-nya tidak tersimpan ke array attachments di payload.
+        $questionImage = $payload['question_image'] ?? null;
+        $optionImages = array_values(array_filter($payload['option_images'] ?? []));
+        $questionImages = array_filter(array_column($payload['questions'] ?? [], 'image'));
+        $excludeUuids = array_values(array_filter(array_merge([$questionImage], $optionImages, $questionImages)));
+
+        $currentAtts = $payload['attachments'] ?? [];
+        // Sumber 1: tabel attachments DB yang terhubung ke assessment ini
+        if (\Illuminate\Support\Facades\Schema::hasTable('attachments')) {
+            $dbUuids = \App\Models\Attachment::where('assessment_id', $assessment->id)
+                ->pluck('uuid')
+                ->filter(fn($uuid) => !in_array($uuid, $excludeUuids, true))
+                ->values()
+                ->all();
+            $currentAtts = array_values(array_unique(array_merge($currentAtts, $dbUuids)));
+        }
+
+        // Sumber 2: file_meta di payload (fallback untuk data lama)
+        if (!empty($payload['file_meta'])) {
+            $filemetaUuids = array_values(array_filter(
+                array_keys($payload['file_meta']),
+                fn($uuid) => !in_array($uuid, $excludeUuids, true)
+            ));
+            $currentAtts = array_values(array_unique(array_merge($currentAtts, $filemetaUuids)));
+        }
+
+        $payload['attachments'] = $currentAtts;
+
         return array_merge(self::item(
             $assessment->id,
             $assessment->class_section_id,
@@ -1027,6 +1059,11 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $meta = self::fileMetaWithAssessment($file)['meta'] ?? null;
         if ($meta) {
             return $meta;
+        }
+
+        $sessionMeta = session("learning.files.$file");
+        if ($sessionMeta) {
+            return $sessionMeta;
         }
 
         return null;

@@ -64,11 +64,8 @@
                             <td class="py-3 px-4">
                                 <div class="flex flex-wrap gap-1.5">
                                     @forelse($assessment->cpmks as $cpmk)
-                                        @php
-                                            $effWeight = $obeService->assessmentCpmkEffectiveWeight($assessment, $cpmk);
-                                        @endphp
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-canvas text-ink border border-line/60">
-                                            {{ $cpmk->code }} ({{ rtrim(rtrim(number_format($effWeight, 1), '0'), '.') }}%)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpmk->description }}">
+                                            {{ $cpmk->code }}
                                         </span>
                                     @empty
                                         <span class="text-xs text-muted">Belum dipetakan</span>

@@ -259,8 +259,8 @@
                                     $imageMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
                                     $imageAlt = $item['image_alt'] ?? 'Gambar pendukung';
                                     $imageName = !empty($item['image_alt']) ? $item['image_alt'] : ($imageMeta['name'] ?? 'Gambar pendukung');
-                                    $imgUrl = route('preview.file', $item['question_image']);
-                                    $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1]);
+                                    $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
+                                    $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1], false);
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition">
                                     <a href="{{ $imgUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($imageName) }}', url: '{{ $imgUrl }}', downloadUrl: '{{ $imgDownloadUrl }}', type: 'image', ext: 'PNG' })" class="block aspect-video w-full overflow-hidden border-b border-line bg-slate-50 cursor-pointer" title="{{ $imageName }}">
@@ -292,13 +292,13 @@
                                     $isWord = in_array($fileExt, ['doc', 'docx'], true);
 
                                     $previewType = $isVideo ? 'video' : ($isPdf ? 'pdf' : ($isImage ? 'image' : ($isSlides ? 'slides' : ($isWord ? 'word' : 'file'))));
-                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isVideo) ? 1 : null]);
-                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1]);
+                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isVideo || $isImage) ? 1 : null], false);
+                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1], false);
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
                                     @if($isPdf)
-                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'pdf', ext: 'PDF' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-rose-50/70 to-slate-50 cursor-pointer group hover:from-rose-50 transition" title="Buka pratinjau {{ $fileName }}">
-                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600 shadow-2xs group-hover:scale-105 transition">
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'pdf', ext: 'PDF' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 text-rose-700 shadow-2xs group-hover:scale-105 transition">
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                                     <polyline points="14 2 14 8 20 8"/>
@@ -306,31 +306,31 @@
                                                     <path d="M9 17h4"/>
                                                 </svg>
                                             </div>
-                                            <span class="rounded bg-rose-100/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
+                                            <span class="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
                                         </a>
                                     @elseif($isVideo)
-                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'video', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-slate-900 to-[#172633] text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $fileName }}">
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'video', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-900 text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $fileName }}">
                                             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white shadow-md group-hover:scale-110 transition">
                                                 <svg class="h-5 w-5 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
                                                     <path d="M8 5v14l11-7z"/>
                                                 </svg>
                                             </div>
-                                            <span class="rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 uppercase">Video {{ strtoupper($fileExt) }}</span>
+                                            <span class="text-[11px] font-bold tracking-wider text-white uppercase">Video {{ strtoupper($fileExt) }}</span>
                                         </a>
                                     @elseif($isSlides)
-                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'slides', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-amber-50/80 to-slate-50 cursor-pointer group hover:from-amber-50 transition" title="Slide presentasi {{ $fileName }}">
-                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 shadow-2xs group-hover:scale-105 transition">
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'slides', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Slide presentasi {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 text-amber-700 shadow-2xs group-hover:scale-105 transition">
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                     <rect width="18" height="14" x="3" y="3" rx="2"/>
                                                     <path d="M3 9h18"/>
                                                     <path d="m8 21 4-4 4 4"/>
                                                 </svg>
                                             </div>
-                                            <span class="rounded bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Slide {{ strtoupper($fileExt) }}</span>
+                                            <span class="text-[11px] font-bold tracking-wider text-amber-800 uppercase">Slide {{ strtoupper($fileExt) }}</span>
                                         </a>
                                     @elseif($isWord)
-                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'word', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-gradient-to-b from-blue-50/70 to-slate-50 cursor-pointer group hover:from-blue-50 transition" title="Dokumen {{ $fileName }}">
-                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 shadow-2xs group-hover:scale-105 transition">
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'word', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Dokumen {{ $fileName }}">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 text-blue-700 shadow-2xs group-hover:scale-105 transition">
                                                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                                     <polyline points="14 2 14 8 20 8"/>
@@ -338,7 +338,7 @@
                                                     <path d="M8 17h6"/>
                                                 </svg>
                                             </div>
-                                            <span class="rounded bg-blue-100/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-blue-700 uppercase">Dokumen Word</span>
+                                            <span class="text-[11px] font-bold tracking-wider text-blue-700 uppercase">Dokumen Word</span>
                                         </a>
                                     @elseif($isImage)
                                         <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'image', ext: '{{ strtoupper($fileExt) }}' })" class="block aspect-video w-full overflow-hidden border-b border-line bg-slate-50 cursor-pointer" title="{{ $fileName }}">
@@ -417,12 +417,18 @@
                                 <input type="hidden" name="question_answers[{{ $q['id'] }}][question_id]" value="{{ $q['id'] }}">
                                 <div class="flex items-center justify-between border-b border-line/50 pb-3">
                                     <div class="flex items-center gap-2">
-                                        <span class="rounded bg-brand-soft text-brand text-xs font-bold px-2 py-0.5">Soal {{ $qIdx + 1 }}</span>
+                                        <span class="text-xs font-bold text-brand">Soal {{ $qIdx + 1 }}</span>
                                         <span class="text-xs font-semibold text-muted uppercase">{{ $q['type'] }}</span>
                                     </div>
                                     <span class="text-xs font-bold text-ink">{{ $q['points'] ?? 10 }} Poin</span>
                                 </div>
                                 <p class="text-sm text-ink leading-relaxed">{{ $q['prompt'] }}</p>
+
+                                @if(!empty($q['image']))
+                                    <div class="rounded-lg overflow-hidden border border-line bg-white p-2 text-center max-w-md">
+                                        <img src="{{ route('preview.file', ['file' => $q['image'], 'inline' => 1], false) }}" alt="{{ $q['alt'] ?? 'Gambar soal' }}" class="max-h-56 mx-auto rounded object-contain">
+                                    </div>
+                                @endif
 
                                 @if($q['type'] === 'benar_salah')
                                     <div class="flex items-center gap-4 pt-1">
@@ -589,9 +595,9 @@
                                 <span class="font-mono font-bold text-ink">{{ $submittedCount }} / {{ $totalEnrolled }}</span>
                             </div>
                             @if($lateCount > 0)
-                                <div class="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                <div class="flex items-center justify-between text-[11px] text-amber-800 font-semibold pt-1 border-t border-line/60">
                                     <span>Dikumpulkan terlambat:</span>
-                                    <span class="font-bold">{{ $lateCount }} mahasiswa</span>
+                                    <span>{{ $lateCount }} mahasiswa</span>
                                 </div>
                             @endif
                             <p class="text-muted text-[11px] pt-0.5">Lihat seluruh pengumpulan mahasiswa dan lakukan penilaian jawaban serta berkas tugas.</p>
@@ -668,12 +674,24 @@
                                     $fileId = is_array($sf) ? ($sf['id'] ?? '') : (string) $sf;
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($fileId);
                                     $fileName = is_array($sf) ? ($sf['name'] ?? $fileId) : ($fileMeta['name'] ?? (\App\Models\Attachment::where('uuid', $fileId)->value('name') ?? $fileId));
+                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: '');
+                                    $isSubImg = in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                                    $subFileUrl = route('preview.file', ['file' => $fileId, 'inline' => 1], false);
                                 @endphp
-                                <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                        <a href="{{ route('preview.file', $fileId) }}" target="_blank" class="text-ink truncate font-medium hover:text-brand hover:underline">{{ $fileName }}</a>
+                                <div class="space-y-1.5 p-2.5 rounded-lg bg-canvas border border-line/40 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                            <a href="{{ $subFileUrl }}" target="_blank" class="text-ink truncate font-medium hover:text-brand hover:underline">{{ $fileName }}</a>
+                                        </div>
                                     </div>
+                                    @if($isSubImg)
+                                        <div class="rounded-lg overflow-hidden border border-line bg-white p-1 text-center">
+                                            <a href="{{ $subFileUrl }}" target="_blank" title="Klik untuk membuka gambar penuh">
+                                                <img src="{{ $subFileUrl }}" alt="{{ $fileName }}" class="max-h-36 mx-auto rounded object-contain">
+                                            </a>
+                                        </div>
+                                    @endif
                                     <input type="hidden" name="keep_files[]" value="{{ $fileId }}">
                                 </div>
                             @endforeach
@@ -759,10 +777,6 @@
                             <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-semibold opacity-60 cursor-not-allowed">
                                 Pengumpulan Ditutup
                             </button>
-                        @elseif($isPast)
-                            <button type="submit" class="button-primary bg-amber-600 hover:bg-amber-700 text-white w-full py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
-                                <span>Kumpulkan Tugas (Terlambat)</span>
-                            </button>
                         @else
                             <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
                                 Kumpulkan Tugas
@@ -782,18 +796,25 @@
         </form>
     @endif
 
-    {{-- Modal Dialog Tambah Link (Google Classroom Style) --}}
-    <dialog id="link-modal" class="rounded-xl border border-line/60 bg-white p-6 shadow-xl backdrop:bg-ink/40 max-w-md w-full">
-        <h3 class="text-sm font-bold text-ink mb-1">Tambahkan Link</h3>
-        <p class="text-xs text-muted mb-4">Tempelkan tautan URL repositori, Google Drive, atau dokumen referensi tugas.</p>
-        <div class="space-y-1.5">
-            <label for="modal-link-input" class="form-label text-xs">Link <span class="text-danger">*</span></label>
-            <input type="url" id="modal-link-input" class="field text-xs py-2" placeholder="https://example.com/tugas">
-            <p id="modal-link-error" class="text-[11px] text-danger hidden">Tautan harus berupa URL valid yang diawali http:// atau https://</p>
+    {{-- Modal Dialog Tambah Link --}}
+    <dialog id="link-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] overflow-hidden h-fit">
+        <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-ink">Tambahkan Tautan</h3>
+            <button type="button" id="modal-link-close-btn" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
-        <div class="mt-5 flex items-center justify-end gap-2.5">
-            <button type="button" id="modal-link-cancel" class="button-secondary text-xs py-1.5 px-3">Batal</button>
-            <button type="button" id="modal-link-submit" class="button-primary text-xs py-1.5 px-3 font-semibold">Tambahkan Link</button>
+        <div class="p-5 space-y-3">
+            <p class="text-xs text-muted leading-relaxed">Tempelkan tautan URL repositori, Google Drive, atau dokumen referensi tugas.</p>
+            <div class="space-y-1.5">
+                <label for="modal-link-input" class="form-label text-xs">URL Tautan <span class="text-danger">*</span></label>
+                <input type="url" id="modal-link-input" class="field text-xs py-2 w-full font-mono" placeholder="https://example.com/tugas">
+                <p id="modal-link-error" class="text-[11px] text-danger hidden">Tautan harus berupa URL valid yang diawali http:// atau https://</p>
+            </div>
+        </div>
+        <div class="px-5 py-3.5 bg-canvas/30 border-t border-line/60 flex items-center justify-end gap-2.5">
+            <button type="button" id="modal-link-cancel" class="button-secondary text-xs py-1.5 px-3 cursor-pointer">Batal</button>
+            <button type="button" id="modal-link-submit" class="button-primary text-xs py-1.5 px-3.5 font-semibold cursor-pointer">Tambahkan Link</button>
         </div>
     </dialog>
 
@@ -888,7 +909,7 @@
             const card = document.createElement('div');
             card.className = 'text-center p-8 bg-white rounded-xl shadow-xs border border-line max-w-md w-full';
             card.innerHTML = `
-                <div class="h-12 w-12 rounded-full ${isSlides ? 'bg-amber-100 text-amber-600' : (isWord ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-muted')} flex items-center justify-center mx-auto mb-3">
+                <div class="h-12 w-12 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto mb-3">
                     ${isSlides ? '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="14" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="m8 21 4-4 4 4"/></svg>' : (isWord ? '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>' : '<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>')}
                 </div>
                 <h4 class="text-sm font-bold text-ink mb-1">${fileData.title}</h4>
@@ -938,6 +959,14 @@
         window.addEventListener('beforeunload', function() {
             closeAttachmentPreview();
         });
+
+        const linkModal = document.getElementById('link-modal');
+        if (linkModal) {
+            linkModal.addEventListener('click', function(e) {
+                if (e.target === linkModal) linkModal.close();
+            });
+            document.getElementById('modal-link-close-btn')?.addEventListener('click', () => linkModal.close());
+        }
     })();
 
     async function cancelSubmissionConfirm() {

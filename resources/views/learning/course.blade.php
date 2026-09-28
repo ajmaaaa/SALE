@@ -68,7 +68,7 @@
     {{-- Course Cover Image if present --}}
     @if(!empty($course['cover']))
         <div class="overflow-hidden rounded-xl shadow-sm mb-4">
-            <img src="{{ route('preview.file', $course['cover']) }}" alt="Sampul course" class="h-48 w-full object-cover">
+            <img src="{{ route('preview.file', ['file' => $course['cover'], 'inline' => 1], false) }}" alt="Sampul course" class="h-48 w-full object-cover">
         </div>
     @endif
 
@@ -150,7 +150,7 @@
                     <div id="course-video-card" class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
                     @if($isImageMedia)
                         @php
-                            $photoSrc = str_starts_with($courseVideo, 'http') ? $courseVideo : route('preview.file', $courseVideo);
+                            $photoSrc = str_starts_with($courseVideo, 'http') ? $courseVideo : route('preview.file', ['file' => $courseVideo, 'inline' => 1], false);
                             $photoTitle = $course['video_title'] ?? $course['title'];
                         @endphp
                         <div class="relative h-full w-full flex items-center justify-center bg-black/95 overflow-hidden">
@@ -161,7 +161,7 @@
                         <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['title'] }}" loading="lazy" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
                         <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? $course['title'] }}">
-                            <source src="{{ route('preview.file', $courseVideo) }}" type="{{ $courseVideoMeta['mime'] ?? 'video/mp4' }}">
+                            <source src="{{ route('preview.file', ['file' => $courseVideo, 'inline' => 1], false) }}" type="{{ $courseVideoMeta['mime'] ?? 'video/mp4' }}">
                             Browser Anda tidak mendukung pemutaran video.
                         </video>
                     @elseif($courseVideoType === 'url' && !empty($courseVideo))
@@ -176,16 +176,16 @@
             {{-- TABS NAV: MATERI & TUGAS --}}
             <div id="course-tabs-container" class="bg-[#f4f5f7] pt-2 pb-1">
                 <nav class="flex border-b border-line/60 gap-6" aria-label="Tab konten kelas">
-                    <button type="button" id="tab-btn-materi" onclick="switchCourseTab('materi')" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
+                    <button type="button" id="tab-btn-materi" onclick="switchCourseTab('materi')" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-1.5 transition">
                         <span>Materi</span>
-                        <span class="rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{{ $materiItems->count() }}</span>
+                        <span class="text-xs text-muted">({{ $materiItems->count() }})</span>
                     </button>
-                    <button type="button" id="tab-btn-tugas" onclick="switchCourseTab('tugas')" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
+                    <button type="button" id="tab-btn-tugas" onclick="switchCourseTab('tugas')" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-1.5 transition">
                         <span>Tugas</span>
                         @if($uncompletedTasksCount > 0)
-                            <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">{{ $uncompletedTasksCount }}</span>
+                            <span class="text-xs font-bold text-rose-600">({{ $uncompletedTasksCount }})</span>
                         @else
-                            <span class="rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{{ $tugasItems->count() }}</span>
+                            <span class="text-xs text-muted">({{ $tugasItems->count() }})</span>
                         @endif
                     </button>
                 </nav>
@@ -450,8 +450,8 @@
                             <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                             <span>Pesan Disematkan Dosen</span>
                         </div>
-                        <span id="pinned-count-badge" class="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#1f4b7a]">
-                            {{ $pinnedMessages->count() }}
+                        <span id="pinned-count-badge" class="text-xs font-bold text-[#1f4b7a]">
+                            ({{ $pinnedMessages->count() }})
                         </span>
                     </div>
                     <div id="pinned-messages-list" class="space-y-1.5 max-h-24 overflow-y-auto pr-1">
@@ -506,7 +506,7 @@
                                                 @endif
                                             @endunless
                                             @if($isPinned)
-                                                <span id="pin-badge-{{ $msg['id'] }}" class="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0">
+                                                <span id="pin-badge-{{ $msg['id'] }}" class="text-[10px] font-bold text-brand shrink-0">
                                                     Disematkan
                                                 </span>
                                             @endif
@@ -545,7 +545,7 @@
                         </div>
                     @empty
                         <div id="empty-chat-placeholder" class="my-auto flex flex-col items-center justify-center p-6 text-center">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand mb-3 shadow-2xs">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-white text-slate-500 mb-3 shadow-2xs">
                                 <svg class="h-6 w-6 stroke-[1.6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                 </svg>
@@ -1145,28 +1145,44 @@
 </script>
 
 {{-- Modal daftar anggota kelas --}}
-<dialog id="enrolled-students-modal" class="fixed inset-0 m-auto backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-lg overflow-hidden">
-    <div class="p-4 sm:p-5 border-b border-line/60 flex items-center justify-between">
+<dialog id="enrolled-students-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] overflow-hidden h-fit max-h-[85vh] flex flex-col">
+    <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
         <div>
-            <h3 class="font-bold text-ink text-base">Anggota Kelas</h3>
+            <h3 class="font-bold text-ink text-sm">Daftar Anggota Kelas</h3>
+            <p class="text-xs text-muted mt-0.5">{{ count($courseMembers) }} Mahasiswa Terdaftar</p>
         </div>
-        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="text-muted hover:text-ink text-sm p-1">
-            <span class="sr-only">Tutup</span>
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
     </div>
-    <div class="p-4 sm:p-5 max-h-[60vh] overflow-y-auto divide-y divide-line/40">
+    <div class="p-5 overflow-y-auto divide-y divide-line/40 flex-1">
         @forelse($courseMembers as $student)
             <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold text-ink truncate">{{ $student['name'] }}</p>
-                    <p class="text-xs text-muted truncate font-mono">{{ $student['number'] }}</p>
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-line/70 font-mono text-xs font-bold text-ink">
+                        {{ strtoupper(substr($student['name'] ?? 'M', 0, 2)) }}
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-ink truncate">{{ $student['name'] }}</p>
+                        <p class="text-[11px] text-muted truncate font-mono">{{ $student['number'] }}</p>
+                    </div>
                 </div>
                 <span class="text-xs font-semibold text-muted shrink-0">{{ ucfirst($student['role']) }}</span>
             </div>
         @empty
-            <p class="text-center text-sm text-muted py-4">Belum ada mahasiswa yang terdaftar di kelas ini.</p>
+            <div class="text-center py-6 space-y-1">
+                <p class="text-xs font-semibold text-ink">Belum Ada Mahasiswa</p>
+                <p class="text-xs text-muted">Belum ada mahasiswa yang terdaftar di kelas perkuliahan ini.</p>
+            </div>
         @endforelse
     </div>
+    <div class="px-5 py-3 bg-canvas/30 border-t border-line/60 flex items-center justify-end shrink-0">
+        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs py-1.5 px-4 cursor-pointer">Tutup</button>
+    </div>
 </dialog>
+<script>
+    document.getElementById('enrolled-students-modal')?.addEventListener('click', function(e) {
+        if (e.target === this) this.close();
+    });
+</script>
 @endsection

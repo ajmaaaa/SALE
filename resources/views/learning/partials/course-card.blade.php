@@ -52,7 +52,7 @@
 <div class="group relative flex min-h-64 flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md border border-line/70">
     @if(!empty($course['cover']))
         <a href="{{ $targetUrl }}" class="block">
-            <img src="{{ route('preview.file', $course['cover']) }}" alt="Sampul {{ $course['title'] }}" class="h-36 w-full object-cover">
+            <img src="{{ route('preview.file', ['file' => $course['cover'], 'inline' => 1], false) }}" alt="Sampul {{ $course['title'] }}" class="h-36 w-full object-cover">
             <div class="px-5 pt-4">
                 <div class="inline-flex items-baseline gap-2 text-xs font-semibold leading-4 text-brand">
                     <span class="font-mono leading-4">{{ $course['code'] }}</span>
@@ -157,18 +157,20 @@
 
 @once
 <!-- Modal QR Presensi & Akses Kelas untuk Dosen -->
-<div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+<div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden border border-line" onclick="event.stopPropagation()">
 
         {{-- Header --}}
-        <div class="flex items-start justify-between px-5 pt-5 pb-4 border-b border-slate-100">
+        <div class="flex items-start justify-between px-5 pt-5 pb-4 border-b border-line/60 bg-canvas/30">
             <div>
-                <h2 class="text-base font-bold text-ink leading-snug">QR Presensi &amp; Akses Kelas</h2>
+                <h2 class="text-sm font-bold text-ink leading-snug">QR Presensi &amp; Akses Kelas</h2>
                 <p id="modalCourseSubtitle" class="text-xs text-muted mt-0.5"></p>
             </div>
             <button type="button" onclick="closeQrModal()"
-                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition text-lg leading-none cursor-pointer -mt-0.5"
-                aria-label="Tutup">&times;</button>
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer -mt-0.5"
+                aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
 
         {{-- Body --}}

@@ -263,7 +263,7 @@
                             @if(!empty(auth()->user()?->profile_photo_url))
                                 <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ $activeUser['name'] }}" class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
                             @else
-                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-sm font-semibold text-brand-dark">
+                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">
                                     {{ $initials }}
                                 </span>
                             @endif
@@ -426,7 +426,9 @@
             cancel?.addEventListener('click', () => complete(false));
             closeBtn?.addEventListener('click', () => complete(false));
             confirmButton?.addEventListener('click', () => complete(true));
-            // Blokir Escape & click-outside: tutup hanya via X atau Batal
+            dialog?.addEventListener('click', event => {
+                if (event.target === dialog) complete(false);
+            });
             dialog?.addEventListener('cancel', event => {
                 event.preventDefault();
                 complete(false);

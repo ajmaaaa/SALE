@@ -87,8 +87,6 @@
                                     @endphp
                                     <th class="py-2.5 px-3 text-center min-w-[150px] border-l border-line/50" title="{{ $meta['description'] }}">
                                         <div class="font-bold text-ink text-xs">{{ $cpmk->code }}</div>
-                                        <div class="text-xs text-muted font-normal mt-0.5">Bobot: {{ rtrim(rtrim(number_format($effWeight, 2), '0'), '.') }}%</div>
-                                        <div class="text-xs text-muted font-normal mt-0.5">Maks: {{ (int)$maxScore }}</div>
                                         {{-- Deskripsi CPMK singkat --}}
                                         @if($meta['description'])
                                             <div class="text-[10px] text-muted font-normal mt-0.5 leading-tight max-w-[140px] mx-auto truncate" title="{{ $meta['description'] }}">
@@ -208,18 +206,18 @@
 
 {{-- MODAL: Tinjau Jawaban & Input Nilai --}}
 <div id="answer-modal-overlay"
-     class="hidden fixed inset-0 z-50 flex items-center justify-center"
-     style="background:rgba(15,23,42,0.45);"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4"
      onclick="if(event.target===this) closeAnswerModal()">
-    <div class="bg-white rounded-2xl border border-line shadow-2xl max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-white rounded-2xl border border-line shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
             <div>
                 <h3 class="text-sm font-bold text-ink" id="modal-heading">Jawaban &amp; Penilaian</h3>
                 <p class="text-xs text-muted mt-0.5" id="modal-student-name">Mahasiswa</p>
             </div>
             <button type="button" onclick="closeAnswerModal()"
-                    class="h-7 w-7 rounded-lg text-muted hover:text-ink hover:bg-canvas flex items-center justify-center font-bold text-lg leading-none cursor-pointer">
-                &times;
+                    class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer"
+                    aria-label="Tutup modal">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
         <div class="p-6 overflow-y-auto flex-1 space-y-5 text-sm" id="modal-answer-body">
@@ -391,21 +389,31 @@
                             <div class="space-y-2">
                     `;
                     data.files.forEach((f) => {
+                        const isImg = /\.(jpe?g|png|webp|gif)$/i.test(f.name);
                         html += `
-                            <div class="flex items-center justify-between p-2.5 rounded-lg border border-line/70 bg-canvas/30 text-xs">
-                                <div class="flex items-center gap-2 min-w-0 mr-2">
-                                    <svg class="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                    <span class="font-medium text-ink truncate">${escapeHtml(f.name)}</span>
+                            <div class="space-y-2 p-2.5 rounded-lg border border-line/70 bg-canvas/30 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2 min-w-0 mr-2">
+                                        <svg class="h-4 w-4 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                        <span class="font-medium text-ink truncate">${escapeHtml(f.name)}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <a href="${escapeHtml(f.url)}" target="_blank" class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1" title="Buka berkas di tab baru">
+                                            <span>Buka Berkas</span>
+                                            <svg class="h-3 w-3 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                        </a>
+                                        <a href="${escapeHtml(f.url)}?download=1" class="button-secondary text-xs py-1 px-2 text-muted hover:text-ink" title="Unduh Berkas">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        </a>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-1.5 shrink-0">
-                                    <a href="${escapeHtml(f.url)}" target="_blank" class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1" title="Buka berkas di tab baru">
-                                        <span>Buka Berkas</span>
-                                        <svg class="h-3 w-3 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                    </a>
-                                    <a href="${escapeHtml(f.url)}?download=1" class="button-secondary text-xs py-1 px-2 text-muted hover:text-ink" title="Unduh Berkas">
-                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                    </a>
-                                </div>
+                                ${isImg ? `
+                                    <div class="rounded-lg overflow-hidden border border-line bg-white p-2 text-center">
+                                        <a href="${escapeHtml(f.url)}" target="_blank" title="Klik untuk melihat ukuran penuh">
+                                            <img src="${escapeHtml(f.url)}" alt="${escapeHtml(f.name)}" class="max-h-60 mx-auto rounded object-contain hover:opacity-95 transition">
+                                        </a>
+                                    </div>
+                                ` : ''}
                             </div>
                         `;
                     });

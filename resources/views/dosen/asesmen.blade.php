@@ -39,9 +39,11 @@
                             <td class="capitalize">{{ $assessment->type }}</td>
                             <td>{{ rtrim(rtrim(number_format($assessment->final_weight, 1), '0'), '.') }}%</td>
                             <td>
-                                <div class="flex flex-wrap gap-1">
+                                <div class="flex flex-wrap gap-1.5">
                                     @forelse($assessment->cpmks as $cpmk)
-                                        <span class="status bg-brand-soft text-brand">{{ $cpmk->code }} ({{ rtrim(rtrim(number_format($cpmk->pivot->weight, 1), '0'), '.') }}%)</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpmk->description }}">
+                                            {{ $cpmk->code }}
+                                        </span>
                                     @empty
                                         <span class="text-xs text-muted">Belum dipetakan</span>
                                     @endforelse

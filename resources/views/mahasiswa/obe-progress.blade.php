@@ -11,7 +11,7 @@
             <p class="mt-1 text-xs text-muted">Pantau pemenuhan standar CPMK dan ketercapaian CPL Anda secara transparan pada setiap mata kuliah yang diambil.</p>
         </div>
         <div class="surface px-4 py-2 flex items-center gap-3">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand font-bold text-xs">
+            <div class="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-brand-dark font-bold text-xs shadow-2xs">
                 {{ mb_substr($student->name, 0, 1) }}
             </div>
             <div>
@@ -27,9 +27,9 @@
             <a href="{{ route('mahasiswa.nilai') }}" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
                 <span>Transkrip Nilai (KHS)</span>
             </a>
-            <a href="{{ route('mahasiswa.obe.progress') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
+            <a href="{{ route('mahasiswa.obe.progress') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-1.5 transition">
                 <span>Capaian Pembelajaran OBE</span>
-                <span class="rounded-full bg-brand-soft px-2 py-0.5 text-xs text-brand font-bold">{{ $courseProgress->count() }}</span>
+                <span class="text-xs text-muted">({{ $courseProgress->count() }})</span>
             </a>
         </nav>
         <div class="h-2 -mt-1 bg-[#f4f5f7] shadow-[0_8px_16px_-2px_rgba(29,39,48,0.10)] pointer-events-none" aria-hidden="true"></div>
@@ -60,7 +60,7 @@
                     <div class="border-b border-line/60 bg-canvas/40 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="rounded bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">{{ $sec->mataKuliah->code }}</span>
+                                <span class="font-mono text-xs font-bold text-brand">{{ $sec->mataKuliah->code }}</span>
                                 <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} - Semester {{ $sec->semester->name ?? '' }}</span>
                             </div>
                             <h3 class="mt-1 text-base font-bold text-ink">{{ $sec->mataKuliah->name }}</h3>
