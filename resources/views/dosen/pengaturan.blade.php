@@ -25,7 +25,12 @@
             <div class="mt-3 space-y-3">
                 @foreach($cpls as $cpl)
                     <div class="rounded-lg border border-line/60 p-3">
-                        <p class="text-sm font-semibold text-ink">{{ $cpl->code }}: {{ $cpl->description }}</p>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white shrink-0">
+                                {{ $cpl->code }}
+                            </span>
+                            <span class="text-sm font-semibold text-ink">{{ $cpl->description }}</span>
+                        </div>
                         <div class="mt-2 flex flex-wrap gap-1.5">
                             @foreach($cpl->cpmks as $cpmk)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-canvas text-ink border border-line/60">{{ $cpmk->code }} ({{ rtrim(rtrim(number_format($cpmk->pivot->weight, 1), '0'), '.') }}%)</span>

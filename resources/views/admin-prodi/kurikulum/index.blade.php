@@ -65,8 +65,10 @@
                 <tbody class="divide-y divide-line/60">
                     @forelse($cpls as $cpl)
                     <tr class="hover:bg-canvas/30 transition-colors">
-                        <td class="px-4 py-3.5 font-mono font-bold text-brand !align-middle whitespace-nowrap">
-                            {{ $cpl->code }}
+                        <td class="px-4 py-3.5 !align-middle whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide">
+                                {{ $cpl->code }}
+                            </span>
                         </td>
                         <td class="px-4 py-3.5 font-medium text-ink leading-relaxed !align-middle">
                             {{ $cpl->description }}
@@ -219,7 +221,7 @@
                                             @else
                                                 <div class="flex flex-wrap gap-1.5">
                                                     @foreach($cpmk->cpls as $cpl)
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-slate-900 text-white" title="{{ $cpl->description }}">
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpl->description }}">
                                                             {{ $cpl->code }}
                                                         </span>
                                                     @endforeach
