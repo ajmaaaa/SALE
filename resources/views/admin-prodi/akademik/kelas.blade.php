@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
                 <span>/</span>
@@ -15,8 +15,8 @@
             <h1 class="page-heading">Kelas Perkuliahan &amp; Penugasan Dosen</h1>
             <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Wakil, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs">
+        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0 sm:ml-auto">
+            <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs whitespace-nowrap">
                 + Buka Kelas Baru
             </button>
         </div>
@@ -123,9 +123,6 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                                 <p class="text-xs">Belum ada kelas yang dibuka untuk program studi dan semester ini.</p>
-                                <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs mt-1">
-                                    + Buka Kelas Baru
-                                </button>
                             </div>
                         </td>
                     </tr>

@@ -12,9 +12,9 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        $pdfPreview = $request->routeIs('preview.file')
-            && $response->headers->get('Content-Type') === 'application/pdf'
-            && str_starts_with($response->headers->get('Content-Disposition', ''), 'inline;');
+        $isPdfContentType = str_contains(strtolower((string) $response->headers->get('Content-Type', '')), 'application/pdf');
+        $isInlineDisposition = str_contains(strtolower((string) $response->headers->get('Content-Disposition', '')), 'inline');
+        $pdfPreview = $request->routeIs('preview.file') && $isPdfContentType && $isInlineDisposition;
         $frameAncestors = $pdfPreview ? "'self'" : "'none'";
         $response->headers->set('Content-Security-Policy', "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors {$frameAncestors}");
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');

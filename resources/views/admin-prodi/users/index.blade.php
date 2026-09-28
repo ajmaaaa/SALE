@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
                 <span>/</span>
@@ -15,8 +15,8 @@
             <h1 class="page-heading">Data Dosen &amp; Mahasiswa</h1>
             <p class="page-description">Input data dosen dan mahasiswa secara manual atau impor massal melalui file template Excel/CSV.</p>
         </div>
-        <div class="flex items-center gap-2">
-            <label for="select_prodi" class="text-xs font-semibold text-muted">Program Studi:</label>
+        <div class="flex items-center justify-end gap-2 shrink-0 sm:ml-auto">
+            <label for="select_prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
             <select id="select_prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
@@ -70,8 +70,9 @@
                 <h2 class="text-base font-bold text-ink">Daftar Dosen Pengampu: {{ $activeProdi?->name }}</h2>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin-prodi.users.template', 'dosen') }}" class="button-secondary text-xs">
-                    Unduh Template Excel Dosen
+                <a href="{{ route('admin-prodi.users.template', 'dosen') }}" class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs" title="Unduh Template Excel Dosen">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+                    <span>Template Excel Dosen</span>
                 </a>
                 <button type="button" onclick="openImportModal('dosen')" class="button-secondary text-xs">
                     Impor Excel Dosen
@@ -140,8 +141,9 @@
                 <p class="text-xs text-muted">Mahasiswa terdaftar dapat bergabung ke kelas mata kuliah via Link / Barcode yang dibagikan dosen.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin-prodi.users.template', 'mahasiswa') }}" class="button-secondary text-xs">
-                    Unduh Template Excel Mahasiswa
+                <a href="{{ route('admin-prodi.users.template', 'mahasiswa') }}" class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs" title="Unduh Template Excel Mahasiswa">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+                    <span>Template Excel Mahasiswa</span>
                 </a>
                 <button type="button" onclick="openImportModal('mahasiswa')" class="button-secondary text-xs">
                     Impor Excel Mahasiswa

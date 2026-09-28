@@ -255,7 +255,7 @@
                 </div>
                 <div class="relative">
                     <details class="group relative">
-                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg p-1.5 hover:bg-[#eceeeb] focus:outline-none">
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg py-1.5 pl-2 pr-3 hover:bg-[#eceeeb] focus:outline-none">
                             <span class="hidden text-right sm:block">
                                 <span class="block text-sm font-semibold leading-4 text-ink">{{ $activeUser['name'] }}</span>
                                 <span class="block text-xs text-muted">{{ $roleLabel }}{{ !empty($activeUser['number']) ? ' (' . $activeUser['number'] . ')' : '' }}</span>
@@ -267,7 +267,7 @@
                                     {{ $initials }}
                                 </span>
                             @endif
-                            <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            <svg class="h-4 w-4 text-muted shrink-0 transition-transform group-open:rotate-180 ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                         </summary>
                         <div class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-line bg-white p-3 shadow-xl">
                             <div class="border-b border-line/60 pb-3">

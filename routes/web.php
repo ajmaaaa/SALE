@@ -75,7 +75,7 @@ Route::middleware('role:mahasiswa')->group(function () {
     Route::post('/mahasiswa/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('mahasiswa.notifications.clear');
     Route::post('/mahasiswa/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('mahasiswa.notifications.delete');
 });
-Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen')->whereUuid('file')->name('preview.file');
+Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen,admin,admin_prodi')->where('file', '[A-Za-z0-9\-_]+')->name('preview.file');
 
 // Chat Real-Time & Diskusi Kelas
 Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(function () {

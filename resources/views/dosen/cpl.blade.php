@@ -12,7 +12,20 @@
             <h2 class="section-heading">Rekap Capaian per CPL</h2>
             <p class="mt-1 text-sm text-muted">Kontribusi ketercapaian CPL dari mata kuliah ini berdasarkan capaian CPMK.</p>
         </div>
-        <a href="{{ route('dosen.penilaian.export.cpl', $section->id) }}" class="button-secondary text-xs shrink-0">Export CSV</a>
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ route('dosen.penilaian.export.cpl.excel', $section->id) }}" 
+               class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+               title="Export ke Excel (.xlsx) dengan Kop Surat resmi dan format berwarna">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                </svg>
+                <span>Export Excel (.xlsx)</span>
+            </a>
+            <a href="{{ route('dosen.penilaian.export.cpl', $section->id) }}" class="button-secondary text-xs">Export CSV</a>
+        </div>
     </div>
 
     @if($cpls->isEmpty())

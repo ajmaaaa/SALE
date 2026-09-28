@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
                 <span>/</span>
@@ -15,15 +15,15 @@
             <h1 class="page-heading">Mata Kuliah Program Studi</h1>
             <p class="page-description">Kelola mata kuliah kurikulum, penetapan SKS, dan pembukaan kelas perkuliahan.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56">
+        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0 sm:ml-auto w-full sm:w-auto">
+            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
                         {{ $p->code }} - {{ $p->name }}
                     </option>
                 @endforeach
             </select>
-            <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs">
+            <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs whitespace-nowrap">
                 + Tambah Mata Kuliah
             </button>
         </div>
@@ -37,7 +37,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
                     </svg>
                 </div>
-                <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-medium w-full pl-9">
+                <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-medium w-full" style="padding-left: 2.25rem !important;">
             </div>
             <div class="text-xs text-muted whitespace-nowrap">
                 Total terdaftar di <span class="font-semibold text-ink">{{ $activeProdi?->name }}</span>: <strong class="text-ink font-bold" id="mk-count">{{ $mataKuliahs->count() }}</strong> mata kuliah
@@ -105,9 +105,6 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                 </svg>
                                 <p class="text-xs">Belum ada mata kuliah untuk program studi ini.</p>
-                                <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs mt-1">
-                                    + Tambah Mata Kuliah
-                                </button>
                             </div>
                         </td>
                     </tr>

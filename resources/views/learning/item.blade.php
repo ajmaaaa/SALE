@@ -281,32 +281,48 @@
                             {{-- Lampiran Berkas Dokumen / PDF / Gambar / Video / Slide Tambahan --}}
                             @foreach($item['attachments'] ?? [] as $file)
                                 @php
+                                    $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($file);
                                     $fileMime = $fileMeta['mime'] ?? '';
-                                    $fileName = $fileMeta['name'] ?? 'Berkas lampiran';
-                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: 'file');
-                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf';
-                                    $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp'], true);
+                                    $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
+                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
+                                    if (empty($fileExt) && str_contains($fileMime, 'pdf')) {
+                                        $fileExt = 'pdf';
+                                    } elseif (empty($fileExt)) {
+                                        $fileExt = 'file';
+                                    }
+                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf' || str_ends_with(strtolower($fileName), '.pdf');
+                                    if ($isPdf) {
+                                        $fileExt = 'pdf';
+                                    }
+                                    $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
                                     $isVideo = str_starts_with($fileMime, 'video/') || in_array($fileExt, ['mp4', 'webm', 'ogg'], true);
                                     $isSlides = in_array($fileExt, ['ppt', 'pptx'], true);
                                     $isWord = in_array($fileExt, ['doc', 'docx'], true);
 
                                     $previewType = $isVideo ? 'video' : ($isPdf ? 'pdf' : ($isImage ? 'image' : ($isSlides ? 'slides' : ($isWord ? 'word' : 'file'))));
-                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isVideo || $isImage) ? 1 : null], false);
-                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1], false);
+                                    $fileUrl = route('preview.file', ['file' => $fileId, 'inline' => ($isPdf || $isVideo || $isImage) ? 1 : null], false);
+                                    $fileDownloadUrl = route('preview.file', ['file' => $fileId, 'download' => 1], false);
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
                                     @if($isPdf)
-                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'pdf', ext: 'PDF' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $fileName }}">
-                                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 text-rose-700 shadow-2xs group-hover:scale-105 transition">
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                                    <polyline points="14 2 14 8 20 8"/>
-                                                    <path d="M9 13h6"/>
-                                                    <path d="M9 17h4"/>
-                                                </svg>
+                                        <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'pdf', ext: 'PDF' })" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $fileName }}">
+                                            {{-- Underlying fallback icon --}}
+                                            <div class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 z-0">
+                                                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200 text-rose-700 shadow-2xs group-hover:scale-105 transition">
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                        <polyline points="14 2 14 8 20 8"/>
+                                                        <path d="M9 13h6"/>
+                                                        <path d="M9 17h4"/>
+                                                    </svg>
+                                                </div>
+                                                <span class="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
                                             </div>
-                                            <span class="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
+                                            {{-- Clean PDF first page top preview rendered via canvas --}}
+                                            <canvas data-pdf-thumbnail="{{ $fileUrl }}" class="pdf-thumbnail-canvas absolute top-0 left-0 w-full h-auto block opacity-0 transition-opacity duration-300 pointer-events-none z-1 bg-white"></canvas>
+                                            {{-- Click capture overlay and hover effect --}}
+                                            <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
                                         </a>
                                     @elseif($isVideo)
                                         <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'video', ext: '{{ strtoupper($fileExt) }}' })" class="flex aspect-video w-full flex-col items-center justify-center gap-1.5 border-b border-line bg-slate-900 text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $fileName }}">
@@ -846,7 +862,51 @@
     </dialog>
 </div>
 
+<script src="{{ asset('vendor/pdfjs/pdf.min.js') }}"></script>
 <script>
+    function initPdfThumbnails() {
+        if (!window.pdfjsLib) return;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ asset('vendor/pdfjs/pdf.worker.min.js') }}";
+
+        document.querySelectorAll('canvas[data-pdf-thumbnail]').forEach(function(canvas) {
+            const url = canvas.getAttribute('data-pdf-thumbnail');
+            if (!url || canvas.dataset.rendered) return;
+            canvas.dataset.rendered = 'true';
+
+            pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                return pdf.getPage(1);
+            }).then(function(page) {
+                const parent = canvas.parentElement;
+                const parentWidth = (parent && parent.clientWidth > 0) ? parent.clientWidth : 176;
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const desiredWidth = parentWidth * dpr;
+
+                const defaultViewport = page.getViewport({ scale: 1 });
+                const scale = desiredWidth / defaultViewport.width;
+                const scaledViewport = page.getViewport({ scale: scale });
+
+                canvas.width = scaledViewport.width;
+                canvas.height = scaledViewport.height;
+
+                const ctx = canvas.getContext('2d');
+                return page.render({
+                    canvasContext: ctx,
+                    viewport: scaledViewport
+                }).promise;
+            }).then(function() {
+                canvas.classList.remove('opacity-0');
+            }).catch(function(err) {
+                console.warn('PDF thumbnail render skipped:', err);
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPdfThumbnails);
+    } else {
+        initPdfThumbnails();
+    }
+
     function openAttachmentPreview(e, fileData) {
         if (e) {
             e.preventDefault();
@@ -874,6 +934,7 @@
         bodyEl.innerHTML = '';
 
         if (fileData.type === 'video') {
+            bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-900/90 flex-1 min-h-[420px]';
             const vid = document.createElement('video');
             vid.src = fileData.url;
             vid.controls = true;
@@ -881,10 +942,11 @@
             vid.className = 'max-h-[75vh] max-w-full rounded-lg shadow-md bg-black';
             bodyEl.appendChild(vid);
         } else if (fileData.type === 'pdf' || fileData.type === 'link' || fileData.type === 'youtube') {
+            bodyEl.className = 'submission-body flex flex-col p-2 sm:p-4 bg-slate-100/90 flex-1 min-h-[500px] h-full';
             const frame = document.createElement('iframe');
             frame.src = fileData.url;
             frame.title = `Pratinjau ${fileData.title}`;
-            frame.className = 'w-full h-full min-h-[520px] border-0 rounded-lg bg-white shadow-sm';
+            frame.className = 'w-full flex-1 min-h-[520px] h-full border-0 rounded-lg bg-white shadow-xs';
             frame.referrerPolicy = 'origin';
             if (fileData.type === 'youtube') {
                 frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
@@ -894,6 +956,7 @@
             }
             bodyEl.appendChild(frame);
         } else if (fileData.type === 'image') {
+            bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-100/90 flex-1 min-h-[420px]';
             const img = document.createElement('img');
             img.src = fileData.url;
             img.alt = fileData.title;
@@ -904,6 +967,7 @@
             });
             bodyEl.appendChild(img);
         } else {
+            bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-100/90 flex-1 min-h-[420px]';
             const isSlides = fileData.type === 'slides';
             const isWord = fileData.type === 'word';
             const card = document.createElement('div');

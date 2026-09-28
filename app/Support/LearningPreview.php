@@ -1047,17 +1047,49 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         ];
     }
 
-    public static function fileMeta(string $file): ?array
+    public static function fileMeta(string|array $file): ?array
     {
-        if (Schema::hasTable('attachments')) {
-            $att = Attachment::where('uuid', $file)->first();
-            if ($att) {
-                return ['path' => $att->path, 'name' => $att->name, 'mime' => $att->mime];
+        if (is_array($file)) {
+            $uuid = $file['uuid'] ?? $file['id'] ?? null;
+            if (! empty($file['name']) && (! empty($file['mime']) || ! empty($file['path']))) {
+                return [
+                    'path' => $file['path'] ?? '',
+                    'name' => $file['name'],
+                    'mime' => $file['mime'] ?? self::guessMimeType($file['name']),
+                ];
             }
+            if ($uuid) {
+                $file = (string) $uuid;
+            } else {
+                return null;
+            }
+        }
+
+        $file = (string) $file;
+
+        try {
+            if (Schema::hasTable('attachments')) {
+                $att = Attachment::where('uuid', $file)
+                    ->orWhere('id', $file)
+                    ->orWhere('path', $file)
+                    ->first();
+                if ($att) {
+                    return [
+                        'path' => $att->path,
+                        'name' => $att->name,
+                        'mime' => $att->mime ?: self::guessMimeType($att->name),
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            // Database may be inaccessible in testing or offline mode
         }
 
         $meta = self::fileMetaWithAssessment($file)['meta'] ?? null;
         if ($meta) {
+            if (empty($meta['mime']) && ! empty($meta['name'])) {
+                $meta['mime'] = self::guessMimeType($meta['name']);
+            }
             return $meta;
         }
 
@@ -1066,7 +1098,49 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             return $sessionMeta;
         }
 
+        $sample = self::sampleFiles()[$file] ?? null;
+        if ($sample) {
+            return $sample;
+        }
+
+        if (Storage::disk('local')->exists($file)) {
+            return [
+                'path' => $file,
+                'name' => basename($file),
+                'mime' => Storage::disk('local')->mimeType($file) ?: self::guessMimeType($file),
+            ];
+        }
+
+        if (Storage::disk('public')->exists($file)) {
+            return [
+                'path' => $file,
+                'name' => basename($file),
+                'mime' => Storage::disk('public')->mimeType($file) ?: self::guessMimeType($file),
+            ];
+        }
+
         return null;
+    }
+
+    public static function guessMimeType(string $fileName): string
+    {
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        return match ($ext) {
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'ppt', 'pptx' => 'application/vnd.ms-powerpoint',
+            'doc', 'docx' => 'application/msword',
+            'xls', 'xlsx' => 'application/vnd.ms-excel',
+            'txt' => 'text/plain',
+            default => 'application/octet-stream',
+        };
     }
 
     /**
@@ -1078,22 +1152,26 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
      */
     public static function fileMetaWithAssessment(string $file): ?array
     {
-        if (! Schema::hasTable('assessments') || ! Schema::hasColumn('assessments', 'learning_payload')) {
+        try {
+            if (! Schema::hasTable('assessments') || ! Schema::hasColumn('assessments', 'learning_payload')) {
+                return null;
+            }
+
+            $assessment = Assessment::query()
+                ->whereNotNull('learning_payload')
+                ->get(['id', 'class_section_id', 'learning_payload'])
+                ->first(fn ($item) => isset(($item->learning_payload['file_meta'] ?? [])[$file]));
+
+            if (! $assessment) {
+                return null;
+            }
+
+            return [
+                'meta' => $assessment->learning_payload['file_meta'][$file],
+                'assessment' => $assessment,
+            ];
+        } catch (\Throwable) {
             return null;
         }
-
-        $assessment = Assessment::query()
-            ->whereNotNull('learning_payload')
-            ->get(['id', 'class_section_id', 'learning_payload'])
-            ->first(fn ($item) => isset(($item->learning_payload['file_meta'] ?? [])[$file]));
-
-        if (! $assessment) {
-            return null;
-        }
-
-        return [
-            'meta' => $assessment->learning_payload['file_meta'][$file],
-            'assessment' => $assessment,
-        ];
     }
 }

@@ -317,14 +317,23 @@
                             @endif
                             @foreach($allAttachments as $file)
                                 @php
+                                    $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($file);
                                     $fileMime = $fileMeta['mime'] ?? '';
-                                    $fileName = $fileMeta['name'] ?? 'Berkas lampiran';
-                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: 'file');
-                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf';
+                                    $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
+                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
+                                    if (empty($fileExt) && str_contains($fileMime, 'pdf')) {
+                                        $fileExt = 'pdf';
+                                    } elseif (empty($fileExt)) {
+                                        $fileExt = 'file';
+                                    }
+                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf' || str_ends_with(strtolower($fileName), '.pdf');
+                                    if ($isPdf) {
+                                        $fileExt = 'pdf';
+                                    }
                                     $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
-                                    $fileUrl = route('preview.file', ['file' => $file, 'inline' => ($isPdf || $isImage) ? 1 : null], false);
-                                    $fileDownloadUrl = route('preview.file', ['file' => $file, 'download' => 1], false);
+                                    $fileUrl = route('preview.file', ['file' => $fileId, 'inline' => ($isPdf || $isImage) ? 1 : null], false);
+                                    $fileDownloadUrl = route('preview.file', ['file' => $fileId, 'download' => 1], false);
                                 @endphp
                                 @if($isImage)
                                     <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">

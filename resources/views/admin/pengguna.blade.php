@@ -12,13 +12,13 @@
             <p class="page-description">Kelola identitas, nomor induk institusi, peran akses, dan status akun.</p>
         </div>
         <div class="flex flex-wrap gap-2.5">
-            <a href="{{ route('admin.users.template') }}" class="button-secondary flex items-center gap-1.5" title="Unduh Template Excel Pengguna">
-                <svg class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <a href="{{ route('admin.users.template') }}" class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs" title="Unduh Template Excel Pengguna">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span>Template Excel</span>
+                <span>Template Excel (.xlsx)</span>
             </a>
             <button type="button" onclick="document.getElementById('bulk-import-section').toggleAttribute('hidden')" class="button-secondary">
                 Import Massal
