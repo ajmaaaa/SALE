@@ -5,7 +5,9 @@
             <h2 id="grade-import-title" class="text-lg font-semibold">Unggah Nilai {{ strtoupper($activeType) }}</h2>
             <p class="mt-1 text-xs text-muted">Isi nilai massal dari file CSV atau Excel (.xlsx).</p>
         </div>
-        <button type="button" class="button-secondary text-xs" data-grade-import-close aria-label="Tutup impor nilai">Tutup</button>
+        <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" data-grade-import-close aria-label="Tutup">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
     </header>
     <div class="space-y-4 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">

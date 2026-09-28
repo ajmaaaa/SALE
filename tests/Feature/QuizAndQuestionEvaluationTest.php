@@ -174,5 +174,7 @@ class QuizAndQuestionEvaluationTest extends TestCase
         // Ensure inner container uses flex instead
         $response->assertSee('<dialog id="enrolled-students-modal"', false);
         $response->assertSee('<div class="flex flex-col max-h-[85vh]">', false);
+        // Ensure no redundant bottom close button
+        $response->assertDontSee('class="button-secondary text-xs py-1.5 px-4 cursor-pointer">Tutup</button>', false);
     }
 }

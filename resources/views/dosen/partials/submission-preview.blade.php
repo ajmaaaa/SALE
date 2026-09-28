@@ -22,6 +22,5 @@
     </div>
     <footer class="submission-footer">
         <p class="text-xs text-muted">Gunakan navigasi dokumen untuk membaca lampiran. Jika pratinjau tidak muncul, pilih Unduh atau Buka Tab Baru.</p>
-        <button type="button" class="button-secondary text-xs" data-preview-close>Tutup Pratinjau</button>
     </footer>
 </dialog>

@@ -1177,9 +1177,6 @@
                 </div>
             @endforelse
         </div>
-        <div class="px-5 py-3 bg-canvas/30 border-t border-line/60 flex items-center justify-end shrink-0">
-            <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs py-1.5 px-4 cursor-pointer">Tutup</button>
-        </div>
     </div>
 </dialog>
 <script>
