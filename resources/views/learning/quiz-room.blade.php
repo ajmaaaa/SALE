@@ -307,13 +307,14 @@
                                             $userChoices = $ans['option_ids'] ?? [];
                                         @endphp
                                         <div class="space-y-2 pt-1">
-                                            @foreach($options as $opt)
+                                            @foreach($options as $optIdx => $opt)
                                                 @php
                                                     $isUserPicked = in_array($opt['id'], $userChoices, true);
                                                     $isOptCorrect = in_array($opt['id'], $correctList, true);
                                                 @endphp
                                                 <div class="flex items-center justify-between gap-3 p-3 rounded-lg border text-xs {{ $isUserPicked ? 'border-slate-300 bg-slate-50/80 font-medium text-slate-900' : ($isOptCorrect ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-white text-slate-600') }}">
                                                     <div class="flex items-center gap-2.5 min-w-0">
+                                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 font-mono text-[11px] font-bold text-slate-700">{{ chr(65 + $optIdx) }}</span>
                                                         <span class="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[10px] {{ $isUserPicked && $isOptCorrect ? 'bg-emerald-600 text-white font-bold' : ($isUserPicked && !$isOptCorrect ? 'bg-rose-600 text-white font-bold' : ($isOptCorrect ? 'border border-emerald-500 text-emerald-700 font-bold' : 'border border-slate-300 text-slate-400')) }}">
                                                             @if($isUserPicked && $isOptCorrect) ✓
                                                             @elseif($isUserPicked && !$isOptCorrect) ✕
@@ -730,6 +731,7 @@
                                                     value="{{ $opt['id'] }}"
                                                     class="h-4 w-4 text-slate-900 focus:ring-slate-900 rounded"
                                                     @checked(in_array($opt['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
+                                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-slate-100 font-mono text-xs font-bold text-slate-700">{{ chr(65 + $optIdx) }}</span>
                                                 <span class="text-sm font-medium text-slate-800 leading-relaxed">{{ $opt['text'] }}</span>
                                             </label>
                                         @endforeach

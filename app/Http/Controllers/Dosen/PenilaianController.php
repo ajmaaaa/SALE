@@ -58,7 +58,7 @@ class PenilaianController extends Controller
         $columns = [];   // [ { assessment, cpmk_cols: [ {cpmk, weight, weight_fmt, effective_weight} ] } ]
         foreach ($assessments as $asmt) {
             if ($asmt->cpmks->isEmpty() && $cpmks->isNotEmpty()) {
-                $asmt->cpmks()->syncWithoutDetaching($cpmks->pluck('id'));
+                $asmt->cpmks()->syncWithoutDetaching($cpmks->mapWithKeys(fn ($c) => [$c->id => ['weight' => 100.0]])->all());
                 $asmt->load('cpmks');
             }
 

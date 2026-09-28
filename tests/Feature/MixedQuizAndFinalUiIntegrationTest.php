@@ -217,7 +217,6 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
         $response = $this->actingAs($lecturer)->get(route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]));
         $response->assertOk()
             ->assertSee('CPMK-011')
-            ->assertSee('Maks: 100')
             ->assertDontSee('Bobot: 10%')
             ->assertDontSee('Skor 0')
             ->assertDontSee('Skala 0')

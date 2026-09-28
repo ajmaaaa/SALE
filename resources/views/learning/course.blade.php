@@ -1145,39 +1145,41 @@
 </script>
 
 {{-- Modal daftar anggota kelas --}}
-<dialog id="enrolled-students-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] overflow-hidden h-fit max-h-[85vh] flex flex-col">
-    <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
-        <div>
-            <h3 class="font-bold text-ink text-sm">Daftar Anggota Kelas</h3>
-            <p class="text-xs text-muted mt-0.5">{{ count($courseMembers) }} Mahasiswa Terdaftar</p>
+<dialog id="enrolled-students-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] overflow-hidden h-fit max-h-[85vh]">
+    <div class="flex flex-col max-h-[85vh]">
+        <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
+            <div>
+                <h3 class="font-bold text-ink text-sm">Daftar Anggota Kelas</h3>
+                <p class="text-xs text-muted mt-0.5">{{ count($courseMembers) }} Mahasiswa Terdaftar</p>
+            </div>
+            <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
-        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-    </div>
-    <div class="p-5 overflow-y-auto divide-y divide-line/40 flex-1">
-        @forelse($courseMembers as $student)
-            <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-line/70 font-mono text-xs font-bold text-ink">
-                        {{ strtoupper(substr($student['name'] ?? 'M', 0, 2)) }}
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-xs font-bold text-ink truncate">{{ $student['name'] }}</p>
-                        <p class="text-[11px] text-muted truncate font-mono">{{ $student['number'] }}</p>
+        <div class="p-5 overflow-y-auto divide-y divide-line/40 flex-1">
+            @forelse($courseMembers as $student)
+                <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-line/70 font-mono text-xs font-bold text-ink">
+                            {{ strtoupper(substr($student['name'] ?? 'M', 0, 2)) }}
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-ink truncate">{{ $student['name'] }}</p>
+                            <p class="text-[11px] text-muted truncate font-mono">{{ $student['number'] }}</p>
+                        </div>
                     </div>
+                    <span class="text-xs font-semibold text-muted shrink-0">{{ ucfirst($student['role']) }}</span>
                 </div>
-                <span class="text-xs font-semibold text-muted shrink-0">{{ ucfirst($student['role']) }}</span>
-            </div>
-        @empty
-            <div class="text-center py-6 space-y-1">
-                <p class="text-xs font-semibold text-ink">Belum Ada Mahasiswa</p>
-                <p class="text-xs text-muted">Belum ada mahasiswa yang terdaftar di kelas perkuliahan ini.</p>
-            </div>
-        @endforelse
-    </div>
-    <div class="px-5 py-3 bg-canvas/30 border-t border-line/60 flex items-center justify-end shrink-0">
-        <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs py-1.5 px-4 cursor-pointer">Tutup</button>
+            @empty
+                <div class="text-center py-6 space-y-1">
+                    <p class="text-xs font-semibold text-ink">Belum Ada Mahasiswa</p>
+                    <p class="text-xs text-muted">Belum ada mahasiswa yang terdaftar di kelas perkuliahan ini.</p>
+                </div>
+            @endforelse
+        </div>
+        <div class="px-5 py-3 bg-canvas/30 border-t border-line/60 flex items-center justify-end shrink-0">
+            <button type="button" onclick="document.getElementById('enrolled-students-modal').close()" class="button-secondary text-xs py-1.5 px-4 cursor-pointer">Tutup</button>
+        </div>
     </div>
 </dialog>
 <script>

@@ -1974,7 +1974,16 @@ if (builder) {
         if (textarea) textarea.value = values.join('\n');
 
         if (correctInput) {
-            const checkedInputs = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+            const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
+            const isComplex = qType === 'kompleks';
+            let checkedInputs = [...row.querySelectorAll('[data-choice-correct-input]:checked')];
+            if (!isComplex && checkedInputs.length > 1) {
+                const lastChecked = checkedInputs[checkedInputs.length - 1];
+                checkedInputs.forEach(inp => {
+                    if (inp !== lastChecked) inp.checked = false;
+                });
+                checkedInputs = [lastChecked];
+            }
             const checkedLetters = checkedInputs.map(inp => inp.value);
             correctInput.value = checkedLetters.join(', ');
         }
@@ -1989,8 +1998,8 @@ if (builder) {
         const isComplex = qType === 'kompleks';
         const inputType = isComplex ? 'checkbox' : 'radio';
 
-        const rowIndex = [...rows.children].indexOf(row);
-        const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : Math.random().toString(36).substring(2, 7)}`;
+        row.dataset.rowUid = row.dataset.rowUid || Math.random().toString(36).substring(2, 9);
+        const radioName = `correct_choice_${row.dataset.rowUid}`;
 
         const correctInput = row.querySelector('input[data-q-field="correct_answer"]');
         const currentCorrect = (correctVal !== null && correctVal !== undefined)
@@ -2240,7 +2249,8 @@ if (builder) {
             if (number) number.textContent = `Soal ${index + 1}`;
             row.querySelectorAll('[data-q-field]').forEach(input => input.name = `questions[${index}][${input.dataset.qField}]`);
 
-            const radioName = `correct_choice_${index}`;
+            row.dataset.rowUid = row.dataset.rowUid || Math.random().toString(36).substring(2, 9);
+            const radioName = `correct_choice_${row.dataset.rowUid}`;
             row.querySelectorAll('[data-choice-correct-input][type="radio"]').forEach(inp => {
                 inp.name = radioName;
             });
@@ -2396,9 +2406,11 @@ if (builder) {
         }
 
         // Initialize choices
-        let rawOptions = data.options || '';
-        if (!rawOptions && Array.isArray(data.option_items)) {
+        let rawOptions = '';
+        if (Array.isArray(data.option_items) && data.option_items.length > 0) {
             rawOptions = data.option_items.map(opt => (typeof opt === 'string' ? opt : (opt.text || ''))).filter(Boolean).join('\n');
+        } else if (data.options) {
+            rawOptions = data.options;
         }
 
         let correctVal = data.correct_answer;
@@ -2418,7 +2430,7 @@ if (builder) {
 
         const qType = data.type || row.querySelector('[data-q-field="type"]').value;
         if (['pilihan', 'kompleks'].includes(qType)) {
-            const choices = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
+            const choices = rawOptions ? rawOptions.split('\n').map(s => s.trim()).filter(Boolean) : [];
             renderChoices(row, choices, correctVal);
         } else {
             renderChoices(row, []);
@@ -2453,8 +2465,9 @@ if (builder) {
                 if (chosenId && chosenId.endsWith('_false')) bVal = 'Salah';
             }
             if (bVal) {
-                const bInp = row.querySelector('[data-q-field="boolean_answer"]');
-                if (bInp) bInp.value = bVal;
+                row.querySelectorAll('[data-q-field="boolean_answer"]').forEach(inp => {
+                    inp.checked = (inp.value.toLowerCase() === bVal.toLowerCase());
+                });
             }
         }
 
@@ -2664,8 +2677,8 @@ if (builder) {
             const qType = row.querySelector('select[data-q-field="type"]')?.value || 'pilihan';
             const isComplex = qType === 'kompleks';
             const inputType = isComplex ? 'checkbox' : 'radio';
-            const rowIndex = [...rows.children].indexOf(row);
-            const radioName = `correct_choice_${rowIndex >= 0 ? rowIndex : '0'}`;
+            row.dataset.rowUid = row.dataset.rowUid || Math.random().toString(36).substring(2, 9);
+            const radioName = `correct_choice_${row.dataset.rowUid}`;
             const letter = letters[count] || String(count + 1);
 
             const item = document.createElement('div');
