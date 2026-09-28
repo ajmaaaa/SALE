@@ -113,108 +113,149 @@
 
     @elseif($tab === 'cpmk')
     <!-- ================= TAB 2: CPMK ================= -->
-    <div class="surface p-5 space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="surface p-5 space-y-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-line">
             <div>
                 <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Mata Kuliah (CPMK)</h2>
+                <p class="text-xs text-muted mt-0.5">Kelola butir CPMK per mata kuliah beserta standar kelulusan dan pemetaan CPL terkait.</p>
             </div>
-            <button type="button" onclick="openCreateCpmkModal()" class="button-primary text-xs">
-                + Tetapkan CPMK Baru
-            </button>
-        </div>
-
-        @forelse($mataKuliahs as $mk)
-        <div class="rounded-xl border border-line bg-white shadow-2xs overflow-hidden">
-            {{-- Header MK: klik untuk toggle --}}
-            <button type="button"
-                onclick="toggleMk({{ $mk->id }})"
-                class="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-canvas/40 transition-colors">
-                <div class="flex items-center gap-3 min-w-0">
-                    <span class="font-mono font-bold text-brand text-sm shrink-0">{{ $mk->code }}</span>
-                    <span class="font-semibold text-sm text-ink truncate">{{ $mk->name }}</span>
-                    <span class="text-xs text-muted shrink-0">{{ $mk->sks }} SKS</span>
-                    <span class="text-xs text-muted shrink-0">{{ $mk->cpmks->count() }} CPMK</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button type="button"
-                        onclick="event.stopPropagation(); openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')"
-                        class="button-secondary text-[11px] py-1 px-2.5">
-                        + Tambah CPMK
-                    </button>
-                    <svg id="chevron-{{ $mk->id }}" class="h-4 w-4 text-muted transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </div>
-            </button>
-
-            {{-- Body MK: tersembunyi default --}}
-            <div id="mk-body-{{ $mk->id }}" class="hidden border-t border-line">
-                @if($mk->cpmks->isEmpty())
-                    <p class="text-xs text-muted py-4 px-5">Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini.</p>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="admin-table w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b border-line bg-canvas/60 text-muted">
-                                    <th class="px-4 py-3 w-28 !align-middle">Kode</th>
-                                    <th class="px-4 py-3 !align-middle">Deskripsi CPMK</th>
-                                    <th class="px-4 py-3 text-center w-32 !align-middle">Standar Kelulusan</th>
-                                    <th class="px-4 py-3 w-32 !align-middle">CPL Terkait</th>
-                                    <th class="px-4 py-3 text-right w-28 !align-middle">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-line/60">
-                                @foreach($mk->cpmks as $cpmk)
-                                <tr class="hover:bg-canvas/30 transition-colors">
-                                    <td class="px-4 py-3 font-mono font-bold text-brand !align-middle whitespace-nowrap">
-                                        {{ $cpmk->code }}
-                                    </td>
-                                    <td class="px-4 py-3 font-medium text-ink leading-relaxed !align-middle">
-                                        {{ $cpmk->description }}
-                                    </td>
-                                    <td class="px-4 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
-                                        {{ (float)$cpmk->threshold }}%
-                                    </td>
-                                    <td class="px-4 py-3 !align-middle">
-                                        @if($cpmk->cpls->isEmpty())
-                                            <span class="text-muted text-[11px]">Belum dipetakan</span>
-                                        @else
-                                            <div class="flex flex-wrap gap-1.5">
-                                                @foreach($cpmk->cpls as $cpl)
-                                                    <span class="font-mono font-bold text-brand text-xs">{{ $cpl->code }}</span>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3 text-right !align-middle whitespace-nowrap">
-                                        <div class="inline-flex items-center justify-end gap-1.5">
-                                            <button type="button"
-                                                    onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})"
-                                                    class="button-secondary text-[11px] py-1 px-2.5">
-                                                Ubah
-                                            </button>
-                                            <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
-                                                    Hapus
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="relative w-64 max-w-full">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                        </svg>
                     </div>
-                @endif
+                    <input type="text" id="cpmk-search" onkeyup="filterCpmkCards()" placeholder="Cari mata kuliah atau CPMK..." class="field text-xs pl-8 py-1.5 h-8">
+                </div>
+                <button type="button" onclick="toggleAllMks(true)" class="button-secondary text-xs h-8 px-2.5">
+                    Buka Semua
+                </button>
+                <button type="button" onclick="toggleAllMks(false)" class="button-secondary text-xs h-8 px-2.5">
+                    Tutup Semua
+                </button>
+                <button type="button" onclick="openCreateCpmkModal()" class="button-primary text-xs h-8 px-3">
+                    + Tetapkan CPMK Baru
+                </button>
             </div>
         </div>
-        @empty
-        <div class="py-12 text-center text-muted text-sm">
-            Belum ada mata kuliah yang terdaftar pada program studi ini. Tambahkan mata kuliah di menu Mata Kuliah terlebih dahulu.
+
+        <div class="space-y-3 pt-1">
+            @forelse($mataKuliahs as $mk)
+            <div data-mk-card class="rounded-xl border border-line bg-white shadow-2xs overflow-hidden">
+                {{-- Header MK --}}
+                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-canvas/40 hover:bg-canvas/60 transition-colors border-b border-line">
+                    <div onclick="toggleMk({{ $mk->id }})" class="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white shrink-0">
+                            {{ $mk->code }}
+                        </span>
+                        <span class="font-bold text-sm text-ink truncate">{{ $mk->name }}</span>
+                        <span class="text-xs text-muted shrink-0">{{ $mk->sks }} SKS</span>
+                        @if($mk->cpmks->count() > 0)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-white border border-line text-ink shadow-2xs shrink-0">
+                                {{ $mk->cpmks->count() }} CPMK
+                            </span>
+                        @else
+                            <span class="text-xs text-muted italic shrink-0">0 CPMK</span>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button"
+                            onclick="openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')"
+                            class="button-secondary text-[11px] py-1 px-2.5">
+                            + Tambah CPMK
+                        </button>
+                        <button type="button"
+                            onclick="toggleMk({{ $mk->id }})"
+                            class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer"
+                            title="Buka / Tutup">
+                            <svg id="chevron-{{ $mk->id }}" class="h-4 w-4 transition-transform duration-200 {{ $mk->cpmks->isNotEmpty() ? 'rotate-180' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Body MK: Terbuka default jika ada CPMK, atau tertutup jika kosong --}}
+                <div id="mk-body-{{ $mk->id }}" class="{{ $mk->cpmks->isEmpty() ? 'hidden' : '' }}">
+                    @if($mk->cpmks->isEmpty())
+                        <div class="py-6 px-5 text-center text-xs text-muted">
+                            <p>Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini.</p>
+                            <button type="button"
+                                onclick="openCreateCpmkForMk({{ $mk->id }}, '{{ addslashes($mk->name) }}')"
+                                class="button-secondary text-xs mt-2">
+                                + Tetapkan CPMK untuk {{ $mk->code }}
+                            </button>
+                        </div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="admin-table w-full text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-line bg-canvas/30 text-muted">
+                                        <th class="px-4 py-3 w-32 !align-middle">Kode</th>
+                                        <th class="px-4 py-3 !align-middle">Deskripsi CPMK</th>
+                                        <th class="px-4 py-3 text-center w-36 !align-middle">Standar Kelulusan</th>
+                                        <th class="px-4 py-3 w-40 !align-middle">CPL Terkait</th>
+                                        <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line/60">
+                                    @foreach($mk->cpmks as $cpmk)
+                                    <tr class="hover:bg-canvas/30 transition-colors">
+                                        <td class="px-4 py-3 font-mono font-bold text-brand !align-middle whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpmk->description }}">
+                                                {{ $cpmk->code }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 font-medium text-ink leading-relaxed !align-middle">
+                                            {{ $cpmk->description }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
+                                            {{ (float)$cpmk->threshold }}%
+                                        </td>
+                                        <td class="px-4 py-3 !align-middle">
+                                            @if($cpmk->cpls->isEmpty())
+                                                <span class="text-muted text-[11px]">Belum dipetakan</span>
+                                            @else
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    @foreach($cpmk->cpls as $cpl)
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-slate-900 text-white" title="{{ $cpl->description }}">
+                                                            {{ $cpl->code }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-right !align-middle whitespace-nowrap">
+                                            <div class="inline-flex items-center justify-end gap-1.5">
+                                                <button type="button"
+                                                        onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})"
+                                                        class="button-secondary text-[11px] py-1 px-2.5">
+                                                    Ubah
+                                                </button>
+                                                <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
+                                                        Hapus
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @empty
+            <div class="py-12 text-center text-muted text-sm">
+                Belum ada mata kuliah yang terdaftar pada program studi ini. Tambahkan mata kuliah di menu Mata Kuliah terlebih dahulu.
+            </div>
+            @endforelse
         </div>
-        @endforelse
     </div>
 
     @endif
@@ -420,6 +461,42 @@
     function closeEditCpmkModal() {
         document.getElementById('editCpmkModal').classList.add('hidden');
         document.getElementById('editCpmkModal').classList.remove('flex');
+    }
+
+    function toggleMk(mkId) {
+        const body = document.getElementById(`mk-body-${mkId}`);
+        const chevron = document.getElementById(`chevron-${mkId}`);
+        if (!body) return;
+        const isHidden = body.classList.contains('hidden');
+        if (isHidden) {
+            body.classList.remove('hidden');
+            chevron?.classList.add('rotate-180');
+        } else {
+            body.classList.add('hidden');
+            chevron?.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleAllMks(expand) {
+        document.querySelectorAll('[id^="mk-body-"]').forEach(body => {
+            const mkId = body.id.replace('mk-body-', '');
+            const chevron = document.getElementById(`chevron-${mkId}`);
+            if (expand) {
+                body.classList.remove('hidden');
+                chevron?.classList.add('rotate-180');
+            } else {
+                body.classList.add('hidden');
+                chevron?.classList.remove('rotate-180');
+            }
+        });
+    }
+
+    function filterCpmkCards() {
+        const query = document.getElementById('cpmk-search')?.value.toLowerCase().trim() || '';
+        document.querySelectorAll('[data-mk-card]').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            card.style.display = text.includes(query) ? '' : 'none';
+        });
     }
 </script>
 @endsection
