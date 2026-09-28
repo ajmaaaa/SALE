@@ -28,18 +28,18 @@ class ForcedPasswordChangeTest extends TestCase
         $this->get(route('password.change'))->assertOk();
 
         $this->post(route('password.change.update'), [
-            'password' => 'too-short',
-            'password_confirmation' => 'too-short',
+            'password' => 'short7',
+            'password_confirmation' => 'short7',
         ])->assertSessionHasErrors('password');
 
         $this->post(route('password.change.update'), [
-            'password' => 'PermanentPass456!',
-            'password_confirmation' => 'PermanentPass456!',
+            'password' => 'Pass1234',
+            'password_confirmation' => 'Pass1234',
         ])->assertRedirect(route('mahasiswa.dashboard'));
 
         $user->refresh();
         $this->assertFalse($user->must_change_password);
-        $this->assertTrue(Hash::check('PermanentPass456!', $user->password));
+        $this->assertTrue(Hash::check('Pass1234', $user->password));
         $this->get(route('mahasiswa.nilai'))->assertOk();
     }
 
@@ -53,5 +53,39 @@ class ForcedPasswordChangeTest extends TestCase
 
         $this->actingAs($user)->post(route('logout'))->assertRedirect(route('login'));
         $this->assertGuest();
+    }
+
+    public function test_user_with_temporary_password_can_open_login_and_replace_the_account(): void
+    {
+        $role = Role::create(['name' => Role::MAHASISWA, 'label' => 'Mahasiswa']);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'must_change_password' => true,
+        ]);
+
+        $this->actingAs($user)->get(route('login'))->assertOk();
+
+        $this->post(route('login.post'), [
+            'login_id' => 'budi@example.test',
+            'password' => 'password',
+        ])->assertRedirect(route('dosen.dashboard'));
+
+        $this->assertSame('dosen', session('auth_user.role'));
+        $this->assertGuest();
+    }
+
+    public function test_password_change_page_uses_sale_layout_and_eight_character_rule(): void
+    {
+        $role = Role::create(['name' => Role::MAHASISWA, 'label' => 'Mahasiswa']);
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'must_change_password' => true,
+        ]);
+
+        $this->actingAs($user)->get(route('password.change'))
+            ->assertOk()
+            ->assertSee('Smart Academic Learning Ecosystem')
+            ->assertSee('minlength="8"', false)
+            ->assertDontSee('Minimal 12 karakter');
     }
 }

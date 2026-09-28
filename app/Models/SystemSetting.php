@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class SystemSetting extends Model
+{
+    public $incrementing = false;
+
+    protected $primaryKey = 'key';
+
+    protected $keyType = 'string';
+
+    protected $fillable = ['key', 'value'];
+
+    public static function valueFor(string $key, ?string $default = null): ?string
+    {
+        return static::query()->whereKey($key)->value('value') ?? $default;
+    }
+}

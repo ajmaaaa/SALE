@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
+use App\Models\Semester;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\ObeCalculationService;
@@ -13,6 +14,7 @@ use App\Support\AdminPreview;
 use App\Support\LearningPreview as Learning;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class AcademicController extends Controller
 {
@@ -41,7 +43,7 @@ class AcademicController extends Controller
         return back()->with('notice', 'Penilaian disimpan dan masuk ke komponen course terkait.');
     }
 
-    public function student()
+    public function student(Request $request)
     {
         $user = auth()->user();
         if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
@@ -51,23 +53,224 @@ class AcademicController extends Controller
                 ->first();
         }
 
+        $allSemesters = Schema::hasTable('semesters')
+            ? Semester::orderByDesc('code')->get()
+            : collect();
+        $activeSemester = $allSemesters->firstWhere('is_active', true) ?? $allSemesters->first();
+
+        $selectedSemesterParam = $request->query('semester');
+        $selectedSemester = null;
+        if ($selectedSemesterParam && $allSemesters->isNotEmpty()) {
+            $selectedSemester = $allSemesters->first(function ($s) use ($selectedSemesterParam) {
+                return (string) $s->id === (string) $selectedSemesterParam
+                    || $s->code === $selectedSemesterParam
+                    || Str::slug($s->name) === Str::slug($selectedSemesterParam);
+            });
+        }
+        $selectedSemester ??= $activeSemester;
+
         $courses = [];
+        $totalCredits = 0;
+        $totalWeightedScore = 0;
+        $gradedCredits = 0;
+
         if ($user && Schema::hasTable('class_sections')) {
-            $sections = $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen', 'semester'])->get();
+            $sectionsQuery = $user->classSectionsEnrolled()->with([
+                'mataKuliah',
+                'dosen',
+                'semester',
+                'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])->orderBy('id'),
+            ]);
+
+            if ($selectedSemester) {
+                $sectionsQuery->where('semester_id', $selectedSemester->id);
+            }
+
+            $sections = $sectionsQuery->get();
+
+            // Jika kosong di semester terpilih dan pengguna belum memilih filter eksplisit, cari semester yang ada kelasnya
+            if ($sections->isEmpty() && ! $request->has('semester') && $allSemesters->isNotEmpty()) {
+                $enrolledSemId = $user->classSectionsEnrolled()->value('semester_id');
+                if ($enrolledSemId && $enrolledSemId !== $selectedSemester?->id) {
+                    $selectedSemester = $allSemesters->firstWhere('id', $enrolledSemId) ?? $selectedSemester;
+                    $sections = $user->classSectionsEnrolled()
+                        ->where('semester_id', $selectedSemester->id)
+                        ->with([
+                            'mataKuliah',
+                            'dosen',
+                            'semester',
+                            'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])->orderBy('id'),
+                        ])->get();
+                }
+            }
+
             foreach ($sections as $sec) {
+                $sks = (int) ($sec->mataKuliah->sks ?? 3);
+                $totalCredits += $sks;
+
+                $final = $this->grades->finalScore($sec, $user->id, false);
+                $finalScore = $final['score'];
+
+                $letter = '—';
+                $point = 0.0;
+                if ($finalScore !== null) {
+                    $letter = match (true) {
+                        $finalScore >= 85 => 'A',
+                        $finalScore >= 80 => 'A-',
+                        $finalScore >= 75 => 'B+',
+                        $finalScore >= 70 => 'B',
+                        $finalScore >= 65 => 'B-',
+                        $finalScore >= 60 => 'C+',
+                        $finalScore >= 55 => 'C',
+                        $finalScore >= 40 => 'D',
+                        default => 'E',
+                    };
+                    $point = match ($letter) {
+                        'A' => 4.0,
+                        'A-' => 3.7,
+                        'B+' => 3.3,
+                        'B' => 3.0,
+                        'B-' => 2.7,
+                        'C+' => 2.3,
+                        'C' => 2.0,
+                        'D' => 1.0,
+                        default => 0.0,
+                    };
+                    $totalWeightedScore += $point * $sks;
+                    $gradedCredits += $sks;
+                }
+
+                $components = [];
+                foreach ($sec->assessments as $asmt) {
+                    $score = $this->grades->assessmentScore($asmt->id, $user->id);
+                    $components[] = [
+                        'id' => $asmt->id,
+                        'name' => $asmt->name,
+                        'type' => $asmt->type,
+                        'weight' => (float) $asmt->final_weight,
+                        'score' => $score,
+                    ];
+                }
+
                 $courses[$sec->id] = [
                     'id' => $sec->id,
                     'code' => $sec->display_code,
                     'title' => $sec->mataKuliah->name,
                     'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
-                    'sks' => $sec->mataKuliah->sks ?? 3,
+                    'sks' => $sks,
+                    'final_score' => $finalScore,
+                    'letter' => $letter,
+                    'grade_point' => $point,
+                    'components' => $components,
                 ];
             }
-        } elseif (! $user) {
-            $courses = Learning::courses();
         }
 
-        return view('learning.grades', ['courses' => $courses]);
+        // Fallback untuk unauthenticated demo / testing
+        if (empty($courses) && (! $user || (config('app.demo_mode') && app()->environment(['local', 'testing'])))) {
+            $demoCourses = Learning::courses();
+            $studentId = session('auth_user.id') ?? 1;
+            foreach ($demoCourses as $c) {
+                $res = \App\Support\AcademicPreview::result($c['id'], $studentId);
+                $cfg = \App\Support\AcademicPreview::config($c['id']);
+                $sks = 3;
+                $totalCredits += $sks;
+                $finalScore = $res['average'] ?? null;
+                $letter = '—';
+                $point = 0.0;
+                if ($finalScore !== null) {
+                    $letter = match (true) {
+                        $finalScore >= 85 => 'A',
+                        $finalScore >= 80 => 'A-',
+                        $finalScore >= 75 => 'B+',
+                        $finalScore >= 70 => 'B',
+                        $finalScore >= 65 => 'B-',
+                        $finalScore >= 60 => 'C+',
+                        $finalScore >= 55 => 'C',
+                        $finalScore >= 40 => 'D',
+                        default => 'E',
+                    };
+                    $point = match ($letter) {
+                        'A' => 4.0, 'A-' => 3.7, 'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7,
+                        'C+' => 2.3, 'C' => 2.0, 'D' => 1.0, default => 0.0
+                    };
+                    $totalWeightedScore += $point * $sks;
+                    $gradedCredits += $sks;
+                }
+                $components = [];
+                foreach ($cfg['components'] ?? [] as $comp) {
+                    $components[] = [
+                        'id' => 0,
+                        'name' => $comp['name'],
+                        'type' => 'tugas',
+                        'weight' => (float) $comp['weight'],
+                        'score' => $res['scores'][$comp['code']] ?? null,
+                    ];
+                }
+                $courses[$c['id']] = [
+                    'id' => $c['id'],
+                    'code' => $c['code'] ?? 'MKB-'.$c['id'],
+                    'title' => $c['title'],
+                    'lecturer' => $c['lecturer'] ?? 'Dosen Pengampu',
+                    'sks' => $sks,
+                    'final_score' => $finalScore,
+                    'letter' => $letter,
+                    'grade_point' => $point,
+                    'components' => $components,
+                ];
+            }
+        }
+
+        $ips = $gradedCredits > 0 ? round($totalWeightedScore / $gradedCredits, 2) : 0.00;
+
+        // Hitung IPK kumulatif
+        $ipk = $ips;
+        if ($user && Schema::hasTable('class_sections')) {
+            $allEnrolled = $user->classSectionsEnrolled()->with(['mataKuliah', 'assessments'])->get();
+            $cumWeighted = 0;
+            $cumCredits = 0;
+            foreach ($allEnrolled as $sec) {
+                $secFinal = $this->grades->finalScore($sec, $user->id, false);
+                if ($secFinal['score'] !== null) {
+                    $secScore = $secFinal['score'];
+                    $pt = match (true) {
+                        $secScore >= 85 => 4.0,
+                        $secScore >= 80 => 3.7,
+                        $secScore >= 75 => 3.3,
+                        $secScore >= 70 => 3.0,
+                        $secScore >= 65 => 2.7,
+                        $secScore >= 60 => 2.3,
+                        $secScore >= 55 => 2.0,
+                        $secScore >= 40 => 1.0,
+                        default => 0.0,
+                    };
+                    $secSks = (int) ($sec->mataKuliah->sks ?? 3);
+                    $cumWeighted += $pt * $secSks;
+                    $cumCredits += $secSks;
+                }
+            }
+            $ipk = $cumCredits > 0 ? round($cumWeighted / $cumCredits, 2) : $ips;
+        }
+
+        $semesterOptions = [];
+        foreach ($allSemesters as $s) {
+            $semesterOptions[$s->code] = [
+                'id' => $s->id,
+                'label' => $s->name.($s->is_active ? ' (Aktif)' : ''),
+                'code' => $s->code,
+                'is_active' => $s->is_active,
+            ];
+        }
+
+        return view('learning.grades', [
+            'courses' => $courses,
+            'semesters' => $allSemesters,
+            'selectedSemester' => $selectedSemester,
+            'semesterOptions' => $semesterOptions,
+            'totalCredits' => $totalCredits,
+            'ips' => $ips,
+            'ipk' => $ipk,
+        ]);
     }
 
     private function authorizeOwnership(int $course, int $item = 0): void

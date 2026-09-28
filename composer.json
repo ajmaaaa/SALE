@@ -57,7 +57,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others-on-fail -c \"#93c5fd,#c4b5fd,#fdba74,#fca5a5\" \"php artisan serve --port=8080 --no-reload\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" \"php artisan reverb:start --host=0.0.0.0 --port=8081\" --names=server,queue,vite,reverb"
+            "npx concurrently --kill-others-on-fail -c \"#93c5fd,#c4b5fd,#fdba74,#fca5a5\" \"php artisan serve --host=0.0.0.0 --port=8080 --no-reload\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" \"php artisan reverb:start --host=0.0.0.0 --port=8081\" --names=server,queue,vite,reverb"
         ]
     },
     "extra": {

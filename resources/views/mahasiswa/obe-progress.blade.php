@@ -21,6 +21,20 @@
         </div>
     </div>
 
+    {{-- Tab Navigasi: Transkrip Nilai & Capaian Pembelajaran OBE --}}
+    <div class="bg-[#f4f5f7] pt-2 pb-1">
+        <nav class="flex border-b border-line/60 gap-6" aria-label="Tab nilai dan capaian">
+            <a href="{{ route('mahasiswa.nilai') }}" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
+                <span>Transkrip Nilai (KHS)</span>
+            </a>
+            <a href="{{ route('mahasiswa.obe.progress') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
+                <span>Capaian Pembelajaran OBE</span>
+                <span class="rounded-full bg-brand-soft px-2 py-0.5 text-xs text-brand font-bold">{{ $courseProgress->count() }}</span>
+            </a>
+        </nav>
+        <div class="h-2 -mt-1 bg-[#f4f5f7] shadow-[0_8px_16px_-2px_rgba(29,39,48,0.10)] pointer-events-none" aria-hidden="true"></div>
+    </div>
+
     @if($courseProgress->isEmpty())
         <div class="surface p-12 text-center">
             <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-canvas text-muted">
@@ -47,10 +61,10 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="rounded bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">{{ $sec->mataKuliah->code }}</span>
-                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} - Semester {{ $sec->semester->name ?? '—' }}</span>
+                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} - Semester {{ $sec->semester->name ?? '' }}</span>
                             </div>
                             <h3 class="mt-1 text-base font-bold text-ink">{{ $sec->mataKuliah->name }}</h3>
-                            <p class="text-xs text-muted">Dosen Pengampu: {{ $sec->dosen->name ?? '—' }}</p>
+                            <p class="text-xs text-muted">Dosen Pengampu: {{ $sec->dosen->name ?? '' }}</p>
                         </div>
                         <div class="flex items-center gap-4">
                             <div class="text-right">
@@ -65,7 +79,7 @@
                             <div class="rounded-xl border border-line bg-white px-4 py-2 text-right">
                                 <p class="text-[10px] uppercase font-semibold text-muted">Nilai Akhir</p>
                                 <p class="text-lg font-bold {{ $finalScore !== null && $finalScore >= 65 ? 'text-brand' : 'text-ink' }}">
-                                    {{ $finalScore !== null ? number_format($finalScore, 1) : '—' }}
+                                    {{ $finalScore !== null ? number_format($finalScore, 1) : '' }}
                                 </p>
                             </div>
                         </div>
@@ -102,18 +116,18 @@
                                                     <td class="px-4 py-3 text-center text-muted font-medium">{{ number_format($cpmk->threshold, 1) }}</td>
                                                     <td class="px-4 py-3 text-center font-bold">
                                                         @if($score === null)
-                                                            <span class="text-muted">—</span>
+                                                            <span class="text-muted"></span>
                                                         @else
                                                             <span class="{{ $achieved ? 'text-brand' : 'text-amber-700' }}">{{ number_format($score, 1) }}</span>
                                                         @endif
                                                     </td>
                                                     <td class="px-4 py-3 text-center">
                                                         @if($score === null)
-                                                            <span class="status bg-canvas text-muted">Belum Dinilai</span>
+                                                            <span class="text-xs font-medium text-muted">Belum Dinilai</span>
                                                         @elseif($achieved)
-                                                            <span class="status bg-brand-soft text-brand font-medium">Tercapai</span>
+                                                            <span class="text-xs font-semibold text-emerald-800">Tercapai</span>
                                                         @else
-                                                            <span class="status bg-amber-50 text-amber-700 font-medium">Belum Tercapai</span>
+                                                            <span class="text-xs font-semibold text-ink">Belum Tercapai</span>
                                                         @endif
                                                     </td>
                                                 </tr>
@@ -130,7 +144,7 @@
                             @if($cpls->isEmpty())
                                 <p class="text-xs text-muted italic">Mata kuliah ini belum dipetakan ke butir CPL.</p>
                             @else
-                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 w-full">
                                     @foreach($cpls as $cplItem)
                                         @php
                                             $cpl = $cplItem['cpl'];
@@ -143,16 +157,16 @@
                                                 @if($score === null)
                                                     <span class="text-[10px] text-muted">Belum lengkap</span>
                                                 @elseif($passed)
-                                                    <span class="rounded bg-brand-soft px-1.5 py-0.2 text-[10px] font-bold text-brand">Lulus</span>
+                                                    <span class="text-[11px] font-semibold text-emerald-800">Lulus</span>
                                                 @else
-                                                    <span class="rounded bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">Remedial</span>
+                                                    <span class="text-[11px] font-semibold text-amber-800">Remedial</span>
                                                 @endif
                                             </div>
                                             <p class="mt-1 text-[11px] text-muted line-clamp-2" title="{{ $cpl->description }}">{{ $cpl->description }}</p>
                                             <div class="mt-2 flex items-center justify-between border-t border-line/60 pt-2 text-xs">
                                                 <span class="text-muted">Skor CPL:</span>
                                                 <span class="font-bold {{ $passed ? 'text-brand' : 'text-ink' }}">
-                                                    {{ $score !== null ? number_format($score, 1) : '—' }}
+                                                    {{ $score !== null ? number_format($score, 1) : '' }}
                                                 </span>
                                             </div>
                                         </div>

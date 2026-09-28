@@ -14,12 +14,12 @@
                     @foreach([[37629, 823, 0], [36679, 95, 14], [36194, 240, 18], [34813, 1343, 25], [33997, 117, 46], [33822, 134, 50], [33290, 290, 55], [32757, 435, 60], [32348, 110, 72], [30734, 166, 89], [30126, 177, 98], [27722, 199, 112]] as [$input, $output, $secondsAgo])
                         @php($completedAt = now()->subSeconds($secondsAgo))
                         <tr>
-                            <td><span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true"></span><span class="font-medium">sale-ai-demo / answer</span><span class="sr-only">Respons selesai</span></span></td>
+                            <td><span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="font-medium">sale-ai-demo / answer</span><span class="sr-only">Respons selesai</span></span></td>
                             <td class="tabular-nums text-muted">{{ number_format($input, 0, ',', '.') }}</td>
                             <td class="font-semibold tabular-nums text-brand">{{ number_format($output, 0, ',', '.') }}</td>
                             <td class="tabular-nums text-muted">0</td>
-                            <td class="tabular-nums text-muted">—</td>
-                            <td class="tabular-nums text-muted">—</td>
+                            <td class="tabular-nums text-muted">0</td>
+                            <td class="tabular-nums text-muted">0</td>
                             <td class="whitespace-nowrap text-xs text-muted"><time datetime="{{ $completedAt->toIso8601String() }}" title="{{ $completedAt->format('d M Y H:i:s T') }}">{{ $completedAt->format('H:i:s') }}</time></td>
                         </tr>
                     @endforeach
@@ -27,11 +27,11 @@
                     @foreach($aiRequestRows as $call)
                         @php($completedAt = \Illuminate\Support\Carbon::parse($call->created_at))
                         <tr>
-                            <td><span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="h-1.5 w-1.5 rounded-full {{ $call->status === 'completed' ? 'bg-brand' : 'bg-amber-500' }}" aria-hidden="true"></span><span class="font-medium">{{ $call->model }} / {{ $call->stage }}</span></span></td>
+                            <td><span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="font-medium">{{ $call->model }} / {{ $call->stage }}</span></span></td>
                             <td class="tabular-nums text-muted">{{ number_format($call->input_tokens, 0, ',', '.') }}</td>
                             <td class="font-semibold tabular-nums text-brand">{{ number_format($call->output_tokens, 0, ',', '.') }}</td>
                             <td class="tabular-nums text-muted">{{ number_format($call->thinking_tokens, 0, ',', '.') }}</td>
-                            <td class="tabular-nums text-muted">{{ $call->estimated_cost_usd === null ? '—' : '$'.number_format((float) $call->estimated_cost_usd, 6) }}</td>
+                            <td class="tabular-nums text-muted">{{ $call->estimated_cost_usd === null ? '$0.000000' : '$'.number_format((float) $call->estimated_cost_usd, 6) }}</td>
                             <td class="tabular-nums text-muted">{{ number_format($call->latency_ms, 0, ',', '.') }} ms</td>
                             <td class="whitespace-nowrap text-xs text-muted"><time datetime="{{ $completedAt->toIso8601String() }}" title="{{ $completedAt->format('d M Y H:i:s T') }}">{{ $completedAt->format('d/m H:i:s') }}</time></td>
                         </tr>

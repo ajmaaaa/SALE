@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
-use App\Models\CourseDiscussion;
+use App\Models\Message;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
@@ -70,14 +70,13 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
         $this->actingAs($dosen)
             ->postJson(route('dosen.course.discuss.class', $section), ['message' => 'Pesan forum tersimpan permanen.'])
             ->assertOk()
-            ->assertJsonPath('message.message', 'Pesan forum tersimpan permanen.');
+            ->assertJsonPath('message.content', 'Pesan forum tersimpan permanen.');
 
-        $this->assertDatabaseHas('course_discussions', [
-            'class_section_id' => $section->id,
+        $this->assertDatabaseHas('messages', [
             'user_id' => $dosen->id,
-            'message' => 'Pesan forum tersimpan permanen.',
+            'content' => 'Pesan forum tersimpan permanen.',
         ]);
-        $this->assertSame(1, CourseDiscussion::whereBelongsTo($section)->count());
+        $this->assertSame(1, Message::whereHas('room', fn ($query) => $query->where('class_section_id', $section->id))->count());
 
         $this->actingAs($student)
             ->get(route('mahasiswa.course.show', $section))
@@ -165,7 +164,7 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
         ])->assertRedirect(route('dosen.dashboard'));
 
         $this->assertAuthenticatedAs($dosen);
-        $this->assertSame('dosen', session('auth_user.role'));
+        $this->assertTrue($dosen->fresh()->hasRole(Role::DOSEN));
 
         $this->post(route('logout'));
         $this->post(route('login.post'), [

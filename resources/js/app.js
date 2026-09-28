@@ -450,9 +450,13 @@ updateCounter();
             startRename(active);
         }
 
-        function removeFile(index) {
+        async function removeFile(index) {
             if (files.length <= 1) return setStatus('Berkas terakhir tidak dapat dihapus.', true);
-            if (!window.confirm(`Hapus berkas "${files[index].name}"?`)) return;
+            if (!await window.saleConfirm({
+                title: 'Hapus berkas',
+                message: `Berkas "${files[index].name}" akan dihapus dari draf.`,
+                confirmLabel: 'Hapus',
+            })) return;
             const wasActive = index === active;
             flush();
             files.splice(index, 1);
@@ -483,8 +487,12 @@ updateCounter();
             context = null;
             document.querySelector('[data-code-context]').hidden = true;
         });
-        document.querySelector('[data-code-reset]')?.addEventListener('click', () => {
-            if (!window.confirm('Kembalikan semua berkas ke template awal? Draf saat ini akan diganti.')) return;
+        document.querySelector('[data-code-reset]')?.addEventListener('click', async () => {
+            if (!await window.saleConfirm({
+                title: 'Reset draf kode',
+                message: 'Semua berkas akan dikembalikan ke template awal dan isi draf saat ini akan diganti.',
+                confirmLabel: 'Reset draf',
+            })) return;
             files = defaultFiles.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
             load(0);
         });
@@ -1110,6 +1118,43 @@ if (coverInput) {
         remove.hidden = false;
     });
     remove.addEventListener('click', () => { clear(); coverInput.value = ''; coverInput.setCustomValidity(''); });
+}
+
+// Video course sengaja tidak dibuatkan preview di browser. Membaca atau
+// mendekode video besar sebelum submit membuat halaman terasa macet.
+const courseForm = document.querySelector('[data-course-form]');
+if (courseForm) {
+    const videoInput = courseForm.querySelector('[data-course-video-input]');
+    const videoStatus = courseForm.querySelector('[data-course-video-status]');
+    const submit = courseForm.querySelector('[data-course-submit]');
+    const submitLabel = courseForm.querySelector('[data-course-submit-label]');
+
+    videoInput?.addEventListener('change', () => {
+        const file = videoInput.files?.[0];
+        videoInput.setCustomValidity('');
+        if (!file) {
+            videoStatus?.classList.add('hidden');
+            return;
+        }
+
+        const allowed = ['video/mp4', 'video/webm'].includes(file.type);
+        const validSize = file.size <= 20 * 1024 * 1024;
+        if (!allowed || !validSize) {
+            videoInput.setCustomValidity('Gunakan video MP4 atau WebM maksimal 20 MB.');
+            videoInput.reportValidity();
+        }
+
+        if (videoStatus) {
+            videoStatus.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+            videoStatus.classList.remove('hidden');
+        }
+    });
+
+    courseForm.addEventListener('submit', () => {
+        if (!courseForm.checkValidity()) return;
+        if (submit) submit.disabled = true;
+        if (submitLabel) submitLabel.textContent = videoInput?.files?.length ? 'Mengunggah video…' : 'Menyimpan course…';
+    });
 }
 function parseCategory(value) {
     const normalized = (value || '').toLowerCase().trim();
@@ -2336,26 +2381,81 @@ if (builder) {
             }
         });
 
+        const imgVal = data.image || data.existing_image;
+        if (imgVal) {
+            const existingImgInput = row.querySelector('input[data-q-field="existing_image"]');
+            if (existingImgInput) existingImgInput.value = imgVal;
+            const previewBox = row.querySelector('[data-q-preview-box]');
+            const preview = row.querySelector('[data-q-preview]');
+            if (previewBox && preview) {
+                preview.src = (imgVal.startsWith('http') || imgVal.startsWith('/'))
+                    ? imgVal
+                    : `/preview/files/${imgVal}`;
+                previewBox.hidden = false;
+            }
+        }
+
         // Initialize choices
-        const rawOptions = data.options || '';
+        let rawOptions = data.options || '';
+        if (!rawOptions && Array.isArray(data.option_items)) {
+            rawOptions = data.option_items.map(opt => (typeof opt === 'string' ? opt : (opt.text || ''))).filter(Boolean).join('\n');
+        }
+
+        let correctVal = data.correct_answer;
+        if (!correctVal && data.answer_key && Array.isArray(data.answer_key.option_ids) && Array.isArray(data.option_items)) {
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const keyLetters = [];
+            data.option_items.forEach((opt, idx) => {
+                const optId = typeof opt === 'object' ? opt.id : null;
+                if (optId && data.answer_key.option_ids.includes(optId)) {
+                    keyLetters.push(letters[idx] || `${idx + 1}`);
+                }
+            });
+            if (keyLetters.length > 0) {
+                correctVal = keyLetters.join(', ');
+            }
+        }
+
         const qType = data.type || row.querySelector('[data-q-field="type"]').value;
         if (['pilihan', 'kompleks'].includes(qType)) {
             const choices = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
-            renderChoices(row, choices, data.correct_answer);
+            renderChoices(row, choices, correctVal);
         } else {
             renderChoices(row, []);
         }
 
         // Initialize matching pairs
         if (qType === 'mencocokkan') {
-            const lines = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
-            const pairs = lines.map(line => {
-                const parts = line.split('=');
-                return { left: (parts[0] || '').trim(), right: (parts.slice(1).join('=') || '').trim() };
-            });
+            let pairs = [];
+            if (rawOptions) {
+                const lines = rawOptions.split('\n').map(s => s.trim()).filter(Boolean);
+                pairs = lines.map(line => {
+                    const parts = line.split('=');
+                    return { left: (parts[0] || '').trim(), right: (parts.slice(1).join('=') || '').trim() };
+                });
+            } else if (Array.isArray(data.matching_items)) {
+                pairs = data.matching_items.map(item => ({
+                    left: item.prompt || '',
+                    right: item.answer || ''
+                }));
+            }
             renderPairs(row, pairs);
         } else {
             renderPairs(row, []);
+        }
+
+        // Initialize Benar / Salah
+        if (qType === 'benar_salah') {
+            let bVal = data.boolean_answer;
+            if (!bVal && data.answer_key && Array.isArray(data.answer_key.option_ids)) {
+                const chosenId = data.answer_key.option_ids[0];
+                if (chosenId && chosenId.endsWith('_true')) bVal = 'Benar';
+                if (chosenId && chosenId.endsWith('_false')) bVal = 'Salah';
+            }
+            if (bVal) {
+                const bInp = row.querySelector('[data-q-field="boolean_answer"]');
+                if (bInp) bInp.value = bVal;
+            }
         }
 
         rows.append(row);
@@ -2535,10 +2635,11 @@ if (builder) {
             const previewBox = row.querySelector('[data-q-preview-box]');
             const preview = row.querySelector('[data-q-preview]');
             const altInput = row.querySelector('[data-q-field="alt"]');
+            const existingImgInput = row.querySelector('input[data-q-field="existing_image"]');
             const file = event.target.files[0];
 
             if (preview && preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
-            if (previewBox) previewBox.hidden = !file;
+            if (previewBox) previewBox.hidden = !file && !(existingImgInput && existingImgInput.value);
             if (altInput && file) {
                 const prompt = row.querySelector('[data-q-field="prompt"]')?.value.trim();
                 altInput.value = (prompt ? `Gambar pendukung untuk ${prompt}` : 'Gambar pendukung soal').slice(0, 300);
@@ -2547,6 +2648,7 @@ if (builder) {
             if (file && preview) {
                 preview.src = URL.createObjectURL(file);
                 preview.dataset.url = preview.src;
+                if (existingImgInput) existingImgInput.value = '';
             }
         }
     });
@@ -2651,14 +2753,14 @@ if (builder) {
             const previewBox = row.querySelector('[data-q-preview-box]');
             const preview = row.querySelector('[data-q-preview]');
             const altInput = row.querySelector('[data-q-field="alt"]');
+            const existingImgInput = row.querySelector('input[data-q-field="existing_image"]');
 
             if (fileInput) fileInput.value = '';
             if (preview && preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
             if (preview) preview.removeAttribute('src');
             if (previewBox) previewBox.hidden = true;
-            if (altInput) {
-                altInput.value = '';
-            }
+            if (altInput) altInput.value = '';
+            if (existingImgInput) existingImgInput.value = '';
             return;
         }
 
@@ -2680,6 +2782,18 @@ if (builder) {
         });
         return question;
     });
+
+    // Pastikan textarea tersembunyi selalu mencerminkan editor visual tepat
+    // sebelum browser membangun payload form. Ini juga menangani autofill dan
+    // input yang berubah tanpa memicu event `input` pada beberapa browser.
+    builder.closest('form')?.addEventListener('submit', () => {
+        [...rows.children].forEach(row => {
+            const questionType = row.querySelector('[data-q-field="type"]')?.value;
+            if (['pilihan', 'kompleks'].includes(questionType)) syncChoices(row);
+            if (questionType === 'mencocokkan') syncPairs(row);
+        });
+        update();
+    }, true);
 
     const switchCategoryQuestions = newCategory => {
         if (newCategory === activeCategory) return;
@@ -2835,4 +2949,66 @@ if (addWorkDropdown) {
     if (linkInput && linkInput.value) {
         renderLinkChip(linkInput.value);
     }
+}
+// Shared SALE confirmation/notice dialog for standalone pages such as the
+// coding workbench. Pages using the main layout provide the same API.
+if (!window.saleConfirm || !window.saleNotice) {
+    let saleDialogResolver = null;
+
+    const saleDialog = () => {
+        let dialog = document.getElementById('sale-dialog');
+        if (dialog) return dialog;
+
+        dialog = document.createElement('dialog');
+        dialog.id = 'sale-dialog';
+        dialog.className = 'm-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-950/40';
+        dialog.innerHTML = `
+            <div class="p-5 sm:p-6">
+                <div class="flex items-start gap-4">
+                    <span data-sale-dialog-icon class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M9 6V4h6v2M8 10v7M12 10v7M16 10v7M5 6l1 15h12l1-15"/></svg>
+                    </span>
+                    <div class="min-w-0 flex-1"><h2 data-sale-dialog-title class="text-base font-bold text-ink"></h2><p data-sale-dialog-message class="mt-1.5 whitespace-pre-line text-sm leading-6 text-muted"></p></div>
+                </div>
+                <div class="mt-6 flex justify-end gap-2"><button type="button" data-sale-dialog-cancel class="button-secondary px-4 py-2 text-sm">Batal</button><button type="button" data-sale-dialog-confirm class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-800">Ya, lanjutkan</button></div>
+            </div>`;
+        document.body.appendChild(dialog);
+
+        const complete = value => {
+            if (!saleDialogResolver) return;
+            const resolve = saleDialogResolver;
+            saleDialogResolver = null;
+            dialog.close();
+            resolve(value);
+        };
+        dialog.querySelector('[data-sale-dialog-cancel]').addEventListener('click', () => complete(false));
+        dialog.querySelector('[data-sale-dialog-confirm]').addEventListener('click', () => complete(true));
+        dialog.addEventListener('cancel', event => { event.preventDefault(); complete(false); });
+        dialog.addEventListener('click', event => { if (event.target === dialog) complete(false); });
+        return dialog;
+    };
+
+    const openSaleDialog = (options, notice = false) => {
+        const config = typeof options === 'string' ? { message: options } : options;
+        const dialog = saleDialog();
+        const cancel = dialog.querySelector('[data-sale-dialog-cancel]');
+        const confirm = dialog.querySelector('[data-sale-dialog-confirm]');
+        const icon = dialog.querySelector('[data-sale-dialog-icon]');
+        dialog.querySelector('[data-sale-dialog-title]').textContent = config.title || (notice ? 'Informasi' : 'Konfirmasi tindakan');
+        dialog.querySelector('[data-sale-dialog-message]').textContent = config.message || '';
+        cancel.hidden = notice;
+        confirm.textContent = config.confirmLabel || (notice ? 'Mengerti' : 'Ya, lanjutkan');
+        icon.className = notice
+            ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e8f1f8] text-[#102f50]'
+            : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700';
+        confirm.className = notice
+            ? 'button-primary px-4 py-2 text-sm font-semibold'
+            : 'rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-800';
+        dialog.showModal();
+        (notice ? confirm : cancel).focus();
+        return new Promise(resolve => { saleDialogResolver = resolve; });
+    };
+
+    window.saleConfirm = options => openSaleDialog(options, false);
+    window.saleNotice = options => openSaleDialog(options, true);
 }

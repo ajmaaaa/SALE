@@ -59,7 +59,7 @@ class ObeExcelExportService
         $cpmks = Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->orderBy('code')->get();
         $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
         $students = $section->students()->orderBy('name')->get();
-        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
 
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0);
@@ -604,7 +604,7 @@ class ObeExcelExportService
     public function exportNilaiAssessmentExcel(ClassSection $section): StreamedResponse
     {
         $section->loadMissing(['mataKuliah.prodi', 'semester', 'dosen']);
-        $assessments = $section->assessments()->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->orderBy('code')->get();
         $students = $section->students()->orderBy('name')->get();
 
         $spreadsheet = new Spreadsheet();
@@ -780,7 +780,7 @@ class ObeExcelExportService
         $sheet->setTitle(substr($cpmk->code, 0, 31));
         $sheet->setShowGridlines(true);
 
-        $measuringAssessments = $section->assessments()
+        $measuringAssessments = $section->gradableAssessments()
             ->whereHas('cpmks', fn ($q) => $q->where('cpmks.id', $cpmk->id))
             ->with('cpmks')
             ->orderBy('code')

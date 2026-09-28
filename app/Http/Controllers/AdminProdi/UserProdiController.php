@@ -21,21 +21,22 @@ class UserProdiController extends AdminProdiController
         $prodis = $this->allowedProdis();
         $activeProdi = $this->resolveActiveProdi($request);
 
-        $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
-        $mahasiswaRoleId = Role::where('name', Role::MAHASISWA)->value('id');
-
         $tab = $request->query('tab', 'dosen');
 
         $dosens = User::query()
-            ->where('role_id', $dosenRoleId)
-            ->when($activeProdi, fn ($q) => $q->where('prodi_id', $activeProdi->id))
+            ->withRoleName(Role::DOSEN)
+            ->when($activeProdi, fn ($q) => $q->where(function ($sub) use ($activeProdi) {
+                $sub->where('prodi_id', $activeProdi->id)->orWhere('managing_prodi_id', $activeProdi->id);
+            }))
             ->with('prodi')
             ->orderBy('name')
             ->get();
 
         $mahasiswas = User::query()
-            ->where('role_id', $mahasiswaRoleId)
-            ->when($activeProdi, fn ($q) => $q->where('prodi_id', $activeProdi->id))
+            ->withRoleName(Role::MAHASISWA)
+            ->when($activeProdi, fn ($q) => $q->where(function ($sub) use ($activeProdi) {
+                $sub->where('prodi_id', $activeProdi->id);
+            }))
             ->with('prodi')
             ->orderBy('nim_nidn')
             ->paginate(25)
@@ -67,7 +68,7 @@ class UserProdiController extends AdminProdiController
             'email' => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
             'nim_nidn' => ['required', 'string', 'max:30', 'unique:users,nim_nidn'],
             'prodi_id' => ['required', 'exists:prodis,id'],
-            'password' => ['nullable', 'string', 'min:12', 'max:255'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ], [
             'nim_nidn.required' => "{$idLabel} wajib diisi.",
             'nim_nidn.unique' => "{$idLabel} sudah terdaftar.",
@@ -116,7 +117,7 @@ class UserProdiController extends AdminProdiController
             'email' => ['required', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
             'nim_nidn' => ['required', 'string', 'max:30', Rule::unique('users', 'nim_nidn')->ignore($user->id)],
             'prodi_id' => ['required', 'exists:prodis,id'],
-            'password' => ['nullable', 'string', 'min:12', 'max:255'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ], [
             'nim_nidn.unique' => "{$idLabel} sudah terdaftar.",
             'email.unique' => 'Email sudah terdaftar.',
@@ -252,9 +253,9 @@ class UserProdiController extends AdminProdiController
                     continue;
                 }
 
-                if ($pass !== null && strlen($pass) < 12) {
+                if ($pass !== null && strlen($pass) < 8) {
                     $skippedCount++;
-                    $errors[] = "Baris {$rowNum}: Password harus minimal 12 karakter jika diisi.";
+                    $errors[] = "Baris {$rowNum}: Password harus minimal 8 karakter jika diisi.";
 
                     continue;
                 }

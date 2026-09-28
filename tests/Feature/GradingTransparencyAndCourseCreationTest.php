@@ -127,7 +127,7 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $response->assertSee('Tenggat');
     }
 
-    public function test_legacy_grading_route_rejects_unassigned_lecturer_and_unenrolled_student(): void
+    public function test_official_grading_route_rejects_unassigned_lecturer(): void
     {
         $otherDosen = User::create([
             'name' => 'Dosen Kelas Lain',
@@ -143,19 +143,8 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
             'role_id' => Role::where('name', Role::MAHASISWA)->value('id'),
             'nim_nidn' => '231011409999',
         ]);
-        $url = route('dosen.item.penilaian.tugas.save', [
-            $this->section->id,
-            $this->ungradedTask->id,
-            $this->student->id,
-        ]);
-
-        $this->actingAs($otherDosen)->post($url, ['skor' => 90])->assertForbidden();
-
-        $this->actingAs($this->dosen)->post(route('dosen.item.penilaian.tugas.save', [
-            $this->section->id,
-            $this->ungradedTask->id,
-            $unenrolledStudent->id,
-        ]), ['skor' => 90])->assertForbidden();
+        $url = route('dosen.penilaian.asesmen.nilai', [$this->section, $this->ungradedTask]);
+        $this->actingAs($otherDosen)->get($url)->assertForbidden();
 
         $this->assertDatabaseMissing('student_assessment_scores', [
             'assessment_id' => $this->ungradedTask->id,
@@ -190,7 +179,7 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('89/100');
-        $response->assertDontSee('Sudah dinilai');
+        $response->assertSee('Sudah dinilai');
         $response->assertDontSee('Catatan Dosen');
         $response->assertDontSee('Implementasi traversal sudah sangat baik dan efisien.');
     }
@@ -341,12 +330,11 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $response->assertSee('Pengampu: Dr. Budi Santoso, M.Kom.');
     }
 
-    public function test_pdf_and_image_preview_are_rendered_on_material_and_task_views(): void
+    public function test_non_database_preview_item_is_not_exposed(): void
     {
-        $response = $this->actingAs($this->student)->get(route('mahasiswa.course.item', [1, 2]));
-
-        $response->assertOk();
-        $response->assertSee('Modul-01-Pengantar-Struktur-Data.pdf');
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.course.item', [$this->section->id, 999999]))
+            ->assertNotFound();
     }
 
     public function test_database_material_and_late_task_render_generated_pdf_and_image_files(): void
@@ -427,7 +415,32 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $this->assertContains('all', session('learning.read_notifications', []));
     }
 
-    public function test_submitted_assignment_cannot_unsubmit_and_shows_diserahkan_state(): void
+    public function test_submitted_assignment_cannot_unsubmit_when_deadline_passed_and_late_disallowed(): void
+    {
+        $this->ungradedTask->update([
+            'due_at' => now()->subDay(),
+            'allow_late' => false,
+        ]);
+        $this->actingAs($this->student);
+        Submission::create([
+            'assessment_id' => $this->ungradedTask->id,
+            'user_id' => $this->student->id,
+            'mahasiswa_id' => $this->student->id,
+            'status' => 'submitted',
+            'submitted_at' => now()->subHours(2),
+        ]);
+
+        $page = $this->get(route('mahasiswa.course.item', [$this->section->id, $this->ungradedTask->id]));
+        $page->assertOk()
+            ->assertSee('Sudah Diserahkan')
+            ->assertDontSee('onclick="cancelSubmissionConfirm()"', false)
+            ->assertDontSee('id="cancel-submission-form"', false);
+
+        $cancel = $this->post(route('mahasiswa.course.submission.cancel', [$this->section->id, $this->ungradedTask->id]));
+        $cancel->assertSessionHas('notice');
+    }
+
+    public function test_submitted_assignment_can_unsubmit_when_allowed(): void
     {
         $this->actingAs($this->student);
         $this->post(route('mahasiswa.course.submit', [$this->section->id, $this->ungradedTask->id]), [
@@ -436,12 +449,14 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
 
         $page = $this->get(route('mahasiswa.course.item', [$this->section->id, $this->ungradedTask->id]));
         $page->assertOk()
-            ->assertSee('Sudah Diserahkan')
-            ->assertDontSee('Batalkan Penyerahan')
-            ->assertDontSee('+ Tambah atau buat');
+            ->assertSee('Batalkan Serahkan');
 
         $cancel = $this->post(route('mahasiswa.course.submission.cancel', [$this->section->id, $this->ungradedTask->id]));
-        $cancel->assertSessionHasErrors('submission');
+        $cancel->assertRedirect();
+        $this->assertDatabaseMissing('submissions', [
+            'assessment_id' => $this->ungradedTask->id,
+            'mahasiswa_id' => $this->student->id,
+        ]);
     }
 
     public function test_submission_attachment_is_private_from_other_students_in_same_class(): void
@@ -1113,6 +1128,187 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
             ->assertSee('data-question-empty-state', false)
             ->assertSee('data-total-points-badge', false)
             ->assertDontSee('bg-slate-50 text-slate-700 border-line/80" data-total-points-badge', false);
+    }
+
+    public function test_question_builder_submits_only_one_options_field_per_question(): void
+    {
+        $this->actingAs($this->dosen);
+        $html = $this->get(route('dosen.item.create', $this->section->id))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'data-q-field="options"'));
+    }
+
+    public function test_five_question_quiz_accepts_visible_choice_values_and_normalizes_line_endings(): void
+    {
+        $response = $this->actingAs($this->dosen)->post(route('dosen.item.store', $this->section->id), [
+            'type' => 'kuis',
+            'title' => 'Kuis Lima Soal',
+            'module' => 'Kuis Lima Soal',
+            'body' => 'Jawab seluruh soal berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['text'],
+            'duration_mode' => 'disabled',
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => 'Soal pilihan pertama.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'options' => "Pilihan A\nPilihan B\nPilihan B",
+                    'correct_answer' => 'A',
+                ],
+                [
+                    'type' => 'pilihan',
+                    'prompt' => 'Soal pilihan kedua.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'options' => "Jawaban satu\r\nJawaban dua\r\nJawaban tiga",
+                    'correct_answer' => 'B',
+                ],
+                [
+                    'type' => 'uraian',
+                    'prompt' => 'Jelaskan konsep struktur data.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'essay_guide' => 'Jawaban menjelaskan konsep dengan benar.',
+                ],
+                [
+                    'type' => 'benar_salah',
+                    'prompt' => 'Queue menggunakan prinsip FIFO.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'boolean_answer' => 'Benar',
+                ],
+                [
+                    'type' => 'pilihan',
+                    'prompt' => 'Soal pilihan kelima.',
+                    'points' => 20,
+                    'cpmk' => 'CPMK-01',
+                    'options' => "Opsi pertama\nOpsi kedua",
+                    'correct_answer' => 'B',
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $quiz = Assessment::where('name', 'Kuis Lima Soal')->firstOrFail();
+        $questions = $quiz->learning_payload['questions'];
+
+        $this->assertCount(5, $questions);
+        $this->assertSame(['Pilihan A', 'Pilihan B'], array_column($questions[0]['option_items'], 'text'));
+        $this->assertSame(['Jawaban satu', 'Jawaban dua', 'Jawaban tiga'], array_column($questions[1]['option_items'], 'text'));
+        $this->assertSame(100, array_sum(array_column($questions, 'points')));
+    }
+
+    public function test_database_coding_content_uses_course_aware_route_without_404(): void
+    {
+        $coding = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'CODING-01',
+            'name' => 'Praktikum Struktur Data',
+            'type' => 'coding',
+            'final_weight' => 10,
+            'status' => 'published',
+            'learning_payload' => [
+                'body' => 'Implementasikan struktur data sesuai instruksi.',
+                'question_type' => 'coding',
+                'language' => 'python',
+            ],
+        ]);
+
+        $url = route('course.assignment.code', [$this->section->id, $coding->id]);
+
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.course.show', $this->section->id))
+            ->assertOk()
+            ->assertSee($url, false);
+
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('Praktikum Struktur Data');
+    }
+
+    public function test_database_identity_cannot_be_overwritten_by_preview_ids_in_payload(): void
+    {
+        $material = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'MATERI-ID',
+            'name' => 'Video Materi Internal',
+            'type' => 'materi',
+            'final_weight' => 0,
+            'status' => 'published',
+            'learning_payload' => [
+                'id' => 9999,
+                'course' => 9999,
+                'body' => 'Materi dengan identitas payload lama.',
+                'link' => 'https://youtu.be/O3wDmnDU4E8?si=example',
+            ],
+        ]);
+
+        $itemUrl = route('mahasiswa.course.item', [$this->section->id, $material->id]);
+
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.course.show', $this->section->id))
+            ->assertOk()
+            ->assertSee($itemUrl, false)
+            ->assertDontSee('/item/9999', false);
+
+        $this->get($itemUrl)
+            ->assertOk()
+            ->assertSee('youtube-nocookie.com/embed/O3wDmnDU4E8', false)
+            ->assertSee('origin=', false)
+            ->assertSee('widget_referrer=', false)
+            ->assertSee('referrerpolicy="origin"', false)
+            ->assertDontSee('href="https://youtu.be/O3wDmnDU4E8', false);
+    }
+
+    public function test_external_link_attachments_open_in_the_internal_previewer(): void
+    {
+        $material = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'MATERI-LINK',
+            'name' => 'Referensi Eksternal',
+            'type' => 'materi',
+            'final_weight' => 0,
+            'status' => 'published',
+            'learning_payload' => [
+                'body' => 'Baca referensi berikut.',
+                'link' => 'https://example.com/reference',
+            ],
+        ]);
+
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.course.item', [$this->section->id, $material->id]))
+            ->assertOk()
+            ->assertSee('Pratinjau Tautan')
+            ->assertSee('openAttachmentPreview(event', false)
+            ->assertDontSee('href="https://example.com/reference" target="_blank"', false);
+    }
+
+    public function test_unpublished_assessments_are_not_listed_for_students(): void
+    {
+        Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'DRAFT-HIDDEN',
+            'name' => 'Materi yang Belum Terbit',
+            'type' => 'materi',
+            'final_weight' => 0,
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.course.show', $this->section->id))
+            ->assertOk()
+            ->assertDontSee('Materi yang Belum Terbit');
+
+        $this->get(route('mahasiswa.assignment.index'))
+            ->assertOk()
+            ->assertDontSee('Materi yang Belum Terbit');
     }
 
     public function test_matching_question_builder_has_three_clean_formats_and_randomized_answers(): void

@@ -37,12 +37,17 @@ abstract class AdminProdiController extends Controller
         }
 
         abort_unless(
-            $user->hasRole(Role::ADMIN_PRODI) && $user->prodi_id,
+            $user->hasRole(Role::ADMIN_PRODI),
             403,
-            'Akun Admin Program Studi belum terhubung ke program studi.'
+            'Akses ditolak. Halaman ini khusus Admin Program Studi.'
         );
 
-        return (int) $user->prodi_id;
+        $managedProdiId = $user->managing_prodi_id ?? $user->prodi_id;
+        if (! $managedProdiId) {
+            return null;
+        }
+
+        return (int) $managedProdiId;
     }
 
     protected function assertGlobalAdmin(): void
@@ -98,8 +103,9 @@ abstract class AdminProdiController extends Controller
             'Pengguna tidak termasuk lingkup pengelolaan Admin Program Studi.'
         );
 
-        abort_unless($user->prodi_id, 403, 'Pengguna belum terhubung ke program studi.');
-        $this->assertProdiScope((int) $user->prodi_id);
+        $scopeProdiId = $user->prodi_id ?? $user->managing_prodi_id;
+        abort_unless($scopeProdiId, 404, 'Pengguna belum terhubung ke program studi pengelola.');
+        $this->assertProdiScope((int) $scopeProdiId);
     }
 
     /**

@@ -31,7 +31,7 @@ class PasswordChangeController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:12',
+                'min:8',
                 'confirmed',
                 // Password baru tidak boleh sama dengan password lama
                 function ($attribute, $value, $fail) use ($user) {
@@ -42,7 +42,7 @@ class PasswordChangeController extends Controller
             ],
         ], [
             'password.required' => 'Password baru wajib diisi.',
-            'password.min' => 'Password baru minimal 12 karakter.',
+            'password.min' => 'Password baru minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 

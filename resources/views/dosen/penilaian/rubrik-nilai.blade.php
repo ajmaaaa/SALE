@@ -1,6 +1,6 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Nilai Rubrik — ' . $assessment->name . ' | SALE')
+@section('title', 'Nilai Rubrik: ' . $assessment->name . ' | SALE')
 @section('header', 'Nilai Rubrik')
 
 @section('content')
@@ -72,7 +72,7 @@
                         @foreach($students as $i => $student)
                             <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="py-2.5 px-3 text-center text-muted w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r border-line/40">{{ $i + 1 }}</td>
-                                <td class="py-2.5 px-3 font-mono text-xs text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r border-line/40">{{ $student->nim_nidn ?? '—' }}</td>
+                                <td class="py-2.5 px-3 font-mono text-xs text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r border-line/40">{{ $student->nim_nidn ?? '' }}</td>
                                 <td class="py-2.5 px-3 font-medium text-ink w-[200px] min-w-[200px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
                                     <div class="truncate" title="{{ $student->name }}">{{ $student->name }}</div>
                                 </td>
@@ -90,7 +90,7 @@
                                                max="{{ $criterion->max_score }}"
                                                step="0.01"
                                                class="field text-sm w-20 text-center mx-auto"
-                                               placeholder="—">
+                                               placeholder="">
                                     </td>
                                 @endforeach
                             </tr>

@@ -18,7 +18,7 @@
             <div>
                 <div class="flex items-center justify-between gap-2 mb-1.5">
                     <h3 class="text-sm font-semibold text-ink">Rekap Nilai &amp; CPMK</h3>
-                    <span class="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">OBE Terpadu</span>
+                    <span class="text-[11px] font-bold text-emerald-700">OBE Terpadu</span>
                 </div>
                 <p class="text-xs text-muted leading-relaxed">Nilai akhir, grade, predikat, dan capaian seluruh CPMK mata kuliah beserta bobotnya per mahasiswa.</p>
             </div>
@@ -40,7 +40,7 @@
             <div>
                 <div class="flex items-center justify-between gap-2 mb-1.5">
                     <h3 class="text-sm font-semibold text-ink">Rekap Capaian CPMK</h3>
-                    <span class="px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-800 rounded-full border border-amber-200">Kop Surat &amp; Warna</span>
+                    <span class="text-[11px] font-bold text-amber-700">Kop Surat &amp; Warna</span>
                 </div>
                 <p class="text-xs text-muted leading-relaxed">Skor CPMK setiap mahasiswa dengan format pembobotan banner hijau (#92D050) &amp; oranye (#F79646) persis standar Rekap OBE.</p>
             </div>
@@ -62,7 +62,7 @@
             <div>
                 <div class="flex items-center justify-between gap-2 mb-1.5">
                     <h3 class="text-sm font-semibold text-ink">Rekap Capaian CPL</h3>
-                    <span class="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-800 rounded-full border border-blue-200">Ketercapaian</span>
+                    <span class="text-[11px] font-bold text-blue-700">Ketercapaian</span>
                 </div>
                 <p class="text-xs text-muted leading-relaxed">Skor CPL setiap mahasiswa berdasarkan kontribusi CPMK beserta status ketercapaian target minimum.</p>
             </div>
@@ -84,7 +84,7 @@
             <div>
                 <div class="flex items-center justify-between gap-2 mb-1.5">
                     <h3 class="text-sm font-semibold text-ink">Nilai per Asesmen</h3>
-                    <span class="px-2 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-800 rounded-full border border-purple-200">Komponen</span>
+                    <span class="text-[11px] font-bold text-purple-700">Komponen</span>
                 </div>
                 <p class="text-xs text-muted leading-relaxed">Nilai setiap komponen asesmen (tugas, kuis, UTS, UAS, PBL) per mahasiswa beserta bobot masing-masing.</p>
             </div>

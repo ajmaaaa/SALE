@@ -125,7 +125,7 @@ class QuizQuestion
         $type = $question['type'] ?? 'pilihan';
         $points = (float) ($question['points'] ?? 100);
 
-        if (in_array($type, ['pilihan', 'kompleks', 'benar_salah'], true)) {
+        if ($type === 'pilihan' || $type === 'benar_salah') {
             $chosen = array_values(array_map('strval', $answer['option_ids'] ?? []));
             if (empty($chosen)) {
                 return null;
@@ -135,6 +135,38 @@ class QuizQuestion
             sort($correct);
 
             return $chosen === $correct ? $points : 0.0;
+        }
+
+        if ($type === 'kompleks') {
+            $chosen = array_values(array_map('strval', $answer['option_ids'] ?? []));
+            if (empty($chosen)) {
+                return null;
+            }
+            $correct = array_values(array_map('strval', $question['answer_key']['option_ids'] ?? []));
+            sort($chosen);
+            sort($correct);
+
+            if ($chosen === $correct) {
+                return $points;
+            }
+
+            $scoreMode = $question['score_mode'] ?? 'parsial';
+            if ($scoreMode === 'semua_atau_nol') {
+                return 0.0;
+            }
+
+            $numCorrect = count($correct);
+            if ($numCorrect === 0) {
+                return 0.0;
+            }
+
+            $correctChosen = count(array_intersect($chosen, $correct));
+            $wrongChosen = count(array_diff($chosen, $correct));
+
+            $netCorrect = max(0, $correctChosen - $wrongChosen);
+            $fraction = $netCorrect / $numCorrect;
+
+            return round($fraction * $points, 2);
         }
 
         if ($type === 'mencocokkan') {

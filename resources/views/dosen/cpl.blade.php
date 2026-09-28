@@ -9,7 +9,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h2 class="section-heading">4. Rekap Capaian per CPL</h2>
+            <h2 class="section-heading">Rekap Capaian per CPL</h2>
             <p class="mt-1 text-sm text-muted">Kontribusi ketercapaian CPL dari mata kuliah ini berdasarkan capaian CPMK.</p>
         </div>
         <a href="{{ route('dosen.penilaian.export.cpl', $section->id) }}" class="button-secondary text-xs shrink-0">Export CSV</a>

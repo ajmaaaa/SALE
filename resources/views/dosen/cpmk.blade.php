@@ -69,13 +69,13 @@
                         <div class="flex items-baseline justify-between">
                             <span class="text-xs text-muted">Rata-rata:</span>
                             <span class="font-mono text-base font-bold text-ink">
-                                {{ $avg !== null ? number_format($avg, 1) : '—' }}
+                                {{ $avg !== null ? number_format($avg, 1) : '0.0' }}
                             </span>
                         </div>
                         <div class="mt-1 flex items-baseline justify-between text-xs">
                             <span class="text-muted">Tuntas (≥{{ (int)($cpmk->threshold ?: 60) }}):</span>
                             <span class="font-semibold {{ $rate !== null && $rate >= 75 ? 'text-emerald-700' : 'text-ink' }}">
-                                {{ $rate !== null ? $rate . '%' : '—' }}
+                                {{ $rate !== null ? $rate . '%' : '0%' }}
                             </span>
                         </div>
                         <div class="mt-2 h-1.5 w-full rounded-full bg-canvas overflow-hidden">
@@ -116,7 +116,7 @@
                     @forelse($rows as $i => $row)
                         <tr>
                             <td class="text-muted font-mono text-xs">{{ $i + 1 }}</td>
-                            <td class="font-mono text-xs text-muted">{{ $row['student']->nim_nidn ?? '—' }}</td>
+                            <td class="font-mono text-xs text-muted">{{ $row['student']->nim_nidn ?? '' }}</td>
                             <td class="font-medium text-ink">{{ $row['student']->name }}</td>
                             @foreach($cpmks as $cpmk)
                                 @php
@@ -127,7 +127,7 @@
                                 @endphp
                                 <td class="text-center">
                                     @if($score === null)
-                                        <span class="text-muted font-mono">—</span>
+                                        <span class="text-muted font-mono"></span>
                                     @else
                                         <div class="inline-flex flex-col items-center">
                                             <span class="font-mono font-bold text-sm {{ $isPassed ? 'text-ink' : 'text-rose-600' }}">
@@ -170,7 +170,7 @@
                             @foreach($cpmks as $cpmk)
                                 @php $agg = $aggregates[$cpmk->id] ?? null; @endphp
                                 <td class="text-center font-mono text-sm font-bold text-ink">
-                                    {{ $agg['average'] !== null ? number_format($agg['average'], 1) : '—' }}
+                                    {{ $agg['average'] !== null ? number_format($agg['average'], 1) : '' }}
                                 </td>
                             @endforeach
                         </tr>
@@ -181,7 +181,7 @@
                             @foreach($cpmks as $cpmk)
                                 @php $agg = $aggregates[$cpmk->id] ?? null; @endphp
                                 <td class="text-center font-mono text-xs font-semibold {{ $agg['pass_rate'] !== null && $agg['pass_rate'] >= 75 ? 'text-emerald-700' : 'text-muted' }}">
-                                    {{ $agg['pass_rate'] !== null ? $agg['pass_rate'] . '%' : '—' }}
+                                    {{ $agg['pass_rate'] !== null ? $agg['pass_rate'] . '%' : '' }}
                                 </td>
                             @endforeach
                         </tr>

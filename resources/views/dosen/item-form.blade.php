@@ -1,5 +1,8 @@
 @extends('layouts.mahasiswa')
-@section('header', 'Tambah konten course')
+@php
+    $isEdit = $isEdit ?? false;
+@endphp
+@section('header', $isEdit ? 'Edit konten course' : 'Tambah konten course')
 @section('content')
 <div class="w-full space-y-6">
     <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -13,17 +16,20 @@
         </a>
         <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         <span class="font-semibold text-slate-800" aria-current="page">
-            Tambah Konten
+            {{ $isEdit ? 'Edit Konten' : 'Tambah Konten' }}
         </span>
     </nav>
 
     <div>
-        <h1 class="page-heading">Tambah konten</h1>
-        <p class="page-description">Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.</p>
+        <h1 class="page-heading">{{ $isEdit ? 'Edit Konten' : 'Tambah konten' }}</h1>
+        <p class="page-description">{{ $isEdit ? 'Perbarui informasi materi, kuis, atau tugas pada course ini.' : 'Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.' }}</p>
     </div>
 
-    <form class="surface space-y-6 p-6 sm:p-8" action="{{ route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}" novalidate>
+    <form class="surface space-y-6 p-6 sm:p-8" action="{{ $isEdit ? route('dosen.item.update', [$course['id'], $item['id']]) : route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}" novalidate>
         @csrf
+        @if($isEdit)
+            @method('PUT')
+        @endif
 
         @if($errors->any())
             <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs shadow-2xs">
@@ -64,44 +70,44 @@
             <div>
                 <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
                 <select id="type" name="type" class="field" data-content-type required>
-                    <option value="" disabled @selected(!old('type') && !request('type'))>-- Pilih jenis konten --</option>
+                    <option value="" disabled @selected(!old('type', $item['type'] ?? '') && !request('type'))>Pilih jenis konten</option>
                     @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
-                        <option value="{{ $value }}" @selected(old('type', request('type')) === $value || ($value === 'tugas' && old('type') === 'coding'))>{{ $label }}</option>
+                        <option value="{{ $value }}" @selected(old('type', $item['type'] ?? request('type')) === $value || ($value === 'tugas' && old('type', $item['type'] ?? '') === 'coding'))>{{ $label }}</option>
                     @endforeach
                 </select>
                 <div data-custom-type-container hidden class="mt-2.5 space-y-1">
                     <label class="form-label text-xs" for="custom_type">Nama jenis konten kustom</label>
-                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik jenis konten..." data-custom-type value="{{ old('custom_type') }}" maxlength="20">
+                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik jenis konten..." data-custom-type value="{{ old('custom_type', $item['custom_type'] ?? '') }}" maxlength="20">
                 </div>
             </div>
             <div>
                 <label class="form-label" for="module">Nama modul / topik <span class="text-danger">*</span></label>
-                <input id="module" name="module" class="field" required maxlength="100" list="modules" value="{{ old('module') }}" placeholder="Minggu 3: Tree dan traversal">
+                <input id="module" name="module" class="field" required maxlength="100" list="modules" value="{{ old('module', $item['module'] ?? '') }}" placeholder="Minggu 3: Tree dan traversal">
                 <datalist id="modules">
-                    @foreach(collect(\App\Support\LearningPreview::items())->where('course', $course['id'])->pluck('module')->unique() as $module)
+                    @foreach($modules ?? [] as $module)
                         <option value="{{ $module }}">
                     @endforeach
                 </datalist>
             </div>
         </div>
 
-        <input id="title" name="title" type="hidden" value="{{ old('title', old('module')) }}">
+        <input id="title" name="title" type="hidden" value="{{ old('title', $item['title'] ?? old('module', $item['module'] ?? '')) }}">
 
         <div>
             <label class="form-label" for="body">Materi / instruksi / stimulus soal <span class="text-danger">*</span></label>
-            <textarea id="body" name="body" required rows="5" class="field" placeholder="Tuliskan petunjuk umum, stimulus materi, atau deskripsi singkat...">{{ old('body') }}</textarea>
+            <textarea id="body" name="body" required rows="5" class="field" placeholder="Tuliskan petunjuk umum, stimulus materi, atau deskripsi singkat...">{{ old('body', $item['body'] ?? '') }}</textarea>
         </div>
 
         <fieldset data-material-mode-settings hidden>
             <legend class="form-label">Jenis materi</legend>
             <div class="grid gap-2 sm:grid-cols-2">
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                    <input type="radio" name="material_mode" value="regular" data-material-mode @checked(old('material_mode', 'regular') === 'regular')>
+                    <input type="radio" name="material_mode" value="regular" data-material-mode @checked(old('material_mode', $item['material_mode'] ?? 'regular') === 'regular')>
                     <span class="ml-1 font-semibold text-ink">Materi biasa</span>
                     <span class="mt-1 block pl-5 text-muted">Bacaan, video, atau lampiran pembelajaran.</span>
                 </label>
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                    <input type="radio" name="material_mode" value="coding" data-material-mode @checked(old('material_mode') === 'coding')>
+                    <input type="radio" name="material_mode" value="coding" data-material-mode @checked(old('material_mode', $item['material_mode'] ?? '') === 'coding')>
                     <span class="ml-1 font-semibold text-ink">Tutorial pemrograman</span>
                     <span class="mt-1 block pl-5 text-muted">Editor praktik dengan pendamping Lumina AI.</span>
                 </label>
@@ -134,19 +140,19 @@
             <div class="mt-4 space-y-4">
                 <div data-content-addon-panel="files" hidden>
                     <label class="form-label" for="attachments">Lampiran</label>
-                    <input id="attachments" name="attachments[]" type="file" multiple data-file-input class="field" accept=".pdf,.ppt,.pptx,.doc,.docx,.jpg,.jpeg,.png,.webp,.mp4">
-                    <p class="mt-2 text-xs text-muted">Gambar akan tampil sebagai pratinjau. PDF, dokumen, slide, dan video ditampilkan sesuai jenis berkas. Maksimal 5 berkas.</p>
+                    <input id="attachments" name="attachments[]" type="file" multiple data-file-input class="field" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
+                    <p class="mt-2 text-xs text-muted">PDF, gambar, video, dokumen, spreadsheet, arsip, dan tautan memakai tampilan lampiran yang seragam. Maksimal 5 berkas, masing-masing 20 MB.</p>
                     <div data-file-list class="mt-3 space-y-2"></div>
                 </div>
 
-                <div data-content-addon-panel="link" @if(!old('link')) hidden @endif>
+                <div data-content-addon-panel="link" @if(!old('link', $item['link'] ?? '')) hidden @endif>
                     <label class="form-label" for="link">Tautan materi / video</label>
-                    <input id="link" name="link" type="url" class="field" value="{{ old('link') }}" placeholder="https://">
+                    <input id="link" name="link" type="url" class="field" value="{{ old('link', $item['link'] ?? '') }}" placeholder="https://">
                 </div>
 
                 <div data-pin-video-option class="rounded-xl border border-line/70 bg-white p-3.5 text-xs space-y-2.5" hidden>
                     <label class="flex cursor-pointer items-start gap-3">
-                        <input type="checkbox" name="pin_video" value="1" data-pin-toggle class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video'))>
+                        <input type="checkbox" name="pin_video" value="1" data-pin-toggle class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video', !empty($item['pin_video'])))>
                         <span class="flex-1">
                             <span class="block font-semibold text-ink flex items-center gap-1.5">
                                 <svg class="h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5M9 2h6M12 2v7M5 8l14 0M7 8l2 9h6l2-9"/></svg>
@@ -189,17 +195,23 @@
                 </div>
             </div>
 
+            @php
+                $itemType = old('type', $item['type'] ?? '');
+                $itemDue = old('due', $item['due'] ?? '');
+                $hasQuizDue = !empty($itemDue) && in_array($itemType, ['kuis', 'uts', 'uas', 'lainnya'], true);
+                $quizDueVal = old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '');
+            @endphp
             <div class="mt-4 border-t border-line/60 pt-4">
                 <label class="flex cursor-pointer items-center justify-between gap-4">
                     <span>
                         <span class="block text-sm font-bold text-ink">Pakai tenggat kuis</span>
                         <span class="mt-0.5 block text-xs text-muted">Tentukan batas tanggal dan waktu kuis dapat dikerjakan.</span>
                     </span>
-                    <input type="checkbox" data-quiz-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due') && in_array(old('type'), ['kuis', 'uts', 'uas', 'lainnya'], true))>
+                    <input type="checkbox" data-quiz-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked($hasQuizDue)>
                 </label>
-                <div data-quiz-due-options class="mt-4" @if(!(old('due') && in_array(old('type'), ['kuis', 'uts', 'uas', 'lainnya'], true))) hidden @endif>
+                <div data-quiz-due-options class="mt-4" @if(!$hasQuizDue) hidden @endif>
                     <label class="form-label" for="quiz_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="quiz_due" name="due" class="field" value="{{ old('due') }}" @disabled(!(old('due') && in_array(old('type'), ['kuis', 'uts', 'uas', 'lainnya'], true)))>
+                    <input type="datetime-local" id="quiz_due" name="due" class="field" value="{{ $quizDueVal }}" @disabled(!$hasQuizDue)>
                 </div>
             </div>
         </section>
@@ -255,7 +267,6 @@
                     {{-- Header soal --}}
                     <div class="flex items-center justify-between border-b border-line/50 pb-3">
                         <div class="flex items-center gap-2">
-                            <span class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-700 text-xs font-bold font-mono" data-question-number-badge>1</span>
                             <h3 data-question-number class="text-sm font-bold text-ink">Soal 1</h3>
                         </div>
                         <button type="button" data-remove-question class="text-xs font-medium text-danger hover:underline">Hapus soal</button>
@@ -288,7 +299,7 @@
                             <select data-q-field="cpmk" class="field text-xs py-2 bg-white" required>
                                 @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
                                     <option value="{{ $outcome['code'] }}">
-                                        {{ $outcome['code'] }} ({{ $outcome['cpl'] }}) — {{ $outcome['description'] }}
+                                        {{ $outcome['code'] }} ({{ $outcome['cpl'] }}): {{ $outcome['description'] }}
                                     </option>
                                 @endforeach
                             </select>
@@ -322,6 +333,7 @@
                             </div>
                         </div>
                         <input type="hidden" data-q-field="alt">
+                        <input type="hidden" data-q-field="existing_image">
                     </div>
 
                     {{-- Pilihan Ganda & Kompleks --}}
@@ -398,11 +410,10 @@
                             <button type="button" data-add-pair-btn class="button-secondary text-xs py-1.5 px-3 font-semibold">+ Tambah Pasangan</button>
                         </div>
                         <div data-pair-list class="space-y-2"></div>
-                        <textarea data-q-field="options" hidden></textarea>
                     </div>
                 </section>
             </template>
-            <script type="application/json" data-old-questions>@json(old('questions', []))</script>
+            <script type="application/json" data-old-questions>@json(old('questions', $item['questions'] ?? []))</script>
         </section>
 
         {{-- Tugas biasa dan pemrograman berada dalam satu jenis konten. --}}
@@ -412,20 +423,20 @@
                     <legend class="form-label">Jenis tugas</legend>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked(old('task_mode', old('type') === 'coding' ? 'coding' : 'regular') === 'regular')>
+                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'regular')>
                             <span class="ml-1 font-semibold text-ink">Tugas biasa</span>
                         </label>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked(old('task_mode', old('type') === 'coding' ? 'coding' : 'regular') === 'coding')>
+                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding')>
                             <span class="ml-1 font-semibold text-ink">Pemrograman</span>
                         </label>
                     </div>
-                    <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', 'uraian') }}">
+                    <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
                 </fieldset>
                 <div class="rounded-lg border border-line/60 bg-slate-50 px-4 py-3 text-xs text-muted">
                     <p class="font-semibold text-ink">Pengaturan bobot</p>
-                    <p class="mt-1">Tugas biasa memakai persentase CPMK manual. Tugas pemrograman dihitung otomatis dari tahap yang dipetakan.</p>
-                    <input type="hidden" id="points" name="points" value="100">
+                    <p class="mt-1">Tugas biasa dan tugas pemrograman memakai persentase bobot CPMK untuk integrasi penilaian.</p>
+                    <input type="hidden" id="points" name="points" value="{{ old('points', $item['points'] ?? 100) }}">
                 </div>
             </div>
 
@@ -436,7 +447,7 @@
                     @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
                         <label class="flex items-center justify-between gap-3 rounded-lg border border-line/60 p-3">
                             <span class="min-w-0"><strong class="block text-xs text-ink">{{ $outcome['code'] }}</strong><span class="line-clamp-2 text-[11px] text-muted">{{ $outcome['description'] }}</span></span>
-                            <span class="flex shrink-0 items-center gap-1"><input type="number" min="0" max="100" step="0.01" name="manual_cpmk_weights[{{ $outcome['code'] }}]" value="{{ old('manual_cpmk_weights.'.$outcome['code']) }}" class="field w-20 px-2 py-1.5 text-right text-xs" data-manual-cpmk-weight><span class="text-xs text-muted">%</span></span>
+                            <span class="flex shrink-0 items-center gap-1"><input type="number" min="0" max="100" step="0.01" name="manual_cpmk_weights[{{ $outcome['code'] }}]" value="{{ old('manual_cpmk_weights.'.$outcome['code'], $item['manual_cpmk_weights'][$outcome['code']] ?? '') }}" class="field w-20 px-2 py-1.5 text-right text-xs" data-manual-cpmk-weight><span class="text-xs text-muted">%</span></span>
                         </label>
                     @endforeach
                 </div>
@@ -449,14 +460,14 @@
                         <span class="block text-sm font-bold text-ink">Pakai tenggat waktu</span>
                         <span class="mt-0.5 block text-xs text-muted">Aktifkan jika tugas harus dikumpulkan sebelum waktu tertentu.</span>
                     </span>
-                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due') && in_array(old('type'), ['tugas', 'coding'], true))>
+                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))>
                 </label>
-                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!(old('due') && in_array(old('type'), ['tugas', 'coding'], true))) hidden @endif>
+                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))) hidden @endif>
                     <label class="form-label" for="task_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ old('due') }}" @disabled(!(old('due') && in_array(old('type'), ['tugas', 'coding'], true)))>
+                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '') }}" @disabled(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true)))>
                     <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-ink">
                         <input type="hidden" name="allow_late" value="0">
-                        <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', '1') == '1') class="rounded border-line text-brand">
+                        <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
                         Izinkan pengumpulan terlambat
                     </label>
                 </div>
@@ -482,7 +493,7 @@
                     <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-ink" data-coding-step-title>Tahap 1</h3><button type="button" class="text-xs font-semibold text-danger hover:underline" data-remove-coding-step>Hapus tahap</button></div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <label><span class="form-label text-xs">Judul tahap</span><input data-step-field="title" class="field" placeholder="Contoh: Memahami struktur data" required></label>
-                        <label><span class="form-label text-xs">Target CPMK</span><select data-step-field="cpmk" class="field" required>@foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)<option value="{{ $outcome['code'] }}">{{ $outcome['code'] }} — {{ $outcome['description'] }}</option>@endforeach</select></label>
+                        <label><span class="form-label text-xs">Target CPMK</span><select data-step-field="cpmk" class="field" required>@foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)<option value="{{ $outcome['code'] }}">{{ $outcome['code'] }}: {{ $outcome['description'] }}</option>@endforeach</select></label>
                     </div>
                     <label><span class="form-label text-xs">Materi / instruksi tahap</span><textarea rows="4" data-step-field="body" class="field" placeholder="Jelaskan materi atau pekerjaan pada tahap ini..." required></textarea></label>
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -491,11 +502,11 @@
                     </div>
                 </article>
             </template>
-            <script type="application/json" data-old-coding-steps>@json(old('coding_steps', []))</script>
+            <script type="application/json" data-old-coding-steps>@json(old('coding_steps', $item['coding_steps'] ?? []))</script>
             <p class="mt-3 text-xs text-muted">Untuk penilaian otomatis, setiap tahap diperlakukan sebagai satu kriteria pada CPMK yang dipilih.</p>
         </section>
 
-        <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', \App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK') }}">
+        <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', $item['cpmk'] ?? (\App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK')) }}">
 
         <div data-form-error class="hidden text-xs text-danger font-medium border-t border-line/60 pt-3"></div>
 
@@ -504,7 +515,7 @@
             <div class="flex items-center gap-2">
                 <button type="button" class="button-secondary" data-back-to-setup hidden> Kembali</button>
                 <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal </button>
-                <button type="submit" class="button-primary" data-submit-content>Tambahkan ke course</button>
+                <button type="submit" class="button-primary" data-submit-content>{{ $isEdit ? 'Simpan Perubahan' : 'Tambahkan ke course' }}</button>
             </div>
         </div>
     </form>

@@ -55,14 +55,14 @@
             <table class="admin-table w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="px-4 py-3.5 text-center w-12 !align-middle">No</th>
-                        <th class="px-4 py-3.5 w-32 !align-middle">Kode Kelas</th>
-                        <th class="px-4 py-3.5 !align-middle">Mata Kuliah &amp; SKS</th>
-                        <th class="px-4 py-3.5 w-52 !align-middle">Dosen Ketua (Koordinator)</th>
-                        <th class="px-4 py-3.5 w-44 !align-middle">Dosen Wakil (Pendamping)</th>
-                        <th class="px-4 py-3.5 text-center w-40 !align-middle">Kode Masuk &amp; Barcode</th>
-                        <th class="px-4 py-3.5 text-center w-28 !align-middle">Kapasitas</th>
-                        <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
+                        <th class="px-4 py-3 text-center w-12 !align-middle">No</th>
+                        <th class="px-4 py-3 w-28 !align-middle">Kode Kelas</th>
+                        <th class="px-4 py-3 !align-middle">Mata Kuliah &amp; SKS</th>
+                        <th class="px-4 py-3 w-48 !align-middle">Dosen Ketua</th>
+                        <th class="px-4 py-3 w-40 !align-middle">Dosen Wakil</th>
+                        <th class="px-4 py-3 text-center w-28 !align-middle">Barcode</th>
+                        <th class="px-4 py-3 text-center w-28 !align-middle">Kapasitas</th>
+                        <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
@@ -70,51 +70,45 @@
                     <tr class="hover:bg-canvas/30 transition-colors">
                         <td class="px-4 py-3.5 text-center text-muted font-medium !align-middle">{{ $index + 1 }}</td>
                         <td class="px-4 py-3.5 !align-middle whitespace-nowrap">
-                            <span class="font-mono font-bold text-brand block">{{ $cls->display_code }}</span>
-                            <span class="text-[11px] text-muted block mt-0.5">Seksi {{ $cls->section_code }}</span>
+                            <span class="font-mono font-bold text-brand">{{ $cls->display_code }}</span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cls->mataKuliah->name }}</span>
-                            <span class="text-[11px] text-muted block mt-0.5">{{ $cls->mataKuliah->sks }} SKS, {{ $cls->semester->name }}</span>
+                            <span class="text-[11px] text-muted block mt-0.5">{{ $cls->mataKuliah->code }} &bull; {{ $cls->mataKuliah->sks }} SKS</span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
-                            <span class="font-semibold text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
+                            <span class="font-medium text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             @if($cls->dosenPendamping)
                                 <span class="font-medium text-ink block">{{ $cls->dosenPendamping->name }}</span>
                             @else
-                                <span class="text-muted italic text-[11px]">— Tanpa Wakil —</span>
+                                <span class="text-muted text-[11px]"></span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
-                            <div class="inline-flex flex-col items-center gap-1">
-                                <span class="font-mono font-bold text-ink tracking-wider text-xs">
-                                    {{ $cls->enrollment_code }}
-                                </span>
-                                <button type="button" 
-                                        onclick="showBarcodeModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}', '{{ route('kelas.barcode', $cls->id) }}')"
-                                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline transition-colors">
-                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
-                                    <span>Tampilkan Barcode</span>
-                                </button>
-                            </div>
+                            <button type="button" 
+                                    onclick="showBarcodeModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}', '{{ route('kelas.barcode', $cls->id) }}')"
+                                    class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1.5"
+                                    title="Tampilkan Barcode / QR Code">
+                                <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
+                                <span>Barcode</span>
+                            </button>
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
-                            <span class="font-bold text-ink text-xs">{{ $cls->students_count }}</span>
-                            <span class="text-muted text-[11px]">/ {{ $cls->capacity ?? '∞' }} mhs</span>
+                            <span class="text-xs text-ink font-medium"><strong class="font-bold text-ink">{{ $cls->students_count }}</strong><span class="text-muted"> / {{ $cls->capacity ?? '∞' }}</span></span>
                         </td>
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id ?? 'null' }}, {{ $cls->dosen_pendamping_id ?? 'null' }})"
-                                        class="button-secondary text-[11px] py-1 px-2.5">
+                                        class="button-secondary text-xs py-1 px-2.5">
                                     Ubah
                                 </button>
-                                <form action="{{ route('admin-prodi.akademik.kelas.destroy', $cls->id) }}" method="POST" onsubmit="return confirm('Hapus kelas {{ $cls->display_code }}?');" class="inline">
+                                <form action="{{ route('admin-prodi.akademik.kelas.destroy', $cls->id) }}" method="POST" data-confirm="Hapus kelas {{ $cls->display_code }}?" data-confirm-title="Hapus kelas" data-confirm-label="Hapus" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
+                                    <button type="submit" class="button-secondary text-xs py-1 px-2.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line">
                                         Hapus
                                     </button>
                                 </form>
@@ -189,7 +183,7 @@
                         Dosen Ketua (Koordinator Mata Kuliah) <span class="text-muted font-normal">(Opsional / Masuk via Kode)</span>
                     </label>
                     <select name="dosen_id" id="create_dosen_id" class="field text-xs font-semibold">
-                        <option value="">-- Belum Ditentukan (Dosen Bergabung via Kode / Tautan) --</option>
+                        <option value="">Belum Ditentukan (Dosen Bergabung via Kode / Tautan)</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }} ({{ $dsn->nim_nidn ?? 'NIDN' }})</option>
                         @endforeach
@@ -202,7 +196,7 @@
                         Dosen Wakil (Pendamping / Team-Teaching) <span class="text-muted font-normal">(Opsional)</span>
                     </label>
                     <select name="dosen_pendamping_id" id="create_dosen_wakil" class="field text-xs font-semibold">
-                        <option value="">-- Tanpa Dosen Wakil --</option>
+                        <option value="">Tanpa Dosen Wakil</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }} ({{ $dsn->nim_nidn ?? 'NIDN' }})</option>
                         @endforeach
@@ -244,7 +238,7 @@
                 <div>
                     <label for="edit_dosen_id" class="block text-xs font-bold text-ink mb-1">Dosen Ketua (Koordinator) <span class="text-muted font-normal">(Opsional)</span></label>
                     <select name="dosen_id" id="edit_dosen_id" class="field text-xs font-semibold">
-                        <option value="">-- Belum Ditentukan (Dosen Bergabung via Kode) --</option>
+                        <option value="">Belum Ditentukan (Dosen Bergabung via Kode)</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
                         @endforeach
@@ -254,7 +248,7 @@
                 <div>
                     <label for="edit_dosen_wakil" class="block text-xs font-bold text-ink mb-1">Dosen Wakil (Pendamping)</label>
                     <select name="dosen_pendamping_id" id="edit_dosen_wakil" class="field text-xs font-semibold">
-                        <option value="">-- Tanpa Dosen Wakil --</option>
+                        <option value="">Tanpa Dosen Wakil</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
                         @endforeach
@@ -370,10 +364,10 @@
         document.getElementById('barcodeModal').classList.remove('flex');
     }
 
-    function copyModalCode() {
+    async function copyModalCode() {
         const code = document.getElementById('modal_enroll_code').value;
-        navigator.clipboard.writeText(code);
-        alert(`Kode kelas ${code} berhasil disalin ke clipboard!`);
+        await navigator.clipboard.writeText(code);
+        await window.saleNotice({ title: 'Kode kelas tersalin', message: `Kode ${code} sudah disalin ke clipboard.` });
     }
 
     function copyModalUrl() {

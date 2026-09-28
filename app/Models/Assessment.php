@@ -27,6 +27,7 @@ class Assessment extends Model
         'uses_rubric',
         'status',
         'due_at',
+        'published_at',
         'allow_late',
     ];
 
@@ -36,8 +37,18 @@ class Assessment extends Model
             'uses_rubric' => 'boolean',
             'learning_payload' => 'array',
             'due_at' => 'datetime',
+            'published_at' => 'datetime',
             'allow_late' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Assessment $assessment) {
+            if ($assessment->status === self::STATUS_PUBLISHED && empty($assessment->published_at)) {
+                $assessment->published_at = now();
+            }
+        });
     }
 
     public function classSection(): BelongsTo
@@ -64,5 +75,10 @@ class Assessment extends Model
     public function studentScores(): HasMany
     {
         return $this->hasMany(StudentAssessmentScore::class);
+    }
+
+    public function scopeGradable($query)
+    {
+        return $query->whereNotIn('type', ['materi', 'pengumuman']);
     }
 }

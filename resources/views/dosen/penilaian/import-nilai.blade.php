@@ -1,6 +1,6 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Import Nilai — ' . $assessment->name . ' | SALE')
+@section('title', 'Import Nilai: ' . $assessment->name . ' | SALE')
 @section('header', 'Import Nilai')
 
 @section('content')
@@ -48,13 +48,13 @@
                     <h3 class="section-heading">Preview Data Import</h3>
                     <p class="text-xs text-muted mt-1">Periksa data berikut sebelum menyimpan.</p>
                 </div>
-                <span class="status bg-brand-soft text-brand">{{ count($preview['rows']) }} baris valid</span>
+                <span class="text-xs font-semibold text-ink">{{ count($preview['rows']) }} baris valid</span>
             </div>
 
             @if(!empty($preview['errors']))
-                <div class="p-3 rounded-lg bg-amber-50 border border-amber-200">
-                    <p class="text-xs font-semibold text-amber-700 mb-1">{{ count($preview['errors']) }} baris dilewati:</p>
-                    <ul class="text-xs text-amber-600 space-y-0.5">
+                <div class="p-3 rounded-lg border border-line bg-canvas/60">
+                    <p class="text-xs font-semibold text-ink mb-1">{{ count($preview['errors']) }} baris dilewati:</p>
+                    <ul class="text-xs text-muted space-y-0.5">
                         @foreach($preview['errors'] as $err)
                             <li>{{ $err }}</li>
                         @endforeach
@@ -88,21 +88,21 @@
                                 @if(($preview['mode'] ?? 'legacy') === 'cpmk')
                                     @foreach($preview['cpmk_headers'] as $hdr)
                                         <td class="text-center font-mono">
-                                            {{ isset($row['cpmk_scores'][$hdr['cpmk_id']]) && $row['cpmk_scores'][$hdr['cpmk_id']] !== null ? number_format($row['cpmk_scores'][$hdr['cpmk_id']], 1) : '—' }}
+                                            {{ isset($row['cpmk_scores'][$hdr['cpmk_id']]) && $row['cpmk_scores'][$hdr['cpmk_id']] !== null ? number_format($row['cpmk_scores'][$hdr['cpmk_id']], 1) : '' }}
                                         </td>
                                     @endforeach
                                     <td class="text-center font-mono font-bold text-ink">
-                                        {{ $row['overall_score'] !== null ? number_format($row['overall_score'], 1) : '—' }}
+                                        {{ $row['overall_score'] !== null ? number_format($row['overall_score'], 1) : '' }}
                                     </td>
                                 @else
-                                    <td>{{ $row['score'] !== null ? number_format($row['score'], 2) : '—' }}</td>
-                                    <td class="text-xs text-muted">{{ $row['feedback'] ?: '—' }}</td>
+                                    <td>{{ $row['score'] !== null ? number_format($row['score'], 2) : '' }}</td>
+                                    <td class="text-xs text-muted">{{ $row['feedback'] ?: '' }}</td>
                                 @endif
                                 <td>
                                     @if($row['status'] === 'valid')
-                                        <span class="status bg-brand-soft text-brand">Valid</span>
+                                        <span class="text-xs font-semibold text-emerald-800">Valid</span>
                                     @else
-                                        <span class="status bg-canvas text-muted">Kosong</span>
+                                        <span class="text-xs font-semibold text-muted">Kosong</span>
                                     @endif
                                 </td>
                             </tr>

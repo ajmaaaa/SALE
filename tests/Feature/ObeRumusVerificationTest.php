@@ -180,14 +180,15 @@ class ObeRumusVerificationTest extends TestCase
 
         StudentAssessmentScore::create(['assessment_id' => $tugas->id, 'mahasiswa_id' => $this->mhs1->id, 'score' => 85]);
 
-        // 1. Tab CPMK
+        // Rute CPMK lama merupakan alias untuk tabel rekap CPMK terbaru.
         $resCpmk = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.cpmk', $this->section->id));
         $resCpmk->assertOk()
+            ->assertSee('Rekap Capaian per CPMK')
             ->assertSee('CPMK-1')
-            ->assertSee('Rata-rata')
-            ->assertSee('Tuntas')
-            ->assertSee('Sangat Baik');
+            ->assertSee('Tugas')
+            ->assertSee('85.0')
+            ->assertDontSee('Rata-rata:');
 
         // 2. Tab CPL
         $resCpl = $this->actingAs($this->dosen)
@@ -204,7 +205,8 @@ class ObeRumusVerificationTest extends TestCase
         $resRekap->assertOk()
             ->assertSee('Rekap Capaian per CPMK')
             ->assertSee('CPMK-1')
-            ->assertSee('Sangat Baik');
+            ->assertSee('Tugas')
+            ->assertSee('85.0');
     }
 
     /**
@@ -383,27 +385,24 @@ class ObeRumusVerificationTest extends TestCase
         $this->assertEquals(80.5, $final['score']);
         $this->assertEquals(100.0, $final['coverage']);
 
-        // Verifikasi Halaman Matriks Penilaian me-render Matriks Versi C Interaktif
+        // Verifikasi rute matriks lama dialihkan ke menu asesmen
         $resMatriks = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.matriks', $this->section->id));
 
-        $resMatriks->assertOk()
-            ->assertSee('Rancangan Matriks Penilaian (Versi C)')
-            ->assertSee('CPMK 041')
-            ->assertSee('CPMK 042')
-            ->assertSee('Case Based Project (CBM)')
-            ->assertSee('Project Based Learning (PBL)');
+        $resMatriks->assertRedirect(route('dosen.penilaian.asesmen', $this->section->id));
 
-        // Verifikasi Halaman Rekap Nilai & CPMK menampilkan kolom CPMK, bobotnya, dan nilainya
+        // Tabel rekap terbaru menampilkan nilai setiap komponen asesmen.
+        // Nilai akhir CPMK 78/83 telah diverifikasi langsung melalui service di atas.
         $resRekap = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.rekap', $this->section->id));
 
         $resRekap->assertOk()
             ->assertSee('CPMK 041')
             ->assertSee('CPMK 042')
-            ->assertSee('50%')
-            ->assertSee('78.0')
-            ->assertSee('83.0');
+            ->assertSee('Case Based Project (CBM)')
+            ->assertSee('Project Based Learning (PBL)')
+            ->assertSee('80.0')
+            ->assertSee('90.0');
 
         // Verifikasi Halaman Rekap CPMK menampilkan analisis dan skor mahasiswa beserta bobot
         $resCpmk = $this->actingAs($this->dosen)
@@ -412,9 +411,10 @@ class ObeRumusVerificationTest extends TestCase
         $resCpmk->assertOk()
             ->assertSee('CPMK 041')
             ->assertSee('CPMK 042')
-            ->assertSee('50%')
-            ->assertSee('78.0')
-            ->assertSee('83.0');
+            ->assertSee('Case Based Project (CBM)')
+            ->assertSee('Project Based Learning (PBL)')
+            ->assertSee('80.0')
+            ->assertSee('90.0');
     }
 
     /**
@@ -539,7 +539,7 @@ class ObeRumusVerificationTest extends TestCase
         $response = $this->actingAs($this->dosen)
             ->post(route('dosen.penilaian.matriks.save', $this->section->id), $postData);
 
-        $response->assertRedirect(route('dosen.penilaian.matriks', $this->section->id))
+        $response->assertRedirect(route('dosen.penilaian.asesmen', $this->section->id))
             ->assertSessionHas('notice');
 
         // Pastikan final_weight asesmen tersinkronkan
@@ -615,7 +615,6 @@ class ObeRumusVerificationTest extends TestCase
 
         $res->assertOk()
             ->assertSee('CPMK-PURE')
-            ->assertSee('50%')
             ->assertSee('Tugas Awal')
             ->assertSee('20%')
             ->assertSee('UTS Tengah')
@@ -624,31 +623,23 @@ class ObeRumusVerificationTest extends TestCase
     }
 
     /**
-     * Verifikasi Desain v3.0: Navigasi 5 langkah tanpa tab sekunder,
-     * halaman Input Nilai tanpa tombol tambah/ubah/hapus,
-     * dan format kartu mandiri pada Rekap CPMK dan Rekap CPL.
+     * Verifikasi desain terbaru: navigasi ringkas tanpa urutan langkah lama,
+     * halaman Input Nilai tanpa tombol tambah/ubah/hapus, dan kartu Rekap CPL.
      */
     public function test_desain_v3_linear_navigation_and_clean_interfaces(): void
     {
         $res = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.matriks', $this->section->id));
 
-        $res->assertOk()
-            ->assertSee('1. Matriks Penilaian')
-            ->assertSee('2. Input Nilai')
-            ->assertSee('3. Rekap CPMK')
-            ->assertSee('4. Rekap CPL')
-            ->assertDontSee('5. Export')
-            ->assertDontSee('Detail CPMK')
-            ->assertDontSee('Pemetaan CPL')
-            ->assertDontSee('>Pengaturan<', false);
+        $res->assertRedirect(route('dosen.penilaian.asesmen', $this->section->id));
 
         // Asesmen list: only Input Nilai
         $resAsesmen = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.asesmen', $this->section->id));
 
         $resAsesmen->assertOk()
-            ->assertSee('2. Input Nilai per Komponen Asesmen')
+            ->assertSee('Input Nilai per Komponen Asesmen')
+            ->assertDontSee('2. Input Nilai per Komponen Asesmen')
             ->assertDontSee('+ Tambah Asesmen')
             ->assertDontSee('>Ubah<', false)
             ->assertDontSee('>Hapus<', false);
@@ -658,49 +649,44 @@ class ObeRumusVerificationTest extends TestCase
             ->get(route('dosen.penilaian.cpl', $this->section->id));
 
         $resCpl->assertOk()
-            ->assertSee('4. Rekap Capaian per CPL')
+            ->assertSee('Rekap Capaian per CPL')
+            ->assertDontSee('4. Rekap Capaian per CPL')
             ->assertSee('Disusun dari CPMK:')
             ->assertSee('Catatan Ketercapaian CPL:');
     }
 
     /**
-     * Verifikasi Sidebar Dosen: Menu khusus 'Rekap Nilai' yang memuat
-     * link ke 'Rekap CPMK' dan 'Rekap CPL' secara eksplisit.
+     * Desain final hanya menampilkan satu pintu Rekap Nilai pada daftar kelas;
+     * rincian CPMK/CPL tetap dapat dipakai sebagai laporan internal langsung.
      */
-    public function test_sidebar_rekap_nilai_and_cpmk_cpl_navigation(): void
+    public function test_sidebar_rekap_nilai_uses_single_final_entry_point(): void
     {
         // 1. Top-level Rekap Nilai route (/dosen/rekap-nilai)
         $resIndex = $this->actingAs($this->dosen)->get(route('dosen.rekap.index'));
         $resIndex->assertOk()
-            ->assertSee('Rekap Nilai OBE')
-            ->assertSee('Rekap CPMK')
-            ->assertSee('Rekap CPL');
+            ->assertSee('Rekap Nilai')
+            ->assertDontSee('Rekap CPMK')
+            ->assertDontSee('Rekap CPL');
 
         // 2. Di dalam kelas pada halaman Rekap CPMK
         $resRekap = $this->actingAs($this->dosen)->get(route('dosen.penilaian.rekap', $this->section->id));
         $resRekap->assertOk()
             ->assertSee('Rekap Nilai')
-            ->assertSee('Rekap CPMK')
-            ->assertSee('Rekap CPL')
-            ->assertSee(route('dosen.penilaian.rekap', $this->section->id))
-            ->assertSee(route('dosen.penilaian.cpl', $this->section->id));
+            ->assertSee('Rekap Capaian per CPMK')
+            ->assertDontSee('2. Rekap CPMK')
+            ->assertDontSee('3. Rekap CPL');
 
         // 3. Di dalam kelas pada halaman Rekap CPL
         $resCpl = $this->actingAs($this->dosen)->get(route('dosen.penilaian.cpl', $this->section->id));
         $resCpl->assertOk()
             ->assertSee('Rekap Nilai')
-            ->assertSee('Rekap CPMK')
-            ->assertSee('Rekap CPL');
+            ->assertSee('Rekap Capaian per CPL')
+            ->assertDontSee('2. Rekap CPMK')
+            ->assertDontSee('3. Rekap CPL');
 
-        // 4. Di dalam kelas pada halaman Matriks Penilaian
+        // 4. Di dalam kelas pada halaman Matriks Penilaian dialihkan ke asesmen
         $resMatriks = $this->actingAs($this->dosen)->get(route('dosen.penilaian.matriks', $this->section->id));
-        $resMatriks->assertOk()
-            ->assertSee('Penilaian OBE')
-            ->assertSee('1. Matriks Penilaian')
-            ->assertSee('2. Input Nilai')
-            ->assertSee('Rekap Nilai')
-            ->assertSee('Rekap CPMK')
-            ->assertSee('Rekap CPL');
+        $resMatriks->assertRedirect(route('dosen.penilaian.asesmen', $this->section->id));
     }
 
     /**

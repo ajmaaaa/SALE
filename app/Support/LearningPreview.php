@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Assessment;
+use App\Models\Attachment;
 use App\Models\ClassSection;
 use App\Models\CourseDiscussion;
 use App\Models\Message;
@@ -10,6 +11,7 @@ use App\Models\Role;
 use App\Models\Room;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -214,11 +216,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function course(int $id): array
     {
-        $courses = self::courses();
-        if (isset($courses[$id])) {
-            return $courses[$id];
-        }
-
         if (Schema::hasTable('class_sections')) {
             $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->find($id);
             if ($section) {
@@ -226,29 +223,41 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             }
         }
 
+        $courses = self::courses();
+        if (isset($courses[$id])) {
+            return $courses[$id];
+        }
+
         abort(404);
     }
 
     public static function databaseCourse(ClassSection $section): array
     {
-        $customVideo = session("learning.course_video.{$section->id}");
+        $payload = $section->learning_payload ?? [];
         $assessments = $section->relationLoaded('assessments')
             ? $section->assessments
-            : $section->assessments()->get();
+            : $section->assessments()->orderByDesc('id')->get();
 
-        if (! $customVideo) {
-            $pinned = $assessments
-                ->where('type', 'materi')
-                ->filter(fn ($asm) => ! empty($asm->learning_payload['pin_video']))
-                ->last();
-            if ($pinned && ! empty($pinned->learning_payload['video'])) {
-                $customVideo = [
-                    'video' => $pinned->learning_payload['video'],
-                    'video_type' => $pinned->learning_payload['video_type'] ?? 'url',
-                    'video_title' => $pinned->learning_payload['video_title'] ?? $pinned->name,
-                    'media_kind' => $pinned->learning_payload['media_kind'] ?? 'video',
-                ];
-            }
+        $pinned = $assessments
+            ->where('type', 'materi')
+            ->filter(fn ($asm) => ! empty($asm->learning_payload['pin_video']))
+            ->sortByDesc('id')
+            ->first();
+
+        if ($pinned && ! empty($pinned->learning_payload['video'])) {
+            $customVideo = [
+                'video' => $pinned->learning_payload['video'],
+                'video_type' => $pinned->learning_payload['video_type'] ?? 'url',
+                'video_title' => $pinned->learning_payload['video_title'] ?? $pinned->name,
+                'media_kind' => $pinned->learning_payload['media_kind'] ?? 'video',
+            ];
+        } else {
+            $customVideo = ! empty($payload['video']) ? [
+                'video' => $payload['video'],
+                'video_type' => $payload['video_type'] ?? 'url',
+                'video_title' => $payload['video_title'] ?? $section->mataKuliah->name,
+                'media_kind' => $payload['media_kind'] ?? 'video',
+            ] : null;
         }
 
         // Hanya tampilkan media jika course memiliki materi pembelajaran dengan media yang di-pin
@@ -262,8 +271,8 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'lecturer' => $section->dosen?->name ?? 'Belum ditetapkan',
             'dosen_ketua' => $section->dosen?->name ?? 'Belum ditetapkan',
             'dosen_wakil' => $section->dosenPendamping?->name,
-            'description' => 'Perkuliahan '.$section->mataKuliah->name.' kelas '.$section->section_code.' semester '.($section->semester?->name ?? 'aktif').'.',
-            'cover' => null,
+            'description' => $payload['description'] ?? 'Perkuliahan '.$section->mataKuliah->name.' kelas '.$section->section_code.' semester '.($section->semester?->name ?? 'aktif').'.',
+            'cover' => $payload['cover'] ?? null,
             'video' => $mediaConfig['video'] ?? null,
             'video_type' => $mediaConfig['video_type'] ?? 'url',
             'video_title' => $mediaConfig['video_title'] ?? null,
@@ -286,12 +295,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             default => $assessment->type,
         };
 
-        if (in_array($type, ['kuis', 'uts', 'uas'], true) && empty($payload['questions'])) {
-            $payload['questions'] = self::defaultQuizQuestions();
-            $payload['duration_enabled'] = true;
-            $payload['duration_minutes'] = $payload['duration_minutes'] ?? 60;
-            $payload['points'] = 100;
-        }
         if (! empty($payload['questions'])) {
             $payload['questions'] = QuizQuestion::canonicalizeQuestions($payload['questions']);
         }
@@ -300,6 +303,8 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         // Sebelumnya: empty($payload['questions']) → diisi self::defaultQuizQuestions()
         // Sekarang: biarkan questions kosong, beri flag 'questions_empty' untuk UI.
         $questionsEmpty = in_array($type, ['kuis', 'uts', 'uas'], true) && empty($payload['questions']);
+        $publishedAt = $assessment->published_at ?? $assessment->created_at;
+        $publishedAtFormatted = $publishedAt ? \Carbon\Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null;
 
         return array_merge(self::item(
             $assessment->id,
@@ -310,44 +315,72 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $body,
             $due
         ), $payload, [
-            'description'       => $body,
-            'body'              => $body,
-            'points'            => $payload['points'] ?? 100,
-            'due'               => $due,
-            'allow_late'        => (bool) $assessment->allow_late,
+            // Identitas record database tidak boleh ditimpa oleh id/course lama
+            // yang tersimpan di payload sesi preview.
+            'id' => $assessment->id,
+            'course' => $assessment->class_section_id,
+            'description' => $body,
+            'body' => $body,
+            'points' => $payload['points'] ?? 100,
+            'due' => $due,
+            'allow_late' => (bool) $assessment->allow_late,
+            'published_at' => $publishedAt ? \Carbon\Carbon::parse($publishedAt)->toIso8601String() : null,
+            'published_at_formatted' => $publishedAtFormatted,
             // Flag eksplisit bahwa ini adalah record database, bukan item preview.
             // Gunakan ini di views dan controller untuk memastikan tidak ada campur-aduk.
             'is_database_record' => true,
-            'assessment_id'     => $assessment->id,
-            'questions_empty'   => $questionsEmpty,
+            'assessment_id' => $assessment->id,
+            'questions_empty' => $questionsEmpty,
         ]);
     }
 
-    public static function youtubeEmbedUrl(?string $url): ?string
+    public static function youtubeVideoId(?string $url): ?string
     {
         $url = trim((string) $url);
-        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+        if ($url === '') {
             return null;
         }
 
+        if (! preg_match('#^https?://#i', $url)) {
+            $url = 'https://'.$url;
+        }
+
         $parts = parse_url($url);
+        if (! $parts || empty($parts['host'])) {
+            return null;
+        }
+
         $host = strtolower((string) ($parts['host'] ?? ''));
         $host = preg_replace('/^www\./', '', $host);
         $videoId = null;
 
-        if (in_array($host, ['youtube.com', 'm.youtube.com'], true)) {
-            if (($parts['path'] ?? '') === '/watch') {
+        if (in_array($host, ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com'], true)) {
+            $path = rtrim((string) ($parts['path'] ?? ''), '/');
+            if ($path === '/watch' || str_starts_with($path, '/watch/')) {
                 parse_str((string) ($parts['query'] ?? ''), $query);
                 $videoId = $query['v'] ?? null;
-            } elseif (preg_match('#^/(?:embed|shorts)/([A-Za-z0-9_-]{6,})#', (string) ($parts['path'] ?? ''), $matches)) {
+                if (! $videoId && preg_match('#^/watch/([A-Za-z0-9_-]{11})#', $path, $m)) {
+                    $videoId = $m[1];
+                }
+            } elseif (preg_match('#^/(?:embed|shorts|live|v)/([A-Za-z0-9_-]{11})#', $path, $matches)) {
                 $videoId = $matches[1];
+            } else {
+                parse_str((string) ($parts['query'] ?? ''), $query);
+                $videoId = $query['v'] ?? null;
             }
         } elseif ($host === 'youtu.be') {
-            $videoId = trim((string) ($parts['path'] ?? ''), '/');
+            $videoId = explode('/', trim((string) ($parts['path'] ?? ''), '/'))[0] ?? null;
         }
 
-        return $videoId && preg_match('/^[A-Za-z0-9_-]{6,}$/', $videoId)
-            ? 'https://www.youtube-nocookie.com/embed/'.$videoId.'?rel=0'
+        return (is_string($videoId) && preg_match('/^[A-Za-z0-9_-]{11}$/', $videoId)) ? $videoId : null;
+    }
+
+    public static function youtubeEmbedUrl(?string $url): ?string
+    {
+        $videoId = self::youtubeVideoId($url);
+
+        return $videoId
+            ? 'https://www.youtube-nocookie.com/embed/'.$videoId.'?rel=0&playsinline=1'
             : null;
     }
 
@@ -434,41 +467,37 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         foreach ($courses as $courseId => $courseData) {
             $read = (int) session("learning.discussion_reads.$courseId", 0);
 
-            if (Schema::hasTable('rooms') && Schema::hasTable('messages')) {
+            if ($user && Schema::hasTable('rooms') && Schema::hasTable('messages')) {
                 $roomId = Room::where('course_id', (int) $courseId)->value('id');
-                if (! $roomId) {
+                if ($roomId) {
+                    $unreadCount = Message::where('room_id', $roomId)->count() - $read;
+                    if ($unreadCount > 0) {
+                        Message::where('room_id', $roomId)
+                            ->with(['user.role'])
+                            ->orderBy('id')
+                            ->offset($read)
+                            ->limit($unreadCount)
+                            ->get()
+                            ->each(function (Message $message) use (&$messages, $courseId, $courseData, $user) {
+                                $payload = $message->toChatPayload($user);
+                                if ($payload['is_me']) {
+                                    return;
+                                }
+
+                                $messages[] = [
+                                    'course' => (int) $courseId,
+                                    'course_title' => $courseData['title'],
+                                    'author' => $payload['author'],
+                                    'message' => $payload['content'],
+                                    'time' => $payload['time'],
+                                    'timestamp' => $payload['timestamp'],
+                                    'role' => $payload['role'],
+                                ];
+                            });
+                    }
+
                     continue;
                 }
-
-                $unreadCount = Message::where('room_id', $roomId)->count() - $read;
-                if ($unreadCount <= 0) {
-                    continue;
-                }
-
-                Message::where('room_id', $roomId)
-                    ->with(['user.role'])
-                    ->orderBy('id')
-                    ->offset($read)
-                    ->limit($unreadCount)
-                    ->get()
-                    ->each(function (Message $message) use (&$messages, $courseId, $courseData, $user) {
-                        $payload = $message->toChatPayload($user);
-                        if ($payload['is_me']) {
-                            return;
-                        }
-
-                        $messages[] = [
-                            'course' => (int) $courseId,
-                            'course_title' => $courseData['title'],
-                            'author' => $payload['author'],
-                            'message' => $payload['content'],
-                            'time' => $payload['time'],
-                            'timestamp' => $payload['timestamp'],
-                            'role' => $payload['role'],
-                        ];
-                    });
-
-                continue;
             }
 
             $courseMessages = self::courseDiscussions((int) $courseId);
@@ -497,6 +526,10 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function chatMessageCount(int $course): ?int
     {
+        if (! auth()->check() && ! is_array(session('auth_user'))) {
+            return null;
+        }
+
         if (! Schema::hasTable('rooms') || ! Schema::hasTable('messages')) {
             return null;
         }
@@ -530,10 +563,12 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
                 return Assessment::whereIn('class_section_id', $sectionIds)
                     ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'])
+                    ->where('type', '!=', 'materi')
                     ->where('status', 'published')
                     ->get()
                     ->reject(function ($asm) use ($scoredIds) {
-                        return in_array($asm->id, $scoredIds, true)
+                        return ($asm->learning_payload['type'] ?? '') === 'materi'
+                            || in_array($asm->id, $scoredIds, true)
                             || session("learning.submissions.{$asm->id}") !== null
                             || session("learning.grades.{$asm->id}") !== null
                             || session("academic.item_grades.{$asm->id}.1") !== null;
@@ -576,6 +611,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             if ($diffMin < 1) {
                 return 'Baru saja';
             }
+
             return "{$diffMin} menit lalu";
         }
 
@@ -599,6 +635,16 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function notifications(?User $user = null): array
     {
+        $user ??= auth()->user();
+        if ($user) {
+            return app(DatabaseNotificationService::class)->forUser($user);
+        }
+
+        return [];
+
+        /* Legacy preview notification builder retained temporarily below for
+         * forensic comparison. It is unreachable: operational notifications
+         * are now generated exclusively from persisted database records. */
         if (! $user) {
             $user = auth()->user();
             if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
@@ -770,6 +816,14 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 $lastMsg = end($discussions);
                 $msgTimestamp = $lastMsg['timestamp'] ?? (now()->subMinutes(25)->timestamp);
                 $notifKey = "discuss_{$cId}_{$msgTimestamp}";
+                $targetCourseUrl = ($user && $user->hasRole(Role::DOSEN))
+                    ? route('dosen.course.show', $cId).'#diskusi-kelas'
+                    : route('mahasiswa.course.show', $cId).'#diskusi-kelas';
+
+                $isDiscussRead = $allRead
+                    || in_array($notifKey, $readNotifs, true)
+                    || in_array("discuss_{$cId}", $readNotifs, true);
+
                 $notifications[] = [
                     'id' => $notifKey,
                     'title' => "Diskusi Baru: {$cMeta['code']} - {$cMeta['title']}",
@@ -777,18 +831,54 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     'time' => self::formatNotificationTime($msgTimestamp),
                     'timestamp' => $msgTimestamp,
                     'icon_type' => 'chat',
-                    'link' => route('mahasiswa.course.show', $cId).'#diskusi-kelas',
+                    'link' => $targetCourseUrl,
                     'action_label' => 'Buka Forum Diskusi',
                     'category' => 'diskusi',
-                    'is_read' => $allRead || in_array($notifKey, $readNotifs, true),
+                    'is_read' => $isDiscussRead,
                 ];
             }
         }
 
-        // PERBAIKAN M-04: Hapus notifikasi sistem hardcoded yang tidak bersumber dari event nyata.
-        // Notifikasi palsu (AI siap, sinkronisasi KRS, pembaruan kalender) membuat user
-        // mengira ada aktivitas sistem padahal tidak — A19 dan A21 membuktikan ini menipu.
-        // Notifikasi sistem nyata harus dihasilkan dari tabel events/audit_logs di masa depan.
+        // Notifikasi Sistem
+        $systemNotifs = [
+            [
+                'id' => 'system_ai_ready',
+                'title' => 'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
+                'message' => 'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
+                'timestamp' => now()->subMinutes(2)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.assignment.index'),
+                'action_label' => 'Buka Lab Coding',
+                'category' => 'sistem',
+            ],
+            [
+                'id' => 'system_sync_krs',
+                'title' => 'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
+                'message' => 'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
+                'timestamp' => now()->subHours(4)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.obe.progress'),
+                'action_label' => 'Lihat Pemetaan OBE',
+                'category' => 'sistem',
+            ],
+            [
+                'id' => 'system_calendar_update',
+                'title' => 'Pembaruan Kalender Akademik & Jadwal Kuliah',
+                'message' => 'Jadwal tatap muka, batas submisi tugas, dan periode evaluasi tengah semester telah diperbarui oleh Program Studi.',
+                'timestamp' => now()->subDays(1)->setHour(9)->setMinute(30)->timestamp,
+                'icon_type' => 'system',
+                'link' => route('mahasiswa.dashboard'),
+                'action_label' => 'Lihat Jadwal Kuliah',
+                'category' => 'sistem',
+            ],
+        ];
+
+        foreach ($systemNotifs as $sys) {
+            $notifKey = $sys['id'];
+            $sys['time'] = self::formatNotificationTime($sys['timestamp']);
+            $sys['is_read'] = $allRead || in_array($notifKey, $readNotifs, true);
+            $notifications[] = $sys;
+        }
 
         if (! empty($clearedNotifs) || $clearedTimestamp) {
             $notifications = array_values(array_filter($notifications, function ($n) use ($clearedNotifs, $allCleared, $clearedTimestamp) {
@@ -801,6 +891,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 if ($clearedTimestamp && ($n['timestamp'] ?? 0) <= $clearedTimestamp) {
                     return false;
                 }
+
                 return true;
             }));
         }
@@ -812,7 +903,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function unreadNotificationCount(?User $user = null): int
     {
-        return count(array_filter(self::notifications($user), fn ($n) => empty($n['is_read'])));
+        $user ??= auth()->user();
+
+        return $user ? app(DatabaseNotificationService::class)->unreadCount($user) : 0;
     }
 
     private static function discussionViewer(): array
@@ -924,17 +1017,19 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
     public static function fileMeta(string $file): ?array
     {
-        $sessionMeta = session("learning.files.{$file}");
-        if ($sessionMeta) {
-            return $sessionMeta;
+        if (Schema::hasTable('attachments')) {
+            $att = Attachment::where('uuid', $file)->first();
+            if ($att) {
+                return ['path' => $att->path, 'name' => $att->name, 'mime' => $att->mime];
+            }
         }
 
-        $samples = self::sampleFiles();
-        if (isset($samples[$file])) {
-            return $samples[$file];
+        $meta = self::fileMetaWithAssessment($file)['meta'] ?? null;
+        if ($meta) {
+            return $meta;
         }
 
-        return self::fileMetaWithAssessment($file)['meta'] ?? null;
+        return null;
     }
 
     /**

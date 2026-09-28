@@ -15,21 +15,12 @@
         $allCourses = collect($courses);
         $totalCourses = $allCourses->count();
         
-        $classesList = [
-            ['data_status' => 'belum_selesai'],
-            ['data_status' => 'selesai'],
-            ['data_status' => 'belum_selesai'],
-            ['data_status' => 'belum_selesai'],
-            ['data_status' => 'selesai'],
-            ['data_status' => 'belum_selesai'],
-        ];
-        $pendingCount = count(array_filter($classesList, fn($c) => $c['data_status'] === 'belum_selesai'));
     @endphp
 
     <div class="grid gap-4 sm:grid-cols-2">
         <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
             <div>
-                <p class="text-sm text-muted">Jumlah Course</p>
+                <p class="text-sm text-muted">Jumlah Course (Matkul)</p>
                 <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">mata kuliah aktif</span></p>
             </div>
             <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs shrink-0">Kelola Mata Kuliah</a>
@@ -39,7 +30,7 @@
                 <p class="text-sm text-muted">Penilaian Belum Dinilai</p>
                 <p class="mt-0.5 text-xl font-semibold text-ink">{{ $pendingCount }} <span class="text-sm font-normal text-muted">kelas</span></p>
             </div>
-            <a href="{{ route('dosen.grades') }}" class="button-secondary text-xs shrink-0">Lihat Penilaian</a>
+            <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs shrink-0">Lihat Penilaian</a>
         </div>
     </div>
 
@@ -53,7 +44,7 @@
                 <a href="{{ route('dosen.course.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Lihat semua</a>
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                @forelse($allCourses as $course)
+                @forelse($allCourses->take(4) as $course)
                     @include('learning.partials.course-card', ['course' => $course, 'role' => 'dosen', 'isFirst' => $loop->first])
                 @empty
                     <p class="col-span-full py-2 text-xs text-muted">Belum ada kelas.</p>
@@ -61,20 +52,21 @@
             </div>
         </section>
 
-        @php($unreadDiscussions = collect(\App\Support\LearningPreview::unreadDiscussions())->take(3))
+        @php($unreadDiscussions = $recentDiscussions)
         <section aria-labelledby="dosen-discussion-heading" class="min-w-0">
             <div class="mb-4 flex h-12 items-start justify-between gap-3">
                 <div class="min-w-0">
                     <h2 id="dosen-discussion-heading" class="section-heading truncate text-base sm:text-lg">Pesan belum dibaca</h2>
+                    <p class="mt-0.5 truncate text-xs text-muted">Pesan masuk dari forum kelas</p>
                 </div>
                 <a href="{{ route('dosen.discussion.index') }}" class="shrink-0 pt-0.5 text-xs font-semibold text-brand hover:text-brand-dark">Buka forum</a>
             </div>
             <div class="divide-y divide-line/60 overflow-hidden rounded-xl border border-line/60 bg-white shadow-sm">
                 @forelse($unreadDiscussions as $discussion)
-                    <a href="{{ route('dosen.course.show', $discussion['course']) }}#diskusi-kelas" class="block p-4 text-xs transition duration-200 hover:bg-canvas">
-                        <p class="text-[11px] font-medium text-muted">{{ $discussion['course_title'] }}</p>
+                    <a href="{{ $discussion['link'] }}" class="block p-4 text-xs transition duration-200 hover:bg-canvas">
+                        <p class="text-[11px] font-medium text-muted">{{ $discussion['title'] }}</p>
                         <p class="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-ink">{{ $discussion['message'] }}</p>
-                        <p class="mt-1.5 text-xs leading-4 text-muted">{{ $discussion['author'] }} · {{ $discussion['time'] }}</p>
+                        <p class="mt-1.5 text-xs leading-4 text-muted">{{ $discussion['time'] }}</p>
                     </a>
                 @empty
                     <p class="p-4 text-sm text-muted">Belum ada pesan terbaru.</p>

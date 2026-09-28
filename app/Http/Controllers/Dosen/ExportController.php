@@ -102,7 +102,7 @@ class ExportController extends Controller
 
         $cpmks = $this->cpmksFor($section);
         $students = $section->students()->orderBy('name')->get();
-        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
         $assessmentIds = $assessments->pluck('id');
 
         $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)
@@ -350,7 +350,7 @@ class ExportController extends Controller
             return $this->excelExport->exportNilaiAssessmentExcel($section);
         }
 
-        $assessments = $section->assessments()->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->orderBy('code')->get();
         $students = $section->students()->orderBy('name')->get();
 
         $filename = 'rekap_nilai_asesmen_'.$section->mataKuliah->code.'_'.$section->section_code.'.csv';
@@ -441,7 +441,7 @@ class ExportController extends Controller
 
     private function withHeaderCounts(ClassSection $section): ClassSection
     {
-        $section->loadCount('students')->loadCount('assessments')->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
 
         return $section;
     }

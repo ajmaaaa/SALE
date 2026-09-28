@@ -42,6 +42,10 @@ class ChatController extends Controller
 
         $section = ClassSection::find($courseId);
         if (! $section) {
+            $room = Room::where('course_id', $courseId)->first();
+            if ($room && $room->members()->where('user_id', $user->id)->exists()) {
+                return true;
+            }
             return false;
         }
 
@@ -133,9 +137,7 @@ class ChatController extends Controller
                 ];
             });
 
-        // Update read counter in session
         $totalCount = Message::where('room_id', $room->id)->count();
-        session(["learning.discussion_reads.$course" => $totalCount]);
 
         return response()->json([
             'success' => true,
@@ -238,9 +240,7 @@ class ChatController extends Controller
             // Fail gracefully if broadcast driver is not running
         }
 
-        // Update session tracking for fallback compatibility
         $totalCount = Message::where('room_id', $room->id)->count();
-        session(["learning.discussion_reads.$course" => $totalCount]);
 
         return response()->json([
             'success' => true,
@@ -304,7 +304,6 @@ class ChatController extends Controller
 
         if ($message->room?->course_id) {
             $totalCount = Message::where('room_id', $roomId)->count();
-            session(["learning.discussion_reads.{$message->room->course_id}" => $totalCount]);
         }
 
         return response()->json([

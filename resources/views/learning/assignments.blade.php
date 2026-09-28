@@ -38,25 +38,18 @@
         <button class="button-secondary text-xs">Terapkan Filter</button>
     </form>
 
-    @if(request('tab') === 'nilai')
-        <div class="rounded-lg bg-emerald-50/80 border border-emerald-200 p-3 text-xs text-emerald-950 font-medium flex items-center gap-2">
-            <svg class="h-4 w-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <span>Menampilkan semua tugas dan kuis yang telah dinilai.</span>
-        </div>
-    @endif
-
     {{-- Clean Assignment List (Clickable rows) --}}
     <section class="surface overflow-hidden divide-y divide-line/40" aria-label="Daftar Penugasan">
         @forelse($items as $item)
             @php
                 $dbScore = $studentScores[$item['id']] ?? null;
                 $hasDbGrade = $dbScore && $dbScore->score !== null;
-                $sessionGrade = session('learning.grades.'.$item['id']) ?? session('academic.item_grades.'.$item['id'].'.1');
-                $hasSessionGrade = auth()->user() === null && $sessionGrade !== null;
-                $isGraded = $hasDbGrade || $hasSessionGrade;
-                $scoreValue = $hasDbGrade ? (float)$dbScore->score : ($hasSessionGrade ? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : (float)$sessionGrade) : null);
-                $isSubmitted = session('learning.submissions.'.$item['id']) || $isGraded;
-                $targetUrl = ($item['type'] === 'coding') ? route('mahasiswa.assignment.code', $item['id']) : route('mahasiswa.course.item', [$item['course'], $item['id']]);
+                $isGraded = $hasDbGrade;
+                $scoreValue = $hasDbGrade ? (float)$dbScore->score : null;
+                $isSubmitted = in_array($item['id'], $submittedAssessmentIds ?? [], true) || $isGraded;
+                $targetUrl = ($item['type'] === 'coding')
+                    ? route('course.assignment.code', [$item['course'], $item['id']])
+                    : route('mahasiswa.course.item', [$item['course'], $item['id']]);
                 $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
             @endphp
             <a href="{{ $targetUrl }}" class="group flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-5 hover:bg-canvas transition">

@@ -17,6 +17,11 @@ class SubmissionAnswer extends Model
         'choices',
         'boolean_choice',
         'matching',
+        'earned_score',
+        'max_score',
+        'grading_status',
+        'graded_by_id',
+        'graded_at',
     ];
 
     protected function casts(): array
@@ -26,11 +31,19 @@ class SubmissionAnswer extends Model
             'version'        => 'integer',
             'choices'        => 'array',
             'matching'       => 'array',
+            'earned_score'   => 'decimal:2',
+            'max_score'      => 'decimal:2',
+            'graded_at'      => 'datetime',
         ];
     }
 
     public function submission(): BelongsTo
     {
         return $this->belongsTo(Submission::class);
+    }
+
+    public function gradedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'graded_by_id');
     }
 }

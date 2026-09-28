@@ -207,15 +207,16 @@ class CleanEssayGradingWorkflowTest extends TestCase
         $this->assertEquals(64.33, $ahmadResult['nilai_asesmen']);
     }
 
-    public function test_navigation_header_starts_with_asesmen_without_matriks_penilaian(): void
+    public function test_assessment_page_uses_latest_compact_header_without_legacy_numbered_navigation(): void
     {
         $response = $this->actingAs($this->dosen)
             ->get(route('dosen.penilaian.asesmen', $this->section->id));
 
         $response->assertOk()
-            ->assertSee('1. Asesmen')
-            ->assertSee('2. Rekap CPMK')
-            ->assertSee('3. Rekap CPL')
+            ->assertSee('Input Nilai per Komponen Asesmen')
+            ->assertDontSee('1. Asesmen')
+            ->assertDontSee('2. Rekap CPMK')
+            ->assertDontSee('3. Rekap CPL')
             ->assertDontSee('1. Matriks Penilaian');
     }
 }

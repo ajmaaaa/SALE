@@ -80,7 +80,7 @@
                                    @checked(array_key_exists($cpmk->id, $selectedCpmk))>
                             <label class="text-sm text-ink">
                                 <span class="font-medium">{{ $cpmk->code }}</span>
-                                <span class="text-muted"> — {{ $cpmk->description }}</span>
+                                <span class="text-muted">: {{ $cpmk->description }}</span>
                             </label>
                             <input class="field text-sm" type="number" min="0" max="100" step="0.01"
                                    name="cpmk[{{ $cpmk->id }}]" value="{{ old('cpmk.'.$cpmk->id, $selectedCpmk[$cpmk->id] ?? '') }}"

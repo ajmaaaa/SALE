@@ -89,7 +89,23 @@
                     </form>
                 @endif
 
-
+                @if(count($notifications) > 0)
+                    <form action="{{ route('dosen.notifications.clear') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua notifikasi? Tindakan ini tidak dapat dibatalkan.');">
+                        @csrf
+                        @if(!empty($selectedCategory))
+                            <input type="hidden" name="category" value="{{ $selectedCategory }}">
+                        @endif
+                        <button type="submit" class="button-secondary min-h-0 text-xs py-1.5 px-3 font-semibold text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50/40 active:scale-[0.98] transition-all cursor-pointer shadow-2xs">
+                            <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                            <span>Hapus Semua</span>
+                        </button>
+                    </form>
+                @endif
             </div>
         @endif
     </div>
@@ -125,4 +141,50 @@
         @endforelse
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a[href*="/read"], a[href*="/notifikasi/"]');
+            if (!link) return;
+            const row = link.closest('.group');
+            if (!row) return;
+
+            row.classList.remove('opacity-100', 'bg-slate-50/70', 'hover:bg-slate-100/60');
+            row.classList.add('opacity-60', 'bg-white', 'hover:bg-slate-50/60');
+
+            const iconContainer = row.querySelector('.shrink-0');
+            if (iconContainer) {
+                iconContainer.classList.remove('text-slate-600');
+                iconContainer.classList.add('text-slate-400');
+            }
+
+            const title = row.querySelector('h3');
+            if (title) {
+                title.classList.remove('text-slate-900', 'group-hover:text-[#102f50]');
+                title.classList.add('text-slate-500', 'font-semibold');
+            }
+
+            const markReadForm = row.querySelector('form[action*="/read"]');
+            if (markReadForm) {
+                markReadForm.remove();
+            }
+
+            const actionBtn = row.querySelector('a.shadow-2xs');
+            if (actionBtn) {
+                actionBtn.classList.remove('bg-[#102f50]', 'hover:bg-[#081d33]');
+                actionBtn.classList.add('bg-slate-600', 'hover:bg-slate-800');
+            }
+        });
+    });
+
+    window.addEventListener('pageshow', function (event) {
+        var isBack = event.persisted ||
+            (window.performance && window.performance.getEntriesByType && window.performance.getEntriesByType("navigation")[0]?.type === "back_forward") ||
+            (window.performance && window.performance.navigation && window.performance.navigation.type === 2);
+        if (isBack) {
+            window.location.reload();
+        }
+    });
+</script>
 @endsection

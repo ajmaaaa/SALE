@@ -11,13 +11,56 @@ class AcademicPreview
 {
     public static function config(int $course): array
     {
-        LearningPreview::course($course);
+        $defaultComponents = [
+            ['code' => 'tugas', 'name' => 'Tugas', 'weight' => 25],
+            ['code' => 'kuis', 'name' => 'Kuis', 'weight' => 10],
+            ['code' => 'uts', 'name' => 'UTS', 'weight' => 20],
+            ['code' => 'uas', 'name' => 'UAS', 'weight' => 25],
+            ['code' => 'proyek', 'name' => 'Proyek', 'weight' => 15],
+            ['code' => 'partisipasi', 'name' => 'Kehadiran & partisipasi', 'weight' => 5],
+        ];
 
-        $config = session("academic.config.$course", [
-            'cpl' => [['code' => 'CPL-01', 'description' => 'Mampu menganalisis masalah dan menyusun solusi secara sistematis.'], ['code' => 'CPL-02', 'description' => 'Mampu menerapkan pengetahuan komputasi dalam praktik.']],
-            'cpmk' => [['code' => 'CPMK-01', 'cpl' => 'CPL-01', 'description' => 'Menganalisis konsep dasar dan memilih pendekatan penyelesaian.', 'threshold' => 50], ['code' => 'CPMK-02', 'cpl' => 'CPL-02', 'description' => 'Menerapkan konsep melalui tugas dan praktikum.', 'threshold' => 80]],
-            'components' => [['code' => 'tugas', 'name' => 'Tugas', 'weight' => 25], ['code' => 'kuis', 'name' => 'Kuis', 'weight' => 10], ['code' => 'uts', 'name' => 'UTS', 'weight' => 20], ['code' => 'uas', 'name' => 'UAS', 'weight' => 25], ['code' => 'proyek', 'name' => 'Proyek', 'weight' => 15], ['code' => 'partisipasi', 'name' => 'Kehadiran & partisipasi', 'weight' => 5]],
-        ]);
+        $cplList = null;
+        $cpmkList = null;
+
+        if (Schema::hasTable('class_sections')) {
+            $section = ClassSection::with(['mataKuliah.cpmks.cpls', 'mataKuliah.prodi.cpls'])->find($course);
+            if ($section && $section->mataKuliah) {
+                $dbCpmks = $section->mataKuliah->cpmks()->with('cpls')->orderBy('code')->get();
+                $prodiCpls = $section->mataKuliah->prodi ? $section->mataKuliah->prodi->cpls()->orderBy('code')->get() : collect();
+
+                if ($dbCpmks->isNotEmpty()) {
+                    $cpmkList = [];
+                    foreach ($dbCpmks as $cm) {
+                        $linkedCplCodes = $cm->cpls->pluck('code')->all();
+                        $cplCode = ! empty($linkedCplCodes) ? implode(', ', $linkedCplCodes) : ($prodiCpls->first()?->code ?? 'CPL-01');
+                        $cpmkList[] = [
+                            'code' => $cm->code,
+                            'cpl' => $cplCode,
+                            'description' => $cm->description,
+                            'threshold' => (float) ($cm->threshold ?? 65),
+                        ];
+                    }
+                }
+
+                if ($prodiCpls->isNotEmpty()) {
+                    $cplList = [];
+                    foreach ($prodiCpls as $cp) {
+                        $cplList[] = [
+                            'code' => $cp->code,
+                            'description' => $cp->description,
+                        ];
+                    }
+                }
+            }
+        }
+
+        $config = [
+            'cpl' => $cplList ?? [],
+            'cpmk' => $cpmkList ?? [],
+            'components' => $defaultComponents,
+        ];
+
         foreach ($config['cpmk'] as &$cpmk) {
             $cpmk['threshold'] = $cpmk['threshold'] ?? 65;
         }
@@ -211,7 +254,7 @@ class AcademicPreview
             $groupCount = max(1, (int) ($groupCounts[$cCode] ?? 1));
             $porsiSoal = 100 / $groupCount;
             $bobotCpmk = ($groupCount / $totalQuestions) * 100;
-            $isEssay = in_array($q['type'] ?? 'pilihan', ['uraian'], true);
+            $isEssay = in_array($q['type'] ?? 'pilihan', ['uraian', 'esai'], true);
 
             $formattedQuestions[$qIdx] = array_merge($q, [
                 'index' => $qIdx,
@@ -571,7 +614,7 @@ class AcademicPreview
     public static function resolveSubmission(int $item, ?int $studentId = null): ?array
     {
         $submission = $studentId
-            ? (session("learning.submissions.{$item}.{$studentId}") ?? session("learning.submissions.{$item}"))
+            ? session("learning.submissions.{$item}.{$studentId}")
             : session("learning.submissions.{$item}");
 
         if (! $submission && Schema::hasTable('submissions')) {
@@ -592,6 +635,13 @@ class AcademicPreview
                     'attempt'          => $dbSub->attempt,
                     'version'          => $dbSub->version,
                 ];
+            }
+        }
+
+        if (! $submission && $studentId && session()->has("learning.submissions.{$item}")) {
+            $genericSub = session("learning.submissions.{$item}");
+            if (is_array($genericSub) && (isset($genericSub['question_answers']) || isset($genericSub['answer']) || isset($genericSub['files']))) {
+                $submission = $genericSub;
             }
         }
 

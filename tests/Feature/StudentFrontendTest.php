@@ -35,7 +35,7 @@ class StudentFrontendTest extends TestCase
             route('dosen.course.index'),
             route('dosen.course.show', 1),
             route('dosen.item.create', 1),
-            route('dosen.grades'),
+            route('dosen.grades', ['course' => 1, 'type' => 'tugas']),
             route('mahasiswa.notifications'),
             route('mahasiswa.discussion.index'),
             route('mahasiswa.profile.index'),

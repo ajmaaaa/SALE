@@ -45,7 +45,7 @@
     <div class="surface p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Lulusan (CPL) — {{ $activeProdi?->name }}</h2>
+                <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Lulusan (CPL): {{ $activeProdi?->name }}</h2>
             </div>
             <button type="button" onclick="openCreateCplModal()" class="button-primary text-xs">
                 + Tambah Butir CPL

@@ -14,6 +14,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+Artisan::command('sale:backfill-quiz-scores', function () {
+    $result = app(\App\Services\QuizGradingService::class)->backfillAutomaticScores();
+    $this->info("Backfill selesai: {$result['submissions']} submission, {$result['automatic_answers']} jawaban otomatis, {$result['pending_essays']} esai menunggu dosen.");
+
+    return 0;
+})->purpose('Persist automatic per-question scores for legacy quiz submissions without changing published totals');
+
 Artisan::command('ai:grant {email} {assignment=1} {--task-file= : JSON file containing title and body for a new task}', function () {
     $email = strtolower(trim($this->argument('email')));
     if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {

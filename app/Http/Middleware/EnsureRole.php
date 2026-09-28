@@ -11,20 +11,17 @@ class EnsureRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
-        $demoMode = config('app.demo_mode') && app()->environment(['local', 'testing']);
-        $sessionRole = $demoMode ? session('auth_user.role') : null;
-
-        if (! $user && ! is_string($sessionRole)) {
+        if (! $user) {
             return redirect()->guest(route('login'));
         }
+        // Akun lama yang dibuat sebelum kolom is_active tersedia dapat bernilai
+        // null. Hanya nilai false/0 yang merupakan penonaktifan eksplisit.
+        abort_if($user->is_active === false, 403, 'Akun ini sedang dinonaktifkan.');
 
-        $hasRole = is_string($sessionRole)
-            ? in_array($sessionRole, $roles, true)
-            : collect($roles)->contains(fn (string $role): bool => $user->hasRole($role));
+        $hasRole = collect($roles)->contains(fn (string $role): bool => $user->hasRole($role));
 
         if (! $hasRole) {
-            $isDosen = ($user && $user->hasRole('dosen'))
-                || $sessionRole === 'dosen';
+            $isDosen = $user->hasRole('dosen');
             if ($isDosen && $request->routeIs('mahasiswa.course.show')) {
                 $courseId = $request->route('course');
                 if ($courseId) {

@@ -32,7 +32,7 @@
 
         <!-- Institutional Header -->
         <div class="text-center pb-6 border-b-2 border-slate-900 space-y-1">
-            <h1 class="text-lg font-bold uppercase tracking-wider text-slate-900">{{ session('admin.settings.institution', 'SMART ACADEMIC LEARNING ECOSYSTEM (SALE)') }}</h1>
+            <h1 class="text-lg font-bold uppercase tracking-wider text-slate-900">{{ \App\Models\SystemSetting::valueFor('institution', 'SMART ACADEMIC LEARNING ECOSYSTEM (SALE)') }}</h1>
             <h2 class="text-base font-semibold text-slate-800">LAPORAN AKADEMIK &amp; KELAS PERKULIAHAN PROGRAM STUDI</h2>
             <p class="text-xs text-slate-600">
                 Program Studi: <strong>{{ $activeProdi?->name }} ({{ $activeProdi?->code }})</strong>, Semester: <strong>{{ $activeSemester?->name }}</strong>
@@ -56,7 +56,7 @@
             </div>
             <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
                 <p class="text-[10px] uppercase font-semibold text-slate-500">Rata-rata Nilai</p>
-                <p class="text-xl font-bold text-emerald-700 mt-1">{{ $metrics['average_grade'] !== null ? number_format($metrics['average_grade'], 2) : '—' }}</p>
+                <p class="text-xl font-bold text-emerald-700 mt-1">{{ $metrics['average_grade'] !== null ? number_format($metrics['average_grade'], 2) : '0.00' }}</p>
             </div>
             <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
                 <p class="text-[10px] uppercase font-semibold text-slate-500">Total Kelas</p>

@@ -37,7 +37,7 @@ class PenilaianController extends Controller
         $cpmks       = $this->cpmksFor($section);
         $students    = $section->students()->orderBy('name')->get();
         $studentIds  = $students->pluck('id');
-        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
         $assessmentIds = $assessments->pluck('id');
 
         // Pre-fetch semua skor sekaligus
@@ -57,23 +57,33 @@ class PenilaianController extends Controller
         // ----------------------------------------------------------------
         $columns = [];   // [ { assessment, cpmk_cols: [ {cpmk, weight, weight_fmt, effective_weight} ] } ]
         foreach ($assessments as $asmt) {
-            $cpmkCols = [];
-            $totalPivot = (float) $asmt->cpmks->sum(fn ($c) => (float) ($c->pivot?->weight ?: 0));
-            if ($totalPivot <= 0) {
-                $totalPivot = (float) max(1, $asmt->cpmks->count());
+            if ($asmt->cpmks->isEmpty() && $cpmks->isNotEmpty()) {
+                $asmt->cpmks()->syncWithoutDetaching($cpmks->pluck('id'));
+                $asmt->load('cpmks');
             }
+
+            $cpmkCols = [];
+            $hasPositivePivot = $asmt->cpmks->contains(fn ($c) => (float) ($c->pivot?->weight ?: 0) > 0);
+            $totalPivot = $hasPositivePivot
+                ? (float) $asmt->cpmks->sum(fn ($c) => (float) ($c->pivot?->weight ?: 0))
+                : (float) max(1, $asmt->cpmks->count());
 
             foreach ($cpmks as $cpmk) {
                 $pivot = $asmt->cpmks->firstWhere('id', $cpmk->id);
-                if ($pivot && (float) ($pivot->pivot?->weight ?: 0) > 0) {
-                    $pivotWeight = (float) $pivot->pivot->weight;
-                    $weightWithinAsmt = round(($pivotWeight / $totalPivot) * 100, 1);
-                    $cpmkCols[] = [
-                        'cpmk'             => $cpmk,
-                        'weight'           => $weightWithinAsmt,
-                        'weight_fmt'       => rtrim(rtrim(number_format($weightWithinAsmt, 1), '0'), '.'),
-                        'effective_weight' => $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk),
-                    ];
+                if ($pivot) {
+                    $pivotWeight = $hasPositivePivot
+                        ? (float) ($pivot->pivot?->weight ?: 0)
+                        : 1.0;
+
+                    if ($pivotWeight > 0) {
+                        $weightWithinAsmt = round(($pivotWeight / $totalPivot) * 100, 1);
+                        $cpmkCols[] = [
+                            'cpmk'             => $cpmk,
+                            'weight'           => $weightWithinAsmt,
+                            'weight_fmt'       => rtrim(rtrim(number_format($weightWithinAsmt, 1), '0'), '.'),
+                            'effective_weight' => $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk),
+                        ];
+                    }
                 }
             }
             if (count($cpmkCols) > 0) {
@@ -240,23 +250,13 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Tab: Matriks Penilaian (Langkah 1: Matriks Versi C Interaktif).
+     * Tab: Matriks Penilaian (Dialihkan ke Daftar Asesmen).
      */
-    public function matriks(ClassSection $section): View
+    public function matriks(ClassSection $section): RedirectResponse
     {
         $this->authorizeOwnership($section);
 
-        $cpmks = $this->cpmksFor($section);
-        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
-        $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
-
-        return view('dosen.matriks', [
-            'section' => $this->withHeaderCounts($section, null, $cpmks),
-            'cpmks' => $cpmks,
-            'cpmkWeights' => $cpmkWeights,
-            'assessments' => $assessments,
-            'obe' => $this->obe,
-        ]);
+        return redirect()->route('dosen.penilaian.asesmen', $section->id);
     }
 
     /**
@@ -275,7 +275,7 @@ class PenilaianController extends Controller
         ]);
 
         $matrix = $request->input('matrix', []);
-        $assessments = $section->assessments()->get();
+        $assessments = $section->gradableAssessments()->get();
         $cpmks = $this->cpmksFor($section);
         $cpmkIds = $cpmks->pluck('id');
 
@@ -335,8 +335,8 @@ class PenilaianController extends Controller
             }
         });
 
-        return redirect()->route('dosen.penilaian.matriks', $section->id)
-            ->with('notice', "Matriks penilaian valid (Total Bobot: {$grandTotalFormatted}%). Matriks telah terkunci dan Anda dapat melanjutkan ke Input Nilai.");
+        return redirect()->route('dosen.penilaian.asesmen', $section->id)
+            ->with('notice', "Matriks penilaian valid (Total Bobot: {$grandTotalFormatted}%). Anda dapat melanjutkan ke Input Nilai.");
     }
 
     /**
@@ -346,7 +346,7 @@ class PenilaianController extends Controller
     {
         $this->authorizeOwnership($section);
 
-        $assessments = $section->assessments()->with('cpmks')->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
 
         return view('dosen.penilaian.asesmen', [
             'section' => $this->withHeaderCounts($section),
@@ -423,11 +423,11 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Tab: Pengaturan Penilaian (Dialihkan ke Matriks Penilaian).
+     * Tab: Pengaturan Penilaian (Dialihkan ke Menu Asesmen Penilaian).
      */
     public function pengaturan(ClassSection $section): RedirectResponse
     {
-        return redirect()->route('dosen.penilaian.matriks', $section->id);
+        return redirect()->route('dosen.penilaian.asesmen', $section->id);
     }
 
     private function cpmksFor(ClassSection $section)
@@ -447,7 +447,7 @@ class PenilaianController extends Controller
 
     private function withHeaderCounts(ClassSection $section, $cpls = null, $cpmks = null): ClassSection
     {
-        $section->loadCount('students')->loadCount('assessments')->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
         $section->cpmk_used_count = ($cpmks ?? $this->cpmksFor($section))->count();
         $section->cpl_used_count = ($cpls ?? $this->cplsFor($section))->count();
 

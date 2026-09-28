@@ -29,7 +29,7 @@ class AuthLoginTest extends TestCase
 
         $response->assertRedirect('/mahasiswa/dashboard');
         $this->assertAuthenticated();
-        $this->assertEquals('mahasiswa', session('auth_user.role'));
+        $this->assertTrue(auth()->user()->hasRole(Role::MAHASISWA));
     }
 
     public function test_can_login_as_mahasiswa_with_nim(): void
@@ -41,19 +41,18 @@ class AuthLoginTest extends TestCase
 
         $response->assertRedirect('/mahasiswa/dashboard');
         $this->assertAuthenticated();
-        $this->assertEquals('mahasiswa', session('auth_user.role'));
+        $this->assertTrue(auth()->user()->hasRole(Role::MAHASISWA));
     }
 
-    public function test_can_login_as_mahasiswa_with_alias_email(): void
+    public function test_unregistered_alias_email_cannot_login(): void
     {
         $response = $this->post('/login', [
             'login_id' => 'ahmad@example.test',
             'password' => 'password',
         ]);
 
-        $response->assertRedirect('/mahasiswa/dashboard');
-        $this->assertAuthenticated();
-        $this->assertEquals('mahasiswa', session('auth_user.role'));
+        $response->assertSessionHasErrors(['login_id', 'password']);
+        $this->assertGuest();
     }
 
     public function test_can_login_as_dosen(): void
@@ -65,7 +64,7 @@ class AuthLoginTest extends TestCase
 
         $response->assertRedirect('/dosen/dashboard');
         $this->assertAuthenticated();
-        $this->assertEquals('dosen', session('auth_user.role'));
+        $this->assertTrue(auth()->user()->hasRole(Role::DOSEN));
     }
 
     public function test_can_login_as_admin_prodi(): void
@@ -77,7 +76,7 @@ class AuthLoginTest extends TestCase
 
         $response->assertRedirect('/admin-prodi/dashboard');
         $this->assertAuthenticated();
-        $this->assertEquals('admin_prodi', session('auth_user.role'));
+        $this->assertTrue(auth()->user()->hasRole(Role::ADMIN_PRODI));
     }
 
     public function test_demo_seeder_repairs_an_old_admin_prodi_role(): void
@@ -93,28 +92,20 @@ class AuthLoginTest extends TestCase
         );
     }
 
-    public function test_multi_role_preview_account_uses_selected_admin_prodi_role(): void
+    public function test_multi_role_account_uses_persisted_database_roles(): void
     {
-        $this->withSession(['admin.users' => [
-            10 => [
-                'id' => 10,
-                'name' => 'Petugas Prodi',
-                'email' => 'petugas@example.test',
-                'number' => 'PTG001',
-                'role' => 'mahasiswa',
-                'roles' => ['mahasiswa', 'admin_prodi'],
-                'status' => 'aktif',
-            ],
-        ]]);
+        $user = User::where('email', 'budi@example.test')->firstOrFail();
+        $adminProdiRole = Role::where('name', Role::ADMIN_PRODI)->firstOrFail();
+        $user->roles()->syncWithoutDetaching([$adminProdiRole->id]);
 
         $response = $this->post('/login', [
-            'login_id' => 'petugas@example.test',
-            'role' => 'admin_prodi',
+            'login_id' => $user->email,
             'password' => 'password',
         ]);
 
-        $response->assertRedirect('/admin-prodi/dashboard');
-        $this->assertEquals('admin_prodi', session('auth_user.role'));
+        $response->assertRedirect('/dosen/dashboard');
+        $this->assertTrue(auth()->user()->hasRole(Role::DOSEN));
+        $this->assertTrue(auth()->user()->hasRole(Role::ADMIN_PRODI));
     }
 
     public function test_can_login_as_admin(): void
@@ -126,19 +117,13 @@ class AuthLoginTest extends TestCase
 
         $response->assertRedirect('/admin/dashboard');
         $this->assertAuthenticated();
-        $this->assertEquals('admin', session('auth_user.role'));
+        $this->assertTrue(auth()->user()->hasRole(Role::ADMIN));
     }
 
-    public function test_all_four_roles_can_switch_smoothly(): void
+    public function test_role_switch_endpoint_is_removed(): void
     {
-        $roles = ['mahasiswa', 'dosen', 'admin_prodi', 'admin'];
-
-        foreach ($roles as $role) {
-            $response = $this->post("/switch-role/{$role}");
-            $response->assertRedirect();
-            $this->assertAuthenticated();
-            $this->assertEquals($role, session('auth_user.role'));
-        }
+        $this->post('/switch-role/dosen')->assertNotFound();
+        $this->assertGuest();
     }
 
     public function test_demo_user_cannot_enter_another_role_area_by_changing_the_path(): void
@@ -152,7 +137,7 @@ class AuthLoginTest extends TestCase
         $this->get('/dosen/dashboard')->assertForbidden();
         $this->get('/admin/dashboard')->assertForbidden();
         $this->get('/admin-prodi/dashboard')->assertForbidden();
-        $this->get('/switch-role/admin')->assertMethodNotAllowed();
+        $this->get('/switch-role/admin')->assertNotFound();
     }
 
     public function test_demo_guest_cannot_open_role_paths_directly(): void

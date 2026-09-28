@@ -18,7 +18,15 @@ class ClassSection extends Model
         'section_code',
         'capacity',
         'enrollment_code',
+        'learning_payload',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'learning_payload' => 'array',
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -67,6 +75,11 @@ class ClassSection extends Model
     public function assessments(): HasMany
     {
         return $this->hasMany(Assessment::class);
+    }
+
+    public function gradableAssessments(): HasMany
+    {
+        return $this->hasMany(Assessment::class)->whereNotIn('type', ['materi', 'pengumuman']);
     }
 
     /**

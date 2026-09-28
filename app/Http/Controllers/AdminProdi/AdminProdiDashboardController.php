@@ -17,15 +17,12 @@ class AdminProdiDashboardController extends AdminProdiController
     public function index(): View
     {
         $prodiId = $this->adminProdiId();
-        $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
-        $mahasiswaRoleId = Role::where('name', Role::MAHASISWA)->value('id');
-
         $activeSemester = Semester::where('is_active', true)->first() ?? Semester::latest()->first();
 
         $stats = [
             'total_prodi' => Prodi::when($prodiId, fn ($q) => $q->whereKey($prodiId))->count(),
-            'total_dosen' => User::where('role_id', $dosenRoleId)->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
-            'total_mahasiswa' => User::where('role_id', $mahasiswaRoleId)->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
+            'total_dosen' => User::withRoleName(Role::DOSEN)->when($prodiId, fn ($q) => $q->where(fn ($scope) => $scope->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId)))->count(),
+            'total_mahasiswa' => User::withRoleName(Role::MAHASISWA)->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
             'total_matakuliah' => MataKuliah::when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
             'total_kelas' => ClassSection::when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))->count(),
             'total_cpl' => Cpl::when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),

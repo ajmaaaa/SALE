@@ -54,7 +54,13 @@
         @forelse($courses as $c)
             @if(!$selectedCourseId || (string)$selectedCourseId === (string)$c['id'])
                 @php
-                    $msgCount = \App\Support\LearningPreview::unreadDiscussionCount($c['id']);
+                    $msgCount = auth()->check()
+                        ? collect(app(\App\Services\DatabaseNotificationService::class)->forUser(auth()->user()))
+                            ->where('category', 'diskusi')
+                            ->where('class_section_id', $c['id'])
+                            ->where('is_read', false)
+                            ->count()
+                        : 0;
                 @endphp
                 <a href="{{ route($courseRoute, $c['id']) }}#diskusi-kelas"
                    class="group flex items-center justify-between gap-3 px-5 py-4 hover:bg-canvas transition">

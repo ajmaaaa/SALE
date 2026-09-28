@@ -5,12 +5,37 @@
 
 @section('content')
 @php
-    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->is('dosen*') ? 'dosen' : 'mahasiswa'));
-    $isDosen = ($currentRole === 'dosen' || request()->is('dosen*')) && $currentRole !== 'mahasiswa' && session('auth_user.role') !== 'mahasiswa';
+    $isDosen = request()->routeIs('dosen.*');
     $role = $isDosen ? 'dosen' : 'mahasiswa';
-    $materiItems = collect($items)->where('type', 'materi');
-    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis']);
-    $uncompletedTasksCount = $tugasItems->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))->count();
+    $submittedAssessmentIds = $submittedAssessmentIds ?? [];
+
+    // Urutkan materi berdasarkan update terbaru
+    $materiItems = collect($items)->where('type', 'materi')
+        ->sortByDesc(function ($item) {
+            return !empty($item['updated_at']) ? \Carbon\Carbon::parse($item['updated_at'])->timestamp : (!empty($item['created_at']) ? \Carbon\Carbon::parse($item['created_at'])->timestamp : ($item['id'] ?? 0));
+        });
+
+    // Urutkan tugas berdasarkan tingkat prioritas (deadline terdekat & belum dikerjakan di atas)
+    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis'])
+        ->sort(function ($a, $b) use ($submittedAssessmentIds, $isDosen) {
+            $aSub = in_array($a['id'], $submittedAssessmentIds, true);
+            $bSub = in_array($b['id'], $submittedAssessmentIds, true);
+
+            if (!$isDosen && $aSub !== $bSub) {
+                return $aSub ? 1 : -1;
+            }
+
+            $aDue = !empty($a['due']) ? \Carbon\Carbon::parse($a['due'])->timestamp : PHP_INT_MAX;
+            $bDue = !empty($b['due']) ? \Carbon\Carbon::parse($b['due'])->timestamp : PHP_INT_MAX;
+
+            if ($aDue !== $bDue) {
+                return $aDue <=> $bDue;
+            }
+
+            return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+        });
+
+    $uncompletedTasksCount = $tugasItems->reject(fn($item) => in_array($item['id'], $submittedAssessmentIds, true))->count();
     if (isset($classSection)) {
         $classSection->loadMissing(['students', 'dosen', 'dosenPendamping']);
         $enrolledStudents = $classSection->students->map(fn($user) => [
@@ -27,17 +52,15 @@
             ])
             ->concat($enrolledStudents)
             ->values();
-    } else {
-        $allUsers = \App\Support\AdminPreview::users();
-        $enrolledStudents = array_filter($allUsers, fn($u) => $u['role'] === 'mahasiswa');
-        $courseMembers = collect($allUsers)
-            ->filter(fn($u) => in_array($u['role'], ['mahasiswa', 'dosen'], true))
-            ->sortBy(fn($u) => $u['role'] === 'dosen' ? 0 : 1)
-            ->values();
     }
+    $discussionCount = \App\Models\Message::whereHas('room', fn($query) => $query->where('class_section_id', $course['id']))->count();
     $courseVideo = $course['video'] ?? null;
     $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
     $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
+    $youtubePlayerUrl = $youtubeEmbed ? $youtubeEmbed.'&'.http_build_query([
+        'origin' => request()->getSchemeAndHttpHost(),
+        'widget_referrer' => request()->fullUrl(),
+    ]) : null;
     $courseVideoMeta = in_array($courseVideoType, ['file', 'image'], true) && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
 @endphp
 
@@ -101,6 +124,14 @@
                 </div>
             </header>
         </div>
+
+        {{-- Efek bayangan pemisah murni (tanpa garis) tepat pada batas atas card video tanpa jarak, khusus pada area kolom kiri jika ada video --}}
+        @if(!empty($courseVideo))
+            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-7 pointer-events-none mt-2" aria-hidden="true">
+                <div class="h-3 bg-[#f4f5f7] shadow-[0_10px_20px_-3px_rgba(29,39,48,0.12)]"></div>
+                <div class="hidden lg:block"></div>
+            </div>
+        @endif
     </div>
 
     {{-- 2-Column Layout: Konten di Kiri & Forum Diskusi Kelas di Samping (Kanan) --}}
@@ -118,15 +149,16 @@
                 <section aria-labelledby="video-heading">
                     <div id="course-video-card" class="aspect-video overflow-hidden rounded-xl bg-[#172633] shadow-md relative group">
                     @if($isImageMedia)
-                        <div class="relative h-full w-full flex items-center justify-center bg-slate-900 overflow-hidden">
-                            <img id="video-heading" src="{{ route('preview.file', $courseVideo) }}" alt="{{ $course['video_title'] ?? $course['title'] }}" class="h-full w-full object-contain">
-                            <div class="absolute bottom-3 left-3 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur-sm flex items-center gap-2">
-                                <svg class="h-4 w-4 text-brand-light" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
-                                <span>Media Foto Utama &bull; {{ $courseVideoMeta['name'] ?? ($course['video_title'] ?? '') }}</span>
-                            </div>
+                        @php
+                            $photoSrc = str_starts_with($courseVideo, 'http') ? $courseVideo : route('preview.file', $courseVideo);
+                            $photoTitle = $course['video_title'] ?? $course['title'];
+                        @endphp
+                        <div class="relative h-full w-full flex items-center justify-center bg-black/95 overflow-hidden">
+                            <img id="video-heading" src="{{ $photoSrc }}" alt="Media Foto Utama: {{ $photoTitle }}" class="h-full w-full object-contain">
+                            <span class="sr-only">Media Foto Utama &bull; {{ $courseVideoMeta['name'] ?? ($photoTitle ?? '') }}</span>
                         </div>
-                    @elseif($youtubeEmbed)
-                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubeEmbed }}" title="Video {{ $course['title'] }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    @elseif($youtubePlayerUrl)
+                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['title'] }}" loading="lazy" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
                         <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? $course['title'] }}">
                             <source src="{{ route('preview.file', $courseVideo) }}" type="{{ $courseVideoMeta['mime'] ?? 'video/mp4' }}">
@@ -141,8 +173,8 @@
                 </section>
             @endif
 
-            {{-- TABS NAV: MATERI & TUGAS (Sticky sehingga saat materi/tugas panjang di-scroll, tab tetap terlihat dan hanya list yang meluncur di bawahnya) --}}
-            <div id="course-tabs-container" class="sticky z-10 bg-[#f4f5f7] pt-2 pb-1 transition-all">
+            {{-- TABS NAV: MATERI & TUGAS --}}
+            <div id="course-tabs-container" class="bg-[#f4f5f7] pt-2 pb-1">
                 <nav class="flex border-b border-line/60 gap-6" aria-label="Tab konten kelas">
                     <button type="button" id="tab-btn-materi" onclick="switchCourseTab('materi')" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-2 transition">
                         <span>Materi</span>
@@ -175,48 +207,54 @@
                                     @php
                                         $isCodingMaterial = ($item['material_mode'] ?? null) === 'coding';
                                         $materialUrl = $isCodingMaterial
-                                            ? route('mahasiswa.assignment.code', $item['id'])
+                                            ? route('course.assignment.code', [$course['id'], $item['id']])
                                             : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
                                     @endphp
-                                    <a href="{{ $materialUrl }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
-                                        <span class="shrink-0 text-brand">
-                                            @if($isCodingMaterial)
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-                                            @else
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                                            @endif
-                                        </span>
-                                        <div class="min-w-0 flex-1">
-                                            <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
-                                            <p class="mt-0.5 text-xs text-muted flex items-center gap-2">
-                                                <span>{{ $isCodingMaterial ? 'Tutorial coding & Lumina AI' : 'Materi belajar' }}</span>
-                                                <span class="h-2.5 w-px bg-line"></span>
-                                                <span>{{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
-                                            </p>
-                                        </div>
-                                        <span class="text-xs font-semibold text-brand">
-                                            {{ $isCodingMaterial ? ($isDosen ? 'Buka Praktikum' : 'Mulai praktik') : 'Buka Materi' }}
-                                        </span>
-                                    </a>
+                                    <div class="group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition">
+                                        <a href="{{ $materialUrl }}" class="flex items-start gap-4 min-w-0 flex-1">
+                                            <span class="shrink-0 text-brand mt-0.5">
+                                                @if($isCodingMaterial)
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                                                @else
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                                @endif
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition leading-snug">{{ $item['title'] }}</h4>
+                                                <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
+                                                    <span>{{ $isCodingMaterial ? 'Tutorial coding & Lumina AI' : 'Materi belajar' }}</span>
+                                                    @if(!empty($item['published_at_formatted']))
+                                                        <span class="h-2.5 w-px bg-line"></span>
+                                                        <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </a>
+
+                                        @if($isDosen)
+                                            {{-- Dosen: Hanya Icon Edit & Hapus, posisi tengah-tengah secara vertikal menyesuaikan teks --}}
+                                            <div class="flex items-center gap-1.5 shrink-0 self-center">
+                                                <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit materi" aria-label="Edit materi">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                </a>
+                                                <form method="post" action="{{ route('dosen.item.destroy', [$course['id'], $item['id']]) }}" onsubmit="event.preventDefault(); window.saleConfirm({title: 'Hapus materi ini?', message: 'Materi dan seluruh data terkait akan dihapus secara permanen.', confirmLabel: 'Hapus', isDestructive: true}).then(ok => ok && this.submit())" class="inline-flex items-center m-0 p-0">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-rose-300 hover:text-rose-600 transition shadow-2xs" title="Hapus materi" aria-label="Hapus materi">
+                                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @else
+                                            <div class="flex items-center shrink-0 self-center">
+                                                <a href="{{ $materialUrl }}" class="text-xs font-semibold text-brand hover:underline leading-snug whitespace-nowrap">
+                                                    {{ $isCodingMaterial ? 'Mulai praktik' : 'Buka Materi' }}
+                                                </a>
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endforeach
 
-                                {{-- Praktikum Coding: tampil sebagai item list standar seperti materi lainnya --}}
-                                @if(str_contains(strtolower($moduleName), 'tree') || ($loop->last && $course['id'] === 1))
-                                    <a href="{{ route('mahasiswa.assignment.code', 1) }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
-                                        <span class="shrink-0 text-brand">
-                                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-                                        </span>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">Praktikum Coding: Binary Search Tree</h4>
-                                            </div>
-                                            <p class="mt-0.5 text-xs text-muted flex items-center gap-2">
-                                                <span>Editor kode &amp; terminal</span>
-                                            </p>
-                                        </div>
-                                        <span class="text-xs font-semibold text-brand">{{ $isDosen ? 'Buka Praktikum' : 'Kerjakan' }}</span>
-                                    </a>
-                                @endif
                             </div>
                         </section>
                     @empty
@@ -236,59 +274,67 @@
                             <div class="divide-y divide-line/40">
                                 @foreach($contents as $item)
                                     @php
-                                        $hasSubmission = session('learning.submissions.'.$item['id']);
+                                        $hasSubmission = in_array($item['id'], $submittedAssessmentIds, true);
                                         $isCoding = ($item['type'] === 'coding');
                                         $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
                                         $itemUrl = $isCoding
-                                            ? route('mahasiswa.assignment.code', $item['id'])
+                                            ? route('course.assignment.code', [$course['id'], $item['id']])
                                             : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
                                     @endphp
-                                    <a href="{{ $itemUrl }}" class="group flex items-center gap-4 px-5 py-4 hover:bg-canvas transition">
-                                        <span class="shrink-0 {{ $hasSubmission ? 'text-emerald-600' : 'text-brand' }}">
-                                            @if($item['type'] === 'kuis')
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .8-1.8 1.2-1.8 2.5M12 17h.01"/></svg>
-                                            @elseif($item['type'] === 'coding')
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-                                            @else
-                                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                                            @endif
-                                        </span>
+                                    <div class="group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition">
+                                        <a href="{{ $itemUrl }}" class="flex items-start gap-4 min-w-0 flex-1">
+                                            <span class="shrink-0 mt-0.5 {{ $hasSubmission ? 'text-emerald-600' : 'text-brand' }}">
+                                                @if($item['type'] === 'kuis')
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .8-1.8 1.2-1.8 2.5M12 17h.01"/></svg>
+                                                @elseif($item['type'] === 'coding')
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                                                @else
+                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                                @endif
+                                            </span>
 
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h4>
+                                            <div class="min-w-0 flex-1">
+                                                <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition leading-snug">{{ $item['title'] }}</h4>
+                                                <div class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
+                                                    <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
+                                                    @if(!empty($item['published_at_formatted']))
+                                                        <span class="h-2.5 w-px bg-line"></span>
+                                                        <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
+                                                    @endif
+                                                    <span class="h-2.5 w-px bg-line"></span>
+                                                    <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
+                                                </div>
                                             </div>
-                                            <div class="mt-0.5 text-xs text-muted flex flex-wrap items-center gap-2">
-                                                <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
-                                                <span class="h-2.5 w-px bg-line"></span>
-                                                <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
-                                                <span class="h-2.5 w-px bg-line"></span>
-                                                <span>{{ count(\App\Support\LearningPreview::discussions($item['id'])) }} diskusi</span>
-                                            </div>
-                                        </div>
+                                        </a>
 
                                         @if($isDosen)
-                                            <span class="shrink-0 text-xs font-semibold text-brand">
-                                                {{ $item['type'] === 'kuis' ? 'Kelola Kuis' : 'Kelola / Nilai' }}
-                                            </span>
-                                        @elseif($hasSubmission)
-                                            <span class="shrink-0 text-xs font-semibold text-emerald-700">
-                                                Sudah dikerjakan
-                                            </span>
-                                        @elseif($isPast)
-                                            <span class="shrink-0 text-xs font-semibold text-rose-600">
-                                                Terlambat
-                                            </span>
-                                        @elseif($isCoding)
-                                            <span class="shrink-0 text-xs font-semibold text-brand">
-                                                Kerjakan
-                                            </span>
+                                            {{-- Dosen: Hanya Icon Edit & Hapus, posisi tengah-tengah secara vertikal menyesuaikan teks --}}
+                                            <div class="flex items-center gap-1.5 shrink-0 self-center">
+                                                <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit tugas" aria-label="Edit tugas">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                </a>
+                                                <form method="post" action="{{ route('dosen.item.destroy', [$course['id'], $item['id']]) }}" onsubmit="event.preventDefault(); window.saleConfirm({title: 'Hapus tugas ini?', message: 'Tugas dan seluruh data terkait akan dihapus secara permanen.', confirmLabel: 'Hapus', isDestructive: true}).then(ok => ok && this.submit())" class="inline-flex items-center m-0 p-0">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-rose-300 hover:text-rose-600 transition shadow-2xs" title="Hapus tugas" aria-label="Hapus tugas">
+                                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         @else
-                                            <span class="shrink-0 text-xs font-semibold text-brand">
-                                                Kerjakan
-                                            </span>
+                                            <div class="flex items-center shrink-0 self-center">
+                                                <a href="{{ $itemUrl }}" class="text-xs font-semibold leading-snug whitespace-nowrap hover:underline @if($hasSubmission) text-emerald-700 @elseif($isPast) text-rose-600 @else text-brand @endif">
+                                                    @if($hasSubmission)
+                                                        Sudah dikerjakan
+                                                    @elseif($isPast)
+                                                        Terlambat
+                                                    @else
+                                                        Kerjakan
+                                                    @endif
+                                                </a>
+                                            </div>
                                         @endif
-                                    </a>
+                                    </div>
                                 @endforeach
                             </div>
                         </section>
@@ -317,13 +363,25 @@
                         panelMateri.style.display = 'none';
                         panelTugas.style.display = 'block';
                     }
+
+                    try {
+                        sessionStorage.setItem('active_course_tab_{{ $course['id'] }}', tab);
+                        const url = new URL(window.location);
+                        url.searchParams.set('tab', tab);
+                        window.history.replaceState({}, '', url);
+                    } catch (e) {}
                 }
 
                 document.addEventListener('DOMContentLoaded', function() {
                     try {
                         const urlParams = new URLSearchParams(window.location.search);
-                        if (urlParams.get('tab') === 'tugas' || window.location.hash === '#tugas' || window.location.hash === '#course-panel-tugas') {
+                        const savedTab = sessionStorage.getItem('active_course_tab_{{ $course['id'] }}');
+                        const requestedTab = urlParams.get('tab') || (window.location.hash === '#tugas' || window.location.hash === '#course-panel-tugas' ? 'tugas' : (window.location.hash === '#materi' ? 'materi' : savedTab));
+
+                        if (requestedTab === 'tugas') {
                             switchCourseTab('tugas');
+                        } else if (requestedTab === 'materi') {
+                            switchCourseTab('materi');
                         }
                     } catch (e) {}
                 });
@@ -335,7 +393,6 @@
             <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 flex flex-col min-h-[440px] max-h-[90vh]">
                 <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
                     <div class="flex items-center gap-2">
-                        <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Sistem Diskusi Terhubung"></span>
                         <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
                     </div>
                     <span id="chat-total-badge" class="text-[11px] font-medium text-muted">
@@ -348,23 +405,8 @@
                     $hasChatTables = \Illuminate\Support\Facades\Schema::hasTable('rooms') && \Illuminate\Support\Facades\Schema::hasTable('messages');
                     $chatRoom = $hasChatTables ? \App\Models\Room::forCourse($course['id'], $course['title']) : null;
                     $chatUser = auth()->user();
-                    if (! $chatUser && is_array(session('auth_user'))) {
-                        $sU = session('auth_user');
-                        if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
-                            try {
-                                $chatUser = \App\Models\User::where('email', $sU['email'] ?? '')->orWhere('nim_nidn', $sU['number'] ?? '')->first();
-                            } catch (\Throwable $e) {
-                            }
-                        }
-                    }
-                    $isDosenUser = ($chatUser && $chatUser->hasRole(\App\Models\Role::DOSEN))
-                        || (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === \App\Models\Role::DOSEN);
-
-                    $meName = $chatUser?->name ?? session('auth_user.name', 'Ahmad Maulana');
-                    $meRole = $chatUser?->role?->name ?? session('auth_user.role', 'mahasiswa');
-                    $meSenderKey = $chatUser
-                        ? 'user:'.$chatUser->getAuthIdentifier()
-                        : 'preview:'.$meRole.':'.(session('auth_user.id') ?? session('auth_user.number') ?? session('auth_user.email') ?? 1);
+                    $isDosenUser = $chatUser?->hasRole(\App\Models\Role::DOSEN) ?? false;
+                    $meName = $chatUser?->name ?? '';
 
                     if ($hasChatTables && $chatRoom && \App\Models\Message::where('room_id', $chatRoom->id)->exists()) {
                         $rawMessages = \App\Models\Message::where('room_id', $chatRoom->id)
@@ -392,29 +434,7 @@
                             'role' => $u->pivot->role ?? 'mahasiswa'
                         ]);
                     } else {
-                        $previewMessages = collect(\App\Support\LearningPreview::courseDiscussions($course['id']));
-                        $initialMessages = $previewMessages->map(function ($m, $idx) use ($meName, $meSenderKey) {
-                            $isMe = isset($m['sender_key'])
-                                ? hash_equals($meSenderKey, (string) $m['sender_key'])
-                                : (!empty($meName) && trim($m['author'] ?? '') === trim($meName));
-                            $msgAt = isset($m['timestamp']) ? \Carbon\Carbon::createFromTimestamp($m['timestamp']) : now();
-                            return [
-                                'id' => $idx + 1,
-                                'room_id' => 1,
-                                'content' => $m['message'] ?? '',
-                                'is_pinned' => false,
-                                'user_id' => 0,
-                                'author' => $m['author'] ?? 'Pengguna',
-                                'role' => $m['role'] ?? 'mahasiswa',
-                                'is_me' => $isMe,
-                                'time' => $m['time'] ?? $msgAt->format('H:i'),
-                                'date_key' => $m['date_key'] ?? $msgAt->toDateString(),
-                                'date_label' => $m['date_label'] ?? ($msgAt->isToday() ? 'Hari ini' : ($msgAt->isYesterday() ? 'Kemarin' : $msgAt->translatedFormat('d F Y'))),
-                                'timestamp' => $m['timestamp'] ?? $msgAt->timestamp,
-                                'reply_to' => null,
-                                'mentions' => [],
-                            ];
-                        });
+                        $initialMessages = collect();
                         $pinnedMessages = collect();
                         $roomMembersList = collect();
                     }
@@ -470,10 +490,7 @@
                             @php($previousMessageDate = $msgDateKey)
                         @endif
                         <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row' }}">
-                                {{-- Garis Vertikal (brand untuk pesan saya, abu untuk pesan lain) --}}
-                                <span class="shrink-0 w-[3.5px] self-stretch {{ $isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl' }}" aria-hidden="true"></span>
-                                <div class="p-3 min-w-0 flex-1">
+                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible p-3 {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
                                 <div class="flex items-start gap-2.5 min-w-0">
                                     @unless($isMe)
                                         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700">
@@ -485,7 +502,7 @@
                                             @unless($isMe)
                                                 <span class="text-xs font-bold text-ink break-words">{{ $msg['author'] }}</span>
                                                 @if(($msg['role'] ?? '') === 'dosen')
-                                                    <span class="status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0">Dosen</span>
+                                                    <span class="text-[11px] font-semibold text-brand shrink-0">· Dosen</span>
                                                 @endif
                                             @endunless
                                             @if($isPinned)
@@ -523,7 +540,6 @@
                                             <time class="text-[10px] text-muted">{{ $msg['time'] }}</time>
                                         </div>
                                     </div>
-                                </div>
                                 </div>
                             </article>
                         </div>
@@ -655,7 +671,11 @@
 
         // 3. Delete Message Handling
         window.deleteMessage = async function(messageId) {
-            if (!confirm('Apakah Anda yakin ingin menghapus pesan ini?')) return;
+            if (!await window.saleConfirm({
+                title: 'Hapus pesan',
+                message: 'Pesan ini akan dihapus dari diskusi kelas.',
+                confirmLabel: 'Hapus',
+            })) return;
 
             try {
                 const response = await fetch(`/chat/messages/${messageId}`, {
@@ -796,10 +816,7 @@
             row.dataset.messageId = String(messageId);
             row.dataset.author = author;
 
-            const article = chatElement('article', `min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible flex ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2] flex-row-reverse' : 'bg-canvas/70 border-line/60 flex-row'}`);
-            article.appendChild(chatElement('span', `shrink-0 w-[3.5px] self-stretch ${isMe ? 'bg-[#1f4b7a] rounded-r-xl' : 'bg-[#c2c8d0] rounded-l-xl'}`));
-
-            const padding = chatElement('div', 'p-3 min-w-0 flex-1');
+            const article = chatElement('article', `min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible p-3 ${isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60'}`);
             const layout = chatElement('div', 'flex items-start gap-2.5 min-w-0');
             if (!isMe) {
                 layout.appendChild(chatElement('span', 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700', initials));
@@ -810,7 +827,7 @@
             if (!isMe) {
                 heading.appendChild(chatElement('span', 'text-xs font-bold text-ink break-words', author));
                 if (message.role === 'dosen') {
-                    heading.appendChild(chatElement('span', 'status text-[10px] font-semibold py-0 px-1.5 text-brand bg-brand-soft border border-brand/20 shrink-0', 'Dosen'));
+                    heading.appendChild(chatElement('span', 'text-[11px] font-semibold text-brand shrink-0', '· Dosen'));
                 }
             }
             if (message.is_pinned) {
@@ -868,8 +885,7 @@
             timeWrapper.appendChild(chatElement('time', 'text-[10px] text-muted', message.time));
             body.appendChild(timeWrapper);
             layout.appendChild(body);
-            padding.appendChild(layout);
-            article.appendChild(padding);
+            article.appendChild(layout);
             row.appendChild(article);
 
             return row;
@@ -1129,7 +1145,7 @@
 </script>
 
 {{-- Modal daftar anggota kelas --}}
-<dialog id="enrolled-students-modal" class="backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-lg overflow-hidden m-auto">
+<dialog id="enrolled-students-modal" class="fixed inset-0 m-auto backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-lg overflow-hidden">
     <div class="p-4 sm:p-5 border-b border-line/60 flex items-center justify-between">
         <div>
             <h3 class="font-bold text-ink text-base">Anggota Kelas</h3>

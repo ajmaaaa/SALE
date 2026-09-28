@@ -4,7 +4,7 @@
     $joinInputId = $joinInputId ?? 'input-join-code';
 @endphp
 
-<dialog id="{{ $joinDialogId }}" class="backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-md overflow-hidden m-auto">
+<dialog id="{{ $joinDialogId }}" class="fixed inset-0 m-auto backdrop:bg-black/40 rounded-xl p-0 shadow-lg border border-line/60 w-full max-w-md overflow-hidden">
     <div class="p-5 border-b border-line/60 flex items-center justify-between">
         <h2 class="text-sm font-bold text-ink">Gabung Kelas Perkuliahan</h2>
         <button type="button" onclick="document.getElementById('{{ $joinDialogId }}').close()" class="text-muted hover:text-ink text-sm p-1" aria-label="Tutup">✕</button>

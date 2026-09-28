@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Prodi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,7 +28,7 @@ class LayoutRoleDisplayTest extends TestCase
         $response->assertOk();
         // Pastikan tidak ada raw json role di render
         $response->assertDontSee('{"id":');
-        $response->assertSee('Peralihan Peran');
+        $response->assertDontSee('Peralihan Peran');
         $response->assertDontSee('Mahasiswa (Ahmad Maulana)');
 
         // Mahasiswa tidak melihat opsi switch role sama sekali
@@ -44,22 +45,16 @@ class LayoutRoleDisplayTest extends TestCase
         $mhsResponse->assertDontSee('Beralih Peran');
     }
 
-    public function test_can_switch_to_all_4_roles(): void
+    public function test_one_account_can_open_each_persisted_role_workspace_without_role_switch_route(): void
     {
-        // 1. Switch to Admin Prodi
-        $this->post(route('switch-role', 'admin_prodi'))
-            ->assertRedirect(route('admin-prodi.dashboard'));
+        $dosen = Role::create(['name' => Role::DOSEN, 'label' => 'Dosen']);
+        $adminProdi = Role::create(['name' => Role::ADMIN_PRODI, 'label' => 'Admin Prodi']);
+        $prodi = Prodi::create(['code' => 'IF', 'name' => 'Informatika']);
+        $user = User::create(['name' => 'Dosen Kaprodi', 'email' => 'kaprodi@test.local', 'password' => 'secret', 'role_id' => $dosen->id, 'managing_prodi_id' => $prodi->id]);
+        $user->roles()->sync([$dosen->id, $adminProdi->id]);
 
-        // 2. Switch to Admin Sistem
-        $this->post(route('switch-role', 'admin'))
-            ->assertRedirect(route('admin.page', 'dashboard'));
-
-        // 3. Switch to Dosen
-        $this->post(route('switch-role', 'dosen'))
-            ->assertRedirect(route('dosen.dashboard'));
-
-        // 4. Switch to Mahasiswa
-        $this->post(route('switch-role', 'mahasiswa'))
-            ->assertRedirect(route('mahasiswa.dashboard'));
+        $this->actingAs($user)->get(route('dosen.dashboard'))->assertOk();
+        $this->actingAs($user)->get(route('admin-prodi.dashboard'))->assertOk();
+        $this->post('/switch-role/dosen')->assertNotFound();
     }
 }

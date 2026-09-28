@@ -35,9 +35,21 @@ class SecurityModeTest extends TestCase
         $this->get('/admin-prodi/dashboard')->assertForbidden();
     }
 
+    public function test_production_layout_does_not_offer_demo_role_switcher(): void
+    {
+        $role = Role::create(['name' => Role::MAHASISWA, 'label' => 'Mahasiswa']);
+        $student = User::factory()->create(['role_id' => $role->id]);
+
+        $this->actingAs($student)
+            ->get(route('mahasiswa.profile.index'))
+            ->assertOk()
+            ->assertDontSee('Peralihan Peran')
+            ->assertDontSee('/switch-role/admin');
+    }
+
     public function test_production_mode_disables_personas_and_requires_database_password(): void
     {
-        $this->get('/switch-role/admin')->assertMethodNotAllowed();
+        $this->get('/switch-role/admin')->assertNotFound();
         $this->get('/logout')->assertStatus(405);
 
         $this->post('/login', ['persona_id' => 1])

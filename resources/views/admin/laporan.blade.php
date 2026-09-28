@@ -18,7 +18,7 @@
     $adminCount = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'admin')));
     $adminAktif = count(array_filter($users, fn($u) => \App\Support\AdminPreview::hasRole($u, 'admin') && $u['status'] === 'aktif'));
 
-    $logs = session('admin.logs', []);
+    $logs = $logs ?? [];
 @endphp
 
 <div class="space-y-8">
@@ -50,13 +50,13 @@
         </div>
         <div class="surface p-5 border border-line/60">
             <p class="text-xs font-semibold text-muted">KONSUMSI TOKEN AI</p>
-            <p class="mt-2 text-2xl font-bold text-ink">640.000</p>
-            <p class="mt-1 text-xs text-muted">64% dari kuota 1.000.000 token</p>
+            <p class="mt-2 text-2xl font-bold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }}</p>
+            <p class="mt-1 text-xs text-muted">{{ number_format((int) $aiMetrics['requests'], 0, ',', '.') }} permintaan tercatat</p>
         </div>
         <div class="surface p-5 border border-line/60">
             <p class="text-xs font-semibold text-muted">KETERSEDIAAN SISTEM</p>
-            <p class="mt-2 text-2xl font-bold text-ink">99.9%</p>
-            <p class="mt-1 text-xs text-emerald-600 font-medium">Layanan stabil</p>
+            <p class="mt-2 text-lg font-bold text-ink">Belum diukur</p>
+            <p class="mt-1 text-xs text-muted">Kolektor uptime belum terhubung</p>
         </div>
     </div>
 
@@ -86,20 +86,20 @@
                     <tr>
                         <td class="font-semibold text-ink">Fakultas</td>
                         <td>{{ $fakultasCount }}</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{{ $fakultasCount }} Aktif</span></td>
+                        <td><span class="text-xs font-semibold text-emerald-700">{{ $fakultasCount }} Aktif</span></td>
                         <td class="text-xs text-muted">Maksimal 1 fakultas per institusi</td>
                     </tr>
                     <tr>
                         <td class="font-semibold text-ink">Program Studi (Prodi)</td>
                         <td>{{ $prodiCount }}</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{{ $prodiCount }} Aktif</span></td>
+                        <td><span class="text-xs font-semibold text-emerald-700">{{ $prodiCount }} Aktif</span></td>
                         <td class="text-xs text-muted">Bernaung di bawah fakultas utama</td>
                     </tr>
                     <tr>
                         <td class="font-semibold text-ink">Semester / Tahun Ajaran</td>
                         <td>{{ $semesterCount }}</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{{ $semesterCount }} Aktif</span></td>
-                        <td class="text-xs text-muted">{{ session('admin.settings.semester', 'Ganjil 2026/2027') }} sebagai semester berjalan</td>
+                        <td><span class="text-xs font-semibold text-emerald-700">{{ $semesterCount }} Aktif</span></td>
+                        <td class="text-xs text-muted">{{ collect($academic)->first(fn($item) => $item['type'] === 'semester' && $item['status'] === 'aktif')['name'] ?? 'Belum ditetapkan' }} sebagai semester berjalan</td>
                     </tr>
                 </tbody>
             </table>
@@ -113,7 +113,7 @@
                 <h2 class="text-base font-bold text-ink">Laporan Pemakaian Token AI &amp; Komputasi</h2>
                 <p class="text-xs text-muted mt-0.5">Ringkasan penggunaan token AI bulan berjalan dan estimasi kuota.</p>
             </div>
-            <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
+            <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai']) }}" class="text-xs font-semibold text-brand hover:text-brand-dark">
                 Panel monitoring AI
             </a>
         </div>
@@ -121,18 +121,18 @@
         <div class="grid gap-4 sm:grid-cols-3">
             <div class="rounded-xl bg-canvas/60 p-4 border border-line/40">
                 <p class="text-xs text-muted font-medium">Token Input (Prompt)</p>
-                <p class="text-xl font-bold text-ink mt-1">412.000</p>
-                <p class="text-[11px] text-muted mt-0.5">64.4% dari total penggunaan</p>
+                <p class="text-xl font-bold text-ink mt-1">{{ number_format((int) $aiMetrics['input_tokens'], 0, ',', '.') }}</p>
+                <p class="text-[11px] text-muted mt-0.5">Berdasarkan log API bulan berjalan</p>
             </div>
             <div class="rounded-xl bg-canvas/60 p-4 border border-line/40">
                 <p class="text-xs text-muted font-medium">Token Output (Completion)</p>
-                <p class="text-xl font-bold text-ink mt-1">228.000</p>
-                <p class="text-[11px] text-muted mt-0.5">35.6% dari total penggunaan</p>
+                <p class="text-xl font-bold text-ink mt-1">{{ number_format((int) $aiMetrics['output_tokens'], 0, ',', '.') }}</p>
+                <p class="text-[11px] text-muted mt-0.5">Berdasarkan log API bulan berjalan</p>
             </div>
             <div class="rounded-xl bg-canvas/60 p-4 border border-line/40">
-                <p class="text-xs text-muted font-medium">Sisa Kuota Tersedia</p>
-                <p class="text-xl font-bold text-ink mt-1">360.000 <span class="text-xs font-normal text-muted">token</span></p>
-                <p class="text-[11px] text-emerald-600 font-medium mt-0.5">Reset pada 1 Okt 2026</p>
+                <p class="text-xs text-muted font-medium">Total Permintaan</p>
+                <p class="text-xl font-bold text-ink mt-1">{{ number_format((int) $aiMetrics['requests'], 0, ',', '.') }}</p>
+                <p class="text-[11px] text-muted mt-0.5">Panggilan API bulan berjalan</p>
             </div>
         </div>
 
@@ -148,27 +148,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td class="font-semibold text-ink">AI Tutor &amp; Asisten Pembelajaran</td>
-                        <td>312 request</td>
-                        <td>384.000 token</td>
-                        <td class="text-xs text-muted">1.230 token</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Aktif</span></td>
-                    </tr>
-                    <tr>
-                        <td class="font-semibold text-ink">Evaluasi Coding &amp; Test Suite Runner</td>
-                        <td>188 request</td>
-                        <td>162.000 token</td>
-                        <td class="text-xs text-muted">861 token</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Aktif</span></td>
-                    </tr>
-                    <tr>
-                        <td class="font-semibold text-ink">Asistensi Kuis &amp; Rekomendasi Karakter</td>
-                        <td>94 request</td>
-                        <td>94.000 token</td>
-                        <td class="text-xs text-muted">1.000 token</td>
-                        <td><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Aktif</span></td>
-                    </tr>
+                    @forelse($aiByFeature as $feature)
+                        <tr><td class="font-semibold text-ink">{{ ucfirst(str_replace('_', ' ', $feature->feature)) }}</td><td>{{ number_format((int) $feature->requests, 0, ',', '.') }}</td><td>{{ number_format((int) $feature->total_tokens, 0, ',', '.') }} token</td><td class="text-xs text-muted">{{ number_format((float) $feature->average_tokens, 0, ',', '.') }} token</td><td><span class="text-xs font-semibold text-emerald-700">Tercatat</span></td></tr>
+                    @empty
+                        <tr><td colspan="5" class="py-6 text-center text-sm text-muted">Belum ada panggilan AI yang tercatat bulan ini.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>

@@ -15,6 +15,6 @@ class ClassSectionPolicy
     public function manage(User $user, ClassSection $section): bool
     {
         return $user->hasRole(Role::DOSEN)
-            && in_array($user->id, [$section->dosen_id, $section->dosen_pendamping_id], true);
+            && in_array((int) $user->id, array_map('intval', array_filter([(int) $section->dosen_id, (int) $section->dosen_pendamping_id])), true);
     }
 }

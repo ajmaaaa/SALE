@@ -215,25 +215,7 @@ class EnrollmentController extends Controller
 
     private function activeUser(): ?User
     {
-        $user = Auth::guard('web')->user();
-        if ($user || ! config('app.demo_mode') || ! app()->environment(['local', 'testing'])) {
-            return $user;
-        }
-
-        $sessionUser = session('auth_user');
-        if (! is_array($sessionUser)) {
-            return null;
-        }
-
-        $user = User::where('email', $sessionUser['email'] ?? '')
-            ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-            ->first();
-
-        if ($user) {
-            Auth::guard('web')->setUser($user);
-        }
-
-        return $user;
+        return Auth::guard('web')->user();
     }
 
     private function result(ClassSection $section, string $status, string $message, array $extra = []): View

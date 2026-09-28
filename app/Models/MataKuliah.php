@@ -13,7 +13,13 @@ class MataKuliah extends Model
         'code',
         'name',
         'sks',
+        'is_lintas_prodi',
     ];
+
+    protected function casts(): array
+    {
+        return ['is_lintas_prodi' => 'boolean'];
+    }
 
     public function prodi(): BelongsTo
     {

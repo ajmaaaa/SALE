@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,9 +32,7 @@ class ProfileController extends Controller
             'user' => $user,
             'preferences' => $preferences,
             'settingsWritable' => $user?->hasRole(Role::MAHASISWA) ?? false,
-            'profilePhotoUrl' => $user?->profile_photo_path
-                ? Storage::disk('public')->url($user->profile_photo_path)
-                : null,
+            'profilePhotoUrl' => $user?->profile_photo_url,
             'activeSemester' => $activeSemester,
         ]);
     }
@@ -47,7 +44,7 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'new_password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()],
+            'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
         $user->forceFill(['password' => $validated['new_password']])->save();
@@ -86,13 +83,13 @@ class ProfileController extends Controller
         $user = $request->user();
         abort_unless($user?->hasRole(Role::MAHASISWA), 403);
 
-        if ($user->profile_photo_path) {
-            return back()->withErrors(['photo' => 'Foto profil hanya dapat diunggah satu kali.'])->withFragment('profil');
-        }
-
         $validated = $request->validate([
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
+
+        if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
+            Storage::disk('public')->delete($user->profile_photo_path);
+        }
 
         $path = $validated['photo']->storePublicly('profile-photos/'.$user->id, 'public');
         if (! $path) {
@@ -103,5 +100,20 @@ class ProfileController extends Controller
 
         return redirect()->to(route('mahasiswa.profile.index').'#profil')
             ->with('status', 'profile-photo-uploaded');
+    }
+
+    public function deletePhoto(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user?->hasRole(Role::MAHASISWA), 403);
+
+        if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
+            Storage::disk('public')->delete($user->profile_photo_path);
+        }
+
+        $user->forceFill(['profile_photo_path' => null])->save();
+
+        return redirect()->to(route('mahasiswa.profile.index').'#profil')
+            ->with('status', 'profile-photo-deleted');
     }
 }

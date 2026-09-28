@@ -56,7 +56,7 @@ class AssessmentController extends Controller
             $this->syncCpmk($assessment, $cpmkWeights);
         });
 
-        $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
+        $newTotal = round((float) $section->gradableAssessments()->sum('final_weight'), 2);
         $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
         $statusMsg = abs($newTotal - 100.0) < 0.01
             ? 'Total bobot kelas telah lengkap (100%).'
@@ -111,7 +111,7 @@ class AssessmentController extends Controller
             $this->syncCpmk($assessment, $cpmkWeights);
         });
 
-        $newTotal = round((float) $section->assessments()->sum('final_weight'), 2);
+        $newTotal = round((float) $section->gradableAssessments()->sum('final_weight'), 2);
         $totalFormatted = rtrim(rtrim(number_format($newTotal, 2), '0'), '.');
         $statusMsg = abs($newTotal - 100.0) < 0.01
             ? 'Total bobot kelas telah lengkap (100%).'
@@ -146,8 +146,8 @@ class AssessmentController extends Controller
             'status' => Assessment::STATUS_PUBLISHED,
         ]);
 
-        return redirect()->route('dosen.penilaian.matriks', $section->id)
-            ->with('notice', "Komponen asesmen \"{$request->input('name')}\" berhasil ditambahkan ke matriks.");
+        return redirect()->route('dosen.penilaian.asesmen', $section->id)
+            ->with('notice', "Komponen asesmen \"{$request->input('name')}\" berhasil ditambahkan.");
     }
 
     /**
@@ -188,7 +188,7 @@ class AssessmentController extends Controller
      */
     private function validated(Request $request, ClassSection $section, ?Assessment $ignoring = null): array
     {
-        $currentOtherTotal = round((float) $section->assessments()
+        $currentOtherTotal = round((float) $section->gradableAssessments()
             ->when($ignoring, fn ($q) => $q->where('id', '!=', $ignoring->id))
             ->sum('final_weight'), 2);
         $maxAllowed = round(100.0 - $currentOtherTotal, 2);
@@ -294,7 +294,7 @@ class AssessmentController extends Controller
 
     private function withHeaderCounts(ClassSection $section): ClassSection
     {
-        $section->loadCount('students')->loadCount('assessments')->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
         $section->cpmk_used_count = $this->cpmksFor($section)->count();
         $section->cpl_used_count = $this->cplsFor($section)->count();
 

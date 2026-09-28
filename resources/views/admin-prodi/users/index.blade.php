@@ -67,7 +67,7 @@
     <div class="surface p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h2 class="text-base font-bold text-ink">Daftar Dosen Pengampu — {{ $activeProdi?->name }}</h2>
+                <h2 class="text-base font-bold text-ink">Daftar Dosen Pengampu: {{ $activeProdi?->name }}</h2>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('admin-prodi.users.template', 'dosen') }}" class="button-secondary text-xs">
@@ -98,7 +98,7 @@
                     @forelse($dosens as $idx => $d)
                     <tr class="hover:bg-canvas/30">
                         <td class="px-4 py-3.5 text-center text-muted !align-middle">{{ $idx + 1 }}</td>
-                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $d->nim_nidn ?? '—' }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $d->nim_nidn ?? '' }}</td>
                         <td class="px-4 py-3.5 font-semibold text-ink !align-middle">{{ $d->name }}</td>
                         <td class="px-4 py-3.5 text-muted !align-middle">{{ $d->email }}</td>
                         <td class="px-4 py-3.5 !align-middle">
@@ -111,7 +111,7 @@
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
-                                <form action="{{ route('admin-prodi.users.destroy', $d->id) }}" method="POST" onsubmit="return confirm('Hapus data dosen {{ $d->name }}?');" class="inline">
+                                <form action="{{ route('admin-prodi.users.destroy', $d->id) }}" method="POST" data-confirm="Hapus data dosen {{ $d->name }}? Data yang terhubung akan ikut terdampak." data-confirm-title="Hapus dosen" data-confirm-label="Hapus" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10">
@@ -136,7 +136,7 @@
     <div class="surface p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h2 class="text-base font-bold text-ink">Daftar Mahasiswa — {{ $activeProdi?->name }}</h2>
+                <h2 class="text-base font-bold text-ink">Daftar Mahasiswa: {{ $activeProdi?->name }}</h2>
                 <p class="text-xs text-muted">Mahasiswa terdaftar dapat bergabung ke kelas mata kuliah via Link / Barcode yang dibagikan dosen.</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -168,7 +168,7 @@
                     @forelse($mahasiswas as $idx => $m)
                     <tr class="hover:bg-canvas/30">
                         <td class="px-4 py-3.5 text-center text-muted !align-middle">{{ $mahasiswas->firstItem() + $idx }}</td>
-                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $m->nim_nidn ?? '—' }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $m->nim_nidn ?? '' }}</td>
                         <td class="px-4 py-3.5 font-semibold text-ink !align-middle">{{ $m->name }}</td>
                         <td class="px-4 py-3.5 text-muted !align-middle">{{ $m->email }}</td>
                         <td class="px-4 py-3.5 !align-middle">
@@ -181,7 +181,7 @@
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
-                                <form action="{{ route('admin-prodi.users.destroy', $m->id) }}" method="POST" onsubmit="return confirm('Hapus data mahasiswa {{ $m->name }}?');" class="inline">
+                                <form action="{{ route('admin-prodi.users.destroy', $m->id) }}" method="POST" data-confirm="Hapus data mahasiswa {{ $m->name }}? Data yang terhubung akan ikut terdampak." data-confirm-title="Hapus mahasiswa" data-confirm-label="Hapus" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10">
@@ -237,8 +237,8 @@
             </div>
 
             <div>
-                <label for="create_password" class="block text-xs font-semibold text-ink mb-1">Kata Sandi (Opsional, minimal 12 karakter)</label>
-                <input type="password" name="password" id="create_password" minlength="12" autocomplete="new-password" placeholder="Kosongkan untuk membuat password acak" class="field text-xs font-semibold">
+                <label for="create_password" class="block text-xs font-semibold text-ink mb-1">Kata Sandi (Opsional, minimal 8 karakter)</label>
+                <input type="password" name="password" id="create_password" minlength="8" autocomplete="new-password" placeholder="Kosongkan untuk membuat password acak" class="field text-xs font-semibold">
                 <p class="mt-1 text-[11px] text-muted">Password sementara acak akan ditampilkan sekali setelah akun dibuat.</p>
             </div>
 
@@ -278,8 +278,8 @@
             </div>
 
             <div>
-                <label for="edit_password" class="block text-xs font-semibold text-ink mb-1">Ganti Password (Kosongkan jika tidak diubah, minimal 12 karakter)</label>
-                <input type="password" name="password" id="edit_password" minlength="12" autocomplete="new-password" placeholder="Minimal 12 karakter" class="field text-xs font-semibold">
+                <label for="edit_password" class="block text-xs font-semibold text-ink mb-1">Ganti Password (Kosongkan jika tidak diubah, minimal 8 karakter)</label>
+                <input type="password" name="password" id="edit_password" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter" class="field text-xs font-semibold">
                 <p class="mt-1 text-[11px] text-muted">Jika diubah, pengguna wajib menggantinya kembali saat login berikutnya.</p>
             </div>
 
@@ -308,7 +308,7 @@
                 <p class="text-muted">Kolom 1: Nomor Identitas (NIM / NIDN)</p>
                 <p class="text-muted">Kolom 2: Nama Lengkap</p>
                 <p class="text-muted">Kolom 3: Email</p>
-                <p class="text-muted">Kolom 4: Password (opsional, minimal 12 karakter; kosong = dibuat acak)</p>
+                <p class="text-muted">Kolom 4: Password (opsional, minimal 8 karakter; kosong = dibuat acak)</p>
             </div>
 
             <div>

@@ -87,7 +87,7 @@ class StudentProfileSettingsTest extends TestCase
         ], $this->student->fresh()->notification_preferences);
     }
 
-    public function test_profile_photo_can_be_uploaded_once(): void
+    public function test_profile_photo_can_be_uploaded_and_replaced(): void
     {
         Storage::fake('public');
 
@@ -107,8 +107,32 @@ class StudentProfileSettingsTest extends TestCase
             ->post(route('mahasiswa.profile.photo'), [
                 'photo' => UploadedFile::fake()->image('replacement.png'),
             ])
-            ->assertSessionHasErrors('photo');
+            ->assertRedirect(route('mahasiswa.profile.index').'#profil')
+            ->assertSessionHas('status', 'profile-photo-uploaded');
 
-        $this->assertSame($storedPath, $this->student->fresh()->profile_photo_path);
+        $newPath = $this->student->fresh()->profile_photo_path;
+        $this->assertNotEmpty($newPath);
+        $this->assertNotSame($storedPath, $newPath);
+        Storage::disk('public')->assertExists($newPath);
+        Storage::disk('public')->assertMissing($storedPath);
+    }
+
+    public function test_profile_photo_can_be_deleted_to_reset_to_default(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->student)
+            ->post(route('mahasiswa.profile.photo'), [
+                'photo' => UploadedFile::fake()->image('avatar.png'),
+            ]);
+
+        $this->assertNotNull($this->student->fresh()->profile_photo_path);
+
+        $this->actingAs($this->student->fresh())
+            ->delete(route('mahasiswa.profile.photo.destroy'))
+            ->assertRedirect(route('mahasiswa.profile.index').'#profil')
+            ->assertSessionHas('status', 'profile-photo-deleted');
+
+        $this->assertNull($this->student->fresh()->profile_photo_path);
     }
 }

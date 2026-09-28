@@ -8,8 +8,8 @@
     $activeUsersCount = count(array_filter($users, fn($u) => $u['status'] === 'aktif'));
     $totalUsersCount = count($users);
     $prodiCount = count(array_filter($academic, fn($a) => $a['type'] === 'prodi'));
-    $activeSemester = session('admin.settings.semester', 'Ganjil 2026/2027');
-    $logs = session('admin.logs', []);
+    $activeSemester = collect($academic)->first(fn($item) => $item['type'] === 'semester' && $item['status'] === 'aktif')['name'] ?? 'Belum ditetapkan';
+    $logs = $logs ?? [];
 @endphp
 
 <div class="space-y-8">
@@ -61,13 +61,13 @@
         </a>
 
         {{-- Card 4: Pemakaian Token AI --}}
-        <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}">
+        <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai']) }}">
             <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-muted">KUOTA AI BULAN INI</p>
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             </div>
-            <p class="mt-3 text-2xl font-bold text-ink">640.000 <span class="text-xs font-normal text-muted">token</span></p>
-            <p class="mt-1 text-xs text-muted">64% dari kuota 1.000.000 token</p>
+            <p class="mt-3 text-2xl font-bold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }} <span class="text-xs font-normal text-muted">token</span></p>
+            <p class="mt-1 text-xs text-muted">{{ number_format((int) $aiMetrics['requests'], 0, ',', '.') }} permintaan tercatat</p>
         </a>
     </div>
 
@@ -88,32 +88,29 @@
                 <div class="grid gap-5 sm:grid-cols-2 pt-1">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Sisa Kuota Tersedia</p>
-                        <p class="mt-2 text-3xl font-bold text-ink">36%</p>
-                        <p class="mt-1 text-xs text-muted">360.000 token tersisa dari 1.000.000 token</p>
-                        <div class="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100">
-                            <div class="h-full rounded-full bg-brand" style="width: 64%"></div>
-                        </div>
+                        <p class="mt-2 text-3xl font-bold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }}</p>
+                        <p class="mt-1 text-xs text-muted">Token terpakai berdasarkan panggilan API bulan ini</p>
                     </div>
 
                     <dl class="space-y-2.5 text-xs rounded-xl bg-canvas/60 p-3.5 border border-line/40">
                         <div class="flex justify-between">
                             <dt class="text-muted">Token terpakai bulan ini</dt>
-                            <dd class="font-semibold text-ink">640.000</dd>
+                            <dd class="font-semibold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }}</dd>
                         </div>
                         <div class="flex justify-between">
-                            <dt class="text-muted">Batas kuota institusi</dt>
-                            <dd class="font-semibold text-ink">1.000.000</dd>
+                            <dt class="text-muted">Total permintaan</dt>
+                            <dd class="font-semibold text-ink">{{ number_format((int) $aiMetrics['requests'], 0, ',', '.') }}</dd>
                         </div>
                         <div class="flex justify-between">
-                            <dt class="text-muted">Jadwal reset berikutnya</dt>
-                            <dd class="font-medium text-ink">1 Oktober 2026</dd>
+                            <dt class="text-muted">Latensi rata-rata</dt>
+                            <dd class="font-medium text-ink">{{ $aiMetrics['average_latency_ms'] === null ? 'Belum ada data' : number_format((float) $aiMetrics['average_latency_ms'], 0, ',', '.').' ms' }}</dd>
                         </div>
                     </dl>
                 </div>
 
                 <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
-                    <span class="text-muted">Rata-rata 21.300 token per hari</span>
-                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai', 'contoh' => 1]) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
+                    <span class="text-muted">Data berasal dari log panggilan AI</span>
+                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai']) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
                         Buka rincian pemakaian AI
                     </a>
                 </div>
@@ -126,35 +123,14 @@
                         <h2 id="server-monitoring-heading" class="section-heading text-base">Beban Server &amp; Ketersediaan</h2>
                         <p class="mt-0.5 text-xs text-muted">Kondisi sumber daya komputasi dan performa operasional.</p>
                     </div>
-                    <span class="text-xs font-medium text-emerald-600">Status Normal</span>
+                    <span class="text-xs font-medium text-muted">Belum terhubung</span>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                    <div class="rounded-xl bg-canvas/60 p-3 border border-line/40 text-center">
-                        <p class="text-[11px] font-semibold text-muted">BEBAN CPU</p>
-                        <p class="mt-1.5 text-xl font-bold text-ink">28%</p>
-                        <p class="mt-0.5 text-[11px] text-emerald-600 font-medium">Stabil</p>
-                    </div>
-                    <div class="rounded-xl bg-canvas/60 p-3 border border-line/40 text-center">
-                        <p class="text-[11px] font-semibold text-muted">PENGGUNAAN RAM</p>
-                        <p class="mt-1.5 text-xl font-bold text-ink">42%</p>
-                        <p class="mt-0.5 text-[11px] text-muted">3,4 / 8 GB</p>
-                    </div>
-                    <div class="rounded-xl bg-canvas/60 p-3 border border-line/40 text-center">
-                        <p class="text-[11px] font-semibold text-muted">RESPONS RATA-RATA</p>
-                        <p class="mt-1.5 text-xl font-bold text-ink">118 ms</p>
-                        <p class="mt-0.5 text-[11px] text-emerald-600 font-medium">Cepat</p>
-                    </div>
-                    <div class="rounded-xl bg-canvas/60 p-3 border border-line/40 text-center">
-                        <p class="text-[11px] font-semibold text-muted">PENYIMPANAN</p>
-                        <p class="mt-1.5 text-xl font-bold text-ink">14,2 GB</p>
-                        <p class="mt-0.5 text-[11px] text-muted">Data &amp; berkas</p>
-                    </div>
-                </div>
+                <div class="rounded-xl border border-dashed border-line bg-canvas/50 p-6 text-center text-sm text-muted">Metrik CPU, RAM, respons HTTP, dan penyimpanan belum memiliki kolektor data. Angka tidak ditampilkan agar tidak menyesatkan.</div>
 
                 <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
-                    <span class="text-muted">Pembaruan realtime setiap 30 detik</span>
-                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'server', 'contoh' => 1]) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
+                    <span class="text-muted">Menunggu integrasi kolektor server</span>
+                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'server']) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
                         Buka grafik beban server
                     </a>
                 </div>
@@ -178,7 +154,7 @@
                     <div class="rounded-lg bg-canvas/60 p-3 border border-line/40">
                         <p class="text-muted font-medium">Fakultas Utama</p>
                         <p class="font-bold text-ink text-sm mt-0.5">{{ $fakultas['name'] ?? 'Belum terdaftar' }}</p>
-                        <p class="text-xs text-muted mt-0.5">{{ $fakultas['code'] ?? '—' }} (Batas 1 fakultas tercapai)</p>
+                        <p class="text-xs text-muted mt-0.5">{{ $fakultas['code'] ?? '' }} (Batas 1 fakultas tercapai)</p>
                     </div>
                     <div class="p-2 space-y-1">
                         <p class="text-muted font-medium text-[11px]">Program Studi Terdaftar ({{ $prodis->count() }}):</p>

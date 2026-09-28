@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\Role;
 use App\Support\LearningPreview;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -15,23 +16,30 @@ class AssignmentController extends Controller
         return view('mahasiswa.assignment');
     }
 
-    public function code(int $assignment): View
+    public function courseCode(int $course, int $item): View
     {
-        $item = LearningPreview::items()[$assignment] ?? null;
-        $isCodingContent = $item && (
-            $item['type'] === 'coding'
-            || ($item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding')
-        );
-        abort_unless($isCodingContent, 404);
+        $user = auth()->user();
+        $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->findOrFail($course);
+        $canAccess = $user?->hasRole(Role::DOSEN)
+            ? $user->can('manage', $section)
+            : ($user?->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists());
 
-        if (Schema::hasTable('ai_tasks')) {
-            $aiTask = DB::table('ai_tasks')->where('id', $assignment)->first();
-            if ($aiTask) {
-                $item['title'] = $aiTask->title;
-                $item['body'] = $aiTask->body;
-            }
+        abort_unless($canAccess, 403, 'Anda tidak terdaftar pada kelas ini.');
+
+        $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
+        if ($user->hasRole(Role::MAHASISWA)) {
+            abort_unless($assessment->status === 'published', 403, 'Materi belum tersedia atau sudah ditutup.');
         }
 
-        return view('mahasiswa.assignment-code', ['item' => $item, 'course' => LearningPreview::course($item['course'])]);
+        $resource = LearningPreview::databaseAssessment($assessment);
+        $isCodingContent = $resource['type'] === 'coding'
+            || ($resource['type'] === 'materi' && ($resource['material_mode'] ?? null) === 'coding');
+        abort_unless($isCodingContent, 404);
+
+        return view('mahasiswa.assignment-code', [
+            'item' => $resource,
+            'course' => LearningPreview::databaseCourse($section),
+        ]);
     }
 }

@@ -47,6 +47,7 @@ class AkademikProdiController extends AdminProdiController
             ],
             'name' => ['required', 'string', 'max:150'],
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
+            'is_lintas_prodi' => ['nullable', 'boolean'],
         ], [
             'code.unique' => 'Kode mata kuliah sudah digunakan pada program studi ini.',
             'sks.required' => 'Bobot SKS wajib diisi.',
@@ -54,6 +55,7 @@ class AkademikProdiController extends AdminProdiController
 
         $this->assertProdiScope($validated['prodi_id']);
 
+        $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
         MataKuliah::create($validated);
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $validated['prodi_id']])
@@ -70,10 +72,12 @@ class AkademikProdiController extends AdminProdiController
             ],
             'name' => ['required', 'string', 'max:150'],
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
+            'is_lintas_prodi' => ['nullable', 'boolean'],
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['name'] = trim($validated['name']);
+        $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
 
         $mataKuliah->update($validated);
 
@@ -107,10 +111,11 @@ class AkademikProdiController extends AdminProdiController
         $semesters = Semester::orderByDesc('id')->get();
         $selectedSemesterId = $request->integer('semester_id') ?: ($semesters->firstWhere('is_active', true)?->id ?? $semesters->first()?->id ?? 0);
 
-        $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
-        $dosens = User::where('role_id', $dosenRoleId)
-            ->when($activeProdi, fn ($query) => $query->where(function ($subQuery) use ($activeProdi) {
-                $subQuery->where('prodi_id', $activeProdi->id)->orWhereNull('prodi_id');
+        $hasCrossProdiCourse = $activeProdi?->mataKuliahs()->where('is_lintas_prodi', true)->exists() ?? false;
+        $dosens = User::withRoleName(Role::DOSEN)
+            ->where('is_active', true)
+            ->when($activeProdi && ! $hasCrossProdiCourse, fn ($query) => $query->where(function ($subQuery) use ($activeProdi) {
+                $subQuery->where('prodi_id', $activeProdi->id)->orWhere('managing_prodi_id', $activeProdi->id);
             }))
             ->orderBy('name')
             ->get();
@@ -160,12 +165,13 @@ class AkademikProdiController extends AdminProdiController
             'dosen_id' => [
                 'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) use ($mataKuliah) {
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
-                    } elseif ($user && (int) $user->prodi_id !== (int) $mataKuliah->prodi_id) {
-                        $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
                     }
                 },
             ],
@@ -173,14 +179,13 @@ class AkademikProdiController extends AdminProdiController
                 'nullable',
                 'exists:users,id',
                 'different:dosen_id',
-                function ($attribute, $value, $fail) use ($mataKuliah) {
-                    if ($value) {
-                        $user = User::with('role')->find($value);
-                        if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
-                            $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
-                        } elseif ($user && (int) $user->prodi_id !== (int) $mataKuliah->prodi_id) {
-                            $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
-                        }
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
                     }
                 },
             ],
@@ -190,6 +195,8 @@ class AkademikProdiController extends AdminProdiController
         ]);
 
         $validated['enrollment_code'] = ClassSection::generateUniqueEnrollmentCode();
+        $this->validateLecturerProdi($mataKuliah, $validated['dosen_id'] ?? null, 'dosen_id');
+        $this->validateLecturerProdi($mataKuliah, $validated['dosen_pendamping_id'] ?? null, 'dosen_pendamping_id');
 
         $section = ClassSection::create($validated);
         $mk = $section->mataKuliah;
@@ -215,12 +222,13 @@ class AkademikProdiController extends AdminProdiController
             'dosen_id' => [
                 'nullable',
                 'exists:users,id',
-                function ($attribute, $value, $fail) use ($section) {
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
                         $fail('Pengguna yang dipilih sebagai dosen pengampu harus memiliki peran Dosen.');
-                    } elseif ($user && (int) $user->prodi_id !== (int) $section->mataKuliah->prodi_id) {
-                        $fail('Dosen pengampu harus berasal dari program studi yang sama dengan mata kuliah.');
                     }
                 },
             ],
@@ -228,14 +236,13 @@ class AkademikProdiController extends AdminProdiController
                 'nullable',
                 'exists:users,id',
                 'different:dosen_id',
-                function ($attribute, $value, $fail) use ($section) {
-                    if ($value) {
-                        $user = User::with('role')->find($value);
-                        if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
-                            $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
-                        } elseif ($user && (int) $user->prodi_id !== (int) $section->mataKuliah->prodi_id) {
-                            $fail('Dosen pendamping harus berasal dari program studi yang sama dengan mata kuliah.');
-                        }
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
                     }
                 },
             ],
@@ -245,6 +252,8 @@ class AkademikProdiController extends AdminProdiController
         ]);
 
         $validated['section_code'] = strtoupper(trim($validated['section_code']));
+        $this->validateLecturerProdi($section->mataKuliah, $validated['dosen_id'] ?? null, 'dosen_id');
+        $this->validateLecturerProdi($section->mataKuliah, $validated['dosen_pendamping_id'] ?? null, 'dosen_pendamping_id');
         $section->update($validated);
 
         return redirect()->route('admin-prodi.akademik.kelas', [
@@ -272,6 +281,22 @@ class AkademikProdiController extends AdminProdiController
             'prodi_id' => $prodiId,
             'semester_id' => $semesterId,
         ])->with('notice', "Kelas {$name} berhasil dihapus.");
+    }
+
+    private function validateLecturerProdi(MataKuliah $mataKuliah, ?int $userId, string $field): void
+    {
+        if (! $userId) {
+            return;
+        }
+        $lecturer = User::findOrFail($userId);
+        $belongsToManagedProdi = (int) $lecturer->prodi_id === (int) $mataKuliah->prodi_id
+            || (int) $lecturer->managing_prodi_id === (int) $mataKuliah->prodi_id;
+
+        if (! $belongsToManagedProdi && ! $mataKuliah->is_lintas_prodi) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Dosen dari program studi lain hanya dapat dipilih untuk mata kuliah yang ditandai lintas prodi.',
+            ]);
+        }
     }
 
     public function regenerateCode(ClassSection $section): RedirectResponse

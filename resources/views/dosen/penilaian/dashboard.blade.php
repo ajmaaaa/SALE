@@ -26,11 +26,11 @@
         </div>
         <div>
             <p class="text-xs text-muted">CPMK Digunakan</p>
-            <p class="mt-1 text-xl font-semibold text-ink">—</p>
+            <p class="mt-1 text-xl font-semibold text-ink">0</p>
         </div>
         <div>
             <p class="text-xs text-muted">CPL Digunakan</p>
-            <p class="mt-1 text-xl font-semibold text-ink">—</p>
+            <p class="mt-1 text-xl font-semibold text-ink">0</p>
         </div>
     </div>
 

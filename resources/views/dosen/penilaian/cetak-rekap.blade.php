@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title }} — {{ $section->mataKuliah->code }} ({{ $section->section_code }})</title>
+    <title>{{ $title }}: {{ $section->mataKuliah->code }} ({{ $section->section_code }})</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -111,7 +111,7 @@
     <div class="meta-grid">
         <div class="meta-row">
             <span class="meta-label">Mata Kuliah:</span>
-            <span class="meta-value">{{ $section->mataKuliah->code }} — {{ $section->mataKuliah->name }}</span>
+            <span class="meta-value">{{ $section->mataKuliah->code }}: {{ $section->mataKuliah->name }}</span>
         </div>
         <div class="meta-row">
             <span class="meta-label">Kelas / Semester:</span>
@@ -119,7 +119,7 @@
         </div>
         <div class="meta-row">
             <span class="meta-label">Dosen Pengampu:</span>
-            <span class="meta-value">{{ $section->dosen->name ?? '—' }}</span>
+            <span class="meta-value">{{ $section->dosen->name ?? '' }}</span>
         </div>
         <div class="meta-row">
             <span class="meta-label">Jumlah Mahasiswa:</span>
@@ -145,18 +145,18 @@
             @forelse($rows as $i => $row)
                 <tr>
                     <td class="text-center font-mono">{{ $i + 1 }}</td>
-                    <td class="font-mono">{{ $row['student']->nim_nidn ?? '—' }}</td>
+                    <td class="font-mono">{{ $row['student']->nim_nidn ?? '' }}</td>
                     <td>{{ $row['student']->name }}</td>
                     @foreach($cpls as $cpl)
                         <td class="text-center font-mono">
-                            {{ $row['cpl_scores'][$cpl->id] !== null ? number_format($row['cpl_scores'][$cpl->id], 1) : '—' }}
+                            {{ $row['cpl_scores'][$cpl->id] !== null ? number_format($row['cpl_scores'][$cpl->id], 1) : '' }}
                         </td>
                     @endforeach
                     <td class="text-center font-mono" style="font-weight: 600;">
-                        {{ $row['final_score'] !== null ? number_format($row['final_score'], 1) : '—' }}
+                        {{ $row['final_score'] !== null ? number_format($row['final_score'], 1) : '' }}
                     </td>
                     <td class="text-center font-mono" style="font-weight: 600;">
-                        {{ $row['grade'] ?? '—' }}
+                        {{ $row['grade'] ?? '' }}
                     </td>
                     <td class="text-center">
                         @if($row['coverage'] < 100)
@@ -187,7 +187,7 @@
             <p>Kota Batam, {{ date('d F Y') }}</p>
             <p>Dosen Pengampu Kelas</p>
             <div class="sig-line">{{ $section->dosen->name ?? 'Dosen Pengampu' }}</div>
-            <p style="font-size: 10px; color: #4b5563; margin-top: 4px;">NIP / NIDN: {{ $section->dosen->nim_nidn ?? '—' }}</p>
+            <p style="font-size: 10px; color: #4b5563; margin-top: 4px;">NIP / NIDN: {{ $section->dosen->nim_nidn ?? '' }}</p>
         </div>
     </div>
 </body>

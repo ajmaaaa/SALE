@@ -8,8 +8,6 @@ use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\User;
-use App\Support\AdminPreview;
-use App\Support\LearningPreview;
 use Illuminate\Support\Facades\Schema;
 
 class AdminLaporanService
@@ -37,10 +35,7 @@ class AdminLaporanService
             ])->toArray();
         }
 
-        return [
-            ['id' => 2, 'code' => 'IF', 'name' => 'Teknik Informatika', 'jenjang' => 'S1'],
-            ['id' => 5, 'code' => 'SI', 'name' => 'Sistem Informasi', 'jenjang' => 'S1'],
-        ];
+        return [];
     }
 
     /**
@@ -137,7 +132,27 @@ class AdminLaporanService
             return self::getDataFromDatabase($semesterCode);
         }
 
-        return self::getDataFromPreview($semesterCode);
+        return self::getEmptyData();
+    }
+
+    protected static function getEmptyData(): array
+    {
+        return [
+            'current_semester' => null,
+            'all_semesters' => collect(),
+            'faculty' => [
+                'name' => 'Belum dikonfigurasi', 'code' => '', 'dekan' => '', 'status' => 'Belum tersedia',
+                'prodis_count' => 0, 'dosen_count' => 0, 'students_count' => 0,
+                'courses_count' => 0, 'classes_count' => 0, 'avg_ipk' => '0,00', 'prodis' => collect(),
+            ],
+            'prodis' => collect(),
+            'monitoring_kelas' => collect(),
+            'kpis' => [
+                'total_prodi' => 0, 'total_mata_kuliah' => 0, 'total_kelas' => 0,
+                'total_dosen' => 0, 'total_mahasiswa' => 0, 'avg_ipk' => '0,00',
+                'compliance_rate' => 0, 'completed_classes' => 0, 'pending_classes' => 0,
+            ],
+        ];
     }
 
     /**

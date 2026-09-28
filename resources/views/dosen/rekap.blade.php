@@ -40,25 +40,28 @@
         </div>
     @elseif(empty($columns))
         <div class="surface p-12 text-center rounded-xl border border-line">
-            <h3 class="text-base font-semibold text-ink mb-1.5">Matriks Belum Dikonfigurasi</h3>
-            <p class="text-sm text-muted mb-4">Belum ada bobot asesmen yang dipetakan ke CPMK.</p>
-            <a href="{{ route('dosen.penilaian.matriks', $section->id) }}" class="button-primary text-xs">Atur Matriks</a>
+            <h3 class="text-base font-semibold text-ink mb-1.5">Belum Ada Komponen Asesmen</h3>
+            <p class="text-sm text-muted mb-4">Komponen asesmen masih kosong. Silakan selesaikan atau cek pada menu Penilaian.</p>
+            <div class="flex items-center justify-center gap-3">
+                <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="button-secondary text-xs">Cek Menu Penilaian</a>
+                <a href="{{ route('dosen.item.create', $section->id) }}" class="button-primary text-xs">+ Tambah Konten / Asesmen</a>
+            </div>
         </div>
     @else
 
         {{-- Tabel utama --}}
         <div class="surface rounded-xl border border-line/60 overflow-hidden shadow-2xs">
-            <div class="overflow-x-auto relative">
+            <div class="overflow-x-auto relative" tabindex="0" role="region" aria-label="Rekap capaian CPMK">
                 <table class="border-separate border-spacing-0 text-xs w-full" style="min-width: max-content;">
                     <thead>
                         {{-- Baris 1: grup nama asesmen --}}
-                        <tr class="bg-slate-100 dark:bg-slate-800">
-                            <th class="py-3 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-slate-100 dark:bg-slate-800 z-30 border-b border-r border-line/50" rowspan="2">#</th>
-                            <th class="py-3 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-slate-100 dark:bg-slate-800 z-30 border-b border-r border-line/40" rowspan="2">NIM</th>
-                            <th class="py-3 px-3 text-left text-muted font-semibold w-[200px] min-w-[200px] max-w-[220px] sticky left-[178px] bg-slate-100 dark:bg-slate-800 z-30 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]" rowspan="2">Nama</th>
+                        <tr class="bg-[#f8fafc]">
+                            <th class="py-2.5 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-r border-line/50 border-b-0 align-bottom">#</th>
+                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-r border-line/40 border-b-0 align-bottom">NIM</th>
+                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)] border-b-0 align-bottom">Nama Mahasiswa</th>
 
                             @foreach($columns as $col)
-                                <th class="py-2.5 px-3 text-center font-semibold text-ink border-b border-l border-line/50 bg-slate-100 dark:bg-slate-800"
+                                <th class="py-2.5 px-3 text-center font-semibold text-ink border-b border-l border-line/50 bg-[#f8fafc]"
                                     colspan="{{ count($col['cpmk_cols']) + 1 }}">
                                     <div class="truncate font-semibold" style="max-width: {{ (count($col['cpmk_cols']) + 1) * 90 }}px" title="{{ $col['assessment']->name }}">
                                         {{ $col['assessment']->name }}
@@ -69,17 +72,21 @@
                         </tr>
 
                         {{-- Baris 2: sub-kolom CPMK per asesmen + kolom Total --}}
-                        <tr class="bg-slate-50 dark:bg-slate-850">
+                        <tr class="bg-[#f8fafc]">
+                            <th class="py-1.5 px-3 text-center w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-left w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-b border-r border-line/40 border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-left w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-b border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)] border-t-0">&nbsp;</th>
+
                             @foreach($columns as $col)
                                 @foreach($col['cpmk_cols'] as $cc)
-                                    <th class="py-2 px-2 text-center min-w-[85px] border-b border-l border-line/40 bg-slate-50 dark:bg-slate-800/70">
+                                    <th class="py-2 px-2 text-center min-w-[85px] border-b border-l border-line/40 bg-[#f8fafc]">
                                         <div class="font-bold text-ink text-[11px]">{{ $cc['cpmk']->code }}</div>
-                                        <div class="text-[10px] text-muted font-normal mt-0.5">{{ $cc['weight_fmt'] }}%</div>
+                                        <div class="text-[10px] text-muted font-normal mt-0.5">{{ rtrim(rtrim(number_format($cc['effective_weight'], 1), '0'), '.') }}%</div>
                                     </th>
                                 @endforeach
-                                <th class="py-2 px-2 text-center min-w-[75px] border-b border-l border-line/50 bg-slate-100/80 dark:bg-slate-800">
-                                    <div class="font-bold text-brand text-[11px]">Total</div>
-                                    <div class="text-[10px] text-muted font-medium mt-0.5">(100)</div>
+                                <th class="py-2 px-2 text-center min-w-[75px] border-b border-l border-line/40 bg-[#f8fafc]">
+                                    <div class="font-bold text-ink text-[11px]">Total</div>
+                                    <div class="text-[10px] text-muted font-medium mt-0.5">/100</div>
                                 </th>
                             @endforeach
                         </tr>
@@ -87,10 +94,10 @@
 
                     <tbody>
                         @forelse($rows as $idx => $row)
-                            <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ $row['has_pending'] ? 'bg-amber-50/40' : '' }}">
-                                <td class="py-2.5 px-3 text-center text-muted/70 w-12 min-w-[48px] max-w-[48px] sticky left-0 {{ $row['has_pending'] ? 'bg-[#fffdf2] group-hover:bg-[#fef9c3]' : 'bg-white group-hover:bg-slate-50' }} dark:bg-slate-900 dark:group-hover:bg-slate-800 z-20 border-b border-r border-line/40">{{ $idx + 1 }}</td>
-                                <td class="py-2.5 px-3 font-mono text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] {{ $row['has_pending'] ? 'bg-[#fffdf2] group-hover:bg-[#fef9c3]' : 'bg-white group-hover:bg-slate-50' }} dark:bg-slate-900 dark:group-hover:bg-slate-800 z-20 text-[11px] border-b border-r border-line/40">{{ $row['student']->nim_nidn ?? '' }}</td>
-                                <td class="py-2.5 px-3 font-medium text-ink w-[200px] min-w-[200px] max-w-[220px] sticky left-[178px] {{ $row['has_pending'] ? 'bg-[#fffdf2] group-hover:bg-[#fef9c3]' : 'bg-white group-hover:bg-slate-50' }} dark:bg-slate-900 dark:group-hover:bg-slate-800 z-20 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                            <tr class="group bg-white hover:bg-slate-50 transition-colors">
+                                <td class="py-2.5 px-3 text-center text-muted/70 w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-white group-hover:bg-slate-50 z-20 border-b border-r border-line/40">{{ $idx + 1 }}</td>
+                                <td class="py-2.5 px-3 font-mono text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 z-20 text-[11px] border-b border-r border-line/40">{{ $row['student']->nim_nidn ?? '' }}</td>
+                                <td class="py-2.5 px-3 font-medium text-ink w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 z-20 border-b border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.08)]">
                                     <div class="truncate" title="{{ $row['student']->name }}">{{ $row['student']->name }}</div>
                                 </td>
 
@@ -101,15 +108,13 @@
                                             $val     = $row['cells'][$cellKey] ?? null;
                                             $status  = $row['statuses'][$cellKey] ?? 'no_submission';
                                         @endphp
-                                        <td class="py-2.5 px-2 text-center border-b border-l border-line/30">
+                                        <td class="py-2.5 px-2 text-center border-b border-l border-line/30 bg-white group-hover:bg-slate-50">
                                             @if($val !== null)
                                                 <span class="font-mono font-semibold text-ink">{{ number_format($val, 1) }}</span>
                                             @elseif($status === 'pending')
-                                                <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-800 bg-amber-100 border border-amber-200 whitespace-nowrap">
-                                                    Menunggu
-                                                </span>
+                                                <span class="text-xs font-medium text-muted whitespace-nowrap">Menunggu</span>
                                             @else
-                                                <span class="text-line/60 font-mono">&mdash;</span>
+                                                <span class="text-muted font-mono"></span>
                                             @endif
                                         </td>
                                     @endforeach
@@ -118,22 +123,20 @@
                                     @php
                                         $asmtTotal = $row['asmt_totals'][$col['assessment']->id] ?? ['score' => null, 'status' => 'no_submission'];
                                     @endphp
-                                    <td class="py-2.5 px-2 text-center border-b border-l border-line/50 bg-slate-50/60 dark:bg-slate-800/40">
+                                    <td class="py-2.5 px-2 text-center border-b border-l border-line/40 bg-white group-hover:bg-slate-50">
                                         @if($asmtTotal['status'] === 'scored' && $asmtTotal['score'] !== null)
                                             <span class="font-mono font-bold text-ink">{{ number_format($asmtTotal['score'], 1) }}</span>
                                         @elseif($asmtTotal['status'] === 'pending')
-                                            <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-800 bg-amber-100 border border-amber-200 whitespace-nowrap">
-                                                Menunggu
-                                            </span>
+                                            <span class="text-xs font-medium text-muted whitespace-nowrap">Menunggu</span>
                                         @else
-                                            <span class="text-line/60 font-mono">&mdash;</span>
+                                            <span class="text-muted font-mono"></span>
                                         @endif
                                     </td>
                                 @endforeach
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $totalCols }}" class="text-center py-8 text-muted">
+                                <td colspan="{{ $totalCols }}" class="text-center py-8 text-muted bg-white">
                                     Belum ada mahasiswa terdaftar.
                                 </td>
                             </tr>

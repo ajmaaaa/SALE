@@ -10,6 +10,7 @@ use App\Http\Controllers\AdminProdi\ProdiManagementController;
 use App\Http\Controllers\AdminProdi\UserProdiController;
 use App\Http\Controllers\AiTutorController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\CodeRunnerController;
 use App\Http\Controllers\Dosen\AssessmentController;
 use App\Http\Controllers\Dosen\ClassSectionController;
@@ -34,7 +35,6 @@ Route::get('/', function () {
 Route::get('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:5,1')->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::post('/switch-role/{role}', [AuthController::class, 'switchRole'])->name('switch-role');
 
 // Ganti password wajib — hanya untuk user yang sudah login dengan must_change_password = true
 Route::middleware('auth')->group(function () {
@@ -51,19 +51,19 @@ Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
         Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
 
         Route::get('/assignment', [LearningController::class, 'assignments'])->name('assignment.index');
-        Route::get('/grade', fn () => redirect()->route('mahasiswa.assignment.index', ['tab' => 'nilai']))->name('grade.index');
         Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
         Route::put('/profile/notifications', [ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
         Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.photo');
+        Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto'])->name('profile.photo.destroy');
     });
 
-    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen')->name('assignment.code');
 });
 
 Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.item');
 Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.discuss');
+Route::get('/course/{course}/item/{item}/code', [AssignmentController::class, 'courseCode'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('course.assignment.code');
 
 Route::middleware('role:mahasiswa')->group(function () {
     Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::class, 'quizRoom'])->whereNumber(['course', 'item'])->name('mahasiswa.quiz.room');
@@ -79,11 +79,11 @@ Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middle
 
 // Chat Real-Time & Diskusi Kelas
 Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(function () {
-    Route::get('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'getMessages'])->whereNumber('course')->name('messages.index');
-    Route::post('/course/{course}/messages', [\App\Http\Controllers\ChatController::class, 'sendMessage'])->whereNumber('course')->name('messages.store');
-    Route::post('/messages/{message}/pin', [\App\Http\Controllers\ChatController::class, 'pinMessage'])->whereNumber('message')->name('messages.pin');
-    Route::delete('/messages/{message}', [\App\Http\Controllers\ChatController::class, 'deleteMessage'])->whereNumber('message')->name('messages.destroy');
-    Route::get('/course/{course}/members', [\App\Http\Controllers\ChatController::class, 'getMembers'])->whereNumber('course')->name('members');
+    Route::get('/course/{course}/messages', [ChatController::class, 'getMessages'])->whereNumber('course')->name('messages.index');
+    Route::post('/course/{course}/messages', [ChatController::class, 'sendMessage'])->whereNumber('course')->name('messages.store');
+    Route::post('/messages/{message}/pin', [ChatController::class, 'pinMessage'])->whereNumber('message')->name('messages.pin');
+    Route::delete('/messages/{message}', [ChatController::class, 'deleteMessage'])->whereNumber('message')->name('messages.destroy');
+    Route::get('/course/{course}/members', [ChatController::class, 'getMembers'])->whereNumber('course')->name('members');
 });
 
 Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_password_change'])->group(function () {
@@ -93,13 +93,14 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
     Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
     Route::get('/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('course.item');
+    Route::get('/course/{course}/item/{item}/quiz-preview', [LearningController::class, 'quizPreview'])->whereNumber(['course', 'item'])->name('course.quiz.preview');
     Route::post('/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('course.discuss');
-    Route::get('/assignment/{assignment}/code', [AssignmentController::class, 'code'])->whereNumber('assignment')->name('assignment.code');
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
+    Route::get('/course/{course}/item/{item}/edit', [LearningController::class, 'editItem'])->whereNumber(['course', 'item'])->name('item.edit');
+    Route::put('/course/{course}/item/{item}', [LearningController::class, 'updateItem'])->whereNumber(['course', 'item'])->name('item.update');
+    Route::delete('/course/{course}/item/{item}', [LearningController::class, 'destroyItem'])->whereNumber(['course', 'item'])->name('item.destroy');
     Route::post('/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('course.discuss.class');
-    Route::redirect('/penilaian', '/dosen/penilaian-kelas')->name('grades');
-
     Route::get('/penilaian-kelas', [ClassSectionController::class, 'index'])->name('penilaian.index');
     Route::get('/rekap-nilai', [ClassSectionController::class, 'rekapIndex'])->name('rekap.index');
     Route::prefix('penilaian-kelas/{section}')->name('penilaian.')->group(function () {
@@ -127,6 +128,12 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
 
         Route::get('/asesmen/{assessment}/nilai', [InputNilaiController::class, 'show'])->whereNumber('assessment')->name('asesmen.nilai');
         Route::post('/asesmen/{assessment}/nilai', [InputNilaiController::class, 'store'])->whereNumber('assessment')->name('asesmen.nilai.store');
+        Route::post('/asesmen/{assessment}/jawaban/{answer}/nilai', [InputNilaiController::class, 'storeEssayScore'])
+            ->whereNumber(['assessment', 'answer'])
+            ->name('asesmen.answer.score');
+        Route::post('/asesmen/{assessment}/mahasiswa/{student}/nilai', [InputNilaiController::class, 'storeStudentTaskScore'])
+            ->whereNumber(['assessment', 'student'])
+            ->name('asesmen.student.score');
         Route::get('/asesmen/{assessment}/nilai/template', [InputNilaiController::class, 'downloadTemplate'])->whereNumber('assessment')->name('asesmen.nilai.template');
         Route::get('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'import'])->whereNumber('assessment')->name('asesmen.nilai.import');
         Route::post('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'processImport'])->whereNumber('assessment')->name('asesmen.nilai.import.process');
@@ -151,32 +158,28 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
     Route::match(['get', 'post'], '/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('notifications.read');
     Route::post('/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('notifications.clear');
     Route::post('/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('notifications.delete');
-    Route::get('/profil', [\App\Http\Controllers\Dosen\ProfileController::class, 'index'])->name('profile.index');
-    Route::put('/profil/password', [\App\Http\Controllers\Dosen\ProfileController::class, 'updatePassword'])->name('profile.password');
-    Route::put('/profil/notifikasi', [\App\Http\Controllers\Dosen\ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
+    Route::get('/profil', [App\Http\Controllers\Dosen\ProfileController::class, 'index'])->name('profile.index');
+    Route::put('/profil/password', [App\Http\Controllers\Dosen\ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::put('/profil/notifikasi', [App\Http\Controllers\Dosen\ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
+    Route::post('/profil/photo', [App\Http\Controllers\Dosen\ProfileController::class, 'uploadPhoto'])->name('profile.photo');
+    Route::delete('/profil/photo', [App\Http\Controllers\Dosen\ProfileController::class, 'deletePhoto'])->name('profile.photo.destroy');
 });
 
 Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
     Route::get('/laporan/export', [AdminPreviewController::class, 'export'])->name('export');
+    Route::get('/pengguna/template', [AdminPreviewController::class, 'downloadUserTemplate'])->name('users.template');
     Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
     Route::post('/pengguna/bulk', [AdminPreviewController::class, 'bulkUsers'])->name('users.bulk');
     Route::post('/pengguna/{id}/delete', [AdminPreviewController::class, 'deleteUser'])->whereNumber('id')->name('users.destroy');
-    Route::post('/akademik/reset', [AdminPreviewController::class, 'resetAcademic'])->name('academic.reset');
     Route::post('/akademik/{id}/delete', [AdminPreviewController::class, 'deleteAcademic'])->whereNumber('id')->name('academic.destroy');
     Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
     Route::post('/pengaturan', [AdminPreviewController::class, 'settings'])->name('settings.store');
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
 
-Route::middleware(['role:dosen', 'force_password_change'])->group(function () {
-    Route::post('/dosen/penilaian/{item}', [AcademicController::class, 'gradeItem'])->name('dosen.grade.save');
-    Route::get('/dosen/course/{course}/item/{item}/penilaian', [AcademicController::class, 'assessmentGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian');
-    Route::get('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex?}', [AcademicController::class, 'evaluateEssay'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai');
-    Route::post('/dosen/course/{course}/item/{item}/penilaian/{student}/{questionIndex}', [AcademicController::class, 'saveEssayScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.esai.save');
-    Route::get('/dosen/course/{course}/item/{item}/penilaian-tugas', [AcademicController::class, 'tugasGrading'])->whereNumber(['course', 'item'])->name('dosen.item.penilaian.tugas');
-    Route::post('/dosen/course/{course}/item/{item}/penilaian-tugas/{student}', [AcademicController::class, 'saveTugasScore'])->whereNumber(['course', 'item', 'student'])->name('dosen.item.penilaian.tugas.save');
-});
-Route::get('/mahasiswa/nilai', [AcademicController::class, 'student'])->middleware('role:mahasiswa')->name('mahasiswa.nilai');
+Route::get('/mahasiswa/nilai', [AcademicController::class, 'student'])
+    ->middleware('role:mahasiswa')
+    ->name('mahasiswa.nilai');
 
 Route::post('/ai/login', [AiTutorController::class, 'login'])->middleware('throttle:10,1')->name('ai.login');
 Route::post('/ai/logout', [AiTutorController::class, 'logout'])->middleware('auth')->name('ai.logout');
@@ -190,7 +193,6 @@ Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middle
 Route::post('/join-kelas-langsung', [EnrollmentController::class, 'joinDirect'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.direct');
 Route::get('/kelas/{section}/qr', [AkademikProdiController::class, 'qrCode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.qr');
 Route::get('/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.barcode');
-
 
 Route::prefix('admin-prodi')->name('admin-prodi.')->middleware(['admin_prodi.auth', 'force_password_change'])->group(function () {
     Route::get('/', fn () => redirect()->route('admin-prodi.dashboard'));

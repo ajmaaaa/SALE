@@ -22,8 +22,10 @@ class ProfileController extends Controller
         ], $user?->notification_preferences ?? []);
 
         return view('dosen.profil', [
+            'user' => $user,
             'preferences' => $preferences,
             'settingsWritable' => $user?->hasRole(Role::DOSEN) ?? false,
+            'profilePhotoUrl' => $user?->profile_photo_url,
         ]);
     }
 
@@ -34,7 +36,7 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'new_password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()],
+            'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
         $user->forceFill(['password' => $validated['new_password']])->save();
@@ -63,5 +65,44 @@ class ProfileController extends Controller
 
         return redirect()->to(route('dosen.profile.index').'#notifikasi')
             ->with('status', 'notification-preferences-updated');
+    }
+
+    public function uploadPhoto(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user?->hasRole(Role::DOSEN), 403);
+
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        if ($user->profile_photo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->profile_photo_path)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_photo_path);
+        }
+
+        $path = $validated['photo']->storePublicly('profile-photos/'.$user->id, 'public');
+        if (! $path) {
+            return back()->withErrors(['photo' => 'Foto gagal disimpan. Coba lagi.'])->withFragment('profil');
+        }
+
+        $user->forceFill(['profile_photo_path' => $path])->save();
+
+        return redirect()->to(route('dosen.profile.index').'#profil')
+            ->with('status', 'profile-photo-uploaded');
+    }
+
+    public function deletePhoto(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user?->hasRole(Role::DOSEN), 403);
+
+        if ($user->profile_photo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->profile_photo_path)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_photo_path);
+        }
+
+        $user->forceFill(['profile_photo_path' => null])->save();
+
+        return redirect()->to(route('dosen.profile.index').'#profil')
+            ->with('status', 'profile-photo-deleted');
     }
 }

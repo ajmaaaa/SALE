@@ -1,17 +1,16 @@
 @php
     $passedRole = $role ?? null;
-    $currentRole = $passedRole ?: (request()->is('dosen*') ? 'dosen' : (auth()->user()?->role?->name ?? session('auth_user.role') ?? 'mahasiswa'));
+    $currentRole = $passedRole ?: (request()->is('dosen*') ? 'dosen' : 'mahasiswa');
     $isDosen = ($passedRole === 'dosen') || request()->is('dosen*') || ($currentRole === 'dosen');
 
-    $contents = collect(\App\Support\LearningPreview::items())->where('course', $course['id']);
-    if ($contents->isEmpty() && \Illuminate\Support\Facades\Schema::hasTable('assessments')) {
-        $dbAssessments = \App\Models\Assessment::where('class_section_id', $course['id'])
+    $contents = collect();
+    if (\Illuminate\Support\Facades\Schema::hasTable('assessments')) {
+        $contents = \App\Models\Assessment::where('class_section_id', $course['id'])
             ->where('status', 'published')
             ->whereNotNull('due_at')
             ->orderBy('due_at')
-            ->get();
-        if ($dbAssessments->isNotEmpty()) {
-            $contents = $dbAssessments->map(function ($a) {
+            ->get()
+            ->map(function ($a) {
                 return [
                     'id' => $a->id,
                     'course' => $a->class_section_id,
@@ -23,19 +22,18 @@
                     'due' => $a->due_at?->format('Y-m-d\TH:i'),
                 ];
             });
-        }
     }
     
     // Untuk mahasiswa: cek apakah ada tugas/kuis aktif yang belum diserahkan
     $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])
-        ->filter(fn($item) => empty(session('learning.submissions.'.$item['id'])))
+        ->filter(fn($item) => $isDosen || !\App\Models\Submission::where('assessment_id', $item['id'])->where('mahasiswa_id', auth()->id())->exists())
         ->sortBy('due')
         ->first();
 
     $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
 
     $sks = $course['sks'] ?? '3 SKS';
-    $studentsCount = $course['students_count'] ?? (count($course['students'] ?? [1, 2, 3, 4, 5]));
+    $studentsCount = $course['students_count'] ?? 0;
     $assessmentsCount = $course['assessments_count'] ?? $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->count();
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
@@ -45,10 +43,10 @@
 
     $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
     $targetUrl = route($targetRole . '.course.show', $course['id']);
-    $enrollmentCode = $course['enrollment_code'] ?? ($course['code'] . '-2026');
+    $enrollmentCode = $course['enrollment_code'] ?? null;
     $enrollmentUrl = $course['enrollment_url'] ?? url('/join-kelas/' . $enrollmentCode);
-    $qrUrl = $course['qr_url'] ?? ('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($enrollmentUrl));
-    $dosenKetua = $course['dosen_ketua'] ?? ($course['lecturer'] ?? 'Dr. Budi Santoso, M.Kom.');
+    $qrUrl = $course['qr_url'] ?? null;
+    $dosenKetua = $course['dosen_ketua'] ?? ($course['lecturer'] ?? 'Belum ditetapkan');
 @endphp
 
 <div class="group relative flex min-h-64 flex-col overflow-hidden rounded-xl bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md border border-line/70">
@@ -216,7 +214,7 @@
         document.getElementById('modalCourseSubtitle').textContent = title + ' (' + code + ')';
         document.getElementById('modalEnrollmentCode').textContent = enrollmentCode;
 
-        // QR real scannable — encode URL enrollment atau fallback kode
+        // QR real scannable: encode URL enrollment atau fallback kode
         const dataToEncode = enrollmentUrl || (window.location.origin + '/join-kelas/' + enrollmentCode);
         const qrSrc = qrUrl || (
             'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=14&color=102f50&bgcolor=ffffff&data='

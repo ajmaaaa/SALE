@@ -5,7 +5,7 @@
 
 @section('content')
 @php
-    $settings = session('admin.settings', []);
+    $settings = $settings ?? [];
     $institution = $settings['institution'] ?? 'Universitas Contoh';
     $institutionCode = $settings['institution_code'] ?? 'UNIV-01';
     $activeSemester = $settings['semester'] ?? 'Ganjil 2026/2027';
@@ -26,7 +26,7 @@
             <p class="page-description">Konfigurasi preferensi global, integrasi kuota AI, identitas kampus, dan parameter operasional.</p>
         </div>
         <div class="flex items-center gap-2">
-            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span class="text-xs font-semibold text-ink">
                 Sistem Berjalan Normal
             </span>
         </div>
@@ -110,7 +110,7 @@
 
                 <div>
                     <label class="form-label">Kebijakan Struktur Fakultas</label>
-                    <input class="field" type="text" disabled readonly value="1 Fakultas (Fakultas Ilmu Komputer)">
+                    <input class="field" type="text" disabled readonly value="{{ ($settings['faculty_name'] ?? null) ? '1 Fakultas ('.$settings['faculty_name'].')' : 'Belum ada fakultas terdaftar' }}">
                     <p class="mt-1 text-[11px] text-muted">Kebijakan sistem saat ini membatasi institusi hanya mengelola 1 fakultas induk.</p>
                 </div>
             </div>
@@ -127,7 +127,7 @@
                 <div>
                     <label class="form-label" for="ai_token_quota">Batas Kuota Token Bulanan (Token)</label>
                     <input class="field font-mono" name="ai_token_quota" id="ai_token_quota" type="number" step="10000" min="10000" value="{{ old('ai_token_quota', $aiQuota) }}">
-                    <p class="mt-1 text-[11px] text-muted">Batas institusi saat ini: 1.000.000 token per bulan kalender.</p>
+                    <p class="mt-1 text-[11px] text-muted">Batas institusi saat ini: {{ number_format((int) $aiQuota, 0, ',', '.') }} token per bulan kalender.</p>
                 </div>
 
                 <div>

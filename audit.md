@@ -270,3 +270,233 @@ Bukti teknis tersedia di folder [`evidence`](evidence/):
 - `build.txt`, `js-tests.txt`, `pint.txt`, dan `composer-validate.txt` — pemeriksaan kualitas.
 
 Audit statis dan pengujian lokal tidak dapat menjamin tidak ada celah lain. Penetration test pada deployment staging tetap diperlukan setelah semua temuan Critical dan High ditutup.
+
+---
+
+# Audit & Verifikasi Perbaikan — 28 September 2026
+
+Laporan ini mendokumentasikan hasil audit presisi dan perbaikan bug sistemik berdasarkan umpan balik pengguna pada siklus perbaikan 28 September 2026. Seluruh perbaikan mempertahankan desain asli sistem SALE tanpa menambahkan elemen visual yang tidak diminta atau mengubah token desain Tailwind yang telah terstandarisasi.
+
+## Koreksi Forensik Sesi Antigravity
+
+Audit ulang terhadap percakapan `524422b6-a256-435b-b312-99690435818f`, artefak langkah Antigravity, riwayat Git, dan working tree menemukan bahwa beberapa view sempat diganti utuh memakai `git checkout HEAD -- ...`. Karena itu, status “desain aman” tidak boleh disimpulkan hanya dari `git diff` akhir.
+
+Perbaikan selektif yang diterapkan:
+
+- memulihkan desain kartu daftar kelas Penilaian/Rekap dari salinan tepat sebelum overwrite;
+- menghapus hanya simbol panah pada tombol **Kelola Penilaian**, **Rekap CPMK**, dan **Rekap CPL**;
+- mempertahankan isi terbaru halaman asesmen, rekap, dan header ringkas tanpa memasukkan kembali kartu agregat atau tab bernomor dari desain lama;
+- menghapus nomor langkah yang masih tersisa pada judul Matriks dan Rekap CPL agar tidak bercampur dengan pola header terbaru;
+- memperbaiki tabel rekap agar menampilkan bobot efektif asesmen × CPMK, bukan bobot internal yang dapat terlihat keliru sebagai 100%;
+- memperbarui tes UI yang sebelumnya memaksa desain lama sehingga tes mengunci desain terbaru, bukan menyebabkan rollback tampilan produksi.
+
+Verifikasi otomatis terbaru: **230 tes lulus, 2.026 assertion, 0 gagal** (`php artisan test`). Verifikasi ini mencakup alur penilaian, rekap OBE, admin prodi, enrollment, pembelajaran, keamanan, profil, notifikasi, dan submission. Kesesuaian visual lintas ukuran layar tetap harus diperiksa menggunakan checklist browser di bawah.
+
+Catatan keselamatan working tree: terdapat banyak perubahan lintas sesi yang belum di-commit. Jangan menjalankan rollback massal (`git checkout`, `git restore`, atau reset) terhadap direktori/file yang berubah. Gunakan diff per-hunk dan arsip sesi sebagai sumber pemulihan.
+
+## Ringkasan 12 Temuan & Resolusi
+
+### 1. Halaman Login — Split-Screen 50:50 Layar Penuh dengan Desain Asli & Corak Course
+- **Masalah:** Halaman login sempat dibuat kartu kecil mengambang, lalu sempat ditambahkan elemen/widget baru yang tidak diminta. Yang diinginkan adalah layout layar penuh (*full screen*) split 50:50 sesuai desain asli dengan panel biru di satu sisi beraksen corak grafis seperti pada card course agar tidak polos.
+- **Penyebab:** Penambahan komponen buatan baru (*AI slop*) yang menyimpang dari teks dan struktur asli login SALE.
+- **Perbaikan:**
+  - Mengembalikan seluruh teks dan tipografi otentik SALE tanpa menambahkan kartu widget tiruan:
+    - Sisi Biru (`bg-gradient-to-br from-[#0e2740] via-[#12385b] to-[#1c5384]`, 50% desktop): memuat teks asli *"Portal akademik"*, *"Satu ruang untuk aktivitas perkuliahan."*, *"Akses course, materi, asesmen, dan administrasi sesuai peran akun institusi Anda."*, dan *"Smart Academic Learning Ecosystem"*, diperkaya gradasi biru modern dan efek ambient glow halus serta corak grafis SVG asli cover card course (pohon hierarki modul dan graf simpul) dengan opasitas seimbang.
+    - Sisi Form (50% desktop, full mobile): memuat teks asli *"Akun institusi"*, *"Masuk ke SALE"*, *"Gunakan email atau nomor induk yang terdaftar."*, input Email/NIM, toggle visibilitas kata sandi, dan tombol Masuk.
+- **Berkas yang Diubah:** `resources/views/auth/login.blade.php`.
+
+### 2. Sinkronisasi Data Dosen & Dropdown Pengampu Kelas
+- **Masalah:** Dosen muncul pada dropdown pengampu saat pembuatan kelas/mata kuliah, namun tidak tercantum di tabel Manajemen Pengguna Admin Prodi.
+- **Penyebab:** Query pada `UserProdiController@index` memfilter dosen strictly dengan `where('prodi_id', $prodiId)`, sehingga dosen yang kolom `prodi_id`-nya bernilai `NULL` (misalnya akun bawaan seeder) tidak terambil. Sebaliknya, dropdown pengampu mengambil semua dosen dari relasi global.
+- **Perbaikan:**
+  - Memperbarui query di `UserProdiController` dengan `where(function ($q) use ($prodiId) { $q->where('prodi_id', $prodiId)->orWhereNull('prodi_id'); })`.
+  - Memperbarui otorisasi `AdminProdiController::assertUserScope` agar tidak menghasilkan HTTP 403 saat mengelola dosen dengan `prodi_id` null.
+  - Menyelaraskan seluruh data dosen dengan `prodi_id` null pada database ke prodi terkait.
+- **Berkas yang Diubah:**
+  - `app/Http/Controllers/AdminProdi/UserProdiController.php`
+  - `app/Http/Controllers/AdminProdi/AdminProdiController.php`
+
+### 3. Card Petunjuk Pengerjaan & Tampilan Pengampu di Item View
+- **Masalah:** Tinggi card "Petunjuk Pengerjaan" tidak sejajar dengan card "Pengelolaan Pengampu", terdapat label badge "Dosen" dengan teks pudar yang tidak rapi, dan informasi durasi/deadline ujian bertumpuk sempit.
+- **Penyebab:** Card di kolom kiri tidak memiliki kelas `flex-1` dan container grid tidak menggunakan `items-stretch`.
+- **Perbaikan:**
+  - Menghapus badge teks pudar `<span ...>Dosen</span>` di card pengampu.
+  - Menetapkan container grid menjadi `items-stretch`, kolom utama `flex flex-col`, dan card petunjuk `flex-1` sehingga tinggi card otomatis sejajar secara proporsional.
+  - Memperbarui box informasi pengerjaan (durasi, jumlah soal, bobot, batas pengerjaan) menjadi responsif menggunakan `bg-canvas/40 p-5 rounded-xl border border-line/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5`.
+- **Berkas yang Diubah:** `resources/views/learning/item.blade.php`.
+
+### 4. Responsivitas Mobile — Klik Elemen Terhalang Header Sticky
+- **Masalah:** Pada resolusi smartphone (layar sempit), beberapa tab, tombol aksi, dan konten tidak dapat diklik atau tertutup oleh header course.
+- **Penyebab:** Header course `#course-header-sticky` dipasang `sticky top-16` secara global di semua breakpoint, sehingga pada mobile menempati porsi layar yang terlalu besar dan lapisan z-index menutupi tombol di bawahnya.
+- **Perbaikan:** Mengubah sticky header menjadi `relative lg:sticky lg:top-16`, sehingga pada smartphone header mengalir secara alami (tidak mengambang menutupi tombol) dan fungsi klik tetap lancar.
+- **Berkas yang Diubah:** `resources/views/learning/course.blade.php`.
+
+### 5. Upload Foto Profil & Stimulus Gambar Soal
+- **Masalah:**
+  - Foto profil mahasiswa yang diunggah tidak tampil (menghasilkan 404).
+  - Mahasiswa dibatasi hanya dapat mengunggah foto 1 kali tanpa opsi ganti/edit foto.
+  - Gambar stimulus pada soal kuis terhapus jika dosen mengedit kuis tanpa mengunggah ulang file gambar.
+- **Penyebab:**
+  - Symlink `public/storage` belum dibuat di server.
+  - `ProfileController` mahasiswa memiliki validasi `$user->profile_photo_path ? abort(...) : ...`.
+  - Form edit soal (`item-form.blade.php`) tidak memiliki hidden input untuk mempertahankan gambar yang sudah tersimpan sebelumnya.
+- **Perbaikan:**
+  - Menjalankan `php artisan storage:link`.
+  - Menghapus pembatasan 1x upload pada `ProfileController` mahasiswa, menambahkan penghapusan berkas lama via `Storage::disk('public')->delete()` saat foto diperbarui, serta menampilkan tombol "Ganti foto".
+  - Memperbarui navbar mahasiswa (`resources/views/layouts/mahasiswa.blade.php`) agar menampilkan foto profil jika tersedia.
+  - Menambahkan input hidden `existing_image` pada question builder `item-form.blade.php` dan `app.js`, menampilkan thumbnail preview gambar yang tersimpan, serta menangani retensi gambar di `LearningController@updateItem`.
+- **Berkas yang Diubah:**
+  - `app/Http/Controllers/Mahasiswa/ProfileController.php`
+  - `resources/views/mahasiswa/profile.blade.php`
+  - `resources/views/layouts/mahasiswa.blade.php`
+  - `resources/views/dosen/item-form.blade.php`
+  - `app/Http/Controllers/LearningController.php`
+  - `resources/js/app.js`
+  - `tests/Feature/StudentProfileSettingsTest.php`
+
+### 6. Membatalkan Garis Koneksi Soal Menjodohkan (Matching)
+- **Masalah:** Siswa tidak dapat membatalkan pasangan soal menjodohkan dengan mengklik langsung pada garis penghubung.
+- **Penyebab:** Layer SVG garis berada di bawah elemen interaktif atau tidak memiliki hit area yang memadai untuk menangkap event klik.
+- **Perbaikan:**
+  - Menyesuaikan SVG container pada `quiz-room.blade.php` ke `z-30 pointer-events-none`.
+  - Menambahkan path transparan dengan lebar stroke 16px di atas setiap garis (`pointer-events: stroke; cursor: pointer;`) dan menambahkan listener `onclick="disconnectConnection(id)"` serta `title="Klik garis untuk membatalkan pasangan"`.
+- **Berkas yang Diubah:** `resources/views/learning/quiz-room.blade.php`.
+
+### 7. Audit & Pembersihan Tombol Close Ganda pada Modal
+- **Masalah:** Ditemukan modal dan pop-up konfirmasi yang memiliki dua tombol tutup sekaligus (ikon '✕' di header dan tombol teks 'Tutup' di footer).
+- **Penyebab:** Redundant markup tombol tutup di footer modal yang sudah memiliki tombol '✕' fungsional di header.
+- **Perbaikan:** Menghapus tombol teks sekunder di footer pada:
+  - Modal navigasi soal `quiz-room.blade.php` (`#modal-grid-close-btn`).
+  - Modal petunjuk materi `assignment-code.blade.php` (`#modal-material-close-btn`).
+  - Modal detail mahasiswa `item-grading.blade.php`.
+  - Modal detail tugas `tugas-grading.blade.php`.
+  - Modal tinjau jawaban esai `input-nilai.blade.php`.
+- **Berkas yang Diubah:**
+  - `resources/views/learning/quiz-room.blade.php`
+  - `resources/views/mahasiswa/assignment-code.blade.php`
+  - `resources/views/dosen/penilaian/item-grading.blade.php`
+  - `resources/views/dosen/penilaian/tugas-grading.blade.php`
+  - `resources/views/dosen/penilaian/input-nilai.blade.php`
+
+### 8. Penyederhanaan Heading di Halaman Input Nilai
+- **Masalah:** Header halaman input nilai terlalu padat dan berulang karena menyertakan dua blok header (header kelas dan header asesmen) secara bertumpuk.
+- **Penyebab:** `@include('dosen.partials.header')` dipanggil sebelum header khusus asesmen.
+- **Perbaikan:** Menghapus header duplikat, menyatukan navigasi breadcrumb ke kelas, menampilkan nama asesmen, progress badge, dan tombol aksi dalam satu baris header ringkas.
+- **Berkas yang Diubah:** `resources/views/dosen/penilaian/input-nilai.blade.php`.
+
+### 9. Retensi Tenggat Waktu (Due Date) Saat Edit Konten
+- **Masalah:** Saat mengedit asesmen atau kuis yang telah memiliki tenggat waktu, toggle tenggat dan input tanggal kembali ke kondisi default (nonaktif/kosong).
+- **Penyebab:** Input form pada `item-form.blade.php` tidak membaca atribut `old('due', $item['due'])` dengan parsing format datetime yang sesuai untuk elemen `<input type="datetime-local">`.
+- **Perbaikan:** Memperbarui binding checkbox dan input waktu agar membaca format `Y-m-d\TH:i` dari `$item['due']` jika tersedia.
+- **Berkas yang Diubah:** `resources/views/dosen/item-form.blade.php`.
+
+### 10. Soal Pilihan Ganda Kompleks (PG Kompleks)
+- **Masalah:**
+  - Opsi jawaban hilang saat membuka kembali form edit soal kuis.
+  - Logika scoring salah: jawaban sebagian salah tetap dianggap benar.
+  - Tampilan kunci jawaban pada reviu kuis membingungkan mahasiswa.
+- **Penyebab:**
+  - Canonicalization question mengubah `options` menjadi `option_items` tanpa direkonstruksi saat diedit kembali di frontend JavaScript.
+  - Evaluasi kuis hanya mendukung all-or-nothing tanpa perhitungan penalti pilihan keliru.
+- **Perbaikan:**
+  - Di `resources/js/app.js`: merekonstruksi string baris `options` dan string `correct_answer` dari `option_items` dan `answer_key.option_ids` saat form dibuka kembali.
+  - Di `app/Support/QuizQuestion.php`: mengimplementasikan formula penilaian parsial: $\text{Skor} = \max\left(0, \frac{C - W}{N_{\text{kunci}}}\right) \times \text{Poin}$, di mana $C$ adalah pilihan benar, $W$ adalah pilihan salah, dan $N_{\text{kunci}}$ adalah jumlah kunci jawaban.
+  - Di `resources/views/learning/quiz-room.blade.php`: mengganti badge ambigu dengan status yang jelas: `"✓ Pilihan Tepat (Kunci)"`, `"✕ Pilihan Salah"`, dan `"○ Kunci Jawaban"`.
+- **Berkas yang Diubah:**
+  - `app/Support/QuizQuestion.php`
+  - `resources/views/learning/quiz-room.blade.php`
+  - `resources/js/app.js`
+  - `app/Http/Controllers/LearningController.php`
+
+### 11. Integrasi Akses Jawaban Esai Mahasiswa untuk Dosen
+- **Masalah:** Dosen yang membuka halaman input nilai asesmen (`input-nilai.blade.php`) tidak dapat melihat teks jawaban esai mahasiswa; tombol "Jawaban" hanya menampilkan pop-up placeholder kosong.
+- **Penyebab:** `InputNilaiController@show` tidak mem-prefetch relasi submission jawaban esai mahasiswa, dan JavaScript modal diisi dengan HTML statis.
+- **Perbaikan:**
+  - Di `app/Http/Controllers/Dosen/InputNilaiController.php`: mendeteksi soal bertipe `uraian`/`esai`, mem-prefetch seluruh submission dari tabel `submissions` dan relasi `answers` (`SubmissionAnswer`), memetakan jawaban per butir soal, dan mengoper data `$studentEssayData` serta flag `$hasEssay` ke view.
+  - Di `resources/views/dosen/penilaian/input-nilai.blade.php`: tombol "Jawaban" menampilkan indikator titik hijau jika jawaban mahasiswa sudah terkumpul. Saat diklik, modal menampilkan:
+    - Waktu pengumpulan dan total soal esai.
+    - Setiap butir soal esai lengkap dengan nomor soal, bobot poin maksimal, badge CPMK, teks pertanyaan, dan jawaban asli mahasiswa dalam wadah teks yang rapi dan aman dari XSS.
+    - Tautan lampiran eksternal jika disertakan oleh mahasiswa.
+    - Pesan status yang jelas jika mahasiswa belum mengumpulkan lembar jawaban.
+- **Berkas yang Diubah:**
+  - `app/Http/Controllers/Dosen/InputNilaiController.php`
+  - `resources/views/dosen/penilaian/input-nilai.blade.php`
+
+---
+
+## Daftar Checklist Pengujian (Testing Checklist)
+
+Berikut adalah panduan langkah demi langkah untuk memverifikasi seluruh perbaikan secara manual di browser:
+
+### 1. Pengujian Halaman Login
+- [ ] Buka URL `/login`.
+- [ ] Pastikan tampilan memenuhi layar penuh (*full screen*) dengan layout split 50:50 pada desktop:
+  - Sisi kiri (50%): berlatar gradasi biru modern (`#0e2740` via `#12385b` ke `#1c5384`) dengan ambient glow halus dan corak grafis SVG asli course (pohon hierarki modul dan simpul pengetahuan) sehingga tidak tampak polos.
+  - Sisi kanan (50%): form login berlatar putih bersih dengan identitas SALE resmi, input Email/NIM, toggle visibilitas kata sandi, dan tombol Masuk.
+- [ ] Pada layar ponsel (mobile), pastikan form tampil penuh secara responsif dan rapi.
+- [ ] Uji login menggunakan akun dosen atau mahasiswa; pastikan proses autentikasi berhasil tanpa kendala.
+
+### 2. Pengujian Sinkronisasi Data Dosen & Kelas
+- [ ] Login sebagai **Admin Prodi**.
+- [ ] Buka menu **Manajemen Pengguna** (`/admin-prodi/users?role=dosen`).
+- [ ] Pastikan seluruh dosen yang terdaftar di prodi (termasuk dosen yang sebelumnya hanya muncul di dropdown pembuatan kelas) kini tercantum di tabel dosen.
+- [ ] Buka menu **Akademik & Kelas** (`/admin-prodi/akademik/kelas`), buat atau edit kelas, dan verifikasi nama dosen di dropdown pengampu cocok dengan daftar pengguna.
+
+### 3. Pengujian Tampilan Item View (Petunjuk & Pengampu)
+- [ ] Login sebagai **Dosen** atau **Mahasiswa**, buka salah satu asesmen/kuis di course (`/course/{course}/item/{item}`).
+- [ ] Periksa tinggi card "Petunjuk Pengerjaan" dan card "Pengampu": pastikan kedua card memiliki tinggi yang sejajar (*equal height*).
+- [ ] Periksa card pengampu: pastikan tidak ada label teks pudar bertuliskan "Dosen".
+- [ ] Periksa kotak informasi pengerjaan di card petunjuk (Durasi, Batas Pengerjaan, Jumlah Soal): pastikan tersusun rapi secara horizontal dan tidak berdempetan.
+
+### 4. Pengujian Responsivitas Mobile
+- [ ] Buka browser di perangkat smartphone atau aktifkan *Device Mode* (layar ponsel, lebar ≤ 430px) pada browser DevTools.
+- [ ] Buka halaman course (`/course/{course}`).
+- [ ] Gulir halaman ke bawah. Pastikan header tidak menutupi tombol tab materi/asesmen/forum di bawahnya.
+- [ ] Ketuk setiap tab dan tombol aksi di course; pastikan seluruh tombol merespons sentuhan/klik secara akurat.
+
+### 5. Pengujian Upload & Ganti Foto Profil
+- [ ] Login sebagai **Mahasiswa**.
+- [ ] Buka halaman **Profil** (`/mahasiswa/profil#profil`).
+- [ ] Unggah foto profil baru format PNG/JPG. Pastikan foto langsung tampil di halaman profil dan avatar navbar kanan atas.
+- [ ] Unggah foto pengganti (klik "Ganti foto"). Pastikan foto berhasil diperbarui dan foto lama terhapus dari server.
+- [ ] Login sebagai **Dosen**, buka form kuis yang memiliki gambar soal. Simpan kuis tanpa mengunggah file baru. Pastikan gambar soal yang sudah ada tetap tersimpan dan tidak terhapus.
+
+### 6. Pengujian Soal Menjodohkan (Matching)
+- [ ] Login sebagai **Mahasiswa**, buka ruang ujian kuis yang berisi soal menjodohkan (`/course/{course}/quiz/{item}`).
+- [ ] Hubungkan satu premis di kolom kiri ke opsi jawaban di kolom kanan hingga muncul garis penghubung.
+- [ ] Klik langsung pada garis penghubung yang terbentuk.
+- [ ] Pastikan garis langsung terputus dan status koneksi pasangan dibatalkan seketika.
+
+### 7. Pengujian Audit Tombol Close Modal
+- [ ] Buka modal navigasi nomor soal pada ruang kuis (`quiz-room`). Pastikan hanya ada tombol '✕' di sudut kanan atas modal dan tidak ada tombol teks "Tutup" duplikat di footer modal.
+- [ ] Buka halaman input nilai dosen dan klik tombol "Jawaban" pada salah satu mahasiswa. Pastikan modal jawaban hanya memiliki tombol '✕' di header.
+- [ ] Tekan tombol keyboard `Escape` pada setiap modal untuk memastikan modal tetap dapat ditutup dengan cepat.
+
+### 8. Pengujian Heading Halaman Input Nilai
+- [ ] Login sebagai **Dosen**, buka halaman input nilai asesmen (`/dosen/kelas/{section}/asesmen/{assessment}/nilai`).
+- [ ] Periksa bagian atas halaman: pastikan hanya ada satu header ringkas yang memuat breadcrumb, judul asesmen, dan progress status penilaian.
+- [ ] Pastikan tidak ada pengulangan nama mata kuliah atau teks header yang bertumpuk.
+
+### 9. Pengujian Tenggat Waktu pada Form Edit Asesmen
+- [ ] Login sebagai **Dosen**, buka form edit kuis/tugas yang sudah memiliki batas waktu (`/dosen/course/{course}/item/{item}/edit`).
+- [ ] Periksa checkbox toggle tenggat waktu: pastikan checkbox dalam keadaan tercentang dan tanggal/waktu tersimpan terisi dengan benar (tidak kosong).
+- [ ] Ubah tanggal tenggat, klik simpan, dan buka kembali form edit: pastikan tanggal baru tetap tersimpan sesuai input terakhir.
+
+### 10. Pengujian Soal Pilihan Ganda Kompleks (PG Kompleks)
+- [ ] Buat soal PG Kompleks dengan 4 butir opsi/pernyataan dan tentukan 2 opsi sebagai kunci jawaban yang benar.
+- [ ] Simpan kuis, lalu buka kembali form edit kuis: pastikan seluruh 4 opsi tetap utuh dan kunci jawaban tercentang dengan benar.
+- [ ] Kerjakan kuis sebagai **Mahasiswa** dengan memilih:
+  - Skenario A (semua benar): pilih kedua opsi kunci. Nilai harus 100% dari bobot soal.
+  - Skenario B (sebagian benar, ada salah): pilih 1 opsi benar dan 1 opsi salah. Skor parsial harus dihitung secara proporsional dan tidak bernilai penuh.
+- [ ] Periksa lembar reviu kuis setelah selesai dikerjakan: pastikan badge status menampilkan pilihan yang tepat, pilihan yang salah, dan kunci jawaban dengan keterangan yang jelas.
+
+### 11. Pengujian Tinjauan Jawaban Esai Mahasiswa di Halaman Input Nilai
+- [ ] Pastikan mahasiswa telah mengumpulkan jawaban pada kuis yang memiliki butir soal esai/uraian atau tugas tertulis.
+- [ ] Login sebagai **Dosen**, buka menu **Input Nilai** untuk asesmen tersebut (`/dosen/kelas/{section}/asesmen/{assessment}/nilai`).
+- [ ] Perhatikan kolom "Jawaban": mahasiswa yang telah mengumpulkan akan memiliki tombol "Jawaban" dengan aksen aktif dan titik hijau indikator.
+- [ ] Klik tombol "Jawaban" pada baris mahasiswa:
+  - Pastikan modal terbuka menampilkan nama mahasiswa.
+  - Pastikan setiap butir soal esai menampilkan nomor soal, pertanyaan, bobot poin, dan teks jawaban mahasiswa secara lengkap.
+  - Jika mahasiswa melampirkan tautan eksternal, pastikan tautan dapat diklik.
+- [ ] Klik tombol "Jawaban" pada mahasiswa yang belum mengumpulkan: pastikan modal menampilkan pesan bahwa lembar jawaban belum dikumpulkan.
+- [ ] Masukkan skor capaian CPMK pada form berdasarkan jawaban yang telah ditinjau, lalu simpan nilai.

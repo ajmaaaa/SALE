@@ -33,7 +33,7 @@ class MessagePolicy
 
         $section = ClassSection::find($room->course_id);
         if (! $section) {
-            return false;
+            return $room->members()->where('user_id', $user->id)->where('role', 'dosen')->exists();
         }
 
         return $user->can('manage', $section);

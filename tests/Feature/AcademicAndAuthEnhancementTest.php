@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Support\AdminPreview;
+use App\Support\LearningPreview;
 use Tests\TestCase;
 
 class AcademicAndAuthEnhancementTest extends TestCase
@@ -13,6 +14,24 @@ class AcademicAndAuthEnhancementTest extends TestCase
         $response->assertOk();
         $response->assertSee('Masuk');
         $response->assertSee('Email atau NIM / NIDN');
+    }
+
+    public function test_youtube_links_are_normalized_for_the_embedded_player(): void
+    {
+        foreach ([
+            'https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=30s',
+            'https://youtu.be/aqz-KE-bpKQ?si=example',
+            'https://www.youtube.com/shorts/aqz-KE-bpKQ',
+            'https://www.youtube.com/live/aqz-KE-bpKQ?feature=share',
+            'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ',
+        ] as $url) {
+            $this->assertSame(
+                'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?rel=0&playsinline=1',
+                LearningPreview::youtubeEmbedUrl($url),
+            );
+        }
+
+        $this->assertNull(LearningPreview::youtubeEmbedUrl('https://www.youtube.com/watch?v=not-a-valid-id'));
     }
 
     public function test_login_with_nim_and_email_credentials(): void

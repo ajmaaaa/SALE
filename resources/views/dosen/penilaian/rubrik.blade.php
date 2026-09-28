@@ -1,6 +1,6 @@
 @extends('layouts.mahasiswa')
 
-@section('title', 'Kelola Rubrik — ' . $assessment->name . ' | SALE')
+@section('title', 'Kelola Rubrik: ' . $assessment->name . ' | SALE')
 @section('header', 'Kelola Rubrik')
 
 @section('content')
@@ -37,7 +37,7 @@
             <label class="block max-w-md">
                 <span class="form-label text-xs">Nama Rubrik</span>
                 <input class="field" required maxlength="120" name="rubric_name"
-                       value="{{ old('rubric_name', $rubric->name ?? $assessment->name . ' — Rubrik') }}"
+                       value="{{ old('rubric_name', $rubric->name ?? $assessment->name . ' (Rubrik)') }}"
                        placeholder="Rubrik Penilaian Tugas 1">
             </label>
         </div>

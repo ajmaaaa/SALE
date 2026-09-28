@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Assessment;
+use App\Models\Role;
 use App\Services\Ai\GeminiTutor;
-use App\Support\LearningPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -21,33 +21,13 @@ class AiTutorController extends Controller
         $request->validate(['assignment' => 'nullable|integer|min:1']);
         $assignmentId = $request->integer('assignment', 1);
         $assignment = $this->codingContent($assignmentId);
-        $destination = route('mahasiswa.assignment.code', $assignmentId);
+        abort_unless($assignment, 404, 'Konten coding tidak ditemukan pada database.');
+        $destination = route('course.assignment.code', [$assignment['course'], $assignmentId]);
         $credentials = $request->validate(['email' => 'required|email|max:254', 'password' => 'required|string|max:1024']);
         $credentials['email'] = strtolower(trim($credentials['email']));
         $key = 'ai:login:'.hash('sha256', strtolower($credentials['email']));
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429, 'Terlalu banyak percobaan masuk. Tunggu satu menit.');
         RateLimiter::hit($key, 60);
-
-        // Auto-provision demo account — hanya pada mode demo di environment lokal/testing.
-        $isDemoMode = config('app.demo_mode') && app()->environment(['local', 'testing']);
-        if ($isDemoMode && Schema::hasTable('users') && $credentials['email'] === 'demo.ai@sale.test' && $credentials['password'] === 'password123456') {
-            $user = User::firstOrCreate(
-                ['email' => 'demo.ai@sale.test'],
-                ['name' => 'Mahasiswa Demo AI', 'password' => 'password123456']
-            );
-            if ($assignment && Schema::hasTable('ai_tasks')) {
-                DB::table('ai_tasks')->updateOrInsert(
-                    ['id' => $assignmentId],
-                    ['title' => $assignment['title'], 'body' => $assignment['body'], 'enabled' => true]
-                );
-            }
-            if ($assignment && Schema::hasTable('ai_access')) {
-                DB::table('ai_access')->insertOrIgnore([
-                    'user_id' => $user->id,
-                    'task_id' => $assignmentId,
-                ]);
-            }
-        }
 
         if (! Auth::attempt($credentials)) {
             return redirect($destination)->withErrors(['ai' => 'Email atau password akun AI tidak sesuai.']);
@@ -65,7 +45,11 @@ class AiTutorController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('mahasiswa.assignment.code', $request->integer('assignment', 1));
+        $assignmentId = $request->integer('assignment', 1);
+        $assignment = $this->codingContent($assignmentId);
+        abort_unless($assignment, 404);
+
+        return redirect()->route('course.assignment.code', [$assignment['course'], $assignmentId]);
     }
 
     private function task(Request $request, int $assignment): object
@@ -73,12 +57,8 @@ class AiTutorController extends Controller
         abort_unless($request->user(), 401, 'Masuk dengan akun AI terlebih dahulu.');
 
         $content = $this->codingContent($assignment);
-        if ($content && Schema::hasTable('ai_tasks')) {
-            DB::table('ai_tasks')->updateOrInsert(
-                ['id' => $assignment],
-                ['title' => $content['title'], 'body' => $content['body'], 'enabled' => true]
-            );
-        }
+        abort_unless($content, 404, 'Konten coding tidak ditemukan pada database.');
+        $this->authorizeAssessment($content['assessment'], $request->user());
 
         abort_unless(DB::table('ai_access')->where('user_id', $request->user()->id)->where('task_id', $assignment)->exists(), 403, 'Akun ini belum mendapat akses AI untuk tugas ini.');
         $task = DB::table('ai_tasks')->where('id', $assignment)->where('enabled', true)->first();
@@ -89,16 +69,37 @@ class AiTutorController extends Controller
 
     private function codingContent(int $assignment): ?array
     {
-        $item = LearningPreview::items()[$assignment] ?? null;
-        if (! $item) {
+        $assessment = Assessment::with('classSection')->find($assignment);
+        if (! $assessment) {
             return null;
         }
 
-        $type = $item['type'] ?? null;
+        $item = $assessment->learning_payload ?? [];
+        $type = $item['type'] ?? $assessment->type;
         $eligible = $type === 'coding'
             || ($type === 'materi' && ($item['material_mode'] ?? null) === 'coding');
 
-        return $eligible ? $item : null;
+        return $eligible ? array_merge($item, [
+            'id' => $assessment->id,
+            'course' => $assessment->class_section_id,
+            'title' => $assessment->name,
+            'body' => $assessment->description,
+            'assessment' => $assessment,
+        ]) : null;
+    }
+
+    private function authorizeAssessment(Assessment $assessment, $user): void
+    {
+        $section = $assessment->classSection;
+        abort_unless($section && $user, 403);
+
+        $allowed = $user->hasRole(Role::DOSEN)
+            ? $user->can('manage', $section)
+            : ($user->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists()
+                && $assessment->status === Assessment::STATUS_PUBLISHED);
+
+        abort_unless($allowed, 403, 'Anda tidak memiliki akses ke konten ini.');
     }
 
     public function status(Request $request, int $assignment)

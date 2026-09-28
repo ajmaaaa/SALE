@@ -5,33 +5,60 @@
 
 @section('content')
 @php
-    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa'));
-    $isLecturer = ($currentRole === 'dosen') || request()->routeIs('dosen.*');
-    if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
-        $isLecturer = false;
-    }
-    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas']);
+    $currentRole = request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa';
+    $isLecturer = $currentRole === 'dosen';
+    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true);
     $hasMultiQuestions = !empty($item['questions']);
     $isDedicatedQuiz = in_array($item['type'], ['kuis', 'uts', 'uas'], true);
     $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
-    $submission = session('learning.submissions.'.$item['id']);
-    $sessionGrade = session('learning.grades.'.$item['id']) ?? session('academic.item_grades.'.$item['id'].'.1');
-    $studentId = auth()->id() ?? (session('auth_user.id') ?? 1);
+    $submission = null;
+    $studentId = auth()->id();
+    if (empty($submission) && auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('submissions')) {
+        $dbSub = \App\Models\Submission::where('assessment_id', $item['id'])
+            ->where(fn ($q) => $q->where('user_id', $studentId)->orWhere('mahasiswa_id', $studentId))
+            ->latest('id')
+            ->first();
+        if ($dbSub) {
+            $submission = [
+                'id' => $dbSub->id,
+                'answer' => $dbSub->answer,
+                'link' => $dbSub->link,
+                'question_answers' => $dbSub->question_answers ?? [],
+                'files' => $dbSub->file_ids ?? [],
+                'student_number' => $dbSub->student_number,
+                'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                'submitted_at' => $dbSub->submitted_at,
+                'status' => $dbSub->status,
+                'attempt' => $dbSub->attempt,
+                'version' => $dbSub->version,
+            ];
+        }
+    }
     $dbScore = null;
     if (\Illuminate\Support\Facades\Schema::hasTable('student_assessment_scores')) {
         $dbScore = \App\Models\StudentAssessmentScore::where('assessment_id', $item['id'])
             ->where('mahasiswa_id', $studentId)
-            ->where('status', \App\Models\StudentAssessmentScore::STATUS_PUBLISHED)
+            ->where(function ($q) {
+                $q->whereNotNull('score')
+                  ->orWhereIn('status', [
+                      \App\Models\StudentAssessmentScore::STATUS_FINAL,
+                      \App\Models\StudentAssessmentScore::STATUS_PUBLISHED,
+                  ]);
+            })
             ->first();
     }
     $hasDbGrade = $dbScore && $dbScore->score !== null;
-    $hasSessionGrade = auth()->user() === null && $sessionGrade !== null;
-    $isGraded = $hasDbGrade || $hasSessionGrade;
-    $scoreValue = $hasDbGrade ? (float)$dbScore->score : ($hasSessionGrade ? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : (float)$sessionGrade) : null);
+    $isGraded = $hasDbGrade;
+    $scoreValue = $hasDbGrade ? (float)$dbScore->score : null;
     $isSubmitted = !empty($submission) || $isGraded;
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
-    $allowLate = $item['allow_late'] ?? true;
+    $allowLate = ($isTask && !$isDedicatedQuiz) ? true : ($item['allow_late'] ?? true);
     $isLocked = !$isSubmitted && $isPast && !$allowLate;
+    $isInputsDisabled = !empty($submission) || $isLocked || $isGraded;
+    $isTaskOrQuiz = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true);
+    $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
+    $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
+    $courseBackUrl = $courseBaseUrl . '?tab=' . $targetTab;
 @endphp
 
 <div class="space-y-6">
@@ -42,7 +69,7 @@
             <span>{{ $isLecturer ? 'Course Dosen' : 'Course' }}</span>
         </a>
         <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-        <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']) }}">
+        <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ $courseBackUrl }}">
             {{ $course['code'] }}
         </a>
         <svg class="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -55,21 +82,26 @@
     <header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
             <h1 class="page-heading">{{ $item['title'] }}</h1>
-            <p class="page-description">{{ $course['lecturer'] }}, {{ $item['module'] }}</p>
+            <p class="page-description">
+                {{ $course['lecturer'] }}, {{ $item['module'] }}@if(!empty($item['published_at_formatted'])) &bull; Diterbitkan {{ $item['published_at_formatted'] }}@endif
+            </p>
         </div>
+
     </header>
 
     {{-- Submission form wraps main questions & side actions if student --}}
+    @unless($isLecturer)
     <form data-submission-form method="post" enctype="multipart/form-data" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}">
         @csrf
+    @endunless
 
-        @if($isTask && ($isLecturer || !$isDedicatedQuiz))
-        <div class="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
+        @if($isLecturer || ($isTask && !$isDedicatedQuiz))
+        <div class="grid items-stretch gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
         @else
         <div class="w-full space-y-6">
         @endif
             {{-- Main Column: Instructions, Multi-Question Cards, Stimulus, Attachments, Discussions --}}
-            <div class="min-w-0 space-y-6">
+            <div class="min-w-0 space-y-6 flex flex-col">
                 {{-- Interactive Coding Workbench & Lumina AI Assistant Banner --}}
                 @if(!$isDedicatedQuiz && ($item['type'] === 'coding' || $isCodingMaterial))
                     <div class="rounded-xl border border-line bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -87,7 +119,7 @@
                                 Anda dapat menguji algoritma Binary Search Tree langsung di editor kode interaktif dengan panduan konsep cerdas dari Lumina AI.
                             </p>
                         </div>
-                        <a href="{{ route('mahasiswa.assignment.code', $item['id']) }}" class="button-primary text-xs py-2.5 px-4 font-bold inline-flex items-center gap-1.5 shrink-0 shadow-xs self-start sm:self-center">
+                        <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-4 font-bold inline-flex items-center gap-1.5 shrink-0 shadow-xs self-start sm:self-center">
                             <span>Buka Editor Kode &amp; Tanya AI</span>
                             <span aria-hidden="true">↗</span>
                         </a>
@@ -95,53 +127,68 @@
                 @endif
 
                 {{-- Instructions Card --}}
-                <section class="surface p-6 sm:p-7">
-                    <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
+                <section class="surface p-6 sm:p-7 flex flex-col flex-1">
+                    <div class="flex items-center justify-between gap-4">
+                        <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
+                        @if($isLecturer)
+                            <div class="flex items-center gap-1.5 shrink-0" aria-label="Aksi konten">
+                                <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit konten" aria-label="Edit konten">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </a>
+                                <form method="post" action="{{ route('dosen.item.destroy', [$course['id'], $item['id']]) }}" onsubmit="event.preventDefault(); window.saleConfirm({title: 'Hapus konten ini?', message: 'Konten dan seluruh data terkait akan dihapus secara permanen.', confirmLabel: 'Hapus', isDestructive: true}).then(ok => ok && this.submit())" class="inline-flex items-center m-0 p-0">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-rose-300 hover:text-rose-600 transition shadow-2xs" title="Hapus konten" aria-label="Hapus konten">
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
                     <p class="prose-content mt-4 text-sm">{{ $item['body'] }}</p>
 
                     @if($isDedicatedQuiz)
                         <div class="mt-6 pt-5 border-t border-line/60">
-                            <div class="rounded-xl border border-line p-5">
-                                    <div>
-                                        <p class="text-xs font-bold uppercase tracking-wider text-muted">Informasi Ujian &amp; Penilaian</p>
-                                        <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink">
-                                            <span>Durasi: <strong>{{ !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60).' menit' : 'Tanpa batas waktu' }}</strong></span>
-                                            <span><strong>{{ count($item['questions'] ?? []) ?: 1 }}</strong> butir soal</span>
-                                            <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
-                                            @if(!empty($item['due']))
-                                                <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
-                                            @endif
-                                        </div>
-
-                                        {{-- Nilai kuis di kiri bawah --}}
-                                        @if(!$isLecturer && $scoreValue !== null)
-                                            <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-2">
-                                                <span class="text-xs text-muted font-medium">Nilai Kuis:</span>
-                                                <span class="text-sm font-bold text-emerald-600 font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
-                                                @if($submission)
-                                                    <span class="text-xs text-slate-300">·</span>
-                                                    <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
-                                                @endif
-                                            </div>
-                                        @elseif(!$isLecturer && $submission)
-                                            <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
-                                                <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '· '.$submission['time'] : '' }}</span>
-                                            </div>
+                            <div class="rounded-xl border border-line bg-canvas/40 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-muted">Informasi Ujian &amp; Penilaian</p>
+                                    <div class="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink">
+                                        <span>Durasi: <strong>{{ !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60).' menit' : 'Tanpa batas waktu' }}</strong></span>
+                                        <span><strong>{{ count($item['questions'] ?? []) ?: 1 }}</strong> butir soal</span>
+                                        <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
+                                        @if(!empty($item['due']))
+                                            <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
                                         @endif
                                     </div>
 
-                                    <div class="flex shrink-0 flex-col items-end gap-1.5 text-right self-center sm:self-start">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            @if($isLecturer)
-                                                <a href="{{ route('dosen.item.penilaian', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2.5 px-5 font-semibold">Lihat Jawaban Mahasiswa</a>
-                                            @elseif($isGraded || $submission)
-                                                <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
-                                            @elseif($isLocked)
-                                                <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Kuis Ditutup</button>
-                                            @else
-                                                <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
+                                    {{-- Nilai kuis di kiri bawah --}}
+                                    @if(!$isLecturer && $scoreValue !== null)
+                                        <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-2">
+                                            <span class="text-xs text-muted font-medium">Nilai Kuis:</span>
+                                            <span class="text-sm font-bold text-emerald-600 font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
+                                            @if($submission)
+                                                <span class="text-xs text-slate-300">·</span>
+                                                <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
                                             @endif
                                         </div>
+                                    @elseif(!$isLecturer && $submission)
+                                        <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
+                                            <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '· '.$submission['time'] : '' }}</span>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="flex shrink-0 items-center">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        @if($isLecturer)
+                                            <a href="{{ route('dosen.course.quiz.preview', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
+                                        @elseif($isGraded || $submission)
+                                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
+                                        @elseif($isLocked)
+                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Kuis Ditutup</button>
+                                        @else
+                                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -150,10 +197,62 @@
 
                     @php
                         $hasAttachments = !empty($item['question_image']) || !empty($item['attachments']) || !empty($item['link']);
+                        $youtubeAttachment = \App\Support\LearningPreview::youtubeEmbedUrl($item['link'] ?? null);
+                        $youtubeAttachmentUrl = $youtubeAttachment ? $youtubeAttachment.'&'.http_build_query([
+                            'origin' => request()->getSchemeAndHttpHost(),
+                            'widget_referrer' => request()->fullUrl(),
+                        ]) : null;
                     @endphp
                     @if($hasAttachments)
                         <h3 class="mt-7 text-sm font-bold text-ink">Lampiran</h3>
                         <div class="mt-3 flex flex-wrap items-start gap-3">
+                            {{-- Lampiran Video YouTube --}}
+                            @if($youtubeAttachmentUrl)
+                                @php
+                                    $ytVideoId = \App\Support\LearningPreview::youtubeVideoId($item['link'] ?? null);
+                                    $ytThumb = $ytVideoId ? "https://img.youtube.com/vi/{$ytVideoId}/hqdefault.jpg" : null;
+                                    $ytPreviewData = [
+                                        'title' => $item['title'].': Video YouTube',
+                                        'url' => $youtubeAttachmentUrl,
+                                        'downloadUrl' => $item['link'] ?? '',
+                                        'type' => 'youtube',
+                                        'ext' => 'YOUTUBE',
+                                        'meta' => 'Video YouTube perkuliahan',
+                                    ];
+                                @endphp
+                                <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
+                                    <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-900 group cursor-pointer" title="Putar Video YouTube">
+                                        @if($ytThumb)
+                                            <img src="{{ $ytThumb }}" alt="Thumbnail YouTube" class="h-full w-full object-cover group-hover:scale-105 transition duration-300">
+                                            <div class="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition"></div>
+                                        @endif
+                                        <div class="absolute flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white shadow-md group-hover:scale-110 transition">
+                                            <svg class="h-4 w-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M8 5v14l11-7z"/>
+                                            </svg>
+                                        </div>
+                                        <span class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-white uppercase">YouTube</span>
+                                    </button>
+                                    <div class="flex h-9 min-w-0 items-center justify-between gap-1.5 px-2.5">
+                                        <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                                            <svg class="h-3.5 w-3.5 shrink-0 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                            </svg>
+                                            <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline cursor-pointer" title="{{ $item['title'] }}">
+                                                Video YouTube
+                                            </button>
+                                        </div>
+                                        <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="shrink-0 text-muted hover:text-red-600 transition cursor-pointer" title="Putar Video YouTube">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <template id="youtube-player-template">
+                                        <iframe class="w-full h-full border-0" src="{{ $youtubeAttachmentUrl }}" title="Video {{ $item['title'] }}" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                    </template>
+                                </div>
+                            @endif
                             {{-- Lampiran Gambar Soal / Materi --}}
                             @if(!empty($item['question_image']))
                                 @php
@@ -272,27 +371,36 @@
                             @endforeach
 
                             {{-- Lampiran Tautan Luar jika ada --}}
-                            @if(!empty($item['link']))
+                            @if(!empty($item['link']) && !$youtubeAttachment)
+                                @php
+                                    $linkPreviewData = [
+                                        'title' => $item['title'].': Tautan',
+                                        'url' => $item['link'],
+                                        'type' => 'link',
+                                        'ext' => 'LINK',
+                                        'meta' => 'Tautan materi perkuliahan',
+                                    ];
+                                @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition">
-                                    <a href="{{ $item['link'] }}" target="_blank" rel="noopener noreferrer" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 text-muted hover:text-brand transition group" title="{{ $item['link'] }}">
+                                    <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 text-muted hover:text-brand transition group" title="Pratinjau {{ $item['link'] }}">
                                         <svg class="h-6 w-6 text-muted group-hover:text-brand transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                             <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                         </svg>
-                                        <span class="text-[10px] font-medium text-muted group-hover:text-brand transition">Tautan Luar</span>
-                                    </a>
+                                        <span class="text-[10px] font-medium text-muted group-hover:text-brand transition">Pratinjau Tautan</span>
+                                    </button>
                                     <div class="flex h-9 min-w-0 items-center justify-between gap-1.5 px-2.5">
                                         <div class="flex min-w-0 flex-1 items-center gap-1.5">
                                             <svg class="h-3.5 w-3.5 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                                                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                                             </svg>
-                                            <a href="{{ $item['link'] }}" target="_blank" rel="noopener noreferrer" class="min-w-0 flex-1 truncate text-xs font-medium text-ink hover:underline" title="{{ $item['link'] }}">
+                                            <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline" title="Pratinjau {{ $item['link'] }}">
                                                 {{ preg_replace('#^https?://#', '', $item['link']) }}
-                                            </a>
+                                            </button>
                                         </div>
-                                        <a href="{{ $item['link'] }}" target="_blank" rel="noopener noreferrer" class="shrink-0 text-muted hover:text-ink" title="Buka tautan">
-                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                        </a>
+                                        <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="shrink-0 text-muted hover:text-ink" title="Pratinjau tautan">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18v14H3z"/><path d="m8 9 3 3-3 3M13 15h3"/></svg>
+                                        </button>
                                     </div>
                                 </div>
                             @endif
@@ -332,7 +440,7 @@
                                         // Randomize target order deterministically per student so that:
                                         // 1) Different students see different positions (beda orang beda susunan)
                                         // 2) The choices in the dropdown are NOT in the same line/order as the premises (tidak sebaris)
-                                        $userSeed = auth()->id() ?? (session('auth_user.id') ?? (session('auth_user.number') ? crc32((string) session('auth_user.number')) : 1));
+                                        $userSeed = auth()->id();
                                         $seed = (int) ($item['id'] ?? 1) * 37 + (int) $userSeed * 19 + ($qIdx + 1) * 11;
                                         mt_srand($seed);
                                         $shuffledRights = $allRights;
@@ -353,8 +461,8 @@
                                                         <span class="text-xs font-medium text-ink">{{ $pair['prompt'] }}</span>
                                                     @endif
                                                 </div>
-                                                <select name="question_answers[{{ $q['id'] }}][matches][{{ $pair['id'] }}]" class="field text-xs sm:w-64" @disabled($submission || $isLocked)>
-                                                    <option value="">-- Pilih Pasangan --</option>
+                                                <select name="question_answers[{{ $q['id'] }}][matches][{{ $pair['id'] }}]" class="field text-xs sm:w-64" @disabled($isInputsDisabled)>
+                                                    <option value="">Pilih Pasangan</option>
                                                     @foreach($shuffledRights as $target)
                                                         <option value="{{ $target['id'] }}" @selected(old('question_answers.'.$q['id'].'.matches.'.$pair['id'], $submission['question_answers'][$q['id']]['matches'][$pair['id']] ?? '') === $target['id'])>
                                                             {{ str_starts_with($target['text'], 'data:image') ? 'Gambar Pasangan' : $target['text'] }}
@@ -371,16 +479,16 @@
                                     @endphp
                                     <div class="space-y-2 pt-1">
                                         @foreach($options as $option)
-                                            <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs {{ $submission || $isLocked ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
+                                            <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs {{ $isInputsDisabled ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
                                                 <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}"
                                                     @checked(in_array($option['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))
-                                                    @disabled($submission || $isLocked)>
+                                                    @disabled($isInputsDisabled)>
                                                 <span class="text-ink">{{ $option['text'] }}</span>
                                             </label>
                                         @endforeach
                                     </div>
                                 @else
-                                    <textarea name="question_answers[{{ $q['id'] }}][text]" rows="4" class="field text-xs" @readonly($submission || $isLocked) placeholder="Tulis jawaban di sini...">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
+                                    <textarea name="question_answers[{{ $q['id'] }}][text]" rows="4" class="field text-xs" @readonly($isInputsDisabled) placeholder="Tulis jawaban di sini...">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
                                 @endif
                             </section>
                         @endforeach
@@ -396,10 +504,10 @@
                                 <legend class="form-label text-xs font-bold">{{ $item['question_type'] === 'kompleks' ? 'Pilih semua jawaban yang benar' : 'Pilih satu jawaban' }}</legend>
                                 <div class="space-y-2">
                                     @foreach(array_filter(array_map('trim', explode("\n", $item['options'] ?? '')), fn($option) => $option !== '') as $option)
-                                        <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs {{ $submission || $isLocked ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
+                                        <label class="flex items-center gap-3 rounded-lg bg-canvas p-3 text-xs {{ $isInputsDisabled ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
                                             <input type="{{ $item['question_type'] === 'kompleks' ? 'checkbox' : 'radio' }}" name="choices[]" value="{{ $option }}"
                                                 @checked(in_array($option, old('choices', $submission['choices'] ?? [])))
-                                                @disabled($submission || $isLocked)>
+                                                @disabled($isInputsDisabled)>
                                             <span class="text-ink">{{ $option }}</span>
                                         </label>
                                     @endforeach
@@ -409,12 +517,12 @@
                             <fieldset class="space-y-2">
                                 <legend class="form-label text-xs font-bold">Pilih Benar atau Salah</legend>
                                 <div class="flex items-center gap-4 pt-1">
-                                    <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs {{ $submission || $isLocked ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
-                                        <input type="radio" name="boolean_choice" value="Benar" @checked(old('boolean_choice', $submission['boolean_choice'] ?? '') === 'Benar') @disabled($submission || $isLocked)>
+                                    <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs {{ $isInputsDisabled ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
+                                        <input type="radio" name="boolean_choice" value="Benar" @checked(old('boolean_choice', $submission['boolean_choice'] ?? '') === 'Benar') @disabled($isInputsDisabled)>
                                         <span class="font-medium text-ink">Benar</span>
                                     </label>
-                                    <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs {{ $submission || $isLocked ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
-                                        <input type="radio" name="boolean_choice" value="Salah" @checked(old('boolean_choice', $submission['boolean_choice'] ?? '') === 'Salah') @disabled($submission || $isLocked)>
+                                    <label class="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-xs {{ $isInputsDisabled ? 'cursor-default opacity-85' : 'cursor-pointer hover:bg-slate-100' }} transition">
+                                        <input type="radio" name="boolean_choice" value="Salah" @checked(old('boolean_choice', $submission['boolean_choice'] ?? '') === 'Salah') @disabled($isInputsDisabled)>
                                         <span class="font-medium text-ink">Salah</span>
                                     </label>
                                 </div>
@@ -426,15 +534,14 @@
             </div>
 
             {{-- Right Aside Column: Status & Submission (Student) or Content Control (Lecturer) --}}
-            @if($isTask)
-                @if($isLecturer)
-                    {{-- Lecturer Management Panel --}}
-                    <aside class="rounded-xl bg-white p-5 shadow-sm space-y-5 h-fit xl:sticky xl:top-24 border border-line/60">
-                        <div class="flex items-center justify-between border-b border-line/60 pb-3">
-                            <h2 class="text-sm font-bold text-ink">Pengelolaan Pengampu</h2>
-                            <span class="rounded bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">Dosen</span>
-                        </div>
+            @if($isLecturer)
+                {{-- Lecturer Management Panel --}}
+                <aside class="rounded-xl bg-white p-5 shadow-sm space-y-5 h-fit xl:sticky xl:top-24 border border-line/60">
+                    <div class="border-b border-line/60 pb-3">
+                        <h2 class="text-sm font-bold text-ink">Pengelolaan Pengampu</h2>
+                    </div>
 
+                    @if($isTask)
                         <div class="space-y-2.5 text-xs">
                             <div class="flex items-center justify-between text-muted">
                                 <span>Total Bobot:</span>
@@ -456,151 +563,224 @@
                             @endif
                         </div>
 
-                        <div class="rounded-lg bg-canvas p-3 text-xs space-y-1">
-                            <p class="font-semibold text-ink">Penilaian Mahasiswa</p>
-                            <p class="text-muted text-[11px]">Buka buku nilai untuk mengevaluasi jawaban yang masuk dan menginputkan skor CPMK.</p>
-                        </div>
+                        @php
+                            $totalEnrolled = 0;
+                            $submittedCount = 0;
+                            $lateCount = 0;
+                            if ($isLecturer && \Illuminate\Support\Facades\Schema::hasTable('class_sections')) {
+                                $sectionModel = \App\Models\ClassSection::find($course['id']);
+                                if ($sectionModel) {
+                                    $totalEnrolled = $sectionModel->students()->count();
+                                    if (\Illuminate\Support\Facades\Schema::hasTable('submissions')) {
+                                        $allSubs = \App\Models\Submission::where('assessment_id', $item['id'])->get();
+                                        $submittedCount = $allSubs->count();
+                                        $dueDate = !empty($item['due']) ? \Carbon\Carbon::parse($item['due']) : null;
+                                        if ($dueDate) {
+                                            $lateCount = $allSubs->filter(fn($s) => $s->submitted_at && $s->submitted_at->greaterThan($dueDate))->count();
+                                        }
+                                    }
+                                }
+                            }
+                        @endphp
 
-                        <div class="space-y-2 pt-2">
-                            @php
-                                $isTugasBiasa = in_array($item['type'], ['tugas', 'coding'], true) && empty($item['questions']);
-                            @endphp
-                            @if($isTugasBiasa)
-                                <a href="{{ route('dosen.item.penilaian.tugas', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                    Nilai Tugas Mahasiswa
-                                </a>
-                            @else
-                                <a href="{{ route('dosen.item.penilaian', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block">
-                                    Lihat &amp; Nilai Jawaban Mahasiswa
-                                </a>
-                            @endif
-                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
-                                + Tambah Konten / Soal Baru
-                            </a>
-                            <a href="{{ route('dosen.course.show', $course['id']) }}" class="quiet-link text-xs text-center block pt-1">
-                                Kembali ke Halaman Course
-                            </a>
-                        </div>
-                    </aside>
-                @else
-                    @if(!$isDedicatedQuiz)
-                        {{-- Student Submission Panel (Google Classroom Style for Tugas & Coding) --}}
-                        <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
+                        <div class="rounded-lg bg-canvas p-3 text-xs space-y-1.5 border border-line/60">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-sm font-bold text-ink">Tugas Anda</h2>
-                                @if($isGraded)
-                                    <span class="whitespace-nowrap text-sm font-bold text-emerald-600">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }}</span>
-                                @elseif($submission)
-                                    <span class="text-xs font-semibold text-emerald-600">Diserahkan</span>
-                                @elseif($isPast)
-                                    <span class="text-xs font-semibold text-rose-600">Terlambat</span>
-                                @else
-                                    <span class="text-xs font-semibold text-rose-600">Belum diserahkan</span>
-                                @endif
+                                <span class="font-semibold text-ink">Pengumpulan Mahasiswa</span>
+                                <span class="font-mono font-bold text-ink">{{ $submittedCount }} / {{ $totalEnrolled }}</span>
                             </div>
-
-                            <div class="text-xs text-muted flex items-center gap-2">
-                                <span>{{ $item['points'] ?? 100 }} Poin</span>
-                                <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
-                            </div>
-
-                            {{-- Attached Work Items (Existing or New) --}}
-                            <div class="space-y-2" data-attachment-container>
-                                {{-- Saved files --}}
-                                @if(!empty($submission['files']))
-                                    @foreach($submission['files'] as $sf)
-                                        <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                            <div class="flex items-center gap-2 min-w-0">
-                                                <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                                <span class="text-ink truncate font-medium">{{ $sf['name'] }}</span>
-                                            </div>
-                                            <input type="hidden" name="keep_files[]" value="{{ $sf['id'] }}">
-                                        </div>
-                                    @endforeach
-                                @endif
-
-                                {{-- Saved link --}}
-                                @if(!empty($submission['link']))
-                                    <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                            <a href="{{ $submission['link'] }}" target="_blank" class="text-brand truncate font-medium hover:underline">{{ $submission['link'] }}</a>
-                                        </div>
-                                    </div>
-                                @endif
-
-                                {{-- Saved answer preview if exists --}}
-                                @if(!empty($submission['answer']) && empty($item['questions']))
-                                    <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                        <span class="text-muted block text-[11px] font-semibold mb-1">Catatan / Jawaban:</span>
-                                        <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
-                                    </div>
-                                @endif
-
-                                {{-- Dynamic list for new additions --}}
-                                <div data-active-attachments class="space-y-2"></div>
-                            </div>
-
-                            {{-- Action Button: + Tambah atau buat --}}
-                            @if(!$isLocked && !$submission)
-                                <div class="relative" data-add-work-dropdown>
-                                    <button type="button" data-toggle-dropdown class="button-secondary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2">
-                                        <span class="text-sm font-bold text-brand">+</span> Tambah atau buat
-                                    </button>
-                                    <div data-dropdown-menu hidden class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white p-1.5 shadow-lg border border-line/60 space-y-1">
-                                        <button type="button" data-action-add="link" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                            <span>Tautan / Link</span>
-                                        </button>
-                                        <button type="button" data-action-add="file" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                            <span>Berkas / File</span>
-                                        </button>
-                                        <button type="button" data-action-add="text" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
-                                            <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                            <span>Catatan / Jawaban Teks</span>
-                                        </button>
-                                    </div>
+                            @if($lateCount > 0)
+                                <div class="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                    <span>Dikumpulkan terlambat:</span>
+                                    <span class="font-bold">{{ $lateCount }} mahasiswa</span>
                                 </div>
                             @endif
+                            <p class="text-muted text-[11px] pt-0.5">Lihat seluruh pengumpulan mahasiswa dan lakukan penilaian jawaban serta berkas tugas.</p>
+                        </div>
 
-                            {{-- Hidden inputs for file/link/answer --}}
-                            <input type="file" name="files[]" multiple data-submission-files class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.webp">
-                            <input type="hidden" name="link" data-submission-link value="{{ old('link') }}">
-
-                            {{-- Optional text answer area --}}
-                            @if(!$submission && !$isLocked)
-                                <div data-text-answer-box hidden class="space-y-1 pt-1">
-                                    <div class="flex items-center justify-between">
-                                        <label class="form-label text-[11px] mb-0" for="answer_field">Jawaban Teks</label>
-                                        <button type="button" data-remove-text-box class="text-[11px] text-danger hover:underline">Batal</button>
-                                    </div>
-                                    <textarea id="answer_field" name="answer" rows="4" class="field text-xs" placeholder="Tuliskan jawaban atau catatan pengerjaan tugas...">{{ old('answer', $submission['answer'] ?? '') }}</textarea>
-                                </div>
-                            @endif
-
-                            {{-- Submit / Status Button (Right sidebar) --}}
-                            <div class="pt-2">
-                                @if($isLocked)
-                                    <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-semibold opacity-60 cursor-not-allowed">
-                                        Pengumpulan Ditutup
-                                    </button>
-                                @elseif($submission)
-                                    <button type="button" disabled class="button-secondary bg-slate-100 text-slate-600 w-full py-2.5 text-xs font-semibold cursor-default">
-                                        {{ $isGraded ? 'Sudah Dinilai' : 'Sudah Diserahkan' }}
-                                    </button>
-                                @else
-                                    <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
-                                        Kumpulkan Tugas
-                                    </button>
-                                @endif
+                        <div class="pt-1">
+                            <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block shadow-xs">
+                                Lihat &amp; Nilai Mahasiswa
+                            </a>
+                        </div>
+                    @else
+                        <div class="space-y-2 text-xs text-muted">
+                            <div class="flex items-center justify-between">
+                                <span>Modul:</span>
+                                <span class="font-semibold text-ink">{{ $item['module'] ?? 'Umum' }}</span>
                             </div>
-                        </aside>
+                            <div class="flex items-center justify-between">
+                                <span>Status:</span>
+                                <span class="font-semibold text-emerald-600">Dipublikasikan</span>
+                            </div>
+                        </div>
                     @endif
-                @endif
+
+                    <div class="space-y-2 pt-2 border-t border-line/60">
+                        <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
+                            + Tambah Konten / Soal Baru
+                        </a>
+                    </div>
+                </aside>
+            @elseif($isTask && !$isDedicatedQuiz)
+                {{-- Student Submission Panel (Google Classroom Style for Tugas, Coding, PBL, etc.) --}}
+                <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-bold text-ink">Tugas Anda</h2>
+                        @if($isGraded)
+                            <div class="text-right">
+                                <span class="whitespace-nowrap text-sm font-bold text-emerald-600">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }}</span>
+                                <span class="block text-[11px] font-semibold text-emerald-600">Sudah dinilai</span>
+                            </div>
+                        @elseif($submission)
+                            @php
+                                $submittedAt = !empty($submission['submitted_at']) ? \Carbon\Carbon::parse($submission['submitted_at']) : (!empty($submission['time']) ? \Carbon\Carbon::parse($submission['time']) : null);
+                                $wasSubmittedLate = !empty($item['due']) && $submittedAt && $submittedAt->greaterThan(\Carbon\Carbon::parse($item['due']));
+                            @endphp
+                            @if($wasSubmittedLate)
+                                <div class="text-right">
+                                    <span class="text-xs font-semibold text-emerald-600">Diserahkan</span>
+                                    <span class="block text-[11px] font-semibold text-amber-600">Terlambat</span>
+                                </div>
+                            @else
+                                <span class="text-xs font-semibold text-emerald-600">Diserahkan</span>
+                            @endif
+                        @elseif($isPast)
+                            <div class="text-right">
+                                <span class="text-xs font-semibold text-rose-600">Terlambat</span>
+                                <span class="block text-[10px] text-muted">Belum diserahkan</span>
+                            </div>
+                        @else
+                            <span class="text-xs font-semibold text-rose-600">Belum diserahkan</span>
+                        @endif
+                    </div>
+
+                    <div class="text-xs text-muted flex items-center gap-2">
+                        <span>{{ $item['points'] ?? 100 }} Poin</span>
+                        <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
+                    </div>
+
+                    {{-- Attached Work Items (Existing or New) --}}
+                    <div class="space-y-2" data-attachment-container>
+                        {{-- Saved files --}}
+                        @if(!empty($submission['files']))
+                            @foreach($submission['files'] as $sf)
+                                @php
+                                    $fileId = is_array($sf) ? ($sf['id'] ?? '') : (string) $sf;
+                                    $fileMeta = \App\Support\LearningPreview::fileMeta($fileId);
+                                    $fileName = is_array($sf) ? ($sf['name'] ?? $fileId) : ($fileMeta['name'] ?? (\App\Models\Attachment::where('uuid', $fileId)->value('name') ?? $fileId));
+                                @endphp
+                                <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                        <a href="{{ route('preview.file', $fileId) }}" target="_blank" class="text-ink truncate font-medium hover:text-brand hover:underline">{{ $fileName }}</a>
+                                    </div>
+                                    <input type="hidden" name="keep_files[]" value="{{ $fileId }}">
+                                </div>
+                            @endforeach
+                        @endif
+
+                        {{-- Saved link --}}
+                        @if(!empty($submission['link']))
+                            <div class="flex items-center justify-between text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                    <a href="{{ $submission['link'] }}" target="_blank" class="text-brand truncate font-medium hover:underline">{{ $submission['link'] }}</a>
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Saved answer preview if exists --}}
+                        @if(!empty($submission['answer']) && empty($item['questions']))
+                            <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
+                                <span class="text-muted block text-[11px] font-semibold mb-1">Catatan / Jawaban:</span>
+                                <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
+                            </div>
+                        @endif
+
+                        {{-- Dynamic list for new additions --}}
+                        <div data-active-attachments class="space-y-2"></div>
+                    </div>
+
+                    {{-- Action Button: + Tambah atau buat --}}
+                    @if(!$isLocked && !$submission && !$isGraded)
+                        <div class="relative" data-add-work-dropdown>
+                            <button type="button" data-toggle-dropdown class="button-secondary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2">
+                                <span class="text-sm font-bold text-brand">+</span> Tambah atau buat
+                            </button>
+                            <div data-dropdown-menu hidden class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white p-1.5 shadow-lg border border-line/60 space-y-1">
+                                <button type="button" data-action-add="link" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                    <span>Tautan / Link</span>
+                                </button>
+                                <button type="button" data-action-add="file" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                    <span>Berkas / File</span>
+                                </button>
+                                <button type="button" data-action-add="text" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-ink hover:bg-slate-100 transition text-left">
+                                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    <span>Catatan / Jawaban Teks</span>
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Hidden inputs for file/link/answer --}}
+                    <input type="file" name="files[]" multiple data-submission-files class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.webp">
+                    <input type="hidden" name="link" data-submission-link value="{{ old('link') }}">
+
+                    {{-- Optional text answer area --}}
+                    @if(!$submission && !$isLocked && !$isGraded)
+                        <div data-text-answer-box hidden class="space-y-1 pt-1">
+                            <div class="flex items-center justify-between">
+                                <label class="form-label text-[11px] mb-0" for="answer_field">Jawaban Teks</label>
+                                <button type="button" data-remove-text-box class="text-[11px] text-danger hover:underline">Batal</button>
+                            </div>
+                            <textarea id="answer_field" name="answer" rows="4" class="field text-xs" placeholder="Tuliskan jawaban atau catatan pengerjaan tugas...">{{ old('answer', $submission['answer'] ?? '') }}</textarea>
+                        </div>
+                    @endif
+
+                    {{-- Submit / Status Button (Right sidebar) --}}
+                    <div class="pt-2">
+                        @if($isGraded)
+                            <button type="button" disabled class="button-secondary bg-slate-100 text-slate-600 w-full py-2.5 text-xs font-semibold cursor-default">
+                                Sudah Dinilai
+                            </button>
+                        @elseif($submission)
+                            @if($isPast && !$allowLate)
+                                <button type="button" disabled class="button-secondary bg-slate-100 text-slate-600 w-full py-2.5 text-xs font-semibold cursor-default">
+                                    Sudah Diserahkan
+                                </button>
+                            @else
+                                <button type="button" onclick="cancelSubmissionConfirm()" class="button-secondary w-full py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 border-rose-200 transition">
+                                    Batalkan Serahkan
+                                </button>
+                            @endif
+                        @elseif($isLocked)
+                            <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-semibold opacity-60 cursor-not-allowed">
+                                Pengumpulan Ditutup
+                            </button>
+                        @elseif($isPast)
+                            <button type="submit" class="button-primary bg-amber-600 hover:bg-amber-700 text-white w-full py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                                <span>Kumpulkan Tugas (Terlambat)</span>
+                            </button>
+                        @else
+                            <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
+                                Kumpulkan Tugas
+                            </button>
+                        @endif
+                    </div>
+                </aside>
             @endif
         </div>
+    @unless($isLecturer)
     </form>
+    @endunless
+
+    @if($submission && (!$isPast || $allowLate) && !$isGraded)
+        <form id="cancel-submission-form" action="{{ route('mahasiswa.course.submission.cancel', [$course['id'], $item['id']]) }}" method="POST" class="hidden">
+            @csrf
+        </form>
+    @endif
 
     {{-- Modal Dialog Tambah Link (Google Classroom Style) --}}
     <dialog id="link-modal" class="rounded-xl border border-line/60 bg-white p-6 shadow-xl backdrop:bg-ink/40 max-w-md w-full">
@@ -666,6 +846,9 @@
         metaEl.textContent = fileData.meta || 'Lampiran perkuliahan';
         downloadEl.href = fileData.downloadUrl || fileData.url;
         openEl.href = fileData.url;
+        const isExternalLink = fileData.type === 'link' || fileData.type === 'youtube';
+        downloadEl.hidden = isExternalLink;
+        openEl.querySelector('span').textContent = isExternalLink ? 'Buka Sumber' : 'Buka Tab Baru';
 
         bodyEl.innerHTML = '';
 
@@ -676,11 +859,18 @@
             vid.autoplay = true;
             vid.className = 'max-h-[75vh] max-w-full rounded-lg shadow-md bg-black';
             bodyEl.appendChild(vid);
-        } else if (fileData.type === 'pdf') {
+        } else if (fileData.type === 'pdf' || fileData.type === 'link' || fileData.type === 'youtube') {
             const frame = document.createElement('iframe');
             frame.src = fileData.url;
             frame.title = `Pratinjau ${fileData.title}`;
             frame.className = 'w-full h-full min-h-[520px] border-0 rounded-lg bg-white shadow-sm';
+            frame.referrerPolicy = 'origin';
+            if (fileData.type === 'youtube') {
+                frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                frame.allowFullscreen = true;
+            } else if (fileData.type === 'link') {
+                frame.sandbox = 'allow-forms allow-popups allow-same-origin allow-scripts';
+            }
             bodyEl.appendChild(frame);
         } else if (fileData.type === 'image') {
             const img = document.createElement('img');
@@ -749,5 +939,20 @@
             closeAttachmentPreview();
         });
     })();
+
+    async function cancelSubmissionConfirm() {
+        const confirmed = typeof window.saleConfirm === 'function'
+            ? await window.saleConfirm({
+                title: 'Batalkan Penyerahan Tugas?',
+                message: 'Tugas yang telah dikirim akan dibatalkan. Anda dapat mengunggah kembali berkas atau jawaban sebelum batas waktu berakhir.',
+                confirmLabel: 'Batalkan Serahkan',
+            })
+            : confirm('Apakah Anda yakin ingin membatalkan pengumpulan tugas ini?');
+
+        if (confirmed) {
+            const form = document.getElementById('cancel-submission-form');
+            if (form) form.submit();
+        }
+    }
 </script>
 @endsection

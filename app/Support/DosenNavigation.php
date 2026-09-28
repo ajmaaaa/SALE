@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Models\ClassSection;
 use App\Models\Role;
 use App\Models\StudentAssessmentScore;
-use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 
 class DosenNavigation
@@ -20,14 +19,6 @@ class DosenNavigation
         }
 
         $dosen = auth()->user();
-
-        if (! $dosen && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $dosen = User::query()
-                ->where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-        }
 
         if (! $dosen?->hasRole(Role::DOSEN)) {
             return 0;

@@ -12,6 +12,11 @@ use App\Models\User;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LaporanProdiController extends AdminProdiController
@@ -33,50 +38,85 @@ class LaporanProdiController extends AdminProdiController
         $activeSemester = $data['activeSemester'];
         $safeProdi = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeProdi?->code ?? 'PRODI');
         $safeSem = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeSemester?->code ?? 'SEM');
-        $fileName = "laporan-prodi-{$safeProdi}-{$safeSem}.csv";
+        $fileName = "laporan-prodi-{$safeProdi}-{$safeSem}.xlsx";
 
-        return response()->streamDownload(function () use ($data) {
-            $file = fopen('php://output', 'w');
-            fwrite($file, "\xEF\xBB\xBF"); // UTF-8 BOM
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Laporan Prodi');
 
-            fputcsv($file, ['LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI PER SEMESTER']);
-            fputcsv($file, $this->sanitizeCsvRow(['Program Studi', $data['activeProdi']?->name.' ('.$data['activeProdi']?->code.')']));
-            fputcsv($file, $this->sanitizeCsvRow(['Semester', $data['activeSemester']?->name.' ('.$data['activeSemester']?->code.')']));
-            fputcsv($file, ['Tanggal Cetak', now()->translatedFormat('d F Y, H:i:s')]);
-            fputcsv($file, []);
+        // Header Dokumen
+        $sheet->setCellValue('A1', 'LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
 
-            // Ringkasan Eksekutif
-            fputcsv($file, ['RINGKASAN METRIK SEMESTER']);
-            fputcsv($file, ['Indikator', 'Nilai']);
-            fputcsv($file, ['Total Dosen Homebase / Pengampu', $data['metrics']['total_dosen']]);
-            fputcsv($file, ['Total Mahasiswa Terdaftar di Prodi', $data['metrics']['total_mahasiswa']]);
-            fputcsv($file, ['Mahasiswa Baru Masuk Semester Ini', $data['metrics']['mahasiswa_baru']]);
-            fputcsv($file, ['Total Kelas Perkuliahan Aktif', $data['metrics']['total_kelas']]);
-            fputcsv($file, ['Rata-rata Nilai Mahasiswa (Skala 0-100)', $data['metrics']['average_grade'] ?? 'Belum ada nilai']);
-            fputcsv($file, []);
+        $sheet->setCellValue('A2', 'Program Studi: ' . ($data['activeProdi']?->name ?? 'Semua') . ' (' . ($data['activeProdi']?->code ?? '-') . ')');
+        $sheet->setCellValue('A3', 'Semester: ' . ($data['activeSemester']?->name ?? 'Semua') . ' (' . ($data['activeSemester']?->code ?? '-') . ')');
+        $sheet->setCellValue('A4', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
 
-            // Rincian Kelas
-            fputcsv($file, ['RINCIAN KELAS & KETERCAPAIAN PENILAIAN']);
-            fputcsv($file, ['Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Mahasiswa Terdaftar', 'Jumlah Asesmen', 'Rata-rata Nilai Kelas']);
+        // Seksi 1: Ringkasan Metrik
+        $sheet->setCellValue('A6', 'RINGKASAN METRIK SEMESTER');
+        $sheet->getStyle('A6')->getFont()->setBold(true);
 
-            foreach ($data['classReports'] as $cr) {
-                fputcsv($file, $this->sanitizeCsvRow([
-                    $cr['mk_code'],
-                    $cr['mk_name'],
-                    $cr['sks'],
-                    $cr['section_code'],
-                    $cr['dosen_ketua'],
-                    $cr['dosen_wakil'],
-                    $cr['students_count'],
-                    $cr['assessments_count'],
-                    $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai',
-                ]));
-            }
+        $sheet->setCellValue('A7', 'Indikator');
+        $sheet->setCellValue('B7', 'Nilai');
+        $sheet->getStyle('A7:B7')->getFont()->setBold(true);
+        $sheet->getStyle('A7:B7')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
 
-            fclose($file);
+        $metrics = [
+            ['Total Dosen Homebase / Pengampu', $data['metrics']['total_dosen']],
+            ['Total Mahasiswa Terdaftar di Prodi', $data['metrics']['total_mahasiswa']],
+            ['Mahasiswa Baru Masuk Semester Ini', $data['metrics']['mahasiswa_baru']],
+            ['Total Kelas Perkuliahan Aktif', $data['metrics']['total_kelas']],
+            ['Rata-rata Nilai Mahasiswa (Skala 0-100)', $data['metrics']['average_grade'] !== null ? number_format($data['metrics']['average_grade'], 2) : 'Belum ada nilai'],
+        ];
+
+        $rowIdx = 8;
+        foreach ($metrics as $m) {
+            $sheet->setCellValue('A' . $rowIdx, $m[0]);
+            $sheet->setCellValue('B' . $rowIdx, $m[1]);
+            $rowIdx++;
+        }
+
+        // Seksi 2: Rincian Kelas Perkuliahan
+        $rowIdx += 2;
+        $sheet->setCellValue('A' . $rowIdx, 'RINCIAN KELAS PERKULIAHAN & RATA-RATA NILAI');
+        $sheet->getStyle('A' . $rowIdx)->getFont()->setBold(true);
+
+        $rowIdx++;
+        $headers = ['No', 'Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Mahasiswa', 'Asesmen', 'Rata-rata Nilai'];
+        $cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        foreach ($headers as $k => $h) {
+            $sheet->setCellValue($cols[$k] . $rowIdx, $h);
+        }
+        $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
+
+        $rowIdx++;
+        $no = 1;
+        foreach ($data['classReports'] as $cr) {
+            $sheet->setCellValue('A' . $rowIdx, $no++);
+            $sheet->setCellValue('B' . $rowIdx, $cr['mk_code']);
+            $sheet->setCellValue('C' . $rowIdx, $cr['mk_name']);
+            $sheet->setCellValue('D' . $rowIdx, $cr['sks']);
+            $sheet->setCellValue('E' . $rowIdx, $cr['section_code']);
+            $sheet->setCellValue('F' . $rowIdx, $cr['dosen_ketua']);
+            $sheet->setCellValue('G' . $rowIdx, $cr['dosen_wakil']);
+            $sheet->setCellValue('H' . $rowIdx, $cr['students_count']);
+            $sheet->setCellValue('I' . $rowIdx, $cr['assessments_count']);
+            $sheet->setCellValue('J' . $rowIdx, $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai');
+            $rowIdx++;
+        }
+
+        foreach ($cols as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
         }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Cache-Control' => 'max-age=0',
         ]);
     }
 
@@ -96,26 +136,23 @@ class LaporanProdiController extends AdminProdiController
         $selectedSemesterId = $request->integer('semester_id') ?: ($semesters->firstWhere('is_active', true)?->id ?? $semesters->first()?->id ?? 0);
         $activeSemester = $semesters->firstWhere('id', $selectedSemesterId) ?? $semesters->first();
 
-        $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
-        $mahasiswaRoleId = Role::where('name', Role::MAHASISWA)->value('id');
-
         $prodiId = $activeProdi?->id;
         $semesterId = $activeSemester?->id;
 
         // 1. Dosen count: total dosen prodi + dosen pengampu kelas di prodi semester ini
-        $dosenHomebaseCount = User::where('role_id', $dosenRoleId)
-            ->where(fn ($q) => $q->where('prodi_id', $prodiId)->orWhereNull('prodi_id'))
+        $dosenHomebaseCount = User::withRoleName(Role::DOSEN)
+            ->where(fn ($q) => $q->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId))
             ->count();
 
         // 2. Mahasiswa count di prodi
-        $mahasiswaTotalCount = User::where('role_id', $mahasiswaRoleId)
+        $mahasiswaTotalCount = User::withRoleName(Role::MAHASISWA)
             ->where('prodi_id', $prodiId)
             ->count();
 
         // 3. Mahasiswa Baru Masuk per Semester (intake)
         // Kita hitung mahasiswa yang terdaftar di prodi yang masuk pada semester ini (atau semester year)
         $semesterCodeYear = substr($activeSemester?->code ?? '', 0, 4);
-        $mahasiswaBaruCount = User::where('role_id', $mahasiswaRoleId)
+        $mahasiswaBaruCount = User::withRoleName(Role::MAHASISWA)
             ->where('prodi_id', $prodiId)
             ->where(function ($q) use ($semesterCodeYear) {
                 if ($semesterCodeYear) {
@@ -124,15 +161,6 @@ class LaporanProdiController extends AdminProdiController
                 }
             })
             ->count();
-
-        // Fallback jika belum ada pattern NIM tahun tertentu, ambil mahasiswa yang dibuat dalam periode
-        if ($mahasiswaBaruCount === 0 && $mahasiswaTotalCount > 0) {
-            $mahasiswaBaruCount = User::where('role_id', $mahasiswaRoleId)
-                ->where('prodi_id', $prodiId)
-                ->latest()
-                ->take(max(1, (int) round($mahasiswaTotalCount * 0.25)))
-                ->count();
-        }
 
         // 4. Kelas-kelas di bawah prodi & semester ini
         $classes = ClassSection::query()

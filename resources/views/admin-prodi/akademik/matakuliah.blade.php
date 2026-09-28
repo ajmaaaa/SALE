@@ -82,12 +82,12 @@
                         </td>
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
-                                <button type="button" 
-                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }})" 
+                                <button type="button"
+                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }}, {{ $mk->is_lintas_prodi ? 'true' : 'false' }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
-                                <form action="{{ route('admin-prodi.akademik.matakuliah.destroy', $mk->id) }}" method="POST" onsubmit="return confirm('Hapus mata kuliah {{ $mk->name }}?');" class="inline">
+                                <form action="{{ route('admin-prodi.akademik.matakuliah.destroy', $mk->id) }}" method="POST" data-confirm="Hapus mata kuliah {{ $mk->name }}?" data-confirm-title="Hapus mata kuliah" data-confirm-label="Hapus" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
@@ -142,6 +142,11 @@
                 <label for="mk_create_name" class="block text-xs font-semibold text-ink mb-1">Nama Mata Kuliah</label>
                 <input type="text" name="name" id="mk_create_name" required maxlength="150" placeholder="Struktur Data dan Algoritma" class="field text-xs font-semibold">
             </div>
+            <label class="flex items-start gap-2 rounded-lg border border-line/70 p-3 text-xs text-ink">
+                <input type="hidden" name="is_lintas_prodi" value="0">
+                <input type="checkbox" name="is_lintas_prodi" value="1" class="mt-0.5 rounded border-line text-brand">
+                <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain pada kelas mata kuliah ini.</span></span>
+            </label>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="button" onclick="closeCreateMkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Mata Kuliah</button>
@@ -174,6 +179,11 @@
                 <label for="mk_edit_name" class="block text-xs font-semibold text-ink mb-1">Nama Mata Kuliah</label>
                 <input type="text" name="name" id="mk_edit_name" required maxlength="150" class="field text-xs font-semibold">
             </div>
+            <label class="flex items-start gap-2 rounded-lg border border-line/70 p-3 text-xs text-ink">
+                <input type="hidden" name="is_lintas_prodi" value="0">
+                <input type="checkbox" name="is_lintas_prodi" id="mk_edit_lintas" value="1" class="mt-0.5 rounded border-line text-brand">
+                <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain.</span></span>
+            </label>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="button" onclick="closeEditMkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
@@ -196,12 +206,13 @@
         document.getElementById('createMkModal').classList.remove('flex');
     }
 
-    function openEditMkModal(id, code, name, sks) {
+    function openEditMkModal(id, code, name, sks, isLintasProdi) {
         const form = document.getElementById('editMkForm');
         form.action = `/admin-prodi/akademik/matakuliah/${id}`;
         document.getElementById('mk_edit_code').value = code;
         document.getElementById('mk_edit_name').value = name;
         document.getElementById('mk_edit_sks').value = sks;
+        document.getElementById('mk_edit_lintas').checked = Boolean(isLintasProdi);
         document.getElementById('editMkModal').classList.remove('hidden');
         document.getElementById('editMkModal').classList.add('flex');
     }

@@ -7,6 +7,8 @@ use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,5 +26,22 @@ return Application::configure(basePath: dirname(__DIR__))
             'force_password_change' => ForcePasswordChange::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {})
+    ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (TokenMismatchException $exception, Request $request) {
+            $message = 'Sesi keamanan telah diperbarui. Silakan ulangi tindakan Anda.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'code' => 'CSRF_TOKEN_EXPIRED',
+                ], 419);
+            }
+
+            if (! auth()->check()) {
+                return redirect()->guest(route('login'))->with('notice', $message);
+            }
+
+            return redirect()->back()->withErrors(['session' => $message]);
+        });
+    })
     ->create();

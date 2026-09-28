@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Assessment;
+use App\Models\Attachment;
 use App\Models\ClassSection;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,9 @@ class DemoLearningContentSeeder extends Seeder
                 ]
             );
 
+            $this->persistAttachment($if204, 'MATERI-DEMO', self::MATERIAL_PDF, 'testing/sample-materi-struktur-data.pdf', 'Modul-01-Pengantar-Struktur-Data.pdf', 'application/pdf');
+            $this->persistAttachment($if204, 'MATERI-DEMO', self::MATERIAL_IMAGE, 'testing/sample-diagram-tree.png', 'diagram-pohon-biner-dan-traversal.png', 'image/png');
+
             $if218 = $sections->first(fn (ClassSection $section) => $section->mataKuliah?->code === 'IF218');
             if ($if218 && Storage::disk('local')->exists('testing/big-buck-bunny-720p-10s.mp4')) {
                 Assessment::updateOrCreate(
@@ -79,6 +83,7 @@ class DemoLearningContentSeeder extends Seeder
                         'allow_late' => true,
                     ]
                 );
+                $this->persistAttachment($if218, 'MATERI-DEMO-MP4', '00000000-0000-4000-8000-000000000001', 'testing/big-buck-bunny-720p-10s.mp4', 'video-materi-perkuliahan.mp4', 'video/mp4');
             }
             Assessment::updateOrCreate(
                 ['class_section_id' => $if204->id, 'code' => 'TGS-LAMPIRAN'],
@@ -103,6 +108,8 @@ class DemoLearningContentSeeder extends Seeder
                     'allow_late' => true,
                 ]
             );
+            $this->persistAttachment($if204, 'TGS-LAMPIRAN', self::TASK_PDF, 'testing/sample-panduan-tugas-usability.pdf', 'Panduan-Evaluasi-Usability-Partisipan.pdf', 'application/pdf');
+            $this->persistAttachment($if204, 'TGS-LAMPIRAN', self::TASK_IMAGE, 'testing/sample-wireframe-usability.png', 'lembar-observasi-antarmuka-usability.png', 'image/png');
             Assessment::updateOrCreate(
                 ['class_section_id' => $if204->id, 'code' => 'KUIS-01'],
                 [
@@ -129,6 +136,30 @@ class DemoLearningContentSeeder extends Seeder
         }
 
         $this->command?->info('Materi database, tugas terlambat, PDF, dan gambar contoh berhasil dibuat.');
+    }
+
+    private function persistAttachment(ClassSection $section, string $assessmentCode, string $uuid, string $path, string $name, string $mime): void
+    {
+        if (! Storage::disk('local')->exists($path)) {
+            return;
+        }
+
+        $assessment = Assessment::where('class_section_id', $section->id)
+            ->where('code', $assessmentCode)
+            ->firstOrFail();
+
+        Attachment::updateOrCreate(
+            ['uuid' => $uuid],
+            [
+                'user_id' => $section->dosen_id,
+                'class_section_id' => $section->id,
+                'assessment_id' => $assessment->id,
+                'path' => $path,
+                'name' => $name,
+                'mime' => $mime,
+                'size' => Storage::disk('local')->size($path),
+            ]
+        );
     }
 
     private function createSampleFiles(): void

@@ -81,11 +81,7 @@
 </head>
 <body class="min-h-screen bg-canvas font-sans text-ink antialiased">
     @php
-    $currentRole = auth()->user()?->role?->name ?? (session('auth_user.role') ?? (request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa'));
-    $isLecturer = ($currentRole === 'dosen') || request()->routeIs('dosen.*');
-    if ($currentRole === 'mahasiswa' || session('auth_user.role') === 'mahasiswa') {
-        $isLecturer = false;
-    }
+    $isLecturer = auth()->user()?->hasRole(\App\Models\Role::DOSEN) ?? false;
     $isMaterial = ($item['type'] ?? '') === 'materi';
     $storedLanguage = $item['language'] ?? 'python';
     $requestedLanguage = request()->query('language');
@@ -272,13 +268,13 @@
                             </div>
 
                             @if(!empty($step['attachment']))
-                                @php $stepFile = session('learning.files.'.$step['attachment']); @endphp
-                                @if(str_starts_with($stepFile['mime'] ?? '', 'image/'))
+                                @php $stepFile = \App\Models\Attachment::where('uuid', $step['attachment'])->first(); @endphp
+                                @if(str_starts_with($stepFile?->mime ?? '', 'image/'))
                                     <div class="rounded border border-slate-200 p-2 bg-slate-50">
                                         <img class="max-h-44 w-full rounded-lg object-contain" src="{{ route('preview.file', $step['attachment']) }}" alt="Lampiran {{ $step['title'] }}">
                                     </div>
                                 @else
-                                    <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment']) }}">Buka lampiran{{ !empty($stepFile['name']) ? ': '.$stepFile['name'] : '' }}</a>
+                                    <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment']) }}">Buka lampiran{{ $stepFile?->name ? ': '.$stepFile->name : '' }}</a>
                                 @endif
                             @endif
 
@@ -560,7 +556,6 @@
 
         <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
             <span class="text-xs text-slate-500">Total {{ $totalSteps }} Bagian Materi</span>
-            <button type="button" id="modal-material-close-btn" class="button-secondary text-xs py-1.5 px-3.5 font-medium cursor-pointer">Tutup</button>
         </div>
     </dialog>
 
@@ -584,7 +579,6 @@
             const gridModal = document.getElementById('material-grid-modal');
             const btnOpenMaterialModal = document.getElementById('btn-open-material-modal');
             const modalMaterialClose = document.getElementById('modal-material-close');
-            const modalMaterialCloseBtn = document.getElementById('modal-material-close-btn');
             const gridStepBtns = document.querySelectorAll('[data-grid-material-step]');
 
             const setMaterialStep = (idx) => {
@@ -640,7 +634,6 @@
 
             btnOpenMaterialModal?.addEventListener('click', () => gridModal?.showModal());
             modalMaterialClose?.addEventListener('click', () => gridModal?.close());
-            modalMaterialCloseBtn?.addEventListener('click', () => gridModal?.close());
 
             gridStepBtns.forEach(btn => {
                 btn.addEventListener('click', () => {

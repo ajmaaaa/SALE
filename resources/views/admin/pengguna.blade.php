@@ -12,6 +12,14 @@
             <p class="page-description">Kelola identitas, nomor induk institusi, peran akses, dan status akun.</p>
         </div>
         <div class="flex flex-wrap gap-2.5">
+            <a href="{{ route('admin.users.template') }}" class="button-secondary flex items-center gap-1.5" title="Unduh Template Excel Pengguna">
+                <svg class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Template Excel</span>
+            </a>
             <button type="button" onclick="document.getElementById('bulk-import-section').toggleAttribute('hidden')" class="button-secondary">
                 Import Massal
             </button>
@@ -70,25 +78,42 @@
     <section id="bulk-import-section" hidden class="surface p-6">
         <div class="flex items-center justify-between pb-3 border-b border-line/60">
             <div>
-                <h2 class="text-base font-semibold text-ink">Import Pengguna Sekaligus (CSV / Salin-Tempel)</h2>
-                <p class="mt-0.5 text-xs text-muted">Input banyak mahasiswa atau dosen sekaligus tanpa harus memasukkan satu per satu.</p>
+                <h2 class="text-base font-semibold text-ink">Import Pengguna Sekaligus (Excel / CSV)</h2>
+                <p class="mt-0.5 text-xs text-muted">Unggah file spreadsheet Excel (.xlsx, .xls) atau masukkan data untuk menambahkan banyak pengguna sekaligus.</p>
             </div>
             <button type="button" onclick="document.getElementById('bulk-import-section').setAttribute('hidden', '')" class="text-xs text-muted hover:text-ink">
                 Tutup
             </button>
         </div>
 
-        <form class="mt-4 space-y-4" method="post" action="{{ route('admin.users.bulk') }}">
+        <form class="mt-4 space-y-4" method="post" action="{{ route('admin.users.bulk') }}" enctype="multipart/form-data">
             @csrf
             <div>
+                <label class="form-label text-xs mb-1" for="file_upload">Pilih File Spreadsheet Excel / CSV</label>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input id="file_upload" name="file" type="file" accept=".xlsx,.xls,.csv,.txt" class="field text-xs file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
+                    <a href="{{ route('admin.users.template') }}" class="button-secondary text-xs shrink-0 flex items-center justify-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Unduh Template Excel (.xlsx)</span>
+                    </a>
+                </div>
+                <p class="mt-1.5 text-xs text-muted">Format kolom file: <code class="font-mono font-semibold">NIM/NIDN</code>, <code class="font-mono font-semibold">Nama Lengkap</code>, <code class="font-mono font-semibold">Email</code>, <code class="font-mono font-semibold">Peran (mahasiswa/dosen/admin/admin_prodi)</code>, <code class="font-mono font-semibold">Status (aktif/nonaktif)</code>.</p>
+            </div>
+
+            <div class="relative flex py-1 items-center">
+                <div class="flex-grow border-t border-line/60"></div>
+                <span class="flex-shrink mx-3 text-xs text-muted">atau salin-tempel langsung di bawah ini</span>
+                <div class="flex-grow border-t border-line/60"></div>
+            </div>
+
+            <div>
                 <div class="flex items-center justify-between mb-1">
-                    <label class="form-label text-xs" for="raw_users">Data Pengguna (CSV / Salin-Tempel)</label>
+                    <label class="form-label text-xs" for="raw_users">Data Teks Alternatif (Opsional jika mengunggah file)</label>
                     <button type="button" class="text-xs font-semibold text-brand hover:underline" onclick="document.getElementById('raw_users').value = '231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif\n231011401236, Dimas Pratama, dimas@example.test, mahasiswa, aktif\n231011401237, Maya Lestari, maya@example.test, mahasiswa, aktif\nDSN002, Ratna Prameswari, ratna@example.test, dosen, aktif';">
                         Muat Contoh Data
                     </button>
                 </div>
-                <textarea id="raw_users" name="raw_users" rows="6" required class="field font-mono text-xs" placeholder="NIM/NIDN, Nama Lengkap, Email, Peran (mahasiswa/dosen/admin), Status (aktif/nonaktif)&#10;Contoh:&#10;231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif&#10;DSN002, Ratna Prameswari, ratna@example.test, dosen, aktif"></textarea>
-                <p class="mt-1.5 text-xs text-muted">Format tiap baris: <code class="font-mono font-semibold">NIM/NIDN, Nama, Email, Peran, Status</code>. Pisahkan dengan tanda koma (,) atau tab.</p>
+                <textarea id="raw_users" name="raw_users" rows="4" class="field font-mono text-xs" placeholder="NIM/NIDN, Nama Lengkap, Email, Peran (mahasiswa/dosen/admin), Status (aktif/nonaktif)&#10;Contoh:&#10;231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif&#10;DSN002, Ratna Prameswari, ratna@example.test, dosen, aktif"></textarea>
             </div>
 
             <div class="flex items-center gap-3 pt-1">
@@ -131,7 +156,7 @@
                             <label class="flex cursor-pointer items-center gap-2 text-xs text-ink"><input type="checkbox" name="roles[]" value="{{ $key }}" class="rounded border-line text-brand" @checked(in_array($key, $selectedRoles, true))><span>{{ $label }}</span></label>
                         @endforeach
                     </div>
-                    <p class="mt-1.5 text-xs text-muted">Satu identitas dapat memiliki beberapa peran tanpa membuat akun baru.</p>
+                    <p class="mt-1.5 text-xs text-muted">Satu identitas dapat memiliki beberapa kewenangan, misalnya Dosen sekaligus Admin Prodi/Kaprodi.</p>
                 </div>
                 <div>
                     <label class="form-label" for="status">Status Akun</label>
@@ -140,6 +165,18 @@
                             <option value="{{ $key }}" @selected(old('status', $record['status'] ?? '') === $key)>{{ $label }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="form-label" for="prodi_id">Program Studi</label>
+                    <select class="field" id="prodi_id" name="prodi_id">
+                        <option value="">Semua Program Studi (Tidak Terikat)</option>
+                        @foreach(\App\Models\Prodi::orderBy('name')->get() as $p)
+                            <option value="{{ $p->id }}" @selected((int)old('prodi_id', $record['prodi_id'] ?? '') === $p->id)>
+                                {{ $p->code }} - {{ $p->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1.5 text-xs text-muted">Program studi yang dinaungi pengguna (diperlukan untuk Dosen, Mahasiswa, atau Admin Prodi).</p>
                 </div>
             </div>
             <p class="text-xs text-muted">Perubahan pengguna akan otomatis dicatat ke dalam activity log sistem.</p>
@@ -161,6 +198,13 @@
                 <option value="{{ $key }}" @selected(request('role') === $key)>{{ $label }}</option>
             @endforeach
         </select>
+        <label class="sr-only" for="prodi-filter">Filter prodi</label>
+        <select class="field sm:w-48" id="prodi-filter" name="prodi_id">
+            <option value="">Semua prodi</option>
+            @foreach(\App\Models\Prodi::orderBy('name')->get() as $p)
+                <option value="{{ $p->id }}" @selected((string)request('prodi_id') === (string)$p->id)>{{ $p->code }} - {{ $p->name }}</option>
+            @endforeach
+        </select>
         <button class="button-secondary">Cari</button>
     </form>
 
@@ -171,6 +215,7 @@
                 <tr>
                     <th class="whitespace-nowrap">NIM / NIDN / NIP</th>
                     <th>Nama Lengkap</th>
+                    <th>Program Studi</th>
                     <th>Email</th>
                     <th>Peran</th>
                     <th>Status</th>
@@ -185,6 +230,9 @@
                         </td>
                         <td class="font-semibold text-ink">
                             {{ $user['name'] }}
+                        </td>
+                        <td class="text-xs text-ink font-medium">
+                            {{ $user['prodi_name'] ?? '' }}
                         </td>
                         <td class="text-xs text-muted">
                             {{ $user['email'] }}
@@ -203,7 +251,7 @@
                                     Edit<span class="sr-only"> {{ $user['name'] }}</span>
                                 </a>
                                 <span class="text-line">|</span>
-                                <form method="post" action="{{ route('admin.users.destroy', $user['id']) }}" class="inline" onsubmit="return confirm('Hapus pengguna &quot;{{ $user['name'] }}&quot;?');">
+                                <form method="post" action="{{ route('admin.users.destroy', $user['id']) }}" class="inline" data-confirm="Hapus pengguna {{ $user['name'] }}?" data-confirm-title="Hapus pengguna" data-confirm-label="Hapus">
                                     @csrf
                                     <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 hover:underline">
                                         Hapus

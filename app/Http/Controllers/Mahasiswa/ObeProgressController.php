@@ -70,18 +70,7 @@ class ObeProgressController extends Controller
     {
         $user = Auth::guard('web')->user();
 
-        if (! $user && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $user = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-        }
-
-        if ($user && $user->role && $user->role->name === Role::MAHASISWA) {
-            return $user;
-        }
-
-        if (is_array(session('auth_user')) && (session('auth_user')['role'] ?? '') === Role::MAHASISWA) {
+        if ($user?->hasRole(Role::MAHASISWA)) {
             return $user;
         }
 

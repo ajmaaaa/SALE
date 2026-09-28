@@ -401,16 +401,23 @@ class AdminProdiManagementTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('LAPORAN AKADEMIK &amp; KELAS PERKULIAHAN PROGRAM STUDI', false);
 
-        // 3. Ekspor Laporan CSV
+        // 3. Ekspor Laporan Excel (.xlsx)
         $response = $this->get(route('admin-prodi.laporan.export', [
             'prodi_id' => $this->prodi->id,
             'semester_id' => $this->semester->id,
         ]));
         $response->assertStatus(200);
-        $csvOutput = $response->streamedContent();
-        $this->assertStringContainsString('RINGKASAN METRIK SEMESTER', $csvOutput);
-        $this->assertStringContainsString('Teknik Informatika', $csvOutput);
-        $this->assertStringContainsString('IF204', $csvOutput);
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('laporan-prodi-', (string) $response->headers->get('content-disposition'));
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
+        file_put_contents($tempFile, $response->streamedContent());
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile);
+        $sheet = $spreadsheet->getActiveSheet();
+        $this->assertSame('LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI', $sheet->getCell('A1')->getValue());
+        $this->assertSame('RINGKASAN METRIK SEMESTER', $sheet->getCell('A6')->getValue());
+        $this->assertStringContainsString('Teknik Informatika', (string) $sheet->getCell('A2')->getValue());
+        $this->assertSame('IF204', $sheet->getCell('B17')->getValue());
+        @unlink($tempFile);
     }
 
     /**
@@ -652,5 +659,67 @@ class AdminProdiManagementTest extends TestCase
         $courseAfter = $this->get(route('mahasiswa.course.index'));
         $courseAfter->assertStatus(200);
         $courseAfter->assertSee('Pemrograman Mobile Lanjut');
+    }
+
+    public function test_all_added_prodis_are_integrated_and_visible_in_admin_prodi_dashboard_and_modules(): void
+    {
+        $newProdi = Prodi::create([
+            'code' => 'TE',
+            'name' => 'Teknik Elektro',
+        ]);
+
+        $globalAdmin = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN)->value('id'),
+            'prodi_id' => null,
+        ]);
+
+        $this->actingAs($globalAdmin);
+
+        // 1. Dashboard Admin Prodi displays newly added Prodi in stat and table
+        $dashResponse = $this->get(route('admin-prodi.dashboard'));
+        $dashResponse->assertOk();
+        $dashResponse->assertSee('Program Studi Terdaftar');
+        $dashResponse->assertSee('Teknik Elektro');
+        $dashResponse->assertSee('TE');
+
+        // 2. Admin Sistem Pengguna allows assigning user to TE
+        $createLecturerResponse = $this->post(route('admin.users.store'), [
+            'name' => 'Dosen Elektro Baru',
+            'email' => 'dosen.te@example.test',
+            'number' => 'NIDN123456',
+            'roles' => ['dosen'],
+            'status' => 'aktif',
+            'prodi_id' => $newProdi->id,
+        ]);
+        $createLecturerResponse->assertRedirect(route('admin.page', 'pengguna'));
+        $this->assertDatabaseHas('users', [
+            'email' => 'dosen.te@example.test',
+            'prodi_id' => $newProdi->id,
+        ]);
+
+        // 3. Unconstrained Admin Prodi can view and manage both prodis
+        $institutionalAdminProdi = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN_PRODI)->value('id'),
+            'prodi_id' => null,
+            'managing_prodi_id' => null,
+        ]);
+        $this->actingAs($institutionalAdminProdi);
+
+        $instDashResponse = $this->get(route('admin-prodi.dashboard'));
+        $instDashResponse->assertOk();
+        $instDashResponse->assertSee('Teknik Elektro');
+        $instDashResponse->assertSee('Teknik Informatika');
+
+        $kurikulumResponse = $this->get(route('admin-prodi.kurikulum.index', ['prodi_id' => $newProdi->id]));
+        $kurikulumResponse->assertOk();
+        $kurikulumResponse->assertSee('Teknik Elektro');
+
+        $mkResponse = $this->get(route('admin-prodi.akademik.matakuliah', ['prodi_id' => $newProdi->id]));
+        $mkResponse->assertOk();
+        $mkResponse->assertSee('Teknik Elektro');
+
+        $kelasResponse = $this->get(route('admin-prodi.akademik.kelas', ['prodi_id' => $newProdi->id]));
+        $kelasResponse->assertOk();
+        $kelasResponse->assertSee('Teknik Elektro');
     }
 }

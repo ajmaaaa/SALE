@@ -1,12 +1,3 @@
-@php
-    $isOnMatriks = request()->routeIs('dosen.penilaian.matriks');
-    $hideNav = request()->routeIs('dosen.penilaian.asesmen', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
-    $mainTabs = $isOnMatriks ? [
-        'dosen.penilaian.matriks' => 'Matriks Penilaian',
-        'dosen.penilaian.asesmen' => 'Input Nilai Asesmen',
-    ] : [];
-@endphp
-
 <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <nav class="flex items-center gap-2 text-xs text-muted mb-1">
@@ -45,14 +36,3 @@
         </span>
     </div>
 </header>
-
-@if(!$hideNav && !empty($mainTabs))
-<nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto overflow-y-hidden border-b border-line/80 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Tab penilaian kelas">
-    @foreach($mainTabs as $route => $label)
-        <a href="{{ route($route, $section->id) }}"
-           class="px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors {{ request()->routeIs($route) ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
-            {{ $label }}
-        </a>
-    @endforeach
-</nav>
-@endif

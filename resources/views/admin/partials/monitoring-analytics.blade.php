@@ -45,7 +45,7 @@
                 ['Rata-rata CPU', $formatNumber($averageCpu, 1).'%', 'Rata-rata penggunaan prosesor'],
                 ['Rata-rata RAM', $formatNumber($averageRam, 1).'%', 'Rata-rata penggunaan memori'],
             ] as [$label, $value, $description])
-                <div class="rounded-xl border border-line/60 p-4"><dt class="text-xs font-medium text-muted">{{ $label }}</dt><dd class="mt-3 text-2xl font-semibold">{{ $demo ? $value : '—' }}</dd><p class="mt-2 text-xs leading-5 text-muted">{{ $description }}</p></div>
+                <div class="rounded-xl border border-line/60 p-4"><dt class="text-xs font-medium text-muted">{{ $label }}</dt><dd class="mt-3 text-2xl font-semibold">{{ $demo ? $value : '0' }}</dd><p class="mt-2 text-xs leading-5 text-muted">{{ $description }}</p></div>
             @endforeach
         </dl>
         @if($demo)

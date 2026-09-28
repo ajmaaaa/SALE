@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
                 <span>/</span>
@@ -15,14 +15,20 @@
             <h1 class="page-heading">Laporan Akademik &amp; Capaian Nilai Prodi</h1>
             <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, intake mahasiswa baru, rata-rata nilai, dan ekspor data.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center gap-1.5">
+        <div class="flex items-center justify-end gap-2.5 shrink-0 sm:ml-auto">
+            <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center gap-1.5 shadow-2xs">
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
-                Pratinjau Cetak / PDF
+                <span>Cetak PDF</span>
             </a>
-            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-primary text-xs flex items-center gap-1.5">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                Ekspor Laporan (Excel / CSV)
+            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-secondary text-xs flex items-center gap-1.5 shadow-2xs">
+                <svg class="h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Ekspor Laporan Excel</span>
             </a>
         </div>
     </header>
@@ -80,7 +86,7 @@
                 <p class="mt-1.5 text-2xl font-bold text-ink">{{ number_format($metrics['average_grade'], 2) }} <span class="text-xs font-normal text-muted">/ 100</span></p>
                 <p class="mt-1 text-[11px] text-muted">Evaluasi capaian akhir</p>
             @else
-                <p class="mt-1.5 text-lg font-bold text-muted">—</p>
+                <p class="mt-1.5 text-lg font-bold text-muted">0</p>
                 <p class="mt-1 text-[11px] text-muted">Belum ada nilai diinput</p>
             @endif
         </div>
@@ -98,8 +104,9 @@
             <div>
                 <h2 class="text-base font-bold text-ink">Rincian Kelas Perkuliahan &amp; Rata-rata Nilai</h2>
             </div>
-            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="text-xs font-semibold text-brand hover:underline">
-                Unduh Data CSV
+            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1.5">
+                <svg class="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+                <span>Ekspor Excel (.xlsx)</span>
             </a>
         </div>
 
@@ -135,7 +142,7 @@
                             @if($cr['dosen_wakil'] !== '-')
                                 <span class="font-medium text-ink block">{{ $cr['dosen_wakil'] }}</span>
                             @else
-                                <span class="text-muted italic text-[11px]">—</span>
+                                <span class="text-muted italic text-[11px]"></span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Role;
 use App\Models\StudentAssessmentScore;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -38,13 +37,6 @@ class ClassSectionController extends Controller
     {
         $dosen = Auth::guard('web')->user();
 
-        if (! $dosen && is_array(session('auth_user'))) {
-            $sessionUser = session('auth_user');
-            $dosen = User::where('email', $sessionUser['email'] ?? '')
-                ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                ->first();
-        }
-
         abort_unless($dosen?->hasRole(Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
 
         $sections = ClassSection::query()
@@ -54,10 +46,8 @@ class ClassSectionController extends Controller
             })
             ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
             ->withCount('students')
-            ->withCount('assessments')
-            ->orderByDesc('semester_id')
-            ->orderBy('mata_kuliah_id')
-            ->orderBy('section_code')
+            ->withCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])
+            ->orderByDesc('id')
             ->get();
 
         // Grading progress per section: how many (assessment × enrolled
@@ -76,7 +66,7 @@ class ClassSectionController extends Controller
             }
 
             $gradedSlots = StudentAssessmentScore::query()
-                ->whereIn('assessment_id', $section->assessments()->pluck('id'))
+                ->whereIn('assessment_id', $section->gradableAssessments()->pluck('id'))
                 ->whereNotNull('score')
                 ->count();
 

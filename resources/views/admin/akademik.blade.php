@@ -19,12 +19,6 @@
             <p class="page-description">Kelola struktur institusi: fakultas (maksimal 1), program studi, dan semester / tahun ajaran.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
-            <form method="post" action="{{ route('admin.academic.reset') }}" onsubmit="return confirm('Kembalikan data akademik ke konfigurasi default institusi?');">
-                @csrf
-                <button type="submit" class="button-secondary text-xs">
-                    Reset Data Default
-                </button>
-            </form>
             <a class="button-primary text-xs inline-flex items-center gap-1.5" href="{{ route('admin.page', 'akademik') }}?create=1">
                 + Tambah Data
             </a>
@@ -168,15 +162,15 @@
                             <p class="mt-0.5 font-mono text-xs text-muted">{{ $entry['code'] }}</p>
                         </td>
                         <td>
-                            <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $entry['type'] === 'fakultas' ? 'bg-brand-soft text-brand' : ($entry['type'] === 'prodi' ? 'bg-slate-100 text-slate-700' : 'bg-canvas text-muted') }}">
+                            <span class="text-xs text-ink font-medium">
                                 {{ $entry['type'] === 'fakultas' ? 'Fakultas' : ($entry['type'] === 'prodi' ? 'Program Studi' : 'Semester') }}
                             </span>
                         </td>
                         <td class="text-xs text-muted">
-                            {{ !empty($entry['parent']) && isset($academic[$entry['parent']]) ? $academic[$entry['parent']]['name'] : '—' }}
+                            {{ !empty($entry['parent']) && isset($academic[$entry['parent']]) ? $academic[$entry['parent']]['name'] : '' }}
                         </td>
                         <td>
-                            <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ $entry['status'] === 'aktif' ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 bg-slate-100' }}">
+                            <span class="text-xs font-semibold {{ $entry['status'] === 'aktif' ? 'text-emerald-700' : 'text-slate-500' }}">
                                 {{ ucfirst($entry['status']) }}
                             </span>
                         </td>
@@ -186,7 +180,7 @@
                                     Edit
                                 </a>
                                 <span class="text-line">|</span>
-                                <form method="post" action="{{ route('admin.academic.destroy', $entry['id']) }}" class="inline" onsubmit="return confirm('Hapus {{ $entry['type'] }} &quot;{{ $entry['name'] }}&quot;?');">
+                                <form method="post" action="{{ route('admin.academic.destroy', $entry['id']) }}" class="inline" data-confirm="Hapus {{ $entry['type'] }} {{ $entry['name'] }}?" data-confirm-title="Hapus data akademik" data-confirm-label="Hapus">
                                     @csrf
                                     <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 hover:underline">
                                         Hapus

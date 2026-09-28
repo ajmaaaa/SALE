@@ -6,6 +6,10 @@
     <meta name="theme-color" content="#f5f5f2">
     <title>@yield('title', 'SALE')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        html { scrollbar-gutter: stable; }
+        dialog { position: fixed !important; inset: 0 !important; margin: auto !important; }
+    </style>
 </head>
 <body class="min-h-screen font-sans antialiased">
     <a href="#main-content" class="fixed left-3 top-3 z-[70] -translate-y-20 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white focus:translate-y-0">
@@ -23,7 +27,7 @@
             @endphp
             <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
                 <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
-                <span class="mt-0.5 block text-xs text-muted">{{ session('admin.settings.institution','Smart Academic Learning Ecosystem') }}</span>
+                <span class="mt-0.5 block text-xs text-muted">{{ \App\Models\SystemSetting::valueFor('institution', 'Smart Academic Learning Ecosystem') }}</span>
             </a>
         </div>
 
@@ -35,13 +39,13 @@
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
                     Dashboard Prodi
                 </a>
-                <a href="{{ route('admin-prodi.akademik.matakuliah') }}" @if(request()->routeIs('admin-prodi.akademik.matakuliah*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.matakuliah*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
-                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
-                    Mata Kuliah
-                </a>
                 <a href="{{ route('admin-prodi.kurikulum.index') }}" @if(request()->routeIs('admin-prodi.kurikulum.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.kurikulum.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 12 10 5 10-5M2 17l10 5 10-5"/></svg>
                     Kurikulum (CPL &amp; CPMK)
+                </a>
+                <a href="{{ route('admin-prodi.akademik.matakuliah') }}" @if(request()->routeIs('admin-prodi.akademik.matakuliah*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.matakuliah*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8"/></svg>
+                    Mata Kuliah
                 </a>
                 <a href="{{ route('admin-prodi.akademik.kelas') }}" @if(request()->routeIs('admin-prodi.akademik.kelas*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.kelas*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -71,7 +75,7 @@
         @php
             $currentSection = request()->route('section');
             $currentSectionId = is_object($currentSection) ? $currentSection->id : ($currentSection ?? session('last_active_section_id'));
-            $isPenilaianActive = request()->routeIs('dosen.penilaian.index', 'dosen.penilaian.dashboard', 'dosen.penilaian.matriks', 'dosen.penilaian.asesmen*', 'dosen.penilaian.pengaturan');
+            $isPenilaianActive = request()->routeIs('dosen.penilaian.index', 'dosen.penilaian.dashboard', 'dosen.penilaian.asesmen*', 'dosen.penilaian.pengaturan');
             $isRekapActive = request()->routeIs('dosen.rekap.*', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk', 'dosen.penilaian.cpl', 'dosen.penilaian.export*');
             $isCpmkActive = request()->routeIs('dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
             $isCplActive = request()->routeIs('dosen.penilaian.cpl');
@@ -121,7 +125,8 @@
             <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
             <div class="space-y-1">
                 @php
-                    $dosenUnreadNotifCount = \App\Support\LearningPreview::unreadNotificationCount();
+                    $notificationService = app(\App\Services\DatabaseNotificationService::class);
+                    $dosenUnreadNotifCount = auth()->check() ? $notificationService->unreadCount(auth()->user(), 'dosen') : 0;
                     $isDosenNotifActive = request()->routeIs('dosen.notifications*') || request()->is('*notifikasi*');
                 @endphp
                 <a href="{{ route('dosen.notifications') }}" @if($isDosenNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isDosenNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -140,9 +145,11 @@
         </nav>
         @else
         @php
-            $forumUnreadCount = \App\Support\LearningPreview::unreadDiscussionCount();
-            $pendingTaskCount = \App\Support\LearningPreview::pendingTaskCount();
-            $unreadNotifCount = \App\Support\LearningPreview::unreadNotificationCount();
+            $notificationService = app(\App\Services\DatabaseNotificationService::class);
+            $studentNotifications = auth()->check() ? collect($notificationService->forUser(auth()->user(), 'mahasiswa')) : collect();
+            $forumUnreadCount = $studentNotifications->where('category', 'diskusi')->where('is_read', false)->count();
+            $pendingTaskCount = auth()->check() ? $notificationService->pendingTaskCount(auth()->user()) : 0;
+            $unreadNotifCount = $studentNotifications->where('is_read', false)->count();
         @endphp
         <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi mahasiswa">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
@@ -166,7 +173,7 @@
                         <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 99 ? '99+' : $forumUnreadCount }}</span>
                     @endif
                 </a>
-                <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*', 'mahasiswa.grade.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*', 'mahasiswa.grade.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     <span class="min-w-0 flex-1">Tugas &amp; Kuis</span>
                     @if($pendingTaskCount > 0)
@@ -198,32 +205,30 @@
 
     <div class="min-h-screen lg:pl-[248px]">
         @php
-            $rawRole = auth()->check() ? (is_string(auth()->user()->role) ? auth()->user()->role : (auth()->user()->role?->name ?? 'dosen')) : (session('auth_user.role') ?? (
-                request()->is('admin-prodi*') ? 'admin_prodi' :
+            $workspaceRole = request()->is('admin-prodi*') ? 'admin_prodi' :
                 (request()->is('admin*') ? 'admin' :
-                (request()->is('dosen*') ? 'dosen' : 'mahasiswa'))
-            ));
+                (request()->is('dosen*') ? 'dosen' : 'mahasiswa'));
+            $rawRole = $workspaceRole;
 
             $activeUser = auth()->check() ? [
                 'name' => auth()->user()->name,
                 'number' => auth()->user()->nim_nidn ?? auth()->user()->email,
                 'role' => $rawRole,
-                'role_label' => auth()->user()->role?->label ?? (
-                    match($rawRole) {
+                'role_label' => match($rawRole) {
                         'admin' => 'Admin Sistem',
                         'admin_prodi' => 'Admin Prodi',
                         'dosen' => 'Dosen',
                         'mahasiswa' => 'Mahasiswa',
                         default => ucfirst($rawRole)
-                    }
-                ),
+                    },
                 'email' => auth()->user()->email,
-            ] : (session('auth_user') ?? (
-                request()->is('admin-prodi*') ? ['id' => 4, 'name' => 'Admin Prodi TI', 'email' => 'adminprodi@example.test', 'number' => 'AP001', 'role' => 'admin_prodi', 'status' => 'aktif'] :
-                (request()->is('admin*') ? \App\Support\AdminPreview::users()[3] :
-                (request()->is('dosen*') ? \App\Support\AdminPreview::users()[2] :
-                \App\Support\AdminPreview::users()[1]))
-            ));
+            ] : [
+                'name' => 'Pengguna',
+                'email' => '',
+                'number' => '',
+                'role' => 'user',
+                'status' => 'aktif',
+            ];
 
             $roleName = is_string($activeUser['role'] ?? '') ? $activeUser['role'] : ($activeUser['role']['name'] ?? 'user');
             $roleLabel = $activeUser['role_label'] ?? (
@@ -245,7 +250,7 @@
                     </button>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-ink">@yield('header', 'Dashboard')</p>
-                        <p class="hidden truncate text-xs text-muted sm:block">Semester {{ session('admin.settings.semester','Ganjil 2026/2027') }}</p>
+                        <p class="hidden truncate text-xs text-muted sm:block">Semester {{ \App\Models\Semester::where('is_active', true)->value('name') ?? 'Belum ditetapkan' }}</p>
                     </div>
                 </div>
                 <div class="relative">
@@ -253,63 +258,47 @@
                         <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg p-1.5 hover:bg-[#eceeeb] focus:outline-none">
                             <span class="hidden text-right sm:block">
                                 <span class="block text-sm font-semibold leading-4 text-ink">{{ $activeUser['name'] }}</span>
-                                <span class="block text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '—' }})</span>
+                                <span class="block text-xs text-muted">{{ $roleLabel }}{{ !empty($activeUser['number']) ? ' (' . $activeUser['number'] . ')' : '' }}</span>
                             </span>
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-sm font-semibold text-brand-dark">
-                                {{ $initials }}
-                            </span>
+                            @if(!empty(auth()->user()?->profile_photo_url))
+                                <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ $activeUser['name'] }}" class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
+                            @else
+                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-brand-soft text-sm font-semibold text-brand-dark">
+                                    {{ $initials }}
+                                </span>
+                            @endif
                             <svg class="h-4 w-4 text-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                         </summary>
                         <div class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-line bg-white p-3 shadow-xl">
-                        <div class="border-b border-line/60 pb-3">
+                            <div class="border-b border-line/60 pb-3">
                                 <p class="text-sm font-bold text-ink">{{ $activeUser['name'] }}</p>
                                 <p class="text-xs text-muted">{{ $activeUser['email'] ?? 'user@example.test' }}</p>
                                 <p class="mt-1 text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '' }})</p>
                             </div>
-                            <!-- TESTING_ONLY: QUICK_ROLE_SWITCHER_START -->
-                            <!-- KOMPONEN PENGUJIAN: QUICK ROLE SWITCHER (Beralih Cepat Antar Peran) -->
-                            <!-- Hapus blok antara QUICK_ROLE_SWITCHER_START dan QUICK_ROLE_SWITCHER_END saat pengujian selesai -->
-                            <div class="py-2.5 my-1 border-y border-line/60 bg-canvas/40 -mx-3 px-3">
-                                <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-line/50">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted">
-                                        Peralihan Peran
-                                    </span>
-                                    <span class="text-[10px] text-muted font-normal">
-                                        Mode Pengujian
-                                    </span>
+                            @php
+                                $accessibleRoleCount = auth()->check()
+                                    ? auth()->user()->roles()->pluck('roles.name')->push(auth()->user()->role?->name)->filter()->unique()->count()
+                                    : 0;
+                            @endphp
+                            @if(auth()->check() && ($accessibleRoleCount > 1 || auth()->user()->hasRole('admin')))
+                                <div class="border-b border-line/60 py-2.5">
+                                    <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">Ruang kerja yang dapat diakses</p>
+                                    <div class="space-y-1 text-xs">
+                                        @if(auth()->user()->hasRole('dosen'))
+                                            <a href="{{ route('dosen.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Dosen</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('admin_prodi') || auth()->user()->hasRole('admin'))
+                                            <a href="{{ route('admin-prodi.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Program Studi</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('admin'))
+                                            <a href="{{ route('admin.page', 'dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Sistem</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('mahasiswa'))
+                                            <a href="{{ route('mahasiswa.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Mahasiswa</a>
+                                        @endif
+                                    </div>
                                 </div>
-                                <div class="space-y-0.5">
-                                    @php
-                                        $rolesList = [
-                                            'mahasiswa' => ['label' => 'Mahasiswa', 'desc' => 'Ruang Belajar, Tugas & Nilai'],
-                                            'dosen' => ['label' => 'Dosen Pengampu', 'desc' => 'Ruang Mengajar & Penilaian'],
-                                            'admin_prodi' => ['label' => 'Admin Prodi', 'desc' => 'Kelola Kelas, Kurikulum, MK'],
-                                            'admin' => ['label' => 'Admin Sistem', 'desc' => 'Kelola Pengguna & Pengaturan'],
-                                        ];
-                                    @endphp
-                                    @foreach($rolesList as $rKey => $rMeta)
-                                        @php($isCurrent = $roleName === $rKey)
-                                        <form method="post" action="{{ route('switch-role', $rKey) }}" class="m-0">
-                                            @csrf
-                                            <button type="submit"
-                                                    @disabled($isCurrent)
-                                                    class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition {{ $isCurrent ? 'bg-slate-100 font-semibold text-ink cursor-default' : 'text-slate-600 hover:bg-slate-50 hover:text-ink' }}">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <span class="h-1.5 w-1.5 rounded-full shrink-0 {{ $isCurrent ? 'bg-brand' : 'bg-slate-300' }}"></span>
-                                                    <div class="truncate">
-                                                        <span class="block leading-tight font-medium {{ $isCurrent ? 'font-semibold text-ink' : 'text-slate-700' }}">{{ $rMeta['label'] }}</span>
-                                                        <span class="block text-[10px] text-muted leading-tight">{{ $rMeta['desc'] }}</span>
-                                                    </div>
-                                                </div>
-                                                @if($isCurrent)
-                                                    <span class="text-[9px] font-semibold text-slate-500 uppercase tracking-wider shrink-0 bg-white border border-line/60 px-1.5 py-0.5 rounded">Aktif</span>
-                                                @endif
-                                            </button>
-                                        </form>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <!-- TESTING_ONLY: QUICK_ROLE_SWITCHER_END -->
+                            @endif
                             <div class="pt-2">
                                 <form method="post" action="{{ route('logout') }}">
                                     @csrf
@@ -323,7 +312,6 @@
         </header>
 
         <main id="main-content" class="page-shell">
-            @if($errors->any())<div role="alert" class="mb-5 rounded-lg border border-danger bg-white p-4 text-sm text-danger"><p class="font-semibold">Periksa kembali isian berikut.</p><ul class="mt-2 list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             @yield('content')
         </main>
 
@@ -353,5 +341,111 @@
         })();
     </script>
     @endif
+
+    <dialog id="sale-dialog" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-950/40">
+        <div class="p-5 sm:p-6">
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <div class="flex items-start gap-3 min-w-0">
+                    <span data-sale-dialog-icon class="shrink-0 mt-0.5 text-slate-500">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M9 6V4h6v2M8 10v7M12 10v7M16 10v7M5 6l1 15h12l1-15"/></svg>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <h2 data-sale-dialog-title class="text-base font-bold text-ink">Konfirmasi tindakan</h2>
+                        <p data-sale-dialog-message class="mt-1 whitespace-pre-line text-sm leading-6 text-muted"></p>
+                    </div>
+                </div>
+                <button type="button" data-sale-dialog-close class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Tutup">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" data-sale-dialog-cancel class="button-secondary px-4 py-2 text-sm">Batal</button>
+                <button type="button" data-sale-dialog-confirm class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800">Ya, lanjutkan</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        (() => {
+            const dialog = document.getElementById('sale-dialog');
+            const title = dialog?.querySelector('[data-sale-dialog-title]');
+            const message = dialog?.querySelector('[data-sale-dialog-message]');
+            const icon = dialog?.querySelector('[data-sale-dialog-icon]');
+            const cancel = dialog?.querySelector('[data-sale-dialog-cancel]');
+            const confirmButton = dialog?.querySelector('[data-sale-dialog-confirm]');
+            const closeBtn = dialog?.querySelector('[data-sale-dialog-close]');
+            let finish = null;
+
+            const complete = (value) => {
+                if (!finish) return;
+                const resolve = finish;
+                finish = null;
+                dialog.close();
+                resolve(value);
+            };
+
+            window.saleConfirm = (options = {}) => {
+                const config = typeof options === 'string' ? { message: options } : options;
+                if (!dialog || typeof dialog.showModal !== 'function') {
+                    return Promise.resolve(window.confirm(config.message || 'Lanjutkan tindakan ini?'));
+                }
+
+                title.textContent = config.title || 'Konfirmasi tindakan';
+                message.textContent = config.message || 'Tindakan ini perlu dikonfirmasi.';
+                confirmButton.textContent = config.confirmLabel || 'Ya, lanjutkan';
+                cancel.hidden = false;
+                // Icon polos: hanya warna stroke, tanpa bg berwarna
+                icon.className = 'shrink-0 mt-0.5 text-rose-600';
+                confirmButton.className = 'rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800';
+                dialog.showModal();
+                cancel.focus();
+
+                return new Promise(resolve => { finish = resolve; });
+            };
+
+            window.saleNotice = (options = {}) => {
+                const config = typeof options === 'string' ? { message: options } : options;
+                if (!dialog || typeof dialog.showModal !== 'function') {
+                    window.alert(config.message || 'Informasi');
+                    return Promise.resolve(true);
+                }
+
+                title.textContent = config.title || 'Informasi';
+                message.textContent = config.message || '';
+                confirmButton.textContent = config.confirmLabel || 'Mengerti';
+                cancel.hidden = true;
+                // Icon polos: hanya warna stroke, tanpa bg berwarna
+                icon.className = 'shrink-0 mt-0.5 text-[#102f50]';
+                confirmButton.className = 'button-primary px-4 py-2 text-sm font-semibold';
+                dialog.showModal();
+                confirmButton.focus();
+
+                return new Promise(resolve => { finish = resolve; });
+            };
+
+            cancel?.addEventListener('click', () => complete(false));
+            closeBtn?.addEventListener('click', () => complete(false));
+            confirmButton?.addEventListener('click', () => complete(true));
+            // Blokir Escape & click-outside: tutup hanya via X atau Batal
+            dialog?.addEventListener('cancel', event => {
+                event.preventDefault();
+                complete(false);
+            });
+
+            document.addEventListener('submit', async event => {
+                const form = event.target.closest('form[data-confirm]');
+                if (!form || form.dataset.confirmed === 'true') return;
+                event.preventDefault();
+                const accepted = await window.saleConfirm({
+                    title: form.dataset.confirmTitle || 'Konfirmasi tindakan',
+                    message: form.dataset.confirm,
+                    confirmLabel: form.dataset.confirmLabel || 'Ya, lanjutkan',
+                });
+                if (!accepted) return;
+                form.dataset.confirmed = 'true';
+                form.requestSubmit(event.submitter || undefined);
+            }, true);
+        })();
+    </script>
 </body>
 </html>

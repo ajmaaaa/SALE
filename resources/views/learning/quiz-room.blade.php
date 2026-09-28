@@ -39,15 +39,19 @@
         // Sebelumnya: empty($questions) → diisi LearningPreview::defaultQuizQuestions()
         $isDbRecord = !empty($item['is_database_record']);
         $questionsEmpty = $isDbRecord && empty($questions);
-        // Untuk item preview (bukan DB), tetap boleh menggunakan soal contoh bawaan
-        if (! $isDbRecord && empty($questions)) {
-            $questions = \App\Support\LearningPreview::defaultQuizQuestions();
-        }
         $totalQuestions = count($questions);
         $totalPoints = array_sum(array_column($questions, 'points'));
         $durationMinutes = !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60) : null;
-        $submission = session('learning.submissions.'.$item['id']);
+        $submission = $submission ?? null;
         $hasCompleted = !empty($isCompleted) || !empty($submission);
+        $isLecturerPreview = $isLecturerPreview ?? false;
+        $reviewUser = $reviewUser ?? auth()->user();
+        $courseBackUrl = $isLecturerPreview
+            ? route('dosen.course.show', $course['id']).'?tab=tugas'
+            : route('mahasiswa.course.show', $course['id']).'?tab=tugas';
+        $itemBackUrl = $isLecturerPreview
+            ? route('dosen.course.item', [$course['id'], $item['id']])
+            : route('mahasiswa.course.item', [$course['id'], $item['id']]);
     @endphp
 
     @if($questionsEmpty)
@@ -101,8 +105,14 @@
                 }
 
                 if (in_array($qType, ['uraian', 'esai'], true)) {
-                    $status = 'pending';
-                    $totalPending++;
+                    $essayScore = $submission['answer_scores'][$questionId] ?? null;
+                    if ($essayScore !== null) {
+                        $earned = (float) $essayScore;
+                        $status = 'graded';
+                    } else {
+                        $status = 'pending';
+                        $totalPending++;
+                    }
                 } elseif ($earned >= $qPoints) {
                     $status = 'correct';
                     $totalCorrect++;
@@ -124,7 +134,7 @@
             {{-- Top Header Minimalis --}}
             <header class="h-14 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                    <a href="{{ $courseBackUrl }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
                         <span>Kembali ke Course</span>
                     </a>
@@ -133,7 +143,7 @@
                 </div>
                 <span class="status font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                     <svg class="h-3.5 w-3.5 text-slate-500 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    Kuis Terkunci (Telah Selesai)
+                    {{ $isLecturerPreview ? 'Pratinjau Kunci Jawaban' : 'Kuis Terkunci (Telah Selesai)' }}
                 </span>
             </header>
 
@@ -142,14 +152,15 @@
                 <div class="max-w-4xl mx-auto space-y-7">
 
                     {{-- Card Ringkasan & Tanda Terima Kuis --}}
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-5">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-slate-100 pb-5">
+                            <div class="min-w-0">
                                 <h1 class="text-xl sm:text-2xl font-bold text-slate-900">{{ $item['title'] }}</h1>
                                 <p class="text-xs text-slate-500 mt-1">{{ $course['title'] }} ({{ $course['code'] }})</p>
                             </div>
 
                             {{-- Nilai Kuis (Tampil di Kanan) --}}
-                            <div class="flex sm:flex-col items-center sm:items-end justify-between bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-200">
+                            <div class="flex sm:flex-col items-center sm:items-end justify-between bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-200 shrink-0">
                                 <span class="text-xs font-medium text-slate-500">Nilai Perolehan Kuis:</span>
                                 <div class="flex items-baseline gap-1 mt-0.5">
                                     <span class="text-3xl font-extrabold text-slate-900 font-mono tracking-tight">{{ number_format($finalScore, 0) }}</span>
@@ -172,16 +183,16 @@
                         {{-- Metadata Bukti Tanda Terima --}}
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                             <div>
-                                <span class="text-slate-400 font-medium block">Waktu Pengumpulan</span>
-                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ $submission['time'] ?? now()->format('d M Y, H:i') }}</span>
+                                <span class="text-slate-400 font-medium block">{{ $isLecturerPreview ? 'Mode Tampilan' : 'Waktu Pengumpulan' }}</span>
+                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ $isLecturerPreview ? 'Pratinjau dosen' : ($submission['time'] ?? now()->format('d M Y, H:i')) }}</span>
                             </div>
                             <div>
-                                <span class="text-slate-400 font-medium block">Mahasiswa</span>
-                                <span class="font-bold text-slate-800 truncate mt-0.5 block">{{ session('auth_user.name', 'Ahmad Maulana') }}</span>
+                                <span class="text-slate-400 font-medium block">{{ $isLecturerPreview ? 'Pengampu' : 'Mahasiswa' }}</span>
+                                <span class="font-bold text-slate-800 truncate mt-0.5 block">{{ $reviewUser->name }}</span>
                             </div>
                             <div>
                                 <span class="text-slate-400 font-medium block">NIM / Identitas</span>
-                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ session('auth_user.number', '230101001') }}</span>
+                                <span class="font-bold text-slate-800 font-mono mt-0.5 block">{{ $reviewUser->nim_nidn ?? $reviewUser->email }}</span>
                             </div>
                             <div>
                                 <span class="text-slate-400 font-medium block">Jumlah Butir Soal</span>
@@ -193,10 +204,10 @@
                         <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
                             <p class="text-xs text-slate-500"></p>
                             <div class="flex items-center gap-2.5">
-                                <a href="{{ route('mahasiswa.course.item', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2 px-4 font-semibold">
+                                <a href="{{ $itemBackUrl }}" class="button-secondary text-xs py-2 px-4 font-semibold">
                                     Lihat Rincian Tugas
                                 </a>
-                                <a href="{{ route('mahasiswa.course.show', $course['id']) }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
+                                <a href="{{ $courseBackUrl }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
                                      Kembali ke Course
                                 </a>
                             </div>
@@ -264,6 +275,8 @@
                                                     <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                     <span>Tersimpan (Dinilai Pengampu)</span>
                                                 </span>
+                                            @elseif($status === 'graded')
+                                                <span class="text-xs font-bold text-emerald-700">Dinilai (+{{ number_format($eval['earned'], 1) }} Poin)</span>
                                             @else
                                                 <span class="text-xs font-bold text-rose-700 flex items-center gap-1.5">
                                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -310,12 +323,22 @@
                                                         <span class="break-words leading-relaxed">{{ $opt['text'] }}</span>
                                                     </div>
                                                     <div class="shrink-0 flex items-center gap-1.5">
-                                                        @if($isUserPicked && $isOptCorrect)
-                                                            <span class="text-xs font-semibold text-emerald-700">✓ Jawaban Anda (Benar)</span>
-                                                        @elseif($isUserPicked && !$isOptCorrect)
-                                                            <span class="text-xs font-semibold text-rose-700">✕ Jawaban Anda (Salah)</span>
-                                                        @elseif($isOptCorrect)
-                                                            <span class="text-xs font-medium text-emerald-700">✓ Kunci Jawaban Benar</span>
+                                                        @if($qType === 'kompleks')
+                                                            @if($isUserPicked && $isOptCorrect)
+                                                                <span class="text-xs font-semibold text-emerald-700">✓ Pilihan Tepat (Kunci)</span>
+                                                            @elseif($isUserPicked && !$isOptCorrect)
+                                                                <span class="text-xs font-semibold text-rose-700">✕ Pilihan Salah</span>
+                                                            @elseif($isOptCorrect)
+                                                                <span class="text-xs font-medium text-emerald-700">Kunci Jawaban</span>
+                                                            @endif
+                                                        @else
+                                                            @if($isUserPicked && $isOptCorrect)
+                                                                <span class="text-xs font-semibold text-emerald-700">✓ Jawaban Anda (Benar)</span>
+                                                            @elseif($isUserPicked && !$isOptCorrect)
+                                                                <span class="text-xs font-semibold text-rose-700">✕ Jawaban Anda (Salah)</span>
+                                                            @elseif($isOptCorrect)
+                                                                <span class="text-xs font-medium text-emerald-700">✓ Kunci Jawaban Benar</span>
+                                                            @endif
                                                         @endif
                                                     </div>
                                                 </div>
@@ -604,7 +627,7 @@
 
                                     {{-- Interactive Line Drawing Canvas --}}
                                     <div class="flex-1 overflow-y-auto [scrollbar-gutter:stable] p-6 match-canvas-container relative" id="canvas-container-{{ $qIdx }}">
-                                        <svg class="absolute pointer-events-none z-10" style="top: 0; left: 0; min-width: 100%; min-height: 100%;" id="match-svg-{{ $qIdx }}"></svg>
+                                        <svg class="absolute pointer-events-none z-30" style="top: 0; left: 0; min-width: 100%; min-height: 100%;" id="match-svg-{{ $qIdx }}"></svg>
 
                                         <div class="grid grid-cols-2 gap-20 relative z-20 items-stretch">
                                             {{-- Kolom Kiri: Premis --}}
@@ -653,7 +676,7 @@
                                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">Kolom Jawaban</p>
                                                 @php
                                                     $targets = array_map(fn($pair) => ['id' => $pair['option_id'], 'text' => $pair['right']], $pairs);
-                                                    $userSeed = auth()->id() ?? (session('auth_user.id') ?? (session('auth_user.number') ? crc32((string) session('auth_user.number')) : 1));
+                                                    $userSeed = auth()->id();
                                                     $seed = (int) ($item['id'] ?? 1) * 31 + (int) $userSeed * 17 + ($qIdx + 1) * 7;
                                                     mt_srand($seed);
                                                     shuffle($targets);
@@ -789,7 +812,6 @@
             {{-- Footer Modal --}}
             <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span id="grid-answered-badge" class="text-xs font-semibold text-slate-600">0 dari {{ $totalQuestions }} soal terjawab</span>
-                <button type="button" id="modal-grid-close-btn" class="button-secondary text-xs py-1.5 px-3.5 font-medium cursor-pointer">Tutup Kisi</button>
             </div>
         </dialog>
 
@@ -879,7 +901,6 @@
                 const gridModal = document.getElementById('questions-grid-modal');
                 const btnOpenGridModal = document.getElementById('btn-open-grid-modal');
                 const modalGridClose = document.getElementById('modal-grid-close');
-                const modalGridCloseBtn = document.getElementById('modal-grid-close-btn');
                 const gridStepBtns = document.querySelectorAll('[data-grid-step]');
                 const gridAnsweredBadge = document.getElementById('grid-answered-badge');
 
@@ -935,7 +956,6 @@
 
                 btnOpenGridModal?.addEventListener('click', openGridModal);
                 modalGridClose?.addEventListener('click', () => gridModal?.close());
-                modalGridCloseBtn?.addEventListener('click', () => gridModal?.close());
 
                 gridStepBtns.forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -1065,7 +1085,7 @@
                         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                     };
 
-                    const updateTimer = () => {
+                    const updateTimer = async () => {
                         const currentNow = Date.now();
                         const remainingSeconds = Math.max(0, Math.floor((deadline - currentNow) / 1000));
                         timerEl.textContent = formatTime(remainingSeconds);
@@ -1080,7 +1100,7 @@
                         if (remainingSeconds <= 0) {
                             clearInterval(timerInterval);
                             localStorage.removeItem(deadlineKey);
-                            alert('Waktu ujian kuis telah berakhir. Jawaban Anda akan otomatis dikumpulkan.');
+                            await window.saleNotice({ title: 'Waktu kuis berakhir', message: 'Jawaban Anda akan otomatis dikumpulkan.' });
                             form.requestSubmit();
                         }
                     };
@@ -1130,18 +1150,61 @@
                         }
                     });
 
+                    const disconnectConnection = (lIdx) => {
+                        delete connections[lIdx];
+                        const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
+                        if (hiddenInp) hiddenInp.value = '';
+
+                        if (selectedPremiseIdx === lIdx) {
+                            selectedPremiseIdx = null;
+                            leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
+                            leftDots.forEach(d => d.classList.remove('selected'));
+                        }
+                        redrawLines();
+                    };
+
                     const drawLine = (x1, y1, x2, y2, color, id) => {
                         const dx = Math.abs(x2 - x1) * 0.45;
-                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         path.setAttribute('d', d);
                         path.setAttribute('stroke', color);
                         path.setAttribute('stroke-width', '2.5');
                         path.setAttribute('fill', 'none');
                         path.setAttribute('stroke-linecap', 'round');
-                        path.setAttribute('class', 'connection-line');
+                        path.setAttribute('class', 'connection-line cursor-pointer');
+                        path.setAttribute('style', 'pointer-events: stroke;');
                         path.setAttribute('id', `line-${qIdx}-${id}`);
+
+                        const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        hitPath.setAttribute('d', d);
+                        hitPath.setAttribute('stroke', 'transparent');
+                        hitPath.setAttribute('stroke-width', '16');
+                        hitPath.setAttribute('fill', 'none');
+                        hitPath.setAttribute('stroke-linecap', 'round');
+                        hitPath.setAttribute('class', 'cursor-pointer');
+                        hitPath.setAttribute('style', 'pointer-events: stroke;');
+
+                        const onLineClick = (e) => {
+                            e.stopPropagation();
+                            disconnectConnection(id);
+                        };
+
+                        path.addEventListener('click', onLineClick);
+                        hitPath.addEventListener('click', onLineClick);
+
+                        hitPath.addEventListener('mouseenter', () => {
+                            path.setAttribute('stroke-width', '4');
+                            path.setAttribute('opacity', '0.7');
+                        });
+                        hitPath.addEventListener('mouseleave', () => {
+                            path.setAttribute('stroke-width', '2.5');
+                            path.setAttribute('opacity', '1');
+                        });
+
                         svg.appendChild(path);
+                        svg.appendChild(hitPath);
                     };
 
                     const redrawLines = () => {
@@ -1269,17 +1332,7 @@
                     container.querySelectorAll('[data-disconnect-left]').forEach(btn => {
                         btn.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            const lIdx = Number(btn.dataset.disconnectLeft);
-                            delete connections[lIdx];
-                            const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
-                            if (hiddenInp) hiddenInp.value = '';
-
-                            if (selectedPremiseIdx === lIdx) {
-                                selectedPremiseIdx = null;
-                                leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                                leftDots.forEach(d => d.classList.remove('selected'));
-                            }
-                            redrawLines();
+                            disconnectConnection(Number(btn.dataset.disconnectLeft));
                         });
                     });
 

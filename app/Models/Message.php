@@ -72,14 +72,6 @@ class Message extends Model
             ?? ($sender?->role?->name ?? 'mahasiswa');
 
         $isMe = $viewer ? ($this->user_id === $viewer->id) : false;
-        if (! $isMe && ! $viewer) {
-            $sessionUser = session('auth_user');
-            if (is_array($sessionUser)) {
-                $sessionName = $sessionUser['name'] ?? '';
-                $isMe = (! empty($sessionName) && $sender?->name === $sessionName);
-            }
-        }
-
         $replyInfo = null;
         if ($this->replyTo) {
             $replySender = $this->replyTo->user;
