@@ -36,12 +36,15 @@
         });
 
     $uncompletedTasksCount = $tugasItems->reject(fn($item) => in_array($item['id'], $submittedAssessmentIds, true))->count();
+    $enrolledStudents = $enrolledStudents ?? [];
+    $courseMembers = $courseMembers ?? collect();
     if (isset($classSection)) {
         $classSection->loadMissing(['students', 'dosen', 'dosenPendamping']);
         $enrolledStudents = $classSection->students->map(fn($user) => [
             'name' => $user->name,
             'number' => $user->nim_nidn ?? $user->email,
             'role' => 'mahasiswa',
+            'avatar_url' => $user->profile_photo_url,
         ])->values()->all();
         $courseMembers = collect([$classSection->dosen, $classSection->dosenPendamping])
             ->filter()
@@ -49,6 +52,7 @@
                 'name' => $user->name,
                 'number' => $user->nim_nidn ?? $user->email,
                 'role' => 'dosen',
+                'avatar_url' => $user->profile_photo_url,
             ])
             ->concat($enrolledStudents)
             ->values();
@@ -443,32 +447,30 @@
                     $previousMessageDate = null;
                 @endphp
 
-                {{-- Banner Pesan yang Disematkan Dosen --}}
-                <div id="pinned-announcements-container" class="{{ $pinnedMessages->isEmpty() ? 'hidden' : '' }} shrink-0 mt-2 rounded-xl bg-[#edf4fb] p-3 text-xs">
-                    <div class="flex items-center justify-between gap-2 pb-1.5 mb-2">
-                        <div class="flex items-center gap-1.5 font-bold text-[#1f4b7a]">
-                            <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                            <span>Pesan Disematkan Dosen</span>
-                        </div>
-                        <span id="pinned-count-badge" class="text-xs font-bold text-[#1f4b7a]">
-                            ({{ $pinnedMessages->count() }})
+                {{-- WhatsApp-like Pinned Message Bar (Single line, single message, tap to navigate & cycle) --}}
+                @php
+                    $initialPinnedCount = $pinnedMessages->count();
+                    $activePin = $pinnedMessages->first();
+                @endphp
+                <div id="pinned-announcements-container"
+                     class="{{ $pinnedMessages->isEmpty() ? 'hidden' : '' }} shrink-0 my-1.5 flex items-center justify-between gap-2.5 rounded-lg border border-[#cfe0f2] bg-[#f0f6fc] px-3 py-1.5 text-xs shadow-2xs transition-all select-none">
+                    <div class="flex items-center gap-2 min-w-0 flex-1 cursor-pointer" onclick="cyclePinnedMessage()" title="Klik untuk menuju pesan">
+                        @if($isDosenUser)
+                            <button type="button" id="pinned-bar-unpin-btn" onclick="event.stopPropagation(); unpinCurrentBannerMessage();" class="text-brand hover:text-rose-600 transition shrink-0 p-0.5 rounded cursor-pointer" title="Lepas sematan">
+                                <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            </button>
+                        @else
+                            <span class="text-brand shrink-0">
+                                <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            </span>
+                        @endif
+                        <span id="pinned-banner-text" class="truncate flex-1 text-slate-800 font-medium hover:text-brand transition">
+                            {{ $activePin['content'] ?? '' }}
                         </span>
                     </div>
-                    <div id="pinned-messages-list" class="space-y-1.5 max-h-24 overflow-y-auto pr-1">
-                        @foreach($pinnedMessages as $pinMsg)
-                            <div id="pinned-item-{{ $pinMsg['id'] }}" class="flex items-start gap-2 rounded-lg bg-white/70 p-2">
-                                <div class="min-w-0 flex-1">
-                                    @unless($pinMsg['is_me'])
-                                        <span class="font-bold text-[#1f4b7a]">{{ $pinMsg['author'] }}:</span>
-                                    @endunless
-                                    <span class="text-slate-800 line-clamp-2">{{ $pinMsg['content'] }}</span>
-                                </div>
-                                @if($isDosenUser)
-                                    <button type="button" onclick="togglePinMessage({{ $pinMsg['id'] }})" class="shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium" title="Lepas Sematan">Lepas</button>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
+                    <span id="pinned-index-indicator" class="{{ $initialPinnedCount > 1 ? '' : 'hidden' }} shrink-0 font-mono text-[10px] font-bold text-brand cursor-pointer" onclick="cyclePinnedMessage()">
+                        1/{{ $initialPinnedCount }}
+                    </span>
                 </div>
 
                 <div id="chat-messages" class="my-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
@@ -506,9 +508,15 @@
                                                 @endif
                                             @endunless
                                             @if($isPinned)
-                                                <span id="pin-badge-{{ $msg['id'] }}" class="text-[10px] font-bold text-brand shrink-0">
-                                                    Disematkan
-                                                </span>
+                                                @if($isDosenUser)
+                                                    <button type="button" id="pin-badge-{{ $msg['id'] }}" onclick="togglePinMessage({{ $msg['id'] }})" class="inline-flex items-center text-brand hover:text-rose-600 transition shrink-0 cursor-pointer p-0.5" title="Lepas sematan">
+                                                        <svg class="h-3 w-3 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                                                    </button>
+                                                @else
+                                                    <span id="pin-badge-{{ $msg['id'] }}" class="inline-flex items-center text-brand shrink-0 p-0.5" title="Pesan disematkan">
+                                                        <svg class="h-3 w-3 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                                                    </span>
+                                                @endif
                                             @endif
                                             <details class="chat-action-details relative ml-auto shrink-0">
                                                 <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
@@ -619,8 +627,8 @@
         const replyContentExcerpt = document.getElementById('reply-content-excerpt');
         const mentionDropdown = document.getElementById('mention-dropdown');
         const pinnedContainer = document.getElementById('pinned-announcements-container');
-        const pinnedList = document.getElementById('pinned-messages-list');
-        const pinnedCountBadge = document.getElementById('pinned-count-badge');
+        const pinnedBannerText = document.getElementById('pinned-banner-text');
+        const pinnedIndexIndicator = document.getElementById('pinned-index-indicator');
         const totalBadge = document.getElementById('chat-total-badge');
 
         let activeReplyTarget = null;
@@ -629,6 +637,100 @@
 
         if (chatMessages) {
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // WhatsApp-style Pinned Messages State & Navigation
+        window.pinnedMessagesData = @json($pinnedMessages->values());
+        let currentPinnedIndex = 0;
+        let isNavigatingPin = false;
+
+        function updatePinnedBannerUI() {
+            const container = document.getElementById('pinned-announcements-container');
+            const bannerText = document.getElementById('pinned-banner-text');
+            const indicator = document.getElementById('pinned-index-indicator');
+            if (!container || !bannerText) return;
+
+            const list = window.pinnedMessagesData || [];
+            if (list.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            if (currentPinnedIndex >= list.length) currentPinnedIndex = 0;
+            if (currentPinnedIndex < 0) currentPinnedIndex = list.length - 1;
+
+            const currentPin = list[currentPinnedIndex];
+            bannerText.textContent = currentPin ? (currentPin.content || '') : '';
+
+            if (indicator) {
+                if (list.length > 1) {
+                    indicator.classList.remove('hidden');
+                    indicator.textContent = `${currentPinnedIndex + 1}/${list.length}`;
+                } else {
+                    indicator.classList.add('hidden');
+                }
+            }
+        }
+
+        window.cyclePinnedMessage = function() {
+            const list = window.pinnedMessagesData || [];
+            if (list.length === 0) return;
+
+            if (currentPinnedIndex >= list.length) currentPinnedIndex = 0;
+            const targetMsg = list[currentPinnedIndex];
+
+            // Scroll ke bubble pesan di chat
+            const bubbleEl = document.getElementById(`msg-bubble-${targetMsg.id}`);
+            if (bubbleEl) {
+                isNavigatingPin = true;
+                bubbleEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const articleEl = bubbleEl.querySelector('article');
+                if (articleEl) {
+                    articleEl.classList.add('ring-2', 'ring-brand', 'bg-brand/10');
+                    setTimeout(() => {
+                        articleEl.classList.remove('ring-2', 'ring-brand', 'bg-brand/10');
+                    }, 1800);
+                }
+                setTimeout(() => { isNavigatingPin = false; }, 800);
+            }
+
+            // Setelah diarahkan ke pesan pin, update banner ke pesan pin berikutnya di atasnya (atau cycle)
+            if (list.length > 1) {
+                currentPinnedIndex = (currentPinnedIndex + 1) % list.length;
+                updatePinnedBannerUI();
+            }
+        };
+
+        window.unpinCurrentBannerMessage = function() {
+            const list = window.pinnedMessagesData || [];
+            if (list.length === 0) return;
+            const targetMsg = list[currentPinnedIndex];
+            if (targetMsg) {
+                togglePinMessage(targetMsg.id);
+            }
+        };
+
+        if (chatMessages) {
+            chatMessages.addEventListener('scroll', () => {
+                if (isNavigatingPin) return;
+                const list = window.pinnedMessagesData || [];
+                if (list.length <= 1) return;
+
+                const containerBottom = chatMessages.scrollTop + chatMessages.clientHeight;
+                let closestIndex = -1;
+                for (let i = 0; i < list.length; i++) {
+                    const el = document.getElementById(`msg-bubble-${list[i].id}`);
+                    if (el && el.offsetTop <= containerBottom - 40) {
+                        closestIndex = i;
+                        break;
+                    }
+                }
+                if (closestIndex !== -1 && closestIndex !== currentPinnedIndex) {
+                    currentPinnedIndex = closestIndex;
+                    updatePinnedBannerUI();
+                }
+            }, { passive: true });
         }
 
         // 1. Reply Handling
@@ -831,8 +933,21 @@
                 }
             }
             if (message.is_pinned) {
-                const pinBadge = chatElement('span', 'inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1f4b7a] bg-[#edf4fb] px-1 rounded shrink-0', 'Disematkan');
+                let pinBadge;
+                if (isDosenUser) {
+                    pinBadge = chatElement('button', 'inline-flex items-center text-brand hover:text-rose-600 transition shrink-0 cursor-pointer p-0.5');
+                    pinBadge.type = 'button';
+                    pinBadge.title = 'Lepas sematan';
+                    pinBadge.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        togglePinMessage(messageId);
+                    });
+                } else {
+                    pinBadge = chatElement('span', 'inline-flex items-center text-brand shrink-0 p-0.5');
+                    pinBadge.title = 'Pesan disematkan';
+                }
                 pinBadge.id = `pin-badge-${messageId}`;
+                pinBadge.innerHTML = '<svg class="h-3 w-3 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>';
                 heading.appendChild(pinBadge);
             }
 
@@ -967,43 +1082,9 @@
 
                 if (totalBadge) totalBadge.textContent = `${data.messages.length} pesan`;
 
-                if (pinnedContainer && pinnedList) {
-                    if (data.pinned_messages && data.pinned_messages.length > 0) {
-                        pinnedContainer.classList.remove('hidden');
-                        if (pinnedCountBadge) pinnedCountBadge.textContent = data.pinned_messages.length;
-                        pinnedList.innerHTML = '';
-                        data.pinned_messages.forEach(p => {
-                            const wrap = document.createElement('div');
-                            wrap.id = `pinned-item-${p.id}`;
-                            wrap.className = 'flex items-start gap-2 rounded-lg bg-white/70 p-2';
-                            const inner = document.createElement('div');
-                            inner.className = 'min-w-0 flex-1';
-                            if (!p.is_me) {
-                                const authorSpan = document.createElement('span');
-                                authorSpan.className = 'font-bold text-[#1f4b7a]';
-                                authorSpan.textContent = p.author + ':';
-                                inner.appendChild(authorSpan);
-                                inner.appendChild(document.createTextNode(' '));
-                            }
-                            const contentSpan = document.createElement('span');
-                            contentSpan.className = 'text-slate-800 line-clamp-2';
-                            contentSpan.textContent = p.content;
-                            inner.appendChild(contentSpan);
-                            wrap.appendChild(inner);
-                            if (isDosenUser) {
-                                const unpinBtn = document.createElement('button');
-                                unpinBtn.type = 'button';
-                                unpinBtn.className = 'shrink-0 text-[10px] text-amber-800 hover:text-rose-700 underline font-medium';
-                                unpinBtn.title = 'Lepas Sematan';
-                                unpinBtn.textContent = 'Lepas';
-                                unpinBtn.onclick = () => togglePinMessage(p.id);
-                                wrap.appendChild(unpinBtn);
-                            }
-                            pinnedList.appendChild(wrap);
-                        });
-                    } else {
-                        pinnedContainer.classList.add('hidden');
-                    }
+                if (data.pinned_messages !== undefined) {
+                    window.pinnedMessagesData = data.pinned_messages || [];
+                    updatePinnedBannerUI();
                 }
 
                 if (chatMessages && data.messages) {
@@ -1160,9 +1241,13 @@
             @forelse($courseMembers as $student)
                 <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
-                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-line/70 font-mono text-xs font-bold text-ink">
-                            {{ strtoupper(substr($student['name'] ?? 'M', 0, 2)) }}
-                        </span>
+                        @if(!empty($student['avatar_url']))
+                            <img src="{{ $student['avatar_url'] }}" alt="{{ $student['name'] }}" class="h-8 w-8 shrink-0 rounded-full border border-line/70 object-cover object-top">
+                        @else
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-line/70 font-mono text-xs font-bold text-ink">
+                                {{ strtoupper(substr($student['name'] ?? 'M', 0, 2)) }}
+                            </span>
+                        @endif
                         <div class="min-w-0">
                             <p class="text-xs font-bold text-ink truncate">{{ $student['name'] }}</p>
                             <p class="text-[11px] text-muted truncate font-mono">{{ $student['number'] }}</p>

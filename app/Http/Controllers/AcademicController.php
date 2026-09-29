@@ -71,8 +71,6 @@ class AcademicController extends Controller
 
         $courses = [];
         $totalCredits = 0;
-        $totalWeightedScore = 0;
-        $gradedCredits = 0;
 
         if ($user && Schema::hasTable('class_sections')) {
             $sectionsQuery = $user->classSectionsEnrolled()->with([
@@ -112,7 +110,6 @@ class AcademicController extends Controller
                 $finalScore = $final['score'];
 
                 $letter = '-';
-                $point = 0.0;
                 if ($finalScore !== null) {
                     $letter = match (true) {
                         $finalScore >= 85 => 'A',
@@ -125,19 +122,6 @@ class AcademicController extends Controller
                         $finalScore >= 40 => 'D',
                         default => 'E',
                     };
-                    $point = match ($letter) {
-                        'A' => 4.0,
-                        'A-' => 3.7,
-                        'B+' => 3.3,
-                        'B' => 3.0,
-                        'B-' => 2.7,
-                        'C+' => 2.3,
-                        'C' => 2.0,
-                        'D' => 1.0,
-                        default => 0.0,
-                    };
-                    $totalWeightedScore += $point * $sks;
-                    $gradedCredits += $sks;
                 }
 
                 $components = [];
@@ -161,7 +145,7 @@ class AcademicController extends Controller
                     'sks' => $sks,
                     'final_score' => $finalScore,
                     'letter' => $letter,
-                    'grade_point' => $point,
+                    'grade_point' => 0.0,
                     'components' => $components,
                 ];
             }
@@ -178,7 +162,6 @@ class AcademicController extends Controller
                 $totalCredits += $sks;
                 $finalScore = $res['average'] ?? null;
                 $letter = '-';
-                $point = 0.0;
                 if ($finalScore !== null) {
                     $letter = match (true) {
                         $finalScore >= 85 => 'A',
@@ -191,12 +174,6 @@ class AcademicController extends Controller
                         $finalScore >= 40 => 'D',
                         default => 'E',
                     };
-                    $point = match ($letter) {
-                        'A' => 4.0, 'A-' => 3.7, 'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7,
-                        'C+' => 2.3, 'C' => 2.0, 'D' => 1.0, default => 0.0
-                    };
-                    $totalWeightedScore += $point * $sks;
-                    $gradedCredits += $sks;
                 }
                 $components = [];
                 foreach ($cfg['components'] ?? [] as $comp) {
@@ -216,41 +193,10 @@ class AcademicController extends Controller
                     'sks' => $sks,
                     'final_score' => $finalScore,
                     'letter' => $letter,
-                    'grade_point' => $point,
+                    'grade_point' => 0.0,
                     'components' => $components,
                 ];
             }
-        }
-
-        $ips = $gradedCredits > 0 ? round($totalWeightedScore / $gradedCredits, 2) : 0.00;
-
-        // Hitung IPK kumulatif
-        $ipk = $ips;
-        if ($user && Schema::hasTable('class_sections')) {
-            $allEnrolled = $user->classSectionsEnrolled()->with(['mataKuliah', 'assessments'])->get();
-            $cumWeighted = 0;
-            $cumCredits = 0;
-            foreach ($allEnrolled as $sec) {
-                $secFinal = $this->grades->finalScore($sec, $user->id, false);
-                if ($secFinal['score'] !== null) {
-                    $secScore = $secFinal['score'];
-                    $pt = match (true) {
-                        $secScore >= 85 => 4.0,
-                        $secScore >= 80 => 3.7,
-                        $secScore >= 75 => 3.3,
-                        $secScore >= 70 => 3.0,
-                        $secScore >= 65 => 2.7,
-                        $secScore >= 60 => 2.3,
-                        $secScore >= 55 => 2.0,
-                        $secScore >= 40 => 1.0,
-                        default => 0.0,
-                    };
-                    $secSks = (int) ($sec->mataKuliah->sks ?? 3);
-                    $cumWeighted += $pt * $secSks;
-                    $cumCredits += $secSks;
-                }
-            }
-            $ipk = $cumCredits > 0 ? round($cumWeighted / $cumCredits, 2) : $ips;
         }
 
         $semesterOptions = [];
@@ -276,8 +222,6 @@ class AcademicController extends Controller
             'selectedSemester' => $selectedSemester,
             'semesterOptions' => $semesterOptions,
             'totalCredits' => $totalCredits,
-            'ips' => $ips,
-            'ipk' => $ipk,
         ]);
     }
 

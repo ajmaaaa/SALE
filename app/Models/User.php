@@ -34,6 +34,7 @@ class User extends Authenticatable
         'angkatan',
         'must_change_password',
         'is_active',
+        'profile_photo_path',
     ];
 
     protected $hidden = [

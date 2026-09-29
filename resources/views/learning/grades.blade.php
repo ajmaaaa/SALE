@@ -7,8 +7,6 @@
 @php
     $semesterOptions = $semesterOptions ?? [];
     $selectedSemesterKey = $selectedSemester?->code ?? request('semester', array_key_first($semesterOptions) ?? '20261');
-    $ips = $ips ?? 0.00;
-    $ipk = $ipk ?? 0.00;
     $totalCredits = $totalCredits ?? 0;
     $courses = $courses ?? [];
 @endphp
@@ -37,44 +35,11 @@
         @endif
     </header>
 
-    {{-- Tab Navigasi: Transkrip Nilai & Capaian Pembelajaran OBE --}}
-    <div class="bg-[#f4f5f7] pt-2 pb-1">
-        <nav class="flex border-b border-line/60 gap-6" aria-label="Tab nilai dan capaian">
-            <a href="{{ route('mahasiswa.nilai') }}" class="pb-3 text-sm font-semibold border-b-2 -mb-px border-brand text-brand flex items-center gap-1.5 transition">
-                <span>Transkrip Nilai (KHS)</span>
-            </a>
-            <a href="{{ route('mahasiswa.obe.progress') }}" class="pb-3 text-sm font-medium border-b-2 -mb-px border-transparent text-muted hover:text-ink flex items-center gap-2 transition">
-                <span>Capaian Pembelajaran OBE</span>
-            </a>
-        </nav>
-        <div class="h-2 -mt-1 bg-[#f4f5f7] shadow-[0_8px_16px_-2px_rgba(29,39,48,0.10)] pointer-events-none" aria-hidden="true"></div>
-    </div>
-
-    {{-- Ringkasan Akademik Bersih --}}
-    <div class="surface p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm w-full">
-        <div class="p-3.5 rounded-xl bg-canvas/40 border border-line/50 flex flex-col justify-between min-h-[78px]">
-            <span class="text-xs text-muted block">Semester Dipilih</span>
-            <span class="mt-1 font-semibold text-ink block truncate" title="{{ $selectedSemester?->name ?? ($semesterOptions[$selectedSemesterKey]['label'] ?? 'Semester Aktif') }}">{{ $selectedSemester?->name ?? ($semesterOptions[$selectedSemesterKey]['label'] ?? 'Semester Aktif') }}</span>
-        </div>
-        <div class="p-3.5 rounded-xl bg-canvas/40 border border-line/50 flex flex-col justify-between min-h-[78px]">
-            <span class="text-xs text-muted block">Beban SKS Semester</span>
-            <span class="mt-1 font-semibold text-ink block whitespace-nowrap">{{ $totalCredits }} SKS</span>
-        </div>
-        <div class="p-3.5 rounded-xl bg-canvas/40 border border-line/50 flex flex-col justify-between min-h-[78px]">
-            <span class="text-xs text-muted block">IP Semester (IPS)</span>
-            <span class="mt-1 font-bold text-ink text-base block whitespace-nowrap">{{ number_format($ips, 2, ',', '.') }}</span>
-        </div>
-        <div class="p-3.5 rounded-xl bg-canvas/40 border border-line/50 flex flex-col justify-between min-h-[78px]">
-            <span class="text-xs text-muted block">IPK Kumulatif</span>
-            <span class="mt-1 font-bold text-ink text-base block whitespace-nowrap">{{ number_format($ipk, 2, ',', '.') }}</span>
-        </div>
-    </div>
-
     {{-- KHS Table (Klik baris langsung untuk melihat detail nilai) --}}
     <div class="surface overflow-hidden">
-        <div class="border-b border-line/60 px-5 py-3.5 flex items-center justify-between">
+        <div class="border-b border-line/60 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
             <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah Semester</h2>
-            <span class="text-xs text-muted">Klik baris untuk melihat Rincian Komponen Nilai</span>
+            <span class="text-xs text-muted">Total Beban: <strong class="font-semibold text-ink">{{ $totalCredits }} SKS</strong></span>
         </div>
 
         <div class="overflow-x-auto">
@@ -145,22 +110,6 @@
                                                     </span>
                                                 </div>
                                             @endforeach
-
-                                            {{-- Kotak Nilai Akhir Terpadu di Paling Kanan --}}
-                                            <div class="p-2.5 rounded bg-slate-50 border border-line/80 shadow-2xs flex flex-col justify-between min-h-[64px]">
-                                                <div class="flex items-start justify-between gap-1.5 min-w-0">
-                                                    <span class="text-ink block text-[11px] font-bold whitespace-nowrap truncate flex-1">Total Nilai Akhir</span>
-                                                    @if(!empty($course['letter']))
-                                                        <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white shrink-0">{{ $course['letter'] }}</span>
-                                                    @endif
-                                                </div>
-                                                <div class="mt-2 pt-1 border-t border-line/60 flex items-center justify-between">
-                                                    <span class="text-[11px] text-muted font-medium whitespace-nowrap">Skor Akhir:</span>
-                                                    <span class="font-mono font-bold text-sm text-ink whitespace-nowrap">
-                                                        {{ $course['final_score'] !== null ? number_format($course['final_score'], 1) : '-' }}
-                                                    </span>
-                                                </div>
-                                            </div>
                                         </div>
                                     @endif
                                 </div>
