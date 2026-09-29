@@ -33,7 +33,20 @@
 
         @if(request()->is('admin-prodi*'))
         <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi admin prodi">
-            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
+            <div class="px-3 pb-2">
+                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
+                @php
+                    $sidebarProdi = auth()->user()?->managingProdi ?? auth()->user()?->prodi;
+                @endphp
+                @if($sidebarProdi)
+                    <div class="mt-1.5 flex items-center">
+                        <span class="inline-flex items-center gap-1.5 rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand max-w-full truncate" title="{{ $sidebarProdi->name }}">
+                            <svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            <span class="truncate">{{ $sidebarProdi->name }}</span>
+                        </span>
+                    </div>
+                @endif
+            </div>
             <div class="space-y-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" @if(request()->routeIs('admin-prodi.dashboard')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.dashboard') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 15.5h6v3H4zM14 15.5h6v3h-6z"/></svg>
