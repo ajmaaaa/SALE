@@ -57,9 +57,16 @@ class Semester extends Model
 
     public function scopeOrderChronological($query, string $direction = 'desc')
     {
-        return $query->orderBy('academic_year', $direction)
-            ->orderBy('term', $direction)
-            ->orderBy('id', $direction);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('semesters', 'academic_year')) {
+            $query->orderBy('academic_year', $direction);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('semesters', 'term')) {
+                $query->orderBy('term', $direction);
+            }
+
+            return $query->orderBy('id', $direction);
+        }
+
+        return $query->orderBy('id', $direction);
     }
 
     public function classSections(): HasMany
