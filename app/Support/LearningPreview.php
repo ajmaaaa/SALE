@@ -336,7 +336,17 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $filemetaUuids)));
         }
 
-        $payload['attachments'] = $currentAtts;
+        if (! empty($payload['coding_steps']) && is_array($payload['coding_steps'])) {
+            foreach ($payload['coding_steps'] as &$cStep) {
+                if (! empty($cStep['attachment'])) {
+                    $meta = self::fileMeta($cStep['attachment']);
+                    $cStep['attachment_name'] = $meta['name'] ?? null;
+                    $cStep['attachment_mime'] = $meta['mime'] ?? null;
+                    $cStep['attachment_size'] = $meta['size'] ?? null;
+                }
+            }
+            unset($cStep);
+        }
 
         return array_merge(self::item(
             $assessment->id,
