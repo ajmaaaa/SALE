@@ -12,16 +12,16 @@
     $logs = $logs ?? [];
 @endphp
 
-<div class="space-y-8">
+<div class="space-y-8 w-full">
     {{-- Header --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <p class="text-xs font-semibold text-brand">{{ now()->translatedFormat('l, d F Y') }}</p>
-        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
-            <a href="{{ route('admin.page', 'pengguna') }}?create=1" class="button-primary inline-flex items-center gap-2 text-xs">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
+        <p class="text-xs font-semibold text-brand min-w-0 flex-1">{{ now()->translatedFormat('l, d F Y') }}</p>
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
+            <a href="{{ route('admin.page', 'pengguna') }}?create=1" class="button-primary inline-flex items-center justify-center gap-2 text-xs flex-1 sm:flex-initial">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                 Tambah Pengguna
             </a>
-            <a href="{{ route('admin.page', 'akademik') }}" class="button-secondary inline-flex items-center gap-2 text-xs">
+            <a href="{{ route('admin.page', 'akademik') }}" class="button-secondary inline-flex items-center justify-center gap-2 text-xs flex-1 sm:flex-initial">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 21h18M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7M4 21V11m16 10V11M8 21v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/></svg>
                 Kelola Akademik
             </a>

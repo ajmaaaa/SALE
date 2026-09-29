@@ -11,15 +11,15 @@
     $adminAcademic = $visibleAcademic;
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6 w-full">
     {{-- Header --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between w-full">
+        <div class="min-w-0 flex-1">
             <h1 class="page-heading">Data Akademik</h1>
             <p class="page-description">Kelola struktur institusi: fakultas (maksimal 1), program studi, dan semester / tahun ajaran.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2.5">
-            <a class="button-primary text-xs inline-flex items-center gap-1.5" href="{{ route('admin.page', 'akademik') }}?create=1">
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
+            <a class="button-primary text-xs inline-flex items-center justify-center gap-1.5 w-full sm:w-auto" href="{{ route('admin.page', 'akademik') }}?create=1">
                 + Tambah Data
             </a>
         </div>

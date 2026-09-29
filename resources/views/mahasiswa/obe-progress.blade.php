@@ -4,17 +4,17 @@
 @section('header', 'Capaian Pembelajaran OBE')
 
 @section('content')
-<div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+<div class="space-y-6 w-full">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+        <div class="min-w-0 flex-1">
             <h2 class="section-heading text-xl font-bold text-ink">Capaian Pembelajaran OBE &amp; Nilai Mandiri</h2>
             <p class="mt-1 text-xs text-muted">Pantau pemenuhan standar CPMK dan ketercapaian CPL Anda secara transparan pada setiap mata kuliah yang diambil.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3 shrink-0 w-full sm:w-auto sm:ml-auto">
             @if(!empty($semesters) && $semesters->count())
-                <form method="GET" action="{{ route('mahasiswa.obe.progress') }}" class="flex items-center gap-2">
+                <form method="GET" action="{{ route('mahasiswa.obe.progress') }}" class="flex items-center gap-2 w-full sm:w-auto">
                     <label for="filter_semester" class="sr-only">Semester</label>
-                    <select id="filter_semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold sm:w-56">
+                    <select id="filter_semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold w-full sm:w-56">
                         <option value="">Semua Semester</option>
                         @foreach($semesters as $sem)
                             <option value="{{ $sem->id }}" {{ (string) request('semester', $selectedSemesterId ?? '') === (string) $sem->id ? 'selected' : '' }}>
@@ -24,7 +24,7 @@
                     </select>
                 </form>
             @endif
-            <div class="surface px-4 py-2 flex items-center gap-3">
+            <div class="surface px-4 py-2 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-brand-dark font-bold text-xs shadow-2xs">
                     {{ mb_substr($student->name, 0, 1) }}
                 </div>

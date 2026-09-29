@@ -400,7 +400,7 @@ class AcademicPreview
                 'status_key' => $statusKey,
                 'status_label' => $statusLabel,
                 'nilai_asesmen' => ($statusKey === 'selesai') ? $totalAsesmen : ($hasSubmitted ? $totalAsesmen : null),
-                'nilai_display' => ($statusKey === 'selesai') ? number_format($totalAsesmen, 2, ',', '.') : '—',
+                'nilai_display' => ($statusKey === 'selesai') ? number_format($totalAsesmen, 2, ',', '.') : '-',
                 'cpmk_breakdown' => array_map(fn ($c) => [
                     'score' => round($c['total_nilai'], 2),
                     'weight' => round($c['bobot_cpmk'], 2),

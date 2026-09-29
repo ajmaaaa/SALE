@@ -149,7 +149,7 @@ class ObeExcelExportService
 
             $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpmk->code), DataType::TYPE_STRING);
             $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '—'), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '-'), DataType::TYPE_STRING);
             $sheet->setCellValue("F{$currRow}", '≥ ' . (int) ($cpmk->threshold ?: 60));
             $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
 
@@ -244,7 +244,7 @@ class ObeExcelExportService
             foreach ($cpmks as $cpmk) {
                 $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                 $sc = $cpmkScores[$cpmk->id] ?? null;
-                $sheet->setCellValue("{$colLetter}{$currRow}", $sc !== null ? number_format($sc, 1) : '—');
+                $sheet->setCellValue("{$colLetter}{$currRow}", $sc !== null ? number_format($sc, 1) : '-');
                 $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 if ($sc !== null) {
@@ -256,7 +256,7 @@ class ObeExcelExportService
 
             // Nilai Akhir (Highlight Kuning Lembut)
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$colLetter}{$currRow}", $final['score'] !== null ? number_format($final['score'], 2) : '—');
+            $sheet->setCellValue("{$colLetter}{$currRow}", $final['score'] !== null ? number_format($final['score'], 2) : '-');
             $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$colLetter}{$currRow}")->getFont()->setBold(true)->getColor()->setARGB(self::COLOR_CAPAIAN_TEXT);
             $sheet->getStyle("{$colLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_CAPAIAN_BG);
@@ -264,7 +264,7 @@ class ObeExcelExportService
 
             // Grade Badge
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$colLetter}{$currRow}", $grade ?? '—');
+            $sheet->setCellValue("{$colLetter}{$currRow}", $grade ?? '-');
             $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$colLetter}{$currRow}")->getFont()->setBold(true);
             if ($grade !== null) {
@@ -276,7 +276,7 @@ class ObeExcelExportService
 
             // Predikat
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$colLetter}{$currRow}", $predicate ?? '—');
+            $sheet->setCellValue("{$colLetter}{$currRow}", $predicate ?? '-');
             $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $colIdx++;
 
@@ -321,7 +321,7 @@ class ObeExcelExportService
                 $cnt = $cpmkScoreCounts[$cpmk->id] ?? 0;
                 $sum = $cpmkScoreSums[$cpmk->id] ?? 0.0;
                 $cAvg = $cnt > 0 ? round($sum / $cnt, 1) : null;
-                $sheet->setCellValue("{$cLet}{$currRow}", $cAvg !== null ? number_format($cAvg, 1) : '—');
+                $sheet->setCellValue("{$cLet}{$currRow}", $cAvg !== null ? number_format($cAvg, 1) : '-');
                 $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true);
                 $cIdx++;
@@ -334,7 +334,7 @@ class ObeExcelExportService
             $sheet->getStyle("{$finalScoreColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_CAPAIAN_BG);
 
             $avgGradeLetter = Coordinate::stringFromColumnIndex(4 + $cpmks->count() + 1);
-            $avgGrade = $this->gradeLetter($avgScore) ?? '—';
+            $avgGrade = $this->gradeLetter($avgScore) ?? '-';
             $sheet->setCellValue("{$avgGradeLetter}{$currRow}", $avgGrade);
             $sheet->getStyle("{$avgGradeLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$avgGradeLetter}{$currRow}")->getFont()->setBold(true);
@@ -437,7 +437,7 @@ class ObeExcelExportService
 
             $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpl->code), DataType::TYPE_STRING);
             $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpl->description ?? $cpl->name ?? '—'), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpl->description ?? $cpl->name ?? '-'), DataType::TYPE_STRING);
             $sheet->setCellValue("{$lastColLetter}{$currRow}", (int) ($cpl->target_score ?? 65));
 
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -503,7 +503,7 @@ class ObeExcelExportService
                 $isAchieved = $sc !== null && $sc >= $target;
 
                 $cLet = Coordinate::stringFromColumnIndex($colIdx);
-                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '—');
+                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '-');
                 $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true)->getColor()->setARGB(self::COLOR_CAPAIAN_TEXT);
                 $sheet->getStyle("{$cLet}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_CAPAIAN_BG);
@@ -557,7 +557,7 @@ class ObeExcelExportService
             $cCnt = $cplScoreCounts[$cpl->id] ?? 0;
             $cSum = $cplTotalScores[$cpl->id] ?? 0.0;
             $cAvg = $cCnt > 0 ? round($cSum / $cCnt, 1) : null;
-            $sheet->setCellValue("{$cLet}{$currRow}", $cAvg !== null ? number_format($cAvg, 1) : '—');
+            $sheet->setCellValue("{$cLet}{$currRow}", $cAvg !== null ? number_format($cAvg, 1) : '-');
             $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true);
             $colIdx++;
@@ -703,7 +703,7 @@ class ObeExcelExportService
             foreach ($assessments as $asmt) {
                 $cLet = Coordinate::stringFromColumnIndex($colIdx);
                 $sc = $this->obe->assessmentScore($asmt->id, $student->id);
-                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '—');
+                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '-');
                 $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 if ($sc !== null) {
@@ -735,7 +735,7 @@ class ObeExcelExportService
             $cnt = $asmtScoreCounts[$asmt->id] ?? 0;
             $sum = $asmtScoreSums[$asmt->id] ?? 0.0;
             $avg = $cnt > 0 ? round($sum / $cnt, 1) : null;
-            $sheet->setCellValue("{$cLet}{$currRow}", $avg !== null ? number_format($avg, 1) : '—');
+            $sheet->setCellValue("{$cLet}{$currRow}", $avg !== null ? number_format($avg, 1) : '-');
             $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true);
             $colIdx++;
@@ -901,7 +901,7 @@ class ObeExcelExportService
             foreach ($measuringAssessments as $asmt) {
                 $cLet = Coordinate::stringFromColumnIndex($colIdx);
                 $sc = $this->obe->studentScoreForAssessmentCpmk($asmt, $cpmk, $student->id);
-                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '—');
+                $sheet->setCellValue("{$cLet}{$currRow}", $sc !== null ? number_format($sc, 1) : '-');
 
                 if ($sc !== null) {
                     $asmtScoreSums[$asmt->id] = ($asmtScoreSums[$asmt->id] ?? 0.0) + $sc;
@@ -916,7 +916,7 @@ class ObeExcelExportService
                 $sheet->setCellValue("{$capLet}{$currRow}", number_format($cpmkSc, 1));
                 $cpmkScoresRecorded[] = $cpmkSc;
             } else {
-                $sheet->setCellValue("{$capLet}{$currRow}", '—');
+                $sheet->setCellValue("{$capLet}{$currRow}", '-');
             }
             $colIdx++;
 
@@ -983,7 +983,7 @@ class ObeExcelExportService
                 $cnt = $asmtScoreCounts[$asmt->id] ?? 0;
                 $sum = $asmtScoreSums[$asmt->id] ?? 0.0;
                 $aAvg = $cnt > 0 ? round($sum / $cnt, 1) : null;
-                $sheet->setCellValue("{$cLet}{$currRow}", $aAvg !== null ? number_format($aAvg, 1) : '—');
+                $sheet->setCellValue("{$cLet}{$currRow}", $aAvg !== null ? number_format($aAvg, 1) : '-');
                 $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true);
                 $cIdx++;
@@ -1191,7 +1191,7 @@ class ObeExcelExportService
                         $matrixSums[$colIdx] = ($matrixSums[$colIdx] ?? 0.0) + $cellScore;
                         $matrixCounts[$colIdx] = ($matrixCounts[$colIdx] ?? 0) + 1;
                     } elseif ($asmtRow === null) {
-                        $sheet->setCellValue("{$cellLet}{$currRow}", '—');
+                        $sheet->setCellValue("{$cellLet}{$currRow}", '-');
                         $allSubCellsGraded = false;
                     } elseif ($asmtRow->score !== null) {
                         $cellScore = round(((float) $asmtRow->score * $maxScore) / 100, 1);
@@ -1227,7 +1227,7 @@ class ObeExcelExportService
                     $matrixSums[$colIdx] = ($matrixSums[$colIdx] ?? 0.0) + $sumCellScores;
                     $matrixCounts[$colIdx] = ($matrixCounts[$colIdx] ?? 0) + 1;
                 } else {
-                    $sheet->setCellValue("{$totLet}{$currRow}", '—');
+                    $sheet->setCellValue("{$totLet}{$currRow}", '-');
                 }
                 $sheet->getStyle("{$totLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $sheet->getStyle("{$totLet}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
@@ -1255,7 +1255,7 @@ class ObeExcelExportService
             $cnt = $matrixCounts[$c] ?? 0;
             $sum = $matrixSums[$c] ?? 0.0;
             $avg = $cnt > 0 ? round($sum / $cnt, 1) : null;
-            $sheet->setCellValue("{$cLet}{$currRow}", $avg !== null ? number_format($avg, 1) : '—');
+            $sheet->setCellValue("{$cLet}{$currRow}", $avg !== null ? number_format($avg, 1) : '-');
             $sheet->getStyle("{$cLet}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("{$cLet}{$currRow}")->getFont()->setBold(true);
         }
@@ -1312,10 +1312,10 @@ class ObeExcelExportService
 
         // Baris 4-7: Box Informasi Kartu Metadata Terpadu (Academic Info Card)
         $mk = $section->mataKuliah;
-        $mkLabel = $mk ? ($mk->code . ' - ' . $mk->name . ($mk->sks ? " ({$mk->sks} SKS)" : '')) : '—';
-        $prodiName = $mk?->prodi?->name ?? '—';
-        $dosenName = $section->dosen?->name ?? '—';
-        $dosenNip = $section->dosen?->nim_nidn ?: '—';
+        $mkLabel = $mk ? ($mk->code . ' - ' . $mk->name . ($mk->sks ? " ({$mk->sks} SKS)" : '')) : '-';
+        $prodiName = $mk?->prodi?->name ?? '-';
+        $dosenName = $section->dosen?->name ?? '-';
+        $dosenNip = $section->dosen?->nim_nidn ?: '-';
         $semesterName = $section->semester?->name ?? 'Semester Aktif';
         $classCode = 'Kelas ' . ($section->section_code ?: ($section->name ?: 'A'));
         $studentCount = $section->students()->count();
@@ -1503,7 +1503,7 @@ class ObeExcelExportService
 
         $sheet->setCellValue("{$splitLet}{$currRow}", 'Rata-rata Nilai Kelas');
         $sheet->mergeCells("{$splitValStart}{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("{$splitValStart}{$currRow}", $avgScore !== null ? number_format($avgScore, 1) : '—');
+        $sheet->setCellValue("{$splitValStart}{$currRow}", $avgScore !== null ? number_format($avgScore, 1) : '-');
 
         $this->styleKpiRow($sheet, $currRow, $leftValCol, $splitLet, $splitValStart, $lastColLetter);
 
@@ -1518,7 +1518,7 @@ class ObeExcelExportService
 
         $sheet->setCellValue("{$splitLet}{$currRow}", 'Nilai Tertinggi (Maksimum)');
         $sheet->mergeCells("{$splitValStart}{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("{$splitValStart}{$currRow}", $maxScore !== null ? number_format($maxScore, 1) : '—');
+        $sheet->setCellValue("{$splitValStart}{$currRow}", $maxScore !== null ? number_format($maxScore, 1) : '-');
 
         $this->styleKpiRow($sheet, $currRow, $leftValCol, $splitLet, $splitValStart, $lastColLetter);
 
@@ -1533,7 +1533,7 @@ class ObeExcelExportService
 
         $sheet->setCellValue("{$splitLet}{$currRow}", 'Nilai Terendah (Minimum)');
         $sheet->mergeCells("{$splitValStart}{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("{$splitValStart}{$currRow}", $minScore !== null ? number_format($minScore, 1) : '—');
+        $sheet->setCellValue("{$splitValStart}{$currRow}", $minScore !== null ? number_format($minScore, 1) : '-');
 
         $this->styleKpiRow($sheet, $currRow, $leftValCol, $splitLet, $splitValStart, $lastColLetter);
 
@@ -1592,7 +1592,7 @@ class ObeExcelExportService
         $sheet->getStyle("{$signLet}{$signRow}")->getFont()->setName('Times New Roman')->setSize(10)->getColor()->setARGB('FF334155');
         $sheet->getStyle("{$signLet}{$signRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $dosenName = $section->dosen?->name ?? '—';
+        $dosenName = $section->dosen?->name ?? '-';
         $dosenNidn = $section->dosen?->nim_nidn ? 'NIP/NIDN. ' . $section->dosen->nim_nidn : '';
 
         $nameRow = $signRow + 4;

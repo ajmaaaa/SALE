@@ -21,15 +21,15 @@
     $logs = $logs ?? [];
 @endphp
 
-<div class="space-y-8">
+<div class="space-y-8 w-full">
     {{-- Header --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between w-full">
+        <div class="min-w-0 flex-1">
             <h1 class="page-heading">Laporan &amp; Rekapitulasi</h1>
             <p class="page-description">Laporan komprehensif data institusi, demografi pengguna, dan konsumsi sumber daya sistem.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2.5">
-            <a class="button-primary text-xs inline-flex items-center gap-2" href="{{ route('admin.export') }}">
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
+            <a class="button-primary text-xs inline-flex items-center justify-center gap-2 w-full sm:w-auto" href="{{ route('admin.export') }}">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Unduh Rekap Excel
             </a>

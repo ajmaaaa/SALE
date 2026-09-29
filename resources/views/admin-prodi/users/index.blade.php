@@ -4,8 +4,8 @@
 @section('header', 'Data Dosen & Mahasiswa Program Studi')
 
 @section('content')
-<div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6 w-full">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Data Dosen &amp; Mahasiswa</h1>
             <p class="page-description">Input data dosen dan mahasiswa secara manual atau impor massal melalui file template Excel.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <label for="select_prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
             <select id="select_prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
                 @foreach($prodis as $p)
@@ -65,11 +65,11 @@
     @if($tab === 'dosen')
     <!-- ================= TAB DOSEN ================= -->
     <div class="surface p-5 space-y-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
+            <div class="min-w-0 flex-1">
                 <h2 class="text-base font-bold text-ink">Daftar Dosen Pengampu: {{ $activeProdi?->name }}</h2>
             </div>
-            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
                 <a href="{{ route('admin-prodi.users.template', 'dosen') }}" class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex-1 sm:flex-initial" title="Unduh Template Excel Dosen">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
                     <span>Template Excel Dosen</span>
@@ -135,12 +135,12 @@
     @else
     <!-- ================= TAB MAHASISWA ================= -->
     <div class="surface p-5 space-y-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
+            <div class="min-w-0 flex-1">
                 <h2 class="text-base font-bold text-ink">Daftar Mahasiswa: {{ $activeProdi?->name }}</h2>
                 <p class="text-xs text-muted">Mahasiswa terdaftar dapat bergabung ke kelas mata kuliah via Link / Barcode yang dibagikan dosen.</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
                 <a href="{{ route('admin-prodi.users.template', 'mahasiswa') }}" class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex-1 sm:flex-initial" title="Unduh Template Excel Mahasiswa">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
                     <span>Template Excel Mahasiswa</span>

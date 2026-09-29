@@ -4,15 +4,15 @@
 @section('header', 'Daftar Asesmen')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6 w-full">
     @include('dosen.partials.header')
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+        <div class="min-w-0 flex-1">
             <h2 class="section-heading">Input Nilai per Komponen Asesmen</h2>
             <p class="mt-1 text-sm text-muted">Pilih instrumen asesmen untuk melihat dan menginputkan nilai mahasiswa per CPMK.</p>
         </div>
-        <a href="{{ route('dosen.item.create', $section->id) }}" class="button-primary inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 shrink-0 shadow-2xs">
+        <a href="{{ route('dosen.item.create', $section->id) }}" class="button-primary inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 shrink-0 w-full sm:w-auto sm:ml-auto shadow-2xs">
             <span>+ Tambah Konten / Asesmen</span>
         </a>
     </div>

@@ -221,6 +221,6 @@ class StudentCohortAndSemesterProgressionTest extends TestCase
         // Check dynamically computed dropdown options in HTML
         $response->assertSee('Semester 1 (Ganjil 2024/2025)');
         $response->assertSee('Semester 2 (Genap 2024/2025)');
-        $response->assertSee('Semester 5 (Ganjil 2026/2027) — Semester Aktif');
+        $response->assertSee('Semester 5 (Ganjil 2026/2027) - Semester Aktif');
     }
 }

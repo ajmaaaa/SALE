@@ -218,10 +218,10 @@ class ExportController extends Controller
     {
         $section->loadMissing(['mataKuliah.prodi', 'semester', 'dosen']);
         $mk = $section->mataKuliah;
-        $mkLabel = $mk ? ($mk->code.' - '.$mk->name.($mk->sks ? " ({$mk->sks} SKS)" : '')) : '—';
+        $mkLabel = $mk ? ($mk->code.' - '.$mk->name.($mk->sks ? " ({$mk->sks} SKS)" : '')) : '-';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
         $semesterName = $section->semester?->name ?? 'Semester Aktif';
-        $dosenName = $section->dosen?->name ?? '—';
+        $dosenName = $section->dosen?->name ?? '-';
         if ($section->dosen?->nim_nidn) {
             $dosenName .= ' (NIP/NIDN: '.$section->dosen->nim_nidn.')';
         }

@@ -4,7 +4,7 @@
 @section('header', 'Input Nilai')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6 w-full">
     @php $obeService = $obe ?? app(\App\Services\ObeCalculationService::class); @endphp
 
     {{-- Header Asesmen Kompak --}}
@@ -58,15 +58,15 @@
         <form id="form-input-nilai" method="post" action="{{ route('dosen.penilaian.asesmen.nilai.store', [$section->id, $assessment->id]) }}">
             @csrf
 
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 w-full">
                 @if($isTipeSoal && ! ($hasEssayQuestions ?? false))
-                    <p class="text-xs text-muted">Seluruh butir soal dinilai secara otomatis oleh sistem. Nilai tampil langsung pada tabel.</p>
+                    <p class="text-xs text-muted min-w-0 flex-1">Seluruh butir soal dinilai secara otomatis oleh sistem. Nilai tampil langsung pada tabel.</p>
                 @else
-                    <p class="text-xs text-muted">Nilai dinilai melalui tombol <strong>Lihat Jawaban</strong> pada masing-masing mahasiswa.</p>
+                    <p class="text-xs text-muted min-w-0 flex-1">Nilai dinilai melalui tombol <strong>Lihat Jawaban</strong> pada masing-masing mahasiswa.</p>
                 @endif
-                <div class="flex items-center gap-2">
-                    <button type="submit" name="intent" value="save" id="btn-simpan-nilai" class="button-secondary text-xs py-2 px-4 font-semibold">Simpan Draft Nilai</button>
-                    <button type="submit" name="intent" value="publish" class="button-primary text-xs py-2 px-4 font-semibold shadow-2xs">Simpan &amp; Terbitkan</button>
+                <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
+                    <button type="submit" name="intent" value="save" id="btn-simpan-nilai" class="button-secondary text-xs py-2 px-4 font-semibold flex-1 sm:flex-initial justify-center">Simpan Draft Nilai</button>
+                    <button type="submit" name="intent" value="publish" class="button-primary text-xs py-2 px-4 font-semibold shadow-2xs flex-1 sm:flex-initial justify-center">Simpan &amp; Terbitkan</button>
                 </div>
             </div>
 

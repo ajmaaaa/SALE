@@ -4,15 +4,15 @@
 @section('header', 'Pengguna & Hak Akses')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6 w-full">
     {{-- Header --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between w-full">
+        <div class="min-w-0 flex-1">
             <h1 class="page-heading">Pengguna &amp; Hak Akses</h1>
             <p class="page-description">Kelola identitas, nomor induk institusi, peran akses, dan status akun.</p>
         </div>
-        <div class="flex flex-wrap gap-2.5">
-            <a href="{{ route('admin.users.template') }}" class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs" title="Unduh Template Excel Pengguna">
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
+            <a href="{{ route('admin.users.template') }}" class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex-1 sm:flex-initial" title="Unduh Template Excel Pengguna">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>
@@ -20,10 +20,10 @@
                 </svg>
                 <span>Template Excel (.xlsx)</span>
             </a>
-            <button type="button" onclick="document.getElementById('bulk-import-section').toggleAttribute('hidden')" class="button-secondary">
+            <button type="button" onclick="document.getElementById('bulk-import-section').toggleAttribute('hidden')" class="button-secondary flex-1 sm:flex-initial justify-center">
                 Import Massal
             </button>
-            <a class="button-primary" href="{{ route('admin.page', 'pengguna') }}?create=1">
+            <a class="button-primary w-full sm:w-auto justify-center" href="{{ route('admin.page', 'pengguna') }}?create=1">
                 + Tambah Pengguna
             </a>
         </div>

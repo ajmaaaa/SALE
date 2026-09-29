@@ -4,17 +4,17 @@
 @section('header', 'Rekap Capaian per CPL')
 
 @section('content')
-<div class="space-y-5">
+<div class="space-y-5 w-full">
     @include('dosen.partials.header')
 
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
+        <div class="min-w-0 flex-1">
             <h2 class="section-heading">Rekap Capaian per CPL</h2>
             <p class="mt-1 text-sm text-muted">Kontribusi ketercapaian CPL dari mata kuliah ini berdasarkan capaian CPMK.</p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <a href="{{ route('dosen.penilaian.export.cpl.excel', $section->id) }}" 
-               class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+               class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs w-full sm:w-auto"
                title="Export ke Excel (.xlsx) dengan Kop Surat resmi dan format berwarna">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

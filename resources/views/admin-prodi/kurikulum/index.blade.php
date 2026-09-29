@@ -4,8 +4,8 @@
 @section('header', 'Kurikulum & Standar Mutu OBE')
 
 @section('content')
-<div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6 w-full">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
             <p class="page-description">Tetapkan butir CPL prodi dan CPMK per mata kuliah secara terpusat. Dosen pengampu nantinya tinggal memilih CPMK yang telah disiapkan saat menyusun asesmen kelas.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <label for="select-prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
             <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
                 @foreach($prodis as $p)

@@ -13,10 +13,10 @@
     $courses = $courses ?? [];
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6 w-full">
     {{-- Header with Academic Year & Semester Selector --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between w-full">
+        <div class="min-w-0 flex-1">
             <p class="mb-1 text-xs font-semibold text-muted uppercase tracking-wider">Hasil Evaluasi Belajar</p>
             <h1 class="page-heading">Transkrip Nilai &amp; Hasil Studi</h1>
             <p class="page-description">Kartu Hasil Studi (KHS) mahasiswa berdasarkan evaluasi capaian perkuliahan.</p>
@@ -24,9 +24,9 @@
 
         {{-- Semester & Tahun Penyesuaian --}}
         @if(!empty($semesterOptions))
-            <form method="get" action="{{ route('mahasiswa.nilai') }}" class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <form method="get" action="{{ route('mahasiswa.nilai') }}" class="flex flex-col sm:items-end gap-1.5 shrink-0 w-full sm:w-auto sm:ml-auto">
                 <label for="semester" class="text-xs font-medium text-muted shrink-0">Tahun &amp; Semester:</label>
-                <select id="semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 w-full sm:w-72">
+                <select id="semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 w-full sm:w-80">
                     @foreach($semesterOptions as $key => $opt)
                         <option value="{{ $opt['code'] ?? $key }}" @selected($selectedSemesterKey === ($opt['code'] ?? $key))>
                             {{ $opt['label'] }}
@@ -141,7 +141,7 @@
                                                 <div class="p-2.5 rounded bg-white border border-line/40 shadow-2xs">
                                                     <span class="text-muted block text-[11px] truncate" title="{{ $component['name'] }}">{{ $component['name'] }} ({{ rtrim(rtrim(number_format($component['weight'], 1), '0'), '.') }}%)</span>
                                                     <span class="font-semibold text-ink mt-0.5 block text-sm">
-                                                        {{ $component['score'] !== null ? number_format($component['score'], 1) : '—' }}
+                                                        {{ $component['score'] !== null ? number_format($component['score'], 1) : '-' }}
                                                     </span>
                                                 </div>
                                             @endforeach
@@ -157,7 +157,7 @@
                                                 <div class="mt-2 pt-1 border-t border-line/60 flex items-center justify-between">
                                                     <span class="text-[11px] text-muted font-medium whitespace-nowrap">Skor Akhir:</span>
                                                     <span class="font-mono font-bold text-sm text-ink whitespace-nowrap">
-                                                        {{ $course['final_score'] !== null ? number_format($course['final_score'], 1) : '—' }}
+                                                        {{ $course['final_score'] !== null ? number_format($course['final_score'], 1) : '-' }}
                                                     </span>
                                                 </div>
                                             </div>

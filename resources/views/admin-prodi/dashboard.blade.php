@@ -4,8 +4,8 @@
 @section('header', 'Dashboard Admin Program Studi')
 
 @section('content')
-<div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6 w-full">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <span>Administrasi</span>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Tata Kelola Akademik &amp; Kurikulum Prodi</h1>
             <p class="page-description">Kelola kurikulum OBE (CPL &amp; CPMK), penugasan Dosen Ketua &amp; Wakil kelas, input mahasiswa, serta laporan semesteran.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <a href="{{ route('admin-prodi.kurikulum.index') }}" class="button-secondary text-xs flex-1 sm:flex-initial text-center justify-center">Kelola Kurikulum OBE</a>
             <a href="{{ route('admin-prodi.akademik.kelas') }}" class="button-primary text-xs flex-1 sm:flex-initial text-center justify-center">+ Buat Kelas Baru</a>
         </div>

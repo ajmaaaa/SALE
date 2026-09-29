@@ -111,7 +111,7 @@ class AcademicController extends Controller
                 $final = $this->grades->finalScore($sec, $user->id, false);
                 $finalScore = $final['score'];
 
-                $letter = '—';
+                $letter = '-';
                 $point = 0.0;
                 if ($finalScore !== null) {
                     $letter = match (true) {
@@ -177,7 +177,7 @@ class AcademicController extends Controller
                 $sks = 3;
                 $totalCredits += $sks;
                 $finalScore = $res['average'] ?? null;
-                $letter = '—';
+                $letter = '-';
                 $point = 0.0;
                 if ($finalScore !== null) {
                     $letter = match (true) {
@@ -258,7 +258,7 @@ class AcademicController extends Controller
             $studentSemNum = ($user && method_exists($user, 'semesterTempuhAt')) ? $user->semesterTempuhAt($s) : null;
             $semLabel = $studentSemNum ? "Semester {$studentSemNum} ({$s->display_name})" : $s->display_name;
             if ($s->is_active) {
-                $semLabel .= ' — Semester Aktif';
+                $semLabel .= ' - Semester Aktif';
             }
 
             $semesterOptions[$s->code] = [
