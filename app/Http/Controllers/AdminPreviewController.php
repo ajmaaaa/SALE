@@ -111,6 +111,10 @@ class AdminPreviewController extends Controller
         if ($roles->count() !== count($roleNames)) {
             return back()->withErrors(['roles' => 'Peran yang dipilih belum tersedia di database.'])->withInput();
         }
+
+        if (in_array(Role::ADMIN_PRODI, $roleNames, true) && empty($data['prodi_id'])) {
+            return back()->withErrors(['prodi_id' => 'Program studi wajib dipilih untuk peran Admin Prodi.'])->withInput();
+        }
         $existing = isset($data['id']) ? User::findOrFail($data['id']) : null;
 
         if ($existing?->hasRole(Role::ADMIN)
