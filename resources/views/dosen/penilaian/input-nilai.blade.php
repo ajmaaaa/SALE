@@ -364,6 +364,7 @@
                     `;
                 }
             }
+        } else {
             // Kasus Tugas & Coding
             if (heading) {
                 heading.textContent = data.is_coding ? 'Jawaban Kode & Penilaian' : 'Jawaban & Penilaian Tugas';

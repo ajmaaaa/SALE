@@ -1600,11 +1600,13 @@ class LearningController extends Controller
             'question_answers.*.boolean_choice' => 'nullable|string|in:Benar,Salah',
             'question_answers.*.matching' => 'nullable|array',
             'answer' => 'nullable|string|max:30000', 'link' => 'nullable|url:http,https|max:2000',
-            'files' => 'nullable|array|max:5', 'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,jpeg,png,webp|max:20480',
+            'files' => 'nullable|array|max:5', 'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,jpeg,png,webp|max:5120',
             'keep_files' => 'nullable|array|max:5', 'keep_files.*' => 'uuid',
             'choices' => 'nullable|array|max:20', 'choices.*' => 'string|max:1000',
             'boolean_choice' => 'nullable|string|in:Benar,Salah',
             'matching' => 'nullable|array',
+        ], [
+            'files.*.max' => 'Ukuran berkas tidak boleh melebihi batas maksimal 5 MB. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja.',
         ]);
         $isFromQuizRoom = $request->boolean('from_quiz_room');
         $isCodingSubmission = in_array($resource['type'] ?? '', ['coding'], true)

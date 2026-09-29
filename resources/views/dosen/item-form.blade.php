@@ -141,7 +141,7 @@
                 <div data-content-addon-panel="files" hidden>
                     <label class="form-label" for="attachments">Lampiran</label>
                     <input id="attachments" name="attachments[]" type="file" multiple data-file-input class="field" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
-                    <p class="mt-2 text-xs text-muted">PDF, gambar, video, dokumen, spreadsheet, arsip, dan tautan memakai tampilan lampiran yang seragam. Maksimal 5 berkas, masing-masing 20 MB.</p>
+                    <p class="mt-2 text-xs text-muted">PDF, gambar, video, dokumen, spreadsheet, arsip, dan tautan memakai tampilan lampiran yang seragam. Maksimal 5 berkas, masing-masing 5 MB. Untuk berkas besar disarankan melampirkan tautan/link Google Drive.</p>
                     <div data-file-list class="mt-3 space-y-2"></div>
                 </div>
 

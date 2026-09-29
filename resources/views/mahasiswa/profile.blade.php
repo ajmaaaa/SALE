@@ -41,7 +41,7 @@
                     @if($settingsWritable)
                     <form id="avatar-form" action="{{ route('mahasiswa.profile.photo') }}" method="POST" enctype="multipart/form-data" class="hidden">
                         @csrf
-                        <input id="profile-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="this.form.submit()">
+                        <input id="profile-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="validateAndSubmitPhoto(this)">
                     </form>
                     {{-- Tombol avatar: buka popup pilihan, bukan langsung file picker --}}
                     <button type="button" onclick="document.getElementById('avatar-picker-modal').showModal()"

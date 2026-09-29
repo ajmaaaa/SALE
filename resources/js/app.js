@@ -1039,7 +1039,7 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
 
     const render = () => {
         const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); input.files = transfer.files;
-        input.setCustomValidity(files.length > 5 || files.some(file => file.size > 20*1024*1024) ? 'Maksimal 5 berkas, masing-masing 20 MB.' : '');
+        input.setCustomValidity(files.length > 5 || files.some(file => file.size > 5*1024*1024) ? 'Maksimal 5 berkas, masing-masing 5 MB.' : '');
         urls.forEach(url=>URL.revokeObjectURL(url)); urls=[];
         if (!list) return;
         list.replaceChildren();
@@ -1087,6 +1087,23 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
         syncPinMedia();
     };
     input.addEventListener('change',()=>{
+        const maxAttachmentSize = 5 * 1024 * 1024; // 5 MB
+        const oversized = [...input.files].filter(f => f.size > maxAttachmentSize);
+        if (oversized.length > 0) {
+            input.value = '';
+            const names = oversized.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+            const message = `Ukuran berkas yang diunggah melebihi batasan maksimal upload (maksimal 5 MB per berkas):\n\n${names}\n\nBerkas ditolak. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja.`;
+            if (typeof window.saleNotice === 'function') {
+                window.saleNotice({
+                    title: 'Ukuran Berkas Terlalu Besar (Maks. 5 MB)',
+                    message: message,
+                    confirmLabel: 'Mengerti'
+                });
+            } else {
+                alert(message);
+            }
+            return;
+        }
         for(const file of input.files) if(!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) files.push(file);
         render();
     });
@@ -3505,9 +3522,30 @@ if (addWorkDropdown) {
         fileInput?.click();
     });
 
+    const MAX_SUBMISSION_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
     fileInput?.addEventListener('change', () => {
         activeList?.querySelectorAll('[data-file-chip]').forEach(c => c.remove());
         const files = [...(fileInput.files || [])];
+        const oversized = files.filter(f => f.size > MAX_SUBMISSION_FILE_SIZE);
+
+        if (oversized.length > 0) {
+            fileInput.value = '';
+            const names = oversized.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+            const message = `Ukuran berkas yang diunggah melebihi batasan maksimal upload (maksimal 5 MB per berkas):\n\n${names}\n\nBerkas ditolak. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja agar pengumpulan berjalan lancar.`;
+
+            if (typeof window.saleNotice === 'function') {
+                window.saleNotice({
+                    title: 'Ukuran Berkas Terlalu Besar (Maks. 5 MB)',
+                    message: message,
+                    confirmLabel: 'Mengerti'
+                });
+            } else {
+                alert(message);
+            }
+            return;
+        }
+
         files.forEach((file, idx) => {
             const chip = document.createElement('div');
             chip.setAttribute('data-file-chip', '');

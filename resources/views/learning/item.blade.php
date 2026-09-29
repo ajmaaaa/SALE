@@ -783,6 +783,7 @@
                                 </button>
                             </div>
                         </div>
+                        <p class="text-[11px] text-muted leading-tight mt-1.5">Maks. 5 berkas (masing-masing maks. 5 MB). Untuk berkas besar, silakan gunakan opsi tautan Google Drive.</p>
                     @endif
 
                     {{-- Hidden inputs for file/link/answer --}}
@@ -1043,6 +1044,29 @@
                 if (e.target === linkModal) linkModal.close();
             });
             document.getElementById('modal-link-close-btn')?.addEventListener('click', () => linkModal.close());
+        }
+
+        const subFileInput = document.querySelector('[data-submission-files]');
+        if (subFileInput) {
+            subFileInput.addEventListener('change', function() {
+                const maxBytes = 5 * 1024 * 1024;
+                const oversized = [...(this.files || [])].filter(f => f.size > maxBytes);
+                if (oversized.length > 0) {
+                    this.value = '';
+                    document.querySelectorAll('[data-active-attachments] [data-file-chip]').forEach(c => c.remove());
+                    const names = oversized.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+                    const message = `Ukuran berkas yang diunggah melebihi batasan maksimal upload (maksimal 5 MB per berkas):\n\n${names}\n\nBerkas ditolak. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja.`;
+                    if (typeof window.saleNotice === 'function') {
+                        window.saleNotice({
+                            title: 'Ukuran Berkas Terlalu Besar (Maks. 5 MB)',
+                            message: message,
+                            confirmLabel: 'Mengerti'
+                        });
+                    } else {
+                        alert(message);
+                    }
+                }
+            });
         }
     })();
 

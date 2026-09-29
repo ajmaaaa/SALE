@@ -89,6 +89,10 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'photo.max' => 'Ukuran foto profil tidak boleh melebihi batas maksimal 2 MB.',
+            'photo.image' => 'Berkas harus berupa gambar/foto.',
+            'photo.mimes' => 'Format foto profil harus berupa JPG, PNG, atau WebP.',
         ]);
 
         if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {

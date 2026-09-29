@@ -117,6 +117,21 @@ class StudentProfileSettingsTest extends TestCase
         Storage::disk('public')->assertMissing($storedPath);
     }
 
+    public function test_profile_photo_exceeding_2mb_is_rejected(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->student)
+            ->from(route('mahasiswa.profile.index').'#profil')
+            ->post(route('mahasiswa.profile.photo'), [
+                'photo' => UploadedFile::fake()->image('oversized.jpg')->size(2500),
+            ])
+            ->assertSessionHasErrors(['photo'])
+            ->assertRedirect(route('mahasiswa.profile.index').'#profil');
+
+        $this->assertNull($this->student->fresh()->profile_photo_path);
+    }
+
     public function test_profile_photo_can_be_deleted_to_reset_to_default(): void
     {
         Storage::fake('public');

@@ -436,6 +436,28 @@
                 return new Promise(resolve => { finish = resolve; });
             };
 
+            window.validateAndSubmitPhoto = function(input) {
+                if (!input || !input.files || !input.files[0]) return;
+                const file = input.files[0];
+                const maxPhotoSize = 2 * 1024 * 1024; // 2 MB
+                if (file.size > maxPhotoSize) {
+                    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+                    input.value = '';
+                    const message = `Ukuran foto (${sizeMb} MB) melebihi batas maksimal 2 MB.\n\nBerkas foto ditolak. Silakan pilih foto dengan ukuran maksimal 2 MB.`;
+                    if (typeof window.saleNotice === 'function') {
+                        window.saleNotice({
+                            title: 'Ukuran Foto Terlalu Besar (Maks. 2 MB)',
+                            message: message,
+                            confirmLabel: 'Mengerti'
+                        });
+                    } else {
+                        alert(message);
+                    }
+                    return;
+                }
+                input.form?.submit();
+            };
+
             cancel?.addEventListener('click', () => complete(false));
             closeBtn?.addEventListener('click', () => complete(false));
             confirmButton?.addEventListener('click', () => complete(true));
