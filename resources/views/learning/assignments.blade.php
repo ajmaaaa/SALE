@@ -71,18 +71,24 @@
                             <span class="text-xs font-semibold text-emerald-600">
                                 Sudah dikumpulkan
                             </span>
+                            <p class="text-[11px] text-muted">
+                                {{ $isPast ? 'Terlambat' : ($item['due'] ? 'Tenggat ' . \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa batas tenggat') }}
+                            </p>
                         @elseif($isPast)
                             <span class="text-xs font-semibold text-rose-600">
                                 Terlambat
                             </span>
+                            <p class="text-[11px] text-muted">
+                                Belum dikumpulkan
+                            </p>
                         @else
                             <span class="text-xs font-semibold text-rose-600">
                                 Belum dikumpulkan
                             </span>
+                            <p class="text-[11px] text-muted">
+                                {{ $item['due'] ? 'Tenggat ' . \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa batas tenggat' }}
+                            </p>
                         @endif
-                        <p class="text-[11px] text-muted">
-                            {{ $item['due'] ? 'Tenggat ' . \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa batas tenggat' }}
-                        </p>
                     @endif
                 </div>
             </a>
