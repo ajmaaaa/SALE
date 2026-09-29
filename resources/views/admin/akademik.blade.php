@@ -131,15 +131,16 @@
     {{-- Filter & Pencarian --}}
     <form class="flex flex-wrap gap-3" method="get">
         <label class="sr-only" for="q">Cari data</label>
-        <input class="field sm:w-72" name="q" id="q" value="{{ request('q') }}" placeholder="Cari kode atau nama...">
+        <div class="relative w-full sm:w-72">
+            <input class="field w-full" name="q" id="q" value="{{ request('q') }}" placeholder="Cari kode atau nama..." autocomplete="off">
+        </div>
         <label class="sr-only" for="type-filter">Jenis data</label>
-        <select class="field sm:w-48" name="type" id="type-filter">
+        <select class="field sm:w-48" name="type" id="type-filter" onchange="this.form.submit()">
             <option value="">Semua jenis</option>
             <option value="fakultas" @selected(request('type') === 'fakultas')>Fakultas</option>
             <option value="prodi" @selected(request('type') === 'prodi')>Program Studi</option>
             <option value="semester" @selected(request('type') === 'semester')>Semester</option>
         </select>
-        <button type="submit" class="button-secondary">Cari</button>
     </form>
 
     {{-- Tabel Data Akademik --}}
@@ -154,9 +155,9 @@
                     <th class="text-right">Aksi</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="academic-table-body">
                 @forelse($adminAcademic as $entry)
-                    <tr>
+                    <tr class="academic-table-row" data-search="{{ mb_strtolower($entry['code'] . ' ' . $entry['name'] . ' ' . $entry['type'] . ' ' . (!empty($entry['parent']) && isset($academic[$entry['parent']]) ? $academic[$entry['parent']]['name'] : '')) }}">
                         <td>
                             <p class="font-semibold text-ink">{{ $entry['name'] }}</p>
                             <p class="mt-0.5 font-mono text-xs text-muted">{{ $entry['code'] }}</p>
@@ -196,8 +197,51 @@
                         </td>
                     </tr>
                 @endforelse
+                <tr id="no-academic-found" style="display: none;">
+                    <td colspan="5" class="py-8 text-center text-sm text-muted"></td>
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('q');
+        const tbody = document.getElementById('academic-table-body');
+        const emptyNotice = document.getElementById('no-academic-found');
+        if (!searchInput || !tbody) return;
+
+        function filterAcademic() {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = tbody.querySelectorAll('.academic-table-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const text = (row.getAttribute('data-search') || row.textContent || '').toLowerCase();
+                const matches = !query || text.includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (emptyNotice) {
+                if (visibleCount === 0 && rows.length > 0) {
+                    emptyNotice.querySelector('td').textContent = ['Data', 'akademik', 'tidak', 'ditemukan.'].join(' ');
+                    emptyNotice.style.display = '';
+                } else {
+                    emptyNotice.style.display = 'none';
+                }
+            }
+        }
+
+        searchInput.form?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            filterAcademic();
+        });
+
+        searchInput.addEventListener('input', filterAcademic);
+        searchInput.addEventListener('keyup', filterAcademic);
+        searchInput.addEventListener('search', filterAcademic);
+    });
+</script>
 @endsection

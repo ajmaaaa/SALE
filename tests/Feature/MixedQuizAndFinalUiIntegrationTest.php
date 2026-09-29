@@ -541,6 +541,100 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
         $pureRes->assertSee('Seluruh butir soal dinilai secara otomatis oleh sistem.');
     }
 
+    public function test_lecturer_can_save_all_essay_scores_in_one_action(): void
+    {
+        [$lecturer, $student, $section] = $this->academicContext();
+        $cpmk = Cpmk::create([
+            'mata_kuliah_id' => $section->mata_kuliah_id,
+            'code' => 'CPMK-ESSAY',
+            'description' => 'CPMK Essay Test',
+            'threshold' => 65,
+        ]);
+
+        $essay1 = QuizQuestion::canonicalizeQuestion([
+            'id' => 'essay-q1',
+            'type' => 'uraian',
+            'prompt' => 'Jelaskan konsep OOP 1.',
+            'points' => 50,
+            'cpmk' => 'CPMK-ESSAY',
+        ]);
+        $essay2 = QuizQuestion::canonicalizeQuestion([
+            'id' => 'essay-q2',
+            'type' => 'uraian',
+            'prompt' => 'Jelaskan konsep OOP 2.',
+            'points' => 50,
+            'cpmk' => 'CPMK-ESSAY',
+        ]);
+
+        $quiz = Assessment::create([
+            'class_section_id' => $section->id,
+            'code' => 'KUIS-ESSAY-BATCH',
+            'name' => 'Kuis Dua Esai',
+            'type' => 'kuis',
+            'final_weight' => 20,
+            'status' => 'published',
+            'learning_payload' => ['questions' => [$essay1, $essay2]],
+        ]);
+        $quiz->cpmks()->attach($cpmk->id, ['weight' => 100]);
+
+        $this->actingAs($student)->post(route('mahasiswa.course.submit', [$section, $quiz]), [
+            'from_quiz_room' => 1,
+            'question_answers' => [
+                'essay-q1' => [
+                    'question_id' => 'essay-q1',
+                    'text' => 'Jawaban esai pertama.',
+                ],
+                'essay-q2' => [
+                    'question_id' => 'essay-q2',
+                    'text' => 'Jawaban esai kedua.',
+                ],
+            ],
+        ])->assertRedirect(route('mahasiswa.quiz.room', [$section, $quiz]));
+
+        $submission = Submission::where('assessment_id', $quiz->id)->firstOrFail();
+        $ans1 = $submission->answers()->where('question_id', 'essay-q1')->firstOrFail();
+        $ans2 = $submission->answers()->where('question_id', 'essay-q2')->firstOrFail();
+
+        // 1. Check UI contains single "Simpan Nilai Esai" button and no individual "Simpan skor" buttons
+        $res = $this->actingAs($lecturer)->get(route('dosen.penilaian.asesmen.nilai', [$section, $quiz]));
+        $res->assertOk();
+        $res->assertSee('Simpan Nilai Esai');
+        $res->assertDontSee('Simpan skor');
+
+        // 2. Test validation failure when score exceeds max
+        $this->actingAs($lecturer)->post(route('dosen.penilaian.asesmen.student.essay_scores', [$section, $quiz, $student]), [
+            'scores' => [
+                $ans1->id => 60, // max is 50
+                $ans2->id => 40,
+            ],
+        ])->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$section, $quiz]))
+          ->assertSessionHasErrors(['scores']);
+
+        // 3. Test successful batch save of all essay scores at once
+        $this->actingAs($lecturer)->post(route('dosen.penilaian.asesmen.student.essay_scores', [$section, $quiz, $student]), [
+            'scores' => [
+                $ans1->id => 45,
+                $ans2->id => 35,
+            ],
+        ])->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$section, $quiz]))
+          ->assertSessionHasNoErrors()
+          ->assertSessionHas('notice');
+
+        // Verify both answers were updated
+        $this->assertSame('45.00', $ans1->fresh()->earned_score);
+        $this->assertSame('35.00', $ans2->fresh()->earned_score);
+        $this->assertSame('manual_graded', $ans1->fresh()->grading_status);
+        $this->assertSame('manual_graded', $ans2->fresh()->grading_status);
+
+        // Verify overall quiz score was calculated and published (45 + 35 = 80)
+        $this->assertDatabaseHas('student_assessment_scores', [
+            'assessment_id' => $quiz->id,
+            'mahasiswa_id' => $student->id,
+            'score' => 80,
+            'status' => StudentAssessmentScore::STATUS_PUBLISHED,
+        ]);
+    }
+
     private function academicContext(): array
     {
         $this->seed(RoleSeeder::class);

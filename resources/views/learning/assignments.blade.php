@@ -20,26 +20,27 @@
     <form class="flex flex-wrap items-center gap-3" method="get">
         <input type="hidden" name="tab" value="{{ request('tab') }}">
         <label class="sr-only" for="q">Cari tugas</label>
-        <input id="q" name="q" class="field sm:w-64" value="{{ request('q') }}" placeholder="Cari tugas atau kuis">
+        <div class="relative w-full sm:w-64">
+            <input id="q" name="q" class="field w-full" value="{{ request('q') }}" placeholder="Cari tugas atau kuis..." autocomplete="off">
+        </div>
         <label class="sr-only" for="course">Course</label>
-        <select id="course" name="course" class="field sm:w-60">
+        <select id="course" name="course" class="field sm:w-60" onchange="this.form.submit()">
             <option value="">Semua mata kuliah</option>
             @foreach($courses as $course)
                 <option value="{{ $course['id'] }}" @selected(request('course') == $course['id'])>{{ $course['code'] }} - {{ $course['title'] }}</option>
             @endforeach
         </select>
         <label class="sr-only" for="type">Jenis</label>
-        <select id="type" name="type" class="field sm:w-44">
+        <select id="type" name="type" class="field sm:w-44" onchange="this.form.submit()">
             <option value="">Semua jenis</option>
             @foreach(['tugas'=>'Tugas','coding'=>'Tugas coding','kuis'=>'Kuis'] as $value=>$label)
                 <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
             @endforeach
         </select>
-        <button class="button-secondary text-xs">Terapkan Filter</button>
     </form>
 
     {{-- Clean Assignment List (Clickable rows) --}}
-    <section class="surface overflow-hidden divide-y divide-line/40" aria-label="Daftar Penugasan">
+    <section id="assignment-list-container" class="surface overflow-hidden divide-y divide-line/40" aria-label="Daftar Penugasan">
         @forelse($items as $item)
             @php
                 $dbScore = $studentScores[$item['id']] ?? null;
@@ -52,7 +53,7 @@
                     : route('mahasiswa.course.item', [$item['course'], $item['id']]);
                 $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
             @endphp
-            <a href="{{ $targetUrl }}" class="group flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-5 hover:bg-canvas transition">
+            <a href="{{ $targetUrl }}" class="assignment-item-row group flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-5 hover:bg-canvas transition" data-search="{{ mb_strtolower($item['title'] . ' ' . ($courses[$item['course']]['code'] ?? '') . ' ' . ($courses[$item['course']]['title'] ?? '')) }}">
                 <div class="min-w-0 flex-1">
                     <h2 class="text-sm font-semibold text-ink group-hover:text-brand transition">{{ $item['title'] }}</h2>
                     <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
@@ -90,6 +91,47 @@
                 {{ request('tab') === 'nilai' ? 'Belum ada tugas atau kuis yang selesai dinilai.' : 'Tidak ada penugasan yang sesuai dengan filter yang dipilih.' }}
             </div>
         @endforelse
+        <div id="no-assignment-results" class="p-8 text-center text-xs text-muted" style="display: none;"></div>
     </section>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('q');
+        const container = document.getElementById('assignment-list-container');
+        const emptyNotice = document.getElementById('no-assignment-results');
+        if (!searchInput || !container) return;
+
+        function filterAssignments() {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = container.querySelectorAll('.assignment-item-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const text = (row.getAttribute('data-search') || row.textContent || '').toLowerCase();
+                const matches = !query || text.includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (emptyNotice) {
+                if (visibleCount === 0 && rows.length > 0) {
+                    emptyNotice.textContent = ['Tidak', 'ada', 'penugasan', 'yang', 'sesuai.'].join(' ');
+                    emptyNotice.style.display = '';
+                } else {
+                    emptyNotice.style.display = 'none';
+                }
+            }
+        }
+
+        searchInput.form?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            filterAssignments();
+        });
+
+        searchInput.addEventListener('input', filterAssignments);
+        searchInput.addEventListener('keyup', filterAssignments);
+        searchInput.addEventListener('search', filterAssignments);
+    });
+</script>
 @endsection

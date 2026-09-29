@@ -235,6 +235,8 @@ class InputNilaiController extends Controller
                         'answer_text' => $answerText,
                         'student_answer' => null,
                         'current_score' => $dbAns?->earned_score,
+                        'answer_id' => $dbAns?->id,
+                        'question_id' => (string) $qId,
                         'score_url' => ($isEssay && $dbAns)
                             ? route('dosen.penilaian.asesmen.answer.score', [$section, $assessment, $dbAns])
                             : null,
@@ -305,6 +307,7 @@ class InputNilaiController extends Controller
                 'link' => $sub?->link,
                 'files' => $attachedFiles,
                 'score_url' => route('dosen.penilaian.asesmen.student.score', [$section->id, $assessment->id, $student->id]),
+                'essay_score_url' => route('dosen.penilaian.asesmen.student.essay_scores', [$section->id, $assessment->id, $student->id]),
                 'has_cpmks' => $cpmks->isNotEmpty(),
                 'cpmk_list' => $cpmkList,
                 'single_score' => $currentStudentScore?->score !== null ? (float) $currentStudentScore->score : '',
@@ -365,6 +368,161 @@ class InputNilaiController extends Controller
         return redirect()
             ->route('dosen.penilaian.asesmen.nilai', [$section, $assessment])
             ->with('notice', 'Skor esai tersimpan dan nilai kuis telah dihitung ulang bersama skor otomatis.');
+    }
+
+    /**
+     * Simpan seluruh nilai esai mahasiswa sekaligus dari modal tinjau jawaban.
+     */
+    public function storeStudentEssayScores(
+        Request $request,
+        ClassSection $section,
+        Assessment $assessment,
+        \App\Models\User $student
+    ): RedirectResponse {
+        $this->authorizeOwnership($section);
+        $this->authorizeAssessmentBelongsToSection($section, $assessment);
+
+        abort_unless(
+            $section->students()->where('users.id', $student->id)->exists(),
+            404,
+            'Mahasiswa tidak terdaftar pada kelas ini.'
+        );
+
+        $submission = Submission::where('assessment_id', $assessment->id)
+            ->where(function ($query) use ($student) {
+                $query->where('mahasiswa_id', $student->id)
+                    ->orWhere('user_id', $student->id);
+            })
+            ->first();
+
+        abort_unless($submission, 404, 'Lembar jawaban mahasiswa tidak ditemukan.');
+
+        $payloadQuestions = QuizQuestion::canonicalizeQuestions($assessment->learning_payload['questions'] ?? []);
+        $answers = $submission->answers()
+            ->where('version', $submission->version)
+            ->get();
+
+        $scores = $request->input('scores', []);
+        abort_unless(is_array($scores), 422, 'Format data skor tidak valid.');
+
+        $lecturer = $request->user() ?? Auth::guard('web')->user();
+        $dosenId = $lecturer?->id ?? Auth::guard('web')->id();
+
+        $errors = [];
+        foreach ($payloadQuestions as $index => $q) {
+            $type = $q['type'] ?? 'pilihan';
+            if (! in_array($type, ['uraian', 'esai', 'essay'], true)) {
+                continue;
+            }
+
+            $qId = (string) ($q['id'] ?? $index);
+            $maxScore = (float) ($q['points'] ?? 0);
+            $qNumber = $index + 1;
+
+            $answer = $answers->first(fn ($a) =>
+                ($a->question_id !== null && (string) $a->question_id === $qId)
+                || ($a->question_index !== null && (int) $a->question_index === (int) $index)
+            );
+
+            $val = null;
+            if ($answer && array_key_exists($answer->id, $scores)) {
+                $val = $scores[$answer->id];
+            } elseif (array_key_exists($qId, $scores)) {
+                $val = $scores[$qId];
+            } elseif (array_key_exists($index, $scores)) {
+                $val = $scores[$index];
+            }
+
+            if ($val === null || $val === '') {
+                continue;
+            }
+
+            if (! is_numeric($val) || (float) $val < 0) {
+                $errors[] = "Skor esai untuk Soal {$qNumber} harus berupa angka tidak negatif.";
+            } elseif ((float) $val > $maxScore) {
+                $errors[] = "Skor esai untuk Soal {$qNumber} tidak boleh melebihi {$maxScore} poin.";
+            }
+        }
+
+        if (! empty($errors)) {
+            return redirect()
+                ->route('dosen.penilaian.asesmen.nilai', [$section, $assessment])
+                ->withErrors(['scores' => $errors])
+                ->withInput();
+        }
+
+        DB::transaction(function () use ($payloadQuestions, $answers, $scores, $dosenId, $assessment, $submission) {
+            foreach ($payloadQuestions as $index => $q) {
+                $type = $q['type'] ?? 'pilihan';
+                if (! in_array($type, ['uraian', 'esai', 'essay'], true)) {
+                    continue;
+                }
+
+                $qId = (string) ($q['id'] ?? $index);
+                $maxScore = (float) ($q['points'] ?? 0);
+
+                $answer = $answers->first(fn ($a) =>
+                    ($a->question_id !== null && (string) $a->question_id === $qId)
+                    || ($a->question_index !== null && (int) $a->question_index === (int) $index)
+                );
+
+                if (! $answer && Schema::hasTable('submission_answers')) {
+                    $answer = SubmissionAnswer::firstOrCreate([
+                        'submission_id' => $submission->id,
+                        'question_id' => $qId,
+                        'version' => $submission->version ?? 1,
+                    ], [
+                        'max_score' => $maxScore,
+                        'grading_status' => 'manual_pending',
+                    ]);
+                }
+
+                if (! $answer) {
+                    continue;
+                }
+
+                $hasVal = false;
+                $val = null;
+                if (array_key_exists($answer->id, $scores)) {
+                    $val = $scores[$answer->id];
+                    $hasVal = true;
+                } elseif (array_key_exists($qId, $scores)) {
+                    $val = $scores[$qId];
+                    $hasVal = true;
+                } elseif (array_key_exists($index, $scores)) {
+                    $val = $scores[$index];
+                    $hasVal = true;
+                }
+
+                if (! $hasVal) {
+                    continue;
+                }
+
+                if ($val !== null && $val !== '') {
+                    $answer->forceFill([
+                        'max_score' => $maxScore,
+                        'earned_score' => (float) $val,
+                        'grading_status' => 'manual_graded',
+                        'graded_by_id' => $dosenId,
+                        'graded_at' => now(),
+                    ])->save();
+                } else {
+                    $answer->forceFill([
+                        'max_score' => $maxScore,
+                        'earned_score' => null,
+                        'grading_status' => 'manual_pending',
+                        'graded_by_id' => null,
+                        'graded_at' => null,
+                    ])->save();
+                }
+            }
+
+            $this->quizGrades->recalculate($assessment, $submission, $dosenId);
+        });
+
+        return redirect()
+            ->route('dosen.penilaian.asesmen.nilai', [$section, $assessment])
+            ->with('notice', "Nilai esai mahasiswa {$student->name} berhasil disimpan dan nilai kuis telah dihitung ulang.");
     }
 
     /**

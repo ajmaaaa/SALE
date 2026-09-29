@@ -1748,6 +1748,10 @@ class LearningController extends Controller
             }
         }
 
+        if ($mime === 'application/pdf' || str_ends_with(strtolower($name), '.pdf')) {
+            $this->getOrCreatePdfThumbnail('local', $path);
+        }
+
         return $id;
     }
 
@@ -1812,17 +1816,87 @@ class LearningController extends Controller
             $meta['mime'] = 'application/pdf';
         }
 
+        // Server-side instant thumbnail endpoint for PDF / image preview
+        if ($request->boolean('thumbnail')) {
+            if ($isPdf) {
+                $thumbPath = $this->getOrCreatePdfThumbnail($disk, $meta['path']);
+                if ($thumbPath && file_exists($thumbPath)) {
+                    return response()->file($thumbPath, [
+                        'Content-Type' => 'image/jpeg',
+                        'Cache-Control' => 'private, max-age=604800, immutable',
+                        'X-Content-Type-Options' => 'nosniff',
+                    ]);
+                }
+            } elseif (str_starts_with((string) ($meta['mime'] ?? ''), 'image/')) {
+                return Storage::disk($disk)->response($meta['path'], $meta['name'], [
+                    'Content-Type' => $meta['mime'],
+                    'Cache-Control' => 'private, max-age=604800, immutable',
+                    'X-Content-Type-Options' => 'nosniff',
+                ], 'inline');
+            }
+        }
+
         $inline = $isPdf
             || in_array($meta['mime'], ['image/jpeg', 'image/png', 'image/webp', 'text/plain'])
             || str_starts_with((string) $meta['mime'], 'image/')
             || str_starts_with((string) $meta['mime'], 'video/');
 
-        $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store'];
+        $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=86400, stale-while-revalidate=3600'];
         if ($inline && ! $request->boolean('download')) {
             return Storage::disk($disk)->response($meta['path'], $meta['name'], $headers + ['Content-Type' => $meta['mime'] ?: 'application/octet-stream'], 'inline');
         }
 
         return Storage::disk($disk)->download($meta['path'], $meta['name'], $headers);
+    }
+
+    public function getOrCreatePdfThumbnail(string $disk, string $path): ?string
+    {
+        try {
+            if (! Storage::disk($disk)->exists($path)) {
+                return null;
+            }
+
+            $cacheDir = storage_path('app/thumbnails');
+            if (! is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+
+            $mtime = @filemtime(Storage::disk($disk)->path($path)) ?: 0;
+            $cacheKey = md5($disk . ':' . $path . ':' . $mtime);
+            $targetFile = $cacheDir . '/' . $cacheKey . '.jpg';
+
+            if (file_exists($targetFile) && filesize($targetFile) > 0) {
+                return $targetFile;
+            }
+
+            $binary = is_executable('/usr/bin/pdftoppm')
+                ? '/usr/bin/pdftoppm'
+                : null;
+
+            if (! $binary) {
+                return null;
+            }
+
+            $fullPdfPath = Storage::disk($disk)->path($path);
+            $prefix = $cacheDir . '/' . $cacheKey;
+
+            $cmd = sprintf(
+                '%s -jpeg -jpegopt quality=85 -singlefile -scale-to 400 %s %s 2>/dev/null',
+                $binary,
+                escapeshellarg($fullPdfPath),
+                escapeshellarg($prefix)
+            );
+
+            exec($cmd, $out, $code);
+
+            if ($code === 0 && file_exists($targetFile) && filesize($targetFile) > 0) {
+                return $targetFile;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
     }
 
     private function authorizeAttachmentAccess(Attachment $attachment, User $user): void

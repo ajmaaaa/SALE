@@ -14,10 +14,9 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div><h2 id="work-heading" class="section-heading">Pekerjaan kelas</h2><p class="mt-1 text-sm text-muted">Tugas, kuis, dan ujian dari setiap course.</p></div>
             <form class="flex flex-col gap-3 sm:flex-row" action="{{ route('mahasiswa.assignment.index') }}" method="GET">
-                <label class="sr-only" for="assignment-search">Cari pekerjaan</label><input id="assignment-search" name="q" type="search" class="field sm:w-64" placeholder="Cari pekerjaan">
-                <label class="sr-only" for="assignment-course">Pilih course</label><select id="assignment-course" name="course" class="field sm:w-52"><option>Semua course</option><option>IF204</option><option>IF218</option><option>IF221</option></select>
-                <label class="sr-only" for="assignment-type">Pilih tipe</label><select id="assignment-type" name="type" class="field sm:w-40"><option>Semua tipe</option><option>Tugas</option><option>Kuis</option><option>Ujian</option></select>
-                <button type="submit" class="button-secondary">Terapkan</button>
+                <label class="sr-only" for="assignment-search">Cari pekerjaan</label><input id="assignment-search" name="q" type="search" class="field sm:w-64" placeholder="Cari pekerjaan" value="{{ request('q') }}">
+                <label class="sr-only" for="assignment-course">Pilih course</label><select id="assignment-course" name="course" class="field sm:w-52" onchange="this.form.submit()"><option>Semua course</option><option>IF204</option><option>IF218</option><option>IF221</option></select>
+                <label class="sr-only" for="assignment-type">Pilih tipe</label><select id="assignment-type" name="type" class="field sm:w-40" onchange="this.form.submit()"><option>Semua tipe</option><option>Tugas</option><option>Kuis</option><option>Ujian</option></select>
             </form>
         </div>
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dosen;
 use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,14 +40,32 @@ class ClassSectionController extends Controller
 
         abort_unless($dosen?->hasRole(Role::DOSEN), 403, 'Akses ditolak. Halaman ini khusus Dosen.');
 
+        $selectedSemesterId = $request->query('semester');
+        $q = trim((string) $request->query('q', ''));
+
+        $semesters = Semester::orderChronological()->get();
+
         $sections = ClassSection::query()
-            ->where(function ($q) use ($dosen) {
-                $q->where('dosen_id', $dosen->id)
+            ->where(function ($query) use ($dosen) {
+                $query->where('dosen_id', $dosen->id)
                     ->orWhere('dosen_pendamping_id', $dosen->id);
             })
             ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
             ->withCount('students')
-            ->withCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])
+            ->withCount(['assessments' => fn ($query) => $query->whereNotIn('type', ['materi', 'pengumuman'])])
+            ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
+                $query->where('semester_id', $selectedSemesterId);
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $lower = mb_strtolower($q);
+                $query->where(function ($sub) use ($lower) {
+                    $sub->whereHas('mataKuliah', function ($mk) use ($lower) {
+                        $mk->whereRaw('LOWER(name) LIKE ?', ["%{$lower}%"])
+                            ->orWhereRaw('LOWER(code) LIKE ?', ["%{$lower}%"]);
+                    })
+                    ->orWhereRaw('LOWER(section_code) LIKE ?', ["%{$lower}%"]);
+                });
+            })
             ->orderByDesc('id')
             ->get();
 
@@ -80,6 +99,8 @@ class ClassSectionController extends Controller
         return view($viewName, [
             'sections' => $sections,
             'mode' => $mode,
+            'semesters' => $semesters,
+            'selectedSemesterId' => $selectedSemesterId,
         ]);
     }
 }

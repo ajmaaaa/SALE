@@ -306,6 +306,9 @@
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
                                     @if($isPdf)
+                                        @php
+                                            $thumbnailUrl = route('preview.file', ['file' => $fileId, 'thumbnail' => 1], false);
+                                        @endphp
                                         <a href="{{ $fileUrl }}" onclick="openAttachmentPreview(event, { title: '{{ addslashes($fileName) }}', url: '{{ $fileUrl }}', downloadUrl: '{{ $fileDownloadUrl }}', type: 'pdf', ext: 'PDF' })" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $fileName }}">
                                             {{-- Underlying fallback icon --}}
                                             <div class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 z-0">
@@ -319,8 +322,8 @@
                                                 </div>
                                                 <span class="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
                                             </div>
-                                            {{-- Clean PDF first page top preview rendered via canvas --}}
-                                            <canvas data-pdf-thumbnail="{{ $fileUrl }}" class="pdf-thumbnail-canvas absolute top-0 left-0 w-full h-auto block opacity-0 transition-opacity duration-300 pointer-events-none z-1 bg-white"></canvas>
+                                            {{-- Server-side instant thumbnail image --}}
+                                            <img src="{{ $thumbnailUrl }}" alt="Pratinjau {{ $fileName }}" loading="lazy" class="absolute top-0 left-0 w-full h-full object-cover object-top block z-1 bg-white opacity-0 transition-opacity duration-200 pointer-events-none" onload="this.classList.remove('opacity-0')" onerror="this.remove()">
                                             {{-- Click capture overlay and hover effect --}}
                                             <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
                                         </a>
@@ -862,51 +865,7 @@
     </dialog>
 </div>
 
-<script src="{{ asset('vendor/pdfjs/pdf.min.js') }}"></script>
 <script>
-    function initPdfThumbnails() {
-        if (!window.pdfjsLib) return;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ asset('vendor/pdfjs/pdf.worker.min.js') }}";
-
-        document.querySelectorAll('canvas[data-pdf-thumbnail]').forEach(function(canvas) {
-            const url = canvas.getAttribute('data-pdf-thumbnail');
-            if (!url || canvas.dataset.rendered) return;
-            canvas.dataset.rendered = 'true';
-
-            pdfjsLib.getDocument(url).promise.then(function(pdf) {
-                return pdf.getPage(1);
-            }).then(function(page) {
-                const parent = canvas.parentElement;
-                const parentWidth = (parent && parent.clientWidth > 0) ? parent.clientWidth : 176;
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                const desiredWidth = parentWidth * dpr;
-
-                const defaultViewport = page.getViewport({ scale: 1 });
-                const scale = desiredWidth / defaultViewport.width;
-                const scaledViewport = page.getViewport({ scale: scale });
-
-                canvas.width = scaledViewport.width;
-                canvas.height = scaledViewport.height;
-
-                const ctx = canvas.getContext('2d');
-                return page.render({
-                    canvasContext: ctx,
-                    viewport: scaledViewport
-                }).promise;
-            }).then(function() {
-                canvas.classList.remove('opacity-0');
-            }).catch(function(err) {
-                console.warn('PDF thumbnail render skipped:', err);
-            });
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initPdfThumbnails);
-    } else {
-        initPdfThumbnails();
-    }
-
     function openAttachmentPreview(e, fileData) {
         if (e) {
             e.preventDefault();

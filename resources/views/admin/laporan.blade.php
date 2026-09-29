@@ -29,9 +29,13 @@
             <p class="page-description">Laporan komprehensif data institusi, demografi pengguna, dan konsumsi sumber daya sistem.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
-            <a class="button-primary text-xs inline-flex items-center justify-center gap-2 w-full sm:w-auto" href="{{ route('admin.export') }}">
+            <a class="button-secondary text-xs inline-flex items-center justify-center gap-2 w-full sm:w-auto" href="{{ route('admin.export') }}">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Unduh Rekap Excel
+                Unduh Rekap Akademik
+            </a>
+            <a class="button-primary text-xs inline-flex items-center justify-center gap-2 w-full sm:w-auto shadow-xs" href="{{ route('admin.export.ai') }}">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Unduh Rekap AI (Excel)
             </a>
         </div>
     </header>

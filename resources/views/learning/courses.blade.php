@@ -19,7 +19,9 @@
 
     <form class="flex flex-col gap-3 sm:flex-row sm:items-center" action="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" method="GET">
         <label class="sr-only" for="course-search">Cari course</label>
-        <input id="course-search" name="q" type="search" class="field sm:max-w-md" placeholder="Cari judul, kode, atau dosen" value="{{ request('q') }}">
+        <div class="relative w-full sm:max-w-md">
+            <input id="course-search" name="q" type="search" class="field w-full" placeholder="Cari judul, kode, atau dosen..." value="{{ request('q') }}" autocomplete="off">
+        </div>
 
         @if(!empty($semesters) && $semesters->count())
             <label class="sr-only" for="course-semester">Semester</label>
@@ -32,23 +34,61 @@
                 @endforeach
             </select>
         @endif
-
-        <button type="submit" class="button-secondary">Terapkan</button>
-        @if(request()->filled('q') || request()->filled('semester'))
-            <a href="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" class="button-secondary">Reset</a>
-        @endif
     </form>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar course">
+    <section id="course-list-container" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar course">
         @forelse ($courses as $course)
-            @include('learning.partials.course-card', ['course' => $course, 'role' => request()->is('dosen*') ? 'dosen' : 'mahasiswa', 'isFirst' => $loop->first])
+            <div class="course-card-item h-full" data-search="{{ mb_strtolower($course['code'] . ' ' . $course['title'] . ' ' . ($course['lecturer'] ?? '') . ' ' . ($course['dosen_ketua'] ?? '') . ' ' . ($course['enrollment_code'] ?? '')) }}">
+                @include('learning.partials.course-card', ['course' => $course, 'role' => request()->is('dosen*') ? 'dosen' : 'mahasiswa', 'isFirst' => $loop->first])
+            </div>
         @empty
             <div class="col-span-full py-2 text-xs text-muted">
                 {{ request()->filled('q') ? 'Kelas tidak ditemukan.' : 'Belum ada kelas.' }}
             </div>
         @endforelse
+        <div id="no-search-results" class="col-span-full py-2 text-xs text-muted" style="display: none;"></div>
     </section>
 
     @include('learning.partials.join-class-dialog', ['joinAsDosen' => request()->is('dosen*')])
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('course-search');
+        const container = document.getElementById('course-list-container');
+        const emptyNotice = document.getElementById('no-search-results');
+        if (!searchInput || !container) return;
+
+        function filterCourses() {
+            const query = searchInput.value.trim().toLowerCase();
+            const cards = container.querySelectorAll('.course-card-item');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const text = (card.getAttribute('data-search') || card.textContent || '').toLowerCase();
+                const matches = !query || text.includes(query);
+                card.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (emptyNotice) {
+                if (visibleCount === 0 && cards.length > 0) {
+                    emptyNotice.textContent = ['Kelas', 'tidak', 'ditemukan.'].join(' ');
+                    emptyNotice.style.display = '';
+                } else {
+                    emptyNotice.style.display = 'none';
+                }
+            }
+        }
+
+        searchInput.form?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            filterCourses();
+        });
+
+        searchInput.addEventListener('input', filterCourses);
+        searchInput.addEventListener('keyup', filterCourses);
+        searchInput.addEventListener('search', filterCourses);
+    });
+</script>
 @endsection

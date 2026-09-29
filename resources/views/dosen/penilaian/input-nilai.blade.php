@@ -278,9 +278,15 @@
                 }
 
                 if (manualQuestions.length > 0) {
-                    html += '<div class="space-y-5">';
+                    const essayAction = data.essay_score_url || '';
+                    html += `
+                        <form method="post" action="${escapeHtml(essayAction)}" class="space-y-5">
+                            <input type="hidden" name="_token" value="${csrfToken}">
+                            <div class="space-y-5">
+                    `;
                     manualQuestions.forEach((q) => {
                         const answer = (q.answer_text && q.answer_text.trim()) ? escapeHtml(q.answer_text.trim()) : '';
+                        const inputId = q.answer_id ? q.answer_id : (q.question_id || q.number);
                         html += `
                             <div class="space-y-2.5 pb-4 border-b border-line/40 last:border-b-0 last:pb-0">
                                 <div class="flex items-center justify-between text-xs">
@@ -308,24 +314,28 @@
                                     `}
                                 </div>
 
-                                ${q.score_url ? `
-                                    <form method="post" action="${escapeHtml(q.score_url)}" class="flex flex-wrap items-end gap-3 pt-1">
-                                        <input type="hidden" name="_token" value="${csrfToken}">
-                                        <label class="block">
-                                            <span class="mb-1 block text-xs font-semibold text-ink">Skor esai</span>
-                                            <input type="number" name="score" required min="0" max="${q.max_points}" step="any"
-                                                value="${q.current_score ?? ''}"
-                                                class="field h-9 w-28 text-center font-semibold"
-                                                aria-label="Skor esai soal ${q.number}">
-                                        </label>
-                                        <span class="pb-2 text-xs font-semibold text-muted">/ ${q.max_points} poin</span>
-                                        <button type="submit" class="button-primary h-9 px-4 text-xs font-semibold">Simpan skor</button>
-                                    </form>
-                                ` : ''}
+                                <div class="flex flex-wrap items-end gap-3 pt-1">
+                                    <label class="block">
+                                        <span class="mb-1 block text-xs font-semibold text-ink">Skor esai</span>
+                                        <input type="number" name="scores[${escapeHtml(String(inputId))}]" min="0" max="${q.max_points}" step="any"
+                                            value="${q.current_score !== null && q.current_score !== undefined ? q.current_score : ''}"
+                                            class="field h-9 w-28 text-center font-semibold"
+                                            placeholder="0"
+                                            aria-label="Skor esai soal ${q.number}">
+                                    </label>
+                                    <span class="pb-2 text-xs font-semibold text-muted">/ ${q.max_points} poin</span>
+                                </div>
                             </div>
                         `;
                     });
-                    html += '</div>';
+                    html += `
+                            </div>
+                            <div class="flex items-center justify-end gap-2 pt-4 border-t border-line/60">
+                                <button type="button" onclick="closeAnswerModal()" class="button-secondary text-xs py-2 px-3">Batal</button>
+                                <button type="submit" class="button-primary text-xs py-2 px-5 font-semibold shadow-2xs">Simpan Nilai Esai</button>
+                            </div>
+                        </form>
+                    `;
                 } else {
                     html += `
                         <div class="rounded-xl border border-line/60 bg-canvas/40 p-6 space-y-2 text-center">

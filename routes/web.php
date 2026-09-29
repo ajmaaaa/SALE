@@ -134,6 +134,9 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
         Route::post('/asesmen/{assessment}/mahasiswa/{student}/nilai', [InputNilaiController::class, 'storeStudentTaskScore'])
             ->whereNumber(['assessment', 'student'])
             ->name('asesmen.student.score');
+        Route::post('/asesmen/{assessment}/mahasiswa/{student}/nilai-esai', [InputNilaiController::class, 'storeStudentEssayScores'])
+            ->whereNumber(['assessment', 'student'])
+            ->name('asesmen.student.essay_scores');
         Route::get('/asesmen/{assessment}/nilai/template', [InputNilaiController::class, 'downloadTemplate'])->whereNumber('assessment')->name('asesmen.nilai.template');
         Route::get('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'import'])->whereNumber('assessment')->name('asesmen.nilai.import');
         Route::post('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'processImport'])->whereNumber('assessment')->name('asesmen.nilai.import.process');
@@ -167,6 +170,12 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
 
 Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
     Route::get('/laporan/export', [AdminPreviewController::class, 'export'])->name('export');
+    Route::get('/laporan/export-ai', [AdminPreviewController::class, 'exportAi'])->name('export.ai');
+    Route::get('/monitoring/backup-sql', [AdminPreviewController::class, 'downloadBackupSql'])->name('backup.download');
+    Route::post('/monitoring/backup', [AdminPreviewController::class, 'createBackup'])->name('backup.create');
+    Route::post('/monitoring/restore', [AdminPreviewController::class, 'restoreBackup'])->name('backup.restore');
+    Route::post('/monitoring/backup/settings', [AdminPreviewController::class, 'saveBackupSettings'])->name('backup.settings');
+    Route::post('/monitoring/backup/delete', [AdminPreviewController::class, 'deleteBackup'])->name('backup.destroy');
     Route::get('/pengguna/template', [AdminPreviewController::class, 'downloadUserTemplate'])->name('users.template');
     Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
     Route::post('/pengguna/bulk', [AdminPreviewController::class, 'bulkUsers'])->name('users.bulk');

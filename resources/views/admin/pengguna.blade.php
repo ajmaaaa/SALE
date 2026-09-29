@@ -188,24 +188,25 @@
     @endif
 
     {{-- Search and Filter --}}
-    <form class="flex flex-wrap gap-3">
+    <form class="flex flex-wrap gap-3" method="get">
         <label class="sr-only" for="q">Cari pengguna</label>
-        <input class="field sm:w-72" id="q" name="q" placeholder="Cari NIM, NIDN, nama, atau email" value="{{ request('q') }}">
+        <div class="relative w-full sm:w-72">
+            <input class="field w-full" id="q" name="q" placeholder="Cari NIM, NIDN, nama, atau email..." value="{{ request('q') }}" autocomplete="off">
+        </div>
         <label class="sr-only" for="role-filter">Filter peran</label>
-        <select class="field sm:w-44" id="role-filter" name="role">
+        <select class="field sm:w-44" id="role-filter" name="role" onchange="this.form.submit()">
             <option value="">Semua peran</option>
             @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'] as $key => $label)
                 <option value="{{ $key }}" @selected(request('role') === $key)>{{ $label }}</option>
             @endforeach
         </select>
         <label class="sr-only" for="prodi-filter">Filter prodi</label>
-        <select class="field sm:w-48" id="prodi-filter" name="prodi_id">
+        <select class="field sm:w-48" id="prodi-filter" name="prodi_id" onchange="this.form.submit()">
             <option value="">Semua prodi</option>
             @foreach(\App\Models\Prodi::orderBy('name')->get() as $p)
                 <option value="{{ $p->id }}" @selected((string)request('prodi_id') === (string)$p->id)>{{ $p->code }} - {{ $p->name }}</option>
             @endforeach
         </select>
-        <button class="button-secondary">Cari</button>
     </form>
 
     {{-- Users Table with Separate NIM / NIDN / NIP Column (No pastel colored badges, clean typography) --}}
@@ -222,9 +223,9 @@
                     <th class="text-right"><span class="sr-only">Aksi</span></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="user-table-body">
                 @forelse($visibleUsers as $user)
-                    <tr>
+                    <tr class="user-table-row" data-search="{{ mb_strtolower($user['number'] . ' ' . $user['name'] . ' ' . ($user['email'] ?? '') . ' ' . ($user['prodi_name'] ?? '')) }}">
                         <td class="font-mono text-xs font-semibold text-ink whitespace-nowrap">
                             {{ $user['number'] }}
                         </td>
@@ -262,13 +263,56 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="p-6 text-center text-sm text-muted">
+                        <td colspan="7" class="p-6 text-center text-sm text-muted">
                             Pengguna tidak ditemukan.
                         </td>
                     </tr>
                 @endforelse
+                <tr id="no-users-found" style="display: none;">
+                    <td colspan="7" class="p-6 text-center text-sm text-muted"></td>
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('q');
+        const tbody = document.getElementById('user-table-body');
+        const emptyNotice = document.getElementById('no-users-found');
+        if (!searchInput || !tbody) return;
+
+        function filterUsers() {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = tbody.querySelectorAll('.user-table-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const text = (row.getAttribute('data-search') || row.textContent || '').toLowerCase();
+                const matches = !query || text.includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            if (emptyNotice) {
+                if (visibleCount === 0 && rows.length > 0) {
+                    emptyNotice.querySelector('td').textContent = ['Pengguna', 'tidak', 'ditemukan.'].join(' ');
+                    emptyNotice.style.display = '';
+                } else {
+                    emptyNotice.style.display = 'none';
+                }
+            }
+        }
+
+        searchInput.form?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            filterUsers();
+        });
+
+        searchInput.addEventListener('input', filterUsers);
+        searchInput.addEventListener('keyup', filterUsers);
+        searchInput.addEventListener('search', filterUsers);
+    });
+</script>
 @endsection

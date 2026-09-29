@@ -115,26 +115,6 @@
                     </a>
                 </div>
             </section>
-
-            {{-- Widget 2: Beban Sistem & Server Health --}}
-            <section class="surface p-5 sm:p-6 border border-line/60 space-y-4" aria-labelledby="server-monitoring-heading">
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 pb-3.5">
-                    <div>
-                        <h2 id="server-monitoring-heading" class="section-heading text-base">Beban Server &amp; Ketersediaan</h2>
-                        <p class="mt-0.5 text-xs text-muted">Kondisi sumber daya komputasi dan performa operasional.</p>
-                    </div>
-                    <span class="text-xs font-medium text-muted">Belum terhubung</span>
-                </div>
-
-                <div class="rounded-xl border border-dashed border-line bg-canvas/50 p-6 text-center text-sm text-muted">Metrik CPU, RAM, respons HTTP, dan penyimpanan belum memiliki kolektor data. Angka tidak ditampilkan agar tidak menyesatkan.</div>
-
-                <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
-                    <span class="text-muted">Menunggu integrasi kolektor server</span>
-                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'server']) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
-                        Buka grafik beban server
-                    </a>
-                </div>
-            </section>
         </div>
 
         {{-- Kolom Kanan (4 cols): Info Struktur Institusi --}}
