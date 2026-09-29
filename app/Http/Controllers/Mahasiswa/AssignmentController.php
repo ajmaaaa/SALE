@@ -34,7 +34,8 @@ class AssignmentController extends Controller
 
         $resource = LearningPreview::databaseAssessment($assessment);
         $isCodingContent = $resource['type'] === 'coding'
-            || ($resource['type'] === 'materi' && ($resource['material_mode'] ?? null) === 'coding');
+            || ($resource['type'] === 'materi' && ($resource['material_mode'] ?? null) === 'coding')
+            || (($resource['task_mode'] ?? null) === 'coding');
         abort_unless($isCodingContent, 404);
 
         return view('mahasiswa.assignment-code', [
