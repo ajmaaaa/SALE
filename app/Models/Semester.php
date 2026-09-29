@@ -23,13 +23,39 @@ class Semester extends Model
         ];
     }
 
+    public function getAcademicYearAttribute(?string $value): ?string
+    {
+        if (! empty($value)) {
+            return $value;
+        }
+
+        if (preg_match('/(\d{4}\/\d{4})/', (string) $this->name, $matches)) {
+            return $matches[1];
+        }
+
+        if (preg_match('/(\d{4})/', (string) $this->code, $matches)) {
+            return $matches[1] . '/' . ((int) $matches[1] + 1);
+        }
+
+        return null;
+    }
+
+    public function getTermAttribute(?int $value): int
+    {
+        if ($value !== null && (int) $value > 0) {
+            return (int) $value;
+        }
+
+        return str_contains(strtolower((string) ($this->name . ' ' . $this->code)), 'genap') ? 2 : 1;
+    }
+
     public function getTermLabelAttribute(): string
     {
         return match ($this->term) {
             1 => 'Ganjil',
             2 => 'Genap',
             3 => 'Pendek',
-            default => str_contains(strtolower($this->name), 'genap') ? 'Genap' : 'Ganjil',
+            default => str_contains(strtolower((string) $this->name), 'genap') ? 'Genap' : 'Ganjil',
         };
     }
 
@@ -39,7 +65,11 @@ class Semester extends Model
             return (int) $matches[1];
         }
 
-        if (preg_match('/^(\d{4})/', (string) $this->code, $matches)) {
+        if (preg_match('/(\d{4})/', (string) $this->name, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/(\d{4})/', (string) $this->code, $matches)) {
             return (int) $matches[1];
         }
 
