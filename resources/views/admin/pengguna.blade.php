@@ -165,6 +165,23 @@
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    @if($record)
+                        <label class="form-label" for="password">Ganti Password (Kosongkan jika tidak diubah)</label>
+                        <input class="field text-xs font-semibold @error('password') border-rose-500 @enderror" id="password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter">
+                        @error('password')
+                            <p class="mt-1 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                        @enderror
+                        <p class="mt-1.5 text-xs text-muted">Pengguna wajib mengganti password saat login berikutnya.</p>
+                    @else
+                        <label class="form-label" for="password">Kata Sandi (Opsional)</label>
+                        <input class="field text-xs font-semibold @error('password') border-rose-500 @enderror" id="password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Kosongkan untuk membuat password acak">
+                        @error('password')
+                            <p class="mt-1 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                        @enderror
+                        <p class="mt-1.5 text-xs text-muted">Password acak sementara akan dibuat dan ditampilkan jika dikosongkan.</p>
+                    @endif
+                </div>
                 <div class="md:col-span-2">
                     <label class="form-label" for="prodi_id">
                         Program Studi <span id="prodi-required-badge" class="hidden text-rose-500 font-bold">* (Wajib untuk Admin Prodi)</span>
