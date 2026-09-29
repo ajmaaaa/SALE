@@ -114,31 +114,41 @@ class AdminProdiManagementTest extends TestCase
         ]);
         $this->actingAs($globalAdmin);
 
-        // Index redirects to dashboard
-        $response = $this->get(route('admin-prodi.prodi.index'));
-        $response->assertRedirect(route('admin-prodi.dashboard'));
+        // Global admin is blocked from admin-prodi interface
+        $this->get(route('admin-prodi.dashboard'))->assertForbidden();
 
-        // Store
-        $response = $this->post(route('admin-prodi.prodi.store'), [
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_name'], ['value' => 'Fakultas Ilmu Komputer']);
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_code'], ['value' => 'FILKOM']);
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_status'], ['value' => 'aktif']);
+
+        // Store prodi via Admin Sistem Akademik
+        $response = $this->post(route('admin.academic.store'), [
+            'type' => 'prodi',
             'code' => 'SI',
             'name' => 'Sistem Informasi',
+            'parent' => \App\Support\AdminPreview::FACULTY_ID,
+            'status' => 'aktif',
         ]);
-        $response->assertRedirect(route('admin-prodi.dashboard'));
+        $response->assertRedirect(route('admin.page', 'akademik'));
         $this->assertDatabaseHas('prodis', ['code' => 'SI', 'name' => 'Sistem Informasi']);
 
         $si = Prodi::where('code', 'SI')->first();
 
-        // Update
-        $response = $this->put(route('admin-prodi.prodi.update', $si->id), [
+        // Update prodi via Admin Sistem Akademik
+        $response = $this->post(route('admin.academic.store'), [
+            'id' => \App\Support\AdminPreview::PRODI_OFFSET + $si->id,
+            'type' => 'prodi',
             'code' => 'SI',
             'name' => 'Sistem Informasi Bisnis',
+            'parent' => \App\Support\AdminPreview::FACULTY_ID,
+            'status' => 'aktif',
         ]);
-        $response->assertRedirect(route('admin-prodi.dashboard'));
+        $response->assertRedirect(route('admin.page', 'akademik'));
         $this->assertDatabaseHas('prodis', ['code' => 'SI', 'name' => 'Sistem Informasi Bisnis']);
 
-        // Destroy
-        $response = $this->delete(route('admin-prodi.prodi.destroy', $si->id));
-        $response->assertRedirect(route('admin-prodi.dashboard'));
+        // Destroy prodi via Admin Sistem Akademik
+        $response = $this->post(route('admin.academic.destroy', \App\Support\AdminPreview::PRODI_OFFSET + $si->id));
+        $response->assertRedirect(route('admin.page', 'akademik'));
         $this->assertDatabaseMissing('prodis', ['id' => $si->id]);
     }
 
@@ -613,9 +623,14 @@ class AdminProdiManagementTest extends TestCase
     public function test_unauthorized_user_is_blocked_from_admin_prodi(): void
     {
         $this->actingAs($this->mahasiswa);
+        $this->get(route('admin-prodi.dashboard'))->assertStatus(403);
 
-        $response = $this->get(route('admin-prodi.dashboard'));
-        $response->assertStatus(403);
+        $globalAdmin = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN)->value('id'),
+            'prodi_id' => null,
+        ]);
+        $this->actingAs($globalAdmin);
+        $this->get(route('admin-prodi.dashboard'))->assertStatus(403);
     }
 
     public function test_admin_prodi_cannot_update_or_delete_privileged_accounts(): void
@@ -812,19 +827,16 @@ class AdminProdiManagementTest extends TestCase
 
         $this->actingAs($globalAdmin);
 
-        // 1. Dashboard Admin Prodi displays newly added Prodi in stat and table
+        // 1. Dashboard Admin Prodi safely blocks Global Admin (403 Forbidden)
         $dashResponse = $this->get(route('admin-prodi.dashboard'));
-        $dashResponse->assertOk();
-        $dashResponse->assertSee('Program Studi Terdaftar');
-        $dashResponse->assertSee('Teknik Elektro');
-        $dashResponse->assertSee('TE');
+        $dashResponse->assertStatus(403);
 
-        // 2. Admin Sistem Pengguna allows assigning user to TE
+        // 2. Admin Sistem Pengguna allows assigning user to TE with single role
         $createLecturerResponse = $this->post(route('admin.users.store'), [
             'name' => 'Dosen Elektro Baru',
             'email' => 'dosen.te@example.test',
             'number' => 'NIDN123456',
-            'roles' => ['dosen'],
+            'role' => 'dosen',
             'status' => 'aktif',
             'prodi_id' => $newProdi->id,
         ]);
@@ -876,7 +888,7 @@ class AdminProdiManagementTest extends TestCase
         ]);
         $this->actingAs($globalAdmin);
 
-        // Akses menu tanpa prodi_id harus menampilkan halaman 'Pilih Program Studi' dengan kartu prodi besar
+        // Global admin diblokir dari semua modul admin-prodi
         $pages = [
             route('admin-prodi.akademik.matakuliah'),
             route('admin-prodi.kurikulum.index'),
@@ -886,33 +898,26 @@ class AdminProdiManagementTest extends TestCase
 
         foreach ($pages as $url) {
             $resp = $this->get($url);
-            $resp->assertOk();
-            $resp->assertSee('Pilih Program Studi');
-            $resp->assertSee('Teknik Informatika');
-            $resp->assertDontSee('id="select-prodi"', false);
-            $resp->assertDontSee('id="select_prodi"', false);
-            $resp->assertDontSee('id="filter_prodi"', false);
+            $resp->assertStatus(403);
         }
 
-        // Ketika memilih prodi_id, halaman masuk ke pengelolaan data prodi aktif tanpa badge Ganti Prodi di header
-        $mkSelected = $this->get(route('admin-prodi.akademik.matakuliah', ['prodi_id' => $this->prodi->id]));
+        // Admin prodi yang sah langsung masuk ke lingkup prodinya
+        $this->actingAs($this->adminProdi);
+
+        $mkSelected = $this->get(route('admin-prodi.akademik.matakuliah'));
         $mkSelected->assertOk();
-        $mkSelected->assertDontSee('Ganti Prodi');
         $mkSelected->assertSee($this->prodi->name);
 
-        $kurikulumSelected = $this->get(route('admin-prodi.kurikulum.index', ['prodi_id' => $this->prodi->id]));
+        $kurikulumSelected = $this->get(route('admin-prodi.kurikulum.index'));
         $kurikulumSelected->assertOk();
-        $kurikulumSelected->assertDontSee('Ganti Prodi');
         $kurikulumSelected->assertSee($this->prodi->name);
 
-        $kelasSelected = $this->get(route('admin-prodi.akademik.kelas', ['prodi_id' => $this->prodi->id]));
+        $kelasSelected = $this->get(route('admin-prodi.akademik.kelas'));
         $kelasSelected->assertOk();
-        $kelasSelected->assertDontSee('Ganti Prodi');
         $kelasSelected->assertSee($this->prodi->name);
 
-        $usersSelected = $this->get(route('admin-prodi.users.index', ['prodi_id' => $this->prodi->id]));
+        $usersSelected = $this->get(route('admin-prodi.users.index'));
         $usersSelected->assertOk();
-        $usersSelected->assertDontSee('Ganti Prodi');
         $usersSelected->assertSee($this->prodi->name);
 
         // Pastikan button Tambah Mata Kuliah dan Buka Kelas selalu tampak di header
@@ -947,18 +952,29 @@ class AdminProdiManagementTest extends TestCase
             'name' => 'Admin Prodi Tanpa Jurusan',
             'email' => 'admin.tanpaprodi@example.test',
             'number' => 'APT001',
-            'roles' => ['admin_prodi'],
+            'role' => 'admin_prodi',
             'status' => 'aktif',
             'prodi_id' => '',
         ]);
         $failResponse->assertSessionHasErrors('prodi_id');
 
-        // 2. Berhasil membuat staf Admin Prodi 1 untuk Prodi IF
+        // 1b. Gagal jika akun mencoba memiliki lebih dari 1 peran
+        $multiRoleFail = $this->post(route('admin.users.store'), [
+            'name' => 'Admin Dua Role',
+            'email' => 'admin.duarole@example.test',
+            'number' => 'APT002',
+            'roles' => ['admin_prodi', 'dosen'],
+            'status' => 'aktif',
+            'prodi_id' => $this->prodi->id,
+        ]);
+        $multiRoleFail->assertSessionHasErrors('roles');
+
+        // 2. Berhasil membuat staf Admin Prodi 1 untuk Prodi IF dengan satu peran
         $successResponse1 = $this->post(route('admin.users.store'), [
             'name' => 'Staf TU 1 TI',
             'email' => 'tu1.ti@example.test',
             'number' => 'TU001',
-            'roles' => ['admin_prodi'],
+            'role' => 'admin_prodi',
             'status' => 'aktif',
             'prodi_id' => $this->prodi->id,
         ]);
@@ -974,7 +990,7 @@ class AdminProdiManagementTest extends TestCase
             'name' => 'Staf TU 2 TI',
             'email' => 'tu2.ti@example.test',
             'number' => 'TU002',
-            'roles' => ['admin_prodi'],
+            'role' => 'admin_prodi',
             'status' => 'aktif',
             'prodi_id' => $this->prodi->id,
         ]);
