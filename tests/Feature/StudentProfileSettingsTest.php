@@ -135,4 +135,58 @@ class StudentProfileSettingsTest extends TestCase
 
         $this->assertNull($this->student->fresh()->profile_photo_path);
     }
+
+    public function test_student_profile_displays_active_semester_and_enrolled_classes_from_database(): void
+    {
+        $semester = \App\Models\Semester::create([
+            'code' => '2026-GANJIL',
+            'name' => 'Ganjil 2026/2027',
+            'is_active' => true,
+        ]);
+
+        $prodi = \App\Models\Prodi::create([
+            'code' => 'IF',
+            'name' => 'Informatika',
+        ]);
+
+        $mataKuliah = \App\Models\MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'IF101',
+            'name' => 'Pemrograman Dasar',
+            'sks' => 3,
+        ]);
+
+        $dosenRole = Role::create(['name' => Role::DOSEN, 'label' => 'Dosen']);
+        $dosen = User::create([
+            'name' => 'Dosen Wali',
+            'email' => 'dosen-wali@test.local',
+            'password' => 'Pass123!',
+            'role_id' => $dosenRole->id,
+        ]);
+
+        $section1 = \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $dosen->id,
+            'section_code' => 'A',
+            'capacity' => 30,
+        ]);
+
+        $section2 = \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $dosen->id,
+            'section_code' => 'B',
+            'capacity' => 30,
+        ]);
+
+        $this->student->classSectionsEnrolled()->attach([$section1->id, $section2->id]);
+
+        $response = $this->actingAs($this->student)
+            ->get(route('mahasiswa.profile.index'));
+
+        $response->assertOk();
+        $response->assertSee('Ganjil 2026/2027');
+        $response->assertSee('2 Kelas');
+    }
 }
