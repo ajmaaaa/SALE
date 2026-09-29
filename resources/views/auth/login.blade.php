@@ -53,6 +53,12 @@
                 <h2 class="text-2xl font-bold tracking-[-0.025em] text-ink uppercase">MASUK KE SALE</h2>
             </div>
 
+            @if($isMaintenance ?? (\App\Models\SystemSetting::valueFor('maintenance_mode', '0') === '1'))
+                <p class="mb-4 text-center text-xs font-medium text-rose-600">
+                    Mode Pemeliharaan: Hanya akun Administrator yang dapat masuk.
+                </p>
+            @endif
+
             @if(session('notice'))
                 <div role="status" class="mb-5 rounded-lg border border-brand/20 bg-[#f1f6fa] px-4 py-3 text-sm leading-6 text-[#27465f]">
                     {{ session('notice') }}
