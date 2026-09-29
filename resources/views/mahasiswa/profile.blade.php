@@ -108,7 +108,8 @@
                     <div><dt class="text-sm text-muted">NIM</dt><dd class="mt-1 font-semibold text-ink">{{ $userNumber }}</dd></div>
                     <div><dt class="text-sm text-muted">Program studi</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->prodi?->name ?? ($sessionUser['prodi'] ?? 'Belum ditetapkan') }}</dd></div>
                     <div><dt class="text-sm text-muted">Email akademik</dt><dd class="mt-1 break-all font-semibold text-ink">{{ $userEmail }}</dd></div>
-                    <div><dt class="text-sm text-muted">Semester aktif</dt><dd class="mt-1 font-semibold text-ink">{{ $activeSemester ?? 'Belum terdaftar di kelas aktif' }}</dd></div>
+                    <div><dt class="text-sm text-muted">Semester aktif</dt><dd class="mt-1 font-semibold text-ink">{{ $activeSemester ?? 'Belum ada semester aktif' }}</dd></div>
+                    <div><dt class="text-sm text-muted">Kelas terdaftar</dt><dd class="mt-1 font-semibold text-ink">{{ $totalClasses ?? ($user ? $user->classSectionsEnrolled()->count() : 0) }} Kelas</dd></div>
                     <div><dt class="text-sm text-muted">Status akademik</dt><dd class="mt-1 font-semibold text-ink">{{ $settingsWritable ? 'Aktif' : 'Mode pratinjau' }}</dd></div>
                 </dl>
             </section>
