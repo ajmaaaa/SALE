@@ -23,18 +23,12 @@ use Illuminate\Http\Request;
 abstract class AdminProdiController extends Controller
 {
     /**
-     * Kembalikan prodi_id milik admin yang sedang login.
-     * Null berarti admin global (akses semua prodi).
+     * Kembalikan prodi_id milik admin prodi yang sedang login.
      */
-    protected function adminProdiId(): ?int
+    protected function adminProdiId(): int
     {
         $user = auth()->user();
         abort_unless($user, 403);
-
-        // Admin global tidak dibatasi prodi
-        if ($user->hasRole(Role::ADMIN)) {
-            return null;
-        }
 
         abort_unless(
             $user->hasRole(Role::ADMIN_PRODI),
@@ -62,11 +56,6 @@ abstract class AdminProdiController extends Controller
     protected function assertProdiScope(int $requestedProdiId): void
     {
         $ownProdiId = $this->adminProdiId();
-
-        // null = admin global, boleh akses semua
-        if ($ownProdiId === null) {
-            return;
-        }
 
         abort_if(
             $ownProdiId !== $requestedProdiId,
@@ -127,22 +116,17 @@ abstract class AdminProdiController extends Controller
     }
 
     /**
-     * Kembalikan daftar Prodi yang boleh dilihat/dikelola admin ini.
-     * Admin global mendapatkan semua prodi; admin prodi hanya prodinya sendiri.
+     * Kembalikan daftar Prodi yang boleh dilihat/dikelola admin prodi ini.
      */
     protected function allowedProdis()
     {
         $ownProdiId = $this->adminProdiId();
 
-        return $ownProdiId === null
-            ? Prodi::orderBy('name')->get()
-            : Prodi::where('id', $ownProdiId)->orderBy('name')->get();
+        return Prodi::where('id', $ownProdiId)->orderBy('name')->get();
     }
 
     /**
      * Resolve prodi aktif dari request dengan memaksa scope prodi.
-     * Jika prodi_id tidak diberikan, gunakan prodi sendiri (untuk admin prodi tunggal)
-     * atau null (untuk admin global/multi-prodi agar memilih program studi terlebih dahulu).
      */
     protected function resolveActiveProdi(Request $request, bool $allowDefaultFirst = false): ?Prodi
     {
@@ -152,18 +136,11 @@ abstract class AdminProdiController extends Controller
         $requestedId = $request->integer('prodi_id') ?: null;
 
         if ($requestedId) {
-            // Pastikan prodi yang diminta boleh diakses
             $this->assertProdiScope($requestedId);
 
-            return $prodis->firstWhere('id', $requestedId) ?? ($allowDefaultFirst ? $prodis->first() : null);
+            return $prodis->firstWhere('id', $requestedId) ?? Prodi::find($requestedId);
         }
 
-        // Default: untuk admin prodi tunggal gunakan prodinya
-        if ($ownProdiId) {
-            return $prodis->firstWhere('id', $ownProdiId) ?? Prodi::find($ownProdiId);
-        }
-
-        // Untuk admin global: jangan paksa default prodi pertama kecuali jika eksplisit diizinkan
-        return $allowDefaultFirst ? $prodis->first() : null;
+        return $prodis->firstWhere('id', $ownProdiId) ?? Prodi::find($ownProdiId);
     }
 }
