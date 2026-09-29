@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Semester;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,12 +22,14 @@ class ProfileController extends Controller
             'grade' => true,
             'forum' => false,
         ], $user?->notification_preferences ?? []);
-        $activeSemester = $user
-            ? $user->classSectionsEnrolled()
-                ->whereHas('semester', fn ($query) => $query->where('is_active', true))
+        $activeSemester = Semester::where('is_active', true)->first()?->name
+            ?? $user?->classSectionsEnrolled()
+                ->whereHas('semester')
                 ->with('semester')
                 ->first()?->semester?->name
-            : null;
+            ?? Semester::latest('id')->first()?->name;
+
+        $totalClasses = $user ? $user->classSectionsEnrolled()->count() : 0;
 
         return view('mahasiswa.profile', [
             'user' => $user,
@@ -34,6 +37,7 @@ class ProfileController extends Controller
             'settingsWritable' => $user?->hasRole(Role::MAHASISWA) ?? false,
             'profilePhotoUrl' => $user?->profile_photo_url,
             'activeSemester' => $activeSemester,
+            'totalClasses' => $totalClasses,
         ]);
     }
 
