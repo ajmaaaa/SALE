@@ -563,7 +563,7 @@ class InputNilaiController extends Controller
             $validated = $request->validate($rules, $messages);
             $scores = $validated['cpmk_scores'] ?? [];
 
-            $this->obe->syncCpmkScores($assessment, $student->id, $scores, $dosenId, false);
+            $this->obe->syncCpmkScores($assessment, $student->id, $scores, $dosenId, true);
         } else {
             $validated = $request->validate([
                 'score' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -576,7 +576,7 @@ class InputNilaiController extends Controller
                 ? (float) $validated['score']
                 : null;
 
-            $this->obe->syncDirectScore($assessment, $student->id, $scoreVal, $dosenId, false);
+            $this->obe->syncDirectScore($assessment, $student->id, $scoreVal, $dosenId, true);
         }
 
         return redirect()
