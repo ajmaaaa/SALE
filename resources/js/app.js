@@ -64,7 +64,7 @@ if (editorMount && editorSource) {
     try { defaultFiles = JSON.parse(editorSource.value || '[]'); } catch { /* keep template. */ }
     if (!Array.isArray(defaultFiles) || !defaultFiles.length) defaultFiles = [{ name: `main.${DEFAULT_EXT}`, code: '' }];
 
-    // Horizontal Workbench Resizers (Soal <-> Editor <-> Lumina AI) - Synchronous execution
+    // Horizontal Workbench Resizers (Soal <-> Editor <-> AI Asisten) - Synchronous execution
     const workbenchContainer = document.querySelector('#workbench-container');
     const panelQuestion = document.querySelector('#panel-question');
     const panelAi = document.querySelector('#panel-ai');
@@ -742,7 +742,7 @@ updateCounter();
             thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted';
             thinkingEl.innerHTML = `
                 <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
-                <span class="font-medium text-slate-600">Lumina AI sedang berpikir</span>
+                <span class="font-medium text-slate-600">AI Asisten sedang berpikir</span>
                 <span class="inline-flex items-center gap-1 pl-1 py-0.5" aria-hidden="true">
                     <span class="typing-dot"></span>
                     <span class="typing-dot"></span>
@@ -848,7 +848,7 @@ updateCounter();
                     : (data.message || 'Status AI belum tersedia.');
                 if (restore && response.ok) data.history.forEach(turn => {
                     bubble('Anda', turn.question, true);
-                    bubble('Lumina AI', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
+                    bubble('AI Asisten', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
                 });
             } catch {
                 ready = false;
@@ -921,7 +921,7 @@ updateCounter();
                 });
                 const data = await response.json();
                 removeThinking();
-                bubble('Lumina AI', response.ok ? data.answer : (data.message || 'Permintaan tidak dapat diproses.'), false);
+                bubble('AI Asisten', response.ok ? data.answer : (data.message || 'Permintaan tidak dapat diproses.'), false);
                 if (response.ok) {
                     input.value = '';
                     context = null;
@@ -930,7 +930,7 @@ updateCounter();
                 }
             } catch {
                 removeThinking();
-                bubble('Lumina AI', 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
+                bubble('AI Asisten', 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
             } finally {
                 removeThinking();
                 busy = false;
