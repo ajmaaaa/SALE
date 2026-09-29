@@ -15,7 +15,16 @@
 <div class="space-y-8 w-full">
     {{-- Header --}}
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
-        <p class="text-xs font-semibold text-brand min-w-0 flex-1">{{ now()->translatedFormat('l, d F Y') }}</p>
+        <div class="min-w-0 flex-1">
+            @if(($settings['maintenance_mode'] ?? \App\Models\SystemSetting::valueFor('maintenance_mode', '0')) === '1')
+                <span class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-xs">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Mode Pemeliharaan Aktif
+                </span>
+            @else
+                <p class="text-xs font-semibold text-brand">{{ now()->translatedFormat('l, d F Y') }}</p>
+            @endif
+        </div>
         <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto sm:ml-auto">
             <a href="{{ route('admin.page', 'pengguna') }}?create=1" class="button-primary inline-flex items-center justify-center gap-2 text-xs flex-1 sm:flex-initial">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>

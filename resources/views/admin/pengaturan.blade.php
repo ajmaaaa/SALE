@@ -11,8 +11,24 @@
     $activeSemester = $settings['semester'] ?? 'Ganjil 2026/2027';
     $supportEmail = $settings['support'] ?? 'akademik@example.test';
     $aiQuota = $settings['ai_token_quota'] ?? 1000000;
-    $aiModel = $settings['ai_model'] ?? 'Gemini AI Assistant (OBE Tutor)';
+    $rawModel = $settings['ai_model'] ?? 'Google AI';
+    $aiProvider = $settings['ai_provider'] ?? (in_array(strtolower($rawModel), ['google ai', 'open ai', 'deepseek']) ? $rawModel : 'Google AI');
+    $aiModel = (!in_array(strtolower($rawModel), ['google ai', 'open ai', 'deepseek'])) ? $rawModel : 'gemini-2.5-flash';
+    $aiApiKey = $settings['ai_api_key'] ?? '';
     $maintenance = $settings['maintenance_mode'] ?? '0';
+
+    $selectedProviderKey = 'Google AI';
+    $currentAiProvider = strtolower(old('ai_provider', $aiProvider));
+    if (str_contains($currentAiProvider, 'open')) {
+        $selectedProviderKey = 'Open AI';
+    } elseif (str_contains($currentAiProvider, 'deep')) {
+        $selectedProviderKey = 'DeepSeek';
+    } else {
+        $selectedProviderKey = 'Google AI';
+    }
+
+    $availableModels = \App\Services\Ai\AiModelFetcher::getModels($selectedProviderKey, $aiApiKey);
+    $currentModelVal = old('ai_model', $aiModel);
 
     // Ambil daftar semester dari Master Data Akademik
     $availableSemesters = array_filter($academic, fn($a) => $a['type'] === 'semester');
@@ -26,25 +42,19 @@
             <p class="page-description">Konfigurasi preferensi global, integrasi kuota AI, identitas kampus, dan parameter operasional.</p>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-ink">
-                Sistem Berjalan Normal
-            </span>
+            @if($maintenance === '1')
+                <span class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-xs">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Mode Pemeliharaan Aktif
+                </span>
+            @else
+                <span class="text-xs font-semibold text-ink">
+                    Sistem Berjalan Normal
+                </span>
+            @endif
         </div>
     </header>
-
-    {{-- Callout Edukatif: Perbedaan Pengaturan Sistem vs Data Akademik --}}
-    <div class="rounded-xl border border-line/70 bg-canvas/60 p-4 text-xs text-muted flex items-start gap-3">
-        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold">i</span>
-        <div class="space-y-1">
-            <p class="font-semibold text-ink">Perbedaan Pengaturan Sistem dan Data Akademik</p>
-            <p class="leading-relaxed">
-                Halaman ini mengatur <strong>konfigurasi global aplikasi</strong> (seperti nama kampus, email bantuan, batas kuota AI, dan semester acuan default).
-                Untuk menyusun master struktur seperti <strong>Fakultas (maksimal 1)</strong>, <strong>Program Studi</strong>, atau mendaftarkan semester baru, silakan gunakan menu
-                <a href="{{ route('admin.page', 'akademik') }}" class="font-semibold text-brand hover:underline">Data Akademik</a>.
-            </p>
-        </div>
-    </div>
-
+    
     {{-- Form Konfigurasi Sistem Lengkap --}}
     <form class="space-y-6" method="post" action="{{ route('admin.settings.store') }}">
         @csrf
@@ -123,17 +133,61 @@
                 <p class="text-xs text-muted mt-0.5">Batas konsumsi token bulanan institusi untuk evaluasi otomatis, AI Tutor, dan perbaikan kode.</p>
             </div>
 
-            <div class="grid gap-5 md:grid-cols-2">
-                <div>
-                    <label class="form-label" for="ai_token_quota">Batas Kuota Token Bulanan (Token)</label>
-                    <input class="field font-mono" name="ai_token_quota" id="ai_token_quota" type="number" step="10000" min="10000" value="{{ old('ai_token_quota', $aiQuota) }}">
-                    <p class="mt-1 text-[11px] text-muted">Batas institusi saat ini: {{ number_format((int) $aiQuota, 0, ',', '.') }} token per bulan kalender.</p>
+            <div class="grid gap-6 md:grid-cols-2">
+                {{-- Kolom Kiri: Penyedia Model AI Utama (atas) & Pilih Model dari Penyedia (bawah) --}}
+                <div class="space-y-5">
+                    <div>
+                        <label class="form-label" for="ai_provider">Penyedia Model AI Utama</label>
+                        <select class="field" name="ai_provider" id="ai_provider">
+                            <option value="Google AI" @selected($selectedProviderKey === 'Google AI')>Google AI</option>
+                            <option value="Open AI" @selected($selectedProviderKey === 'Open AI')>Open AI</option>
+                            <option value="DeepSeek" @selected($selectedProviderKey === 'DeepSeek')>DeepSeek</option>
+                        </select>
+                        <p class="mt-1 text-[11px] text-muted">Platform kecerdasan buatan utama yang diintegrasikan ke sistem.</p>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="ai_model">Pilih Model dari Penyedia</label>
+                        <select class="field" name="ai_model" id="ai_model">
+                            @foreach($availableModels as $m)
+                                <option value="{{ $m['id'] }}" @selected($currentModelVal === $m['id'])>{{ $m['displayName'] }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-[11px] text-muted">Varian model bahasa yang disinkronkan langsung dari penyedia AI.</p>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="form-label" for="ai_model">Penyedia Model AI Utama</label>
-                    <input class="field" name="ai_model" id="ai_model" type="text" value="{{ old('ai_model', $aiModel) }}">
-                    <p class="mt-1 text-[11px] text-muted">Model bahasa yang digunakan agen evaluasi dan asisten belajar.</p>
+                {{-- Kolom Kanan: API & Save Koneksi Sejajar (atas) & Batas Kuota Token Bulanan (bawah) --}}
+                <div class="space-y-5">
+                    <div>
+                        <label class="form-label" for="ai_api_key">API untuk Koneksi ke Model AI</label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input class="field font-mono text-xs pr-10" name="ai_api_key" id="ai_api_key" type="password" placeholder="Masukkan API Key model AI" value="{{ old('ai_api_key', $aiApiKey) }}" autocomplete="off">
+                                <button type="button" id="toggle-ai-key" class="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer" title="Tampilkan / Sembunyikan API Key">
+                                    <svg id="eye-icon-show" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    <svg id="eye-icon-hide" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button type="button" id="btn-test-ai-conn" class="button-secondary text-xs font-semibold py-2 px-4 inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs shrink-0 min-h-10">
+                                <span id="btn-ai-label">Save</span>
+                            </button>
+                        </div>
+                        <div class="mt-1 flex items-center min-h-4">
+                            <span id="ai-conn-status-text" class="text-xs font-semibold {{ !empty($aiApiKey) ? 'text-emerald-600' : '' }}">{{ !empty($aiApiKey) ? 'Terhubung ke model AI' : '' }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="ai_token_quota">Batas Kuota Token Bulanan (Token)</label>
+                        <input class="field font-mono" name="ai_token_quota" id="ai_token_quota" type="number" step="10000" min="10000" value="{{ old('ai_token_quota', $aiQuota) }}">
+                        <p class="mt-1 text-[11px] text-muted">Batas institusi saat ini: {{ number_format((int) $aiQuota, 0, ',', '.') }} token per bulan kalender.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -161,6 +215,12 @@
                     <p class="mt-1 text-[11px] text-muted">Sesi pratinjau interaktif disimpan lokal pada browser sesi ini.</p>
                 </div>
             </div>
+
+            <div class="flex items-center justify-end pt-3 border-t border-line/50">
+                <button type="submit" name="action" value="update_maintenance" class="button-secondary text-xs font-semibold py-1.5 px-3">
+                    Simpan Status Pemeliharaan Saja
+                </button>
+            </div>
         </section>
 
         {{-- Tombol Aksi Simpan --}}
@@ -172,4 +232,110 @@
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const providerSelect = document.getElementById('ai_provider');
+    const modelSelect = document.getElementById('ai_model');
+    const keyInput = document.getElementById('ai_api_key');
+    const btnTest = document.getElementById('btn-test-ai-conn');
+    const btnLabel = document.getElementById('btn-ai-label');
+    const statusText = document.getElementById('ai-conn-status-text');
+    const toggleKey = document.getElementById('toggle-ai-key');
+    const eyeShow = document.getElementById('eye-icon-show');
+    const eyeHide = document.getElementById('eye-icon-hide');
+
+    function populateModels(models, selectedValue) {
+        if (!modelSelect) return;
+        const previousVal = selectedValue || modelSelect.value;
+        modelSelect.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.displayName;
+            if (m.id === previousVal) {
+                opt.selected = true;
+            }
+            modelSelect.appendChild(opt);
+        });
+        if (!modelSelect.value && models.length > 0) {
+            modelSelect.value = models[0].id;
+        }
+    }
+
+    async function fetchModelsForProvider(prov) {
+        if (!modelSelect) return;
+        const currentKey = keyInput?.value || '';
+        try {
+            const url = "{{ route('admin.settings.ai-models') }}?ai_provider=" + encodeURIComponent(prov) + "&ai_api_key=" + encodeURIComponent(currentKey);
+            const res = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.models && data.models.length > 0) {
+                    populateModels(data.models);
+                }
+            }
+        } catch (e) {
+            console.warn('Gagal sinkronisasi model:', e);
+        }
+    }
+
+    providerSelect?.addEventListener('change', () => {
+        fetchModelsForProvider(providerSelect.value);
+    });
+
+    toggleKey?.addEventListener('click', () => {
+        const isPass = keyInput.type === 'password';
+        keyInput.type = isPass ? 'text' : 'password';
+        eyeShow?.classList.toggle('hidden', isPass);
+        eyeHide?.classList.toggle('hidden', !isPass);
+    });
+
+    btnTest?.addEventListener('click', async () => {
+        btnTest.disabled = true;
+        btnLabel.textContent = 'Menyimpan...';
+        statusText.textContent = 'Memeriksa...';
+        statusText.className = 'text-xs text-muted font-medium';
+
+        const csrfToken = document.querySelector('input[name="_token"]')?.value;
+
+        try {
+            const res = await fetch("{{ route('admin.settings.test-ai') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    ai_provider: providerSelect?.value,
+                    ai_model: modelSelect?.value,
+                    ai_api_key: keyInput?.value
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                statusText.textContent = 'Terhubung ke model AI';
+                statusText.className = 'text-xs font-semibold text-emerald-600';
+                if (data.models && data.models.length > 0) {
+                    populateModels(data.models, modelSelect?.value);
+                }
+            } else {
+                statusText.textContent = 'Tidak terhubung ke model AI';
+                statusText.className = 'text-xs font-semibold text-red-600';
+            }
+        } catch (err) {
+            statusText.textContent = 'Tidak terhubung ke model AI';
+            statusText.className = 'text-xs font-semibold text-red-600';
+        } finally {
+            btnTest.disabled = false;
+            btnLabel.textContent = 'Save';
+        }
+    });
+});
+</script>
 @endsection

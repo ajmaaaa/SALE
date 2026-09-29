@@ -226,7 +226,7 @@
             <div role="alert" class="mb-4 rounded-lg border border-danger bg-white p-3 text-xs text-danger">{{ $errors->first() }}</div>
         @endif
 
-        {{-- 3-Panel Workbench: Left (Soal & Instruksi), Center (Code Editor & Linux Terminal), Right (Lumina AI Assistant) --}}
+        {{-- 3-Panel Workbench: Left (Soal & Instruksi), Center (Code Editor & Linux Terminal), Right (AI Asisten) --}}
         <div id="workbench-container" class="flex flex-col xl:flex-row items-stretch gap-3 xl:gap-0 h-[calc(100vh-85px)] min-h-[640px] relative">
 
             {{-- PANEL 1 (KIRI): Soal, Materi & Capaian Pembelajaran ("soalnya di kiri") --}}
@@ -396,7 +396,7 @@
 
                         {{-- Action Buttons (Kanan): Tanyakan Baris | Terminal (Icon) | Play (Icon) --}}
                         <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                            <button type="button" data-mention-code disabled class="h-8 !min-h-0 px-3 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white text-xs font-semibold text-ink transition hover:border-ink hover:bg-slate-50 disabled:opacity-40 shadow-2xs leading-none" title="Tanyakan baris kode terpilih ke Lumina AI">
+                            <button type="button" data-mention-code disabled class="h-8 !min-h-0 px-3 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white text-xs font-semibold text-ink transition hover:border-ink hover:bg-slate-50 disabled:opacity-40 shadow-2xs leading-none" title="Tanyakan baris kode terpilih ke AI Asisten">
                                 Tanyakan Baris
                             </button>
                             <button type="button" data-terminal-toggle class="h-8 w-8 !p-0 !min-h-0 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white hover:bg-slate-50 text-slate-700 transition hover:border-ink shadow-2xs leading-none" title="Buka / Tutup Terminal" aria-label="Terminal">
@@ -466,16 +466,16 @@
                 </div>
             </div>
 
-            {{-- Handle Geser Kanan (Editor <-> Lumina AI) --}}
-            <div data-resizer="right" class="hidden xl:flex w-3 shrink-0 cursor-col-resize items-center justify-center group relative z-10 select-none py-4 hover:bg-brand/5 active:bg-brand/10 transition-colors" title="Geser untuk mengatur lebar Lumina AI">
+            {{-- Handle Geser Kanan (Editor <-> AI Asisten) --}}
+            <div data-resizer="right" class="hidden xl:flex w-3 shrink-0 cursor-col-resize items-center justify-center group relative z-10 select-none py-4 hover:bg-brand/5 active:bg-brand/10 transition-colors" title="Geser untuk mengatur lebar AI Asisten">
                 <div class="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-brand group-active:bg-brand group-hover:w-1.5 transition-all"></div>
             </div>
 
-            {{-- PANEL 3 (KANAN): Lumina AI Assistant ("ai assitennya di kanan") --}}
+            {{-- PANEL 3 (KANAN): AI Asisten ("ai assitennya di kanan") --}}
             <aside id="panel-ai" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: var(--workbench-right-width, 340px); min-width: 260px; max-width: 600px;" aria-labelledby="assistant-heading">
                 <div class="border-b border-line/60 p-4 bg-white">
                     <div class="flex items-center justify-between">
-                        <h2 id="assistant-heading" class="text-sm font-bold text-ink">Lumina AI</h2>
+                        <h2 id="assistant-heading" class="text-sm font-bold text-ink">AI Asisten</h2>
                         <span class="text-xs font-semibold text-brand">Asisten Belajar</span>
                     </div>
                 </div>
@@ -505,10 +505,10 @@
                     <article class="self-start mr-auto max-w-[92%] rounded-2xl rounded-tl-xs bg-white p-3.5 border border-line/70 shadow-xs">
                         <div class="flex items-center gap-1.5 mb-1.5">
                             <span class="text-brand text-xs font-bold">✦</span>
-                            <p class="font-semibold text-ink">Lumina AI</p>
+                            <p class="font-semibold text-ink">AI Asisten</p>
                         </div>
                         <p class="text-muted leading-relaxed">
-                            Halo! Saya Lumina AI, asisten coding Anda untuk modul <strong class="text-ink">{{ $item['title'] }}</strong>.
+                            Halo! Saya AI Asisten, asisten coding Anda untuk modul <strong class="text-ink">{{ $item['title'] }}</strong>.
                             Tanyakan satu konsep atau pilih potongan kode lalu klik <strong class="text-ink">Tanyakan baris terpilih</strong>. Contoh mengajarkan konsep pendukung, bukan implementasi tugas. Bantuan dibatasi sepanjang tugas, termasuk setelah membuka chat kembali. Pertanyaan dan kode terpilih dikirim ke layanan AI Google untuk diproses.
                         </p>
                     </article>
@@ -525,10 +525,10 @@
                         <pre data-code-context-text class="max-h-24 overflow-auto px-2.5 pb-2 text-[11px] font-mono text-muted"></pre>
                     </div>
                     <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
-                        <label for="assistant-message" class="sr-only">Pertanyaan untuk Lumina AI</label>
+                        <label for="assistant-message" class="sr-only">Pertanyaan untuk AI Asisten</label>
                         <textarea required maxlength="2000" id="assistant-message" rows="2" class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tanyakan petunjuk konsep kode..."></textarea>
                         <div class="absolute right-2 bottom-2 flex items-center">
-                            <button disabled type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg disabled:opacity-30 inline-flex items-center justify-center transition-all duration-150 transform scale-0 opacity-0 pointer-events-none shrink-0 shadow-xs" title="Kirim pertanyaan ke Lumina AI (Enter)" aria-label="Kirim pertanyaan">
+                            <button disabled type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg disabled:opacity-30 inline-flex items-center justify-center transition-all duration-150 transform scale-0 opacity-0 pointer-events-none shrink-0 shadow-xs" title="Kirim pertanyaan ke AI Asisten (Enter)" aria-label="Kirim pertanyaan">
                                 <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                 </svg>

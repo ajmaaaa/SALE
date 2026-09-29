@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +37,9 @@ class AuthController extends Controller
             $defaultRole = 'mahasiswa';
         }
 
-        return view('auth.login', compact('personas', 'defaultRole'));
+        $isMaintenance = SystemSetting::valueFor('maintenance_mode', '0') === '1';
+
+        return view('auth.login', compact('personas', 'defaultRole', 'isMaintenance'));
     }
 
     public function showLogin(Request $request)
@@ -49,6 +52,10 @@ class AuthController extends Controller
         if ($this->demoMode() && $request->filled('persona_id')) {
             $user = User::with('role')->where('is_active', true)->find($request->integer('persona_id'));
             abort_unless($user && in_array($user->role?->name, [Role::MAHASISWA, Role::DOSEN, Role::ADMIN_PRODI, Role::ADMIN], true), 404);
+
+            if (SystemSetting::valueFor('maintenance_mode', '0') === '1' && ! $user->hasRole('admin')) {
+                return back()->withErrors(['login_id' => 'Sistem sedang dalam masa pemeliharaan. Hanya Administrator yang dapat masuk.']);
+            }
 
             return $this->authenticateUser($request, $user, "Masuk sebagai {$user->name}.");
         }
@@ -103,6 +110,10 @@ class AuthController extends Controller
 
         $role = $user->role?->name;
         abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'], true), 403, 'Akun belum memiliki peran yang didukung.');
+
+        if (SystemSetting::valueFor('maintenance_mode', '0') === '1' && ! $user->hasRole('admin')) {
+            return back()->withErrors(['login_id' => 'Sistem sedang dalam masa pemeliharaan. Hanya Administrator yang dapat masuk.'])->onlyInput('login_id');
+        }
 
         return $this->authenticateUser($request, $user, "Selamat datang kembali, {$user->name}!");
     }

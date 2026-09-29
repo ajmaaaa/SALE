@@ -9,8 +9,10 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "rundev": "vite",
         "prepare:python": "node scripts/prepare-python.mjs",
         "predev": "npm run prepare:python",
+        "prerundev": "npm run prepare:python",
         "prebuild": "npm run prepare:python"
     },
     "devDependencies": {
