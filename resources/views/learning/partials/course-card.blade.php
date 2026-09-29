@@ -20,17 +20,47 @@
                     },
                     'title' => $a->name,
                     'due' => $a->due_at?->format('Y-m-d\TH:i'),
+                    'due_at' => $a->due_at,
+                    'updated_at' => $a->updated_at,
+                    'created_at' => $a->created_at,
                 ];
             });
     }
-    
+
+    $sortTaskFn = function ($a, $b) {
+        $dueA = !empty($a['due']) ? \Carbon\Carbon::parse($a['due']) : null;
+        $dueB = !empty($b['due']) ? \Carbon\Carbon::parse($b['due']) : null;
+        $isPastA = $dueA && $dueA->isPast();
+        $isPastB = $dueB && $dueB->isPast();
+
+        $isUpcomingA = $dueA && !$isPastA;
+        $isUpcomingB = $dueB && !$isPastB;
+
+        if ($isUpcomingA !== $isUpcomingB) {
+            return $isUpcomingA ? -1 : 1;
+        }
+
+        if ($isUpcomingA && $isUpcomingB) {
+            return $dueA <=> $dueB;
+        }
+
+        $actA = isset($a['updated_at']) && $a['updated_at'] ? \Carbon\Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? \Carbon\Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
+        $actB = isset($b['updated_at']) && $b['updated_at'] ? \Carbon\Carbon::parse($b['updated_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? \Carbon\Carbon::parse($b['created_at'])->timestamp : ($b['id'] ?? 0));
+
+        if ($actA !== $actB) {
+            return $actB <=> $actA;
+        }
+
+        return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+    };
+
     // Untuk mahasiswa: cek apakah ada tugas/kuis aktif yang belum diserahkan
     $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])
         ->filter(fn($item) => $isDosen || !\App\Models\Submission::where('assessment_id', $item['id'])->where('mahasiswa_id', auth()->id())->exists())
-        ->sortBy('due')
+        ->sort($sortTaskFn)
         ->first();
 
-    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sortBy('due')->first();
+    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sort($sortTaskFn)->first();
 
     $sks = $course['sks'] ?? '3 SKS';
     $studentsCount = $course['students_count'] ?? 0;
@@ -38,7 +68,8 @@
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
     $rawDue = $next['due'] ?? null;
-    $dueFormatted = !empty($rawDue) ? \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i') : '';
+    $isDuePast = !empty($rawDue) && \Carbon\Carbon::parse($rawDue)->isPast();
+    $dueFormatted = !empty($rawDue) ? ($isDuePast ? 'Terlambat' : \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i')) : '';
     $hasPendingTask = $isDosen ? !empty($rawDue) : !empty($uncompletedTask);
 
     $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
@@ -111,7 +142,15 @@
 
             {{-- Baris jam (tenggat merah jika ada tugas yang harus dikumpulkan) + QR sejajar --}}
             <div class="mt-2 flex min-h-7 items-center justify-between gap-2">
-                @if($hasPendingTask && !empty($dueFormatted))
+                @if($isDuePast)
+                    <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Terlambat">
+                        <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>Terlambat</span>
+                    </a>
+                @elseif($hasPendingTask && !empty($dueFormatted))
                     <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
                         <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"/>
