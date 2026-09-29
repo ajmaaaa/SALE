@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Services\Ai\AiModelFetcher;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminPreviewController extends Controller
@@ -473,10 +474,25 @@ class AdminPreviewController extends Controller
 
     public function settings(Request $request)
     {
+        if ($request->input('action') === 'update_maintenance') {
+            $data = $request->validate([
+                'maintenance_mode' => ['required', Rule::in(['0', '1'])],
+            ]);
+            SystemSetting::updateOrCreate(['key' => 'maintenance_mode'], ['value' => (string) $data['maintenance_mode']]);
+            $isMaint = $data['maintenance_mode'] === '1';
+            $statusLabel = $isMaint ? 'Mode Pemeliharaan (Maintenance)' : 'Aktif Normal';
+            AdminPreview::log("Mengubah status operasional sistem menjadi {$statusLabel}.");
+
+            return back()->with('notice', "Status operasional sistem berhasil diperbarui: {$statusLabel}.");
+        }
+
         $data = $request->validate([
             'institution' => ['required', 'string', 'max:150'], 'institution_code' => ['nullable', 'string', 'max:20'],
             'semester' => ['required', 'string', 'max:80'], 'support' => ['required', 'email', 'max:150'],
-            'ai_token_quota' => ['nullable', 'integer', 'min:10000'], 'ai_model' => ['nullable', 'string', 'max:100'],
+            'ai_token_quota' => ['nullable', 'integer', 'min:10000'],
+            'ai_provider' => ['nullable', 'string', 'max:100'],
+            'ai_model' => ['nullable', 'string', 'max:100'],
+            'ai_api_key' => ['nullable', 'string', 'max:255'],
             'maintenance_mode' => ['nullable', Rule::in(['0', '1'])],
         ]);
         DB::transaction(function () use ($data) {
@@ -488,6 +504,161 @@ class AdminPreviewController extends Controller
             AdminPreview::log('Memperbarui pengaturan institusi di database.');
         });
         return back()->with('notice', 'Pengaturan sistem berhasil disimpan ke database.');
+    }
+
+    public function testAiConnection(Request $request)
+    {
+        $providerInput = (string) $request->input('ai_provider', '');
+        $model = (string) $request->input('ai_model', '');
+        $inputKey = trim((string) $request->input('ai_api_key', ''));
+
+        $target = $providerInput ?: $model ?: 'Google AI';
+        $lowerTarget = strtolower($target);
+        if (str_contains($lowerTarget, 'open')) {
+            $provider = 'Open AI';
+            $envVar = 'OPENAI_API_KEY';
+            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('OPENAI_API_KEY'));
+        } elseif (str_contains($lowerTarget, 'deep')) {
+            $provider = 'DeepSeek';
+            $envVar = 'DEEPSEEK_API_KEY';
+            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('DEEPSEEK_API_KEY'));
+        } else {
+            $provider = 'Google AI';
+            $envVar = 'GEMINI_API_KEY';
+            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('GEMINI_API_KEY') ?: config('ai.key'));
+        }
+
+        $source = $inputKey ? 'Input Form' : 'Database Sistem';
+
+        if (empty($key)) {
+            return response()->json([
+                'success' => false,
+                'provider' => $provider,
+                'source' => $source,
+                'failed_at' => 'Kredensial API',
+                'message' => "Kunci API belum diisi. Silakan masukkan API Key {$provider} terlebih dahulu.",
+                'flow' => [
+                    ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari antarmuka browser.'],
+                    ['step' => 'Backend', 'status' => 'ok', 'detail' => "Controller memproses permintaan untuk model {$provider}."],
+                    ['step' => 'Database', 'status' => 'failed', 'detail' => "Kunci API belum diisi di form maupun database."],
+                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => "Permintaan dibatalkan sebelum menghubungi gateway penyedia AI."]
+                ]
+            ], 422);
+        }
+
+        // Simpan kunci API, provider, & model ke SystemSetting (database) tanpa memodifikasi file .env
+        if ($inputKey) {
+            SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => $inputKey]);
+        }
+        if ($provider) {
+            SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => $provider]);
+        }
+        if ($model) {
+            SystemSetting::updateOrCreate(['key' => 'ai_model'], ['value' => $model]);
+        }
+
+        try {
+            if ($provider === 'Google AI') {
+                $response = Http::withoutVerifying()->timeout(12)
+                    ->withHeaders(['x-goog-api-key' => $key])
+                    ->get('https://generativelanguage.googleapis.com/v1beta/models');
+            } elseif ($provider === 'Open AI') {
+                $response = Http::withoutVerifying()->timeout(12)
+                    ->withToken($key)
+                    ->get('https://api.openai.com/v1/models');
+            } else {
+                $response = Http::withoutVerifying()->timeout(12)
+                    ->withToken($key)
+                    ->get('https://api.deepseek.com/models');
+            }
+
+            if ($response->successful()) {
+                AdminPreview::log("Uji koneksi ke {$provider} API berhasil (HTTP {$response->status()}).");
+
+                // Sinkronkan daftar model langsung dari provider API dan simpan ke cache
+                $liveModels = AiModelFetcher::getModels($provider, $key, true);
+
+                return response()->json([
+                    'success' => true,
+                    'provider' => $provider,
+                    'models' => $liveModels,
+                    'source' => $source,
+                    'status_code' => $response->status(),
+                    'message' => "Koneksi ke {$provider} API berhasil terhubung aktif (HTTP {$response->status()} OK).",
+                    'flow' => [
+                        ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian berhasil diinisiasi.'],
+                        ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses autentikasi dan rute sistem.'],
+                        ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
+                        ['step' => 'AI API', 'status' => 'ok', 'detail' => "Respons 200 OK diterima dari gateway resmi {$provider}."]
+                    ]
+                ]);
+            }
+
+            $errorMsg = $response->json('error.message')
+                ?? $response->json('message')
+                ?? "Gagal autentikasi ke server penyedia {$provider} (HTTP {$response->status()}).";
+
+            AdminPreview::log("Uji koneksi ke {$provider} API gagal (HTTP {$response->status()}).");
+            return response()->json([
+                'success' => false,
+                'provider' => $provider,
+                'source' => $source,
+                'status_code' => $response->status(),
+                'failed_at' => 'AI API',
+                'message' => "Penyedia {$provider} menolak autentikasi (HTTP {$response->status()}): {$errorMsg}",
+                'flow' => [
+                    ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari browser.'],
+                    ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses permintaan dan rute sistem.'],
+                    ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
+                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Gateway {$provider} menolak akses: {$errorMsg}"]
+                ]
+            ], 400);
+        } catch (\Throwable $e) {
+            AdminPreview::log("Uji koneksi ke {$provider} API error: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'provider' => $provider,
+                'source' => $source,
+                'status_code' => 504,
+                'failed_at' => 'AI API',
+                'message' => "Gagal terhubung ke jaringan endpoint {$provider}: " . $e->getMessage(),
+                'flow' => [
+                    ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari browser.'],
+                    ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses permintaan dan rute sistem.'],
+                    ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
+                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Koneksi timeout/terputus saat menghubungi gateway {$provider}."]
+                ]
+            ], 504);
+        }
+    }
+
+    public function getAiModels(Request $request)
+    {
+        $provider = (string) $request->input('ai_provider', 'Google AI');
+        $key = trim((string) $request->input('ai_api_key', ''));
+
+        $models = AiModelFetcher::getModels($provider, $key);
+
+        return response()->json([
+            'success' => true,
+            'provider' => $provider,
+            'models' => $models,
+        ]);
+    }
+
+    public static function setEnvValue(string $key, string $value): void
+    {
+        $envPath = base_path('.env');
+        if (! file_exists($envPath)) {
+            return;
+        }
+        $content = file_get_contents($envPath);
+        if (preg_match("/^{$key}=/m", $content)) {
+            $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
+        } else {
+            $content .= "\n{$key}={$value}";
+        }
+        file_put_contents($envPath, $content);
     }
 
     public function export()
