@@ -44,6 +44,8 @@
         $durationMinutes = !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60) : null;
         $submission = $submission ?? null;
         $hasCompleted = !empty($isCompleted) || !empty($submission);
+        $isRejected = !empty($isRejected);
+        $rejectionReason = $rejectionReason ?? null;
         $isLecturerPreview = $isLecturerPreview ?? false;
         $reviewUser = $reviewUser ?? auth()->user();
         $courseBackUrl = $isLecturerPreview
@@ -448,6 +450,33 @@
 
                 </div>
             </main>
+        </div>
+
+    @elseif($isRejected)
+
+        {{-- ================================================================= --}}
+        {{-- LAYAR BATAS WAKTU KUIS TELAH BERAKHIR / ATTEMPT DITOLAK           --}}
+        {{-- ================================================================= --}}
+        <div class="flex items-center justify-center min-h-screen bg-slate-100/80 p-4">
+            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-8 max-w-md w-full text-center space-y-5">
+                <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                    ⏱️
+                </div>
+                <div class="space-y-2">
+                    <h2 class="text-xl font-bold text-slate-900">Waktu Kuis Telah Berakhir</h2>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        {{ $rejectionReason ?? 'Batas waktu pengerjaan kuis ini telah berakhir dan attempt kuis Anda telah ditutup.' }}
+                    </p>
+                </div>
+                <div class="pt-2 flex flex-col sm:flex-row gap-2.5 justify-center">
+                    <a href="{{ $itemBackUrl }}" class="button-secondary text-xs py-2.5 px-4 font-semibold inline-flex items-center justify-center">
+                        Lihat Rincian Tugas
+                    </a>
+                    <a href="{{ $courseBackUrl }}" class="button-primary text-xs py-2.5 px-4 font-bold shadow-xs inline-flex items-center justify-center">
+                        Kembali ke Course
+                    </a>
+                </div>
+            </div>
         </div>
 
     @else
@@ -1093,6 +1122,8 @@
                         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                     };
 
+                    let hasTriggeredEnd = false;
+
                     const updateTimer = async () => {
                         const currentNow = Date.now();
                         const remainingSeconds = Math.max(0, Math.floor((deadline - currentNow) / 1000));
@@ -1108,8 +1139,11 @@
                         if (remainingSeconds <= 0) {
                             clearInterval(timerInterval);
                             localStorage.removeItem(deadlineKey);
-                            await window.saleNotice({ title: 'Waktu kuis berakhir', message: 'Jawaban Anda akan otomatis dikumpulkan.' });
-                            form.requestSubmit();
+                            if (!hasTriggeredEnd) {
+                                hasTriggeredEnd = true;
+                                await window.saleNotice({ title: 'Waktu kuis berakhir', message: 'Jawaban Anda akan otomatis dikumpulkan.' });
+                                form.requestSubmit();
+                            }
                         }
                     };
 
