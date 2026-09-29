@@ -249,6 +249,7 @@ class ObeCalculationService
                 'graded_by' => $isComplete ? $gradedById : null,
                 'graded_at' => $isComplete ? now() : null,
                 'published_at' => $status === StudentAssessmentScore::STATUS_PUBLISHED ? now() : null,
+                'updated_at' => now(),
             ]
         );
     }
