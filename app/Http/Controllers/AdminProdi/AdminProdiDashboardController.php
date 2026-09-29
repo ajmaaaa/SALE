@@ -39,6 +39,8 @@ class AdminProdiDashboardController extends AdminProdiController
             ->take(5)
             ->get();
 
-        return view('admin-prodi.dashboard', compact('stats', 'prodis', 'recentClasses', 'activeSemester'));
+        $activeProdi = $prodiId ? Prodi::find($prodiId) : $prodis->first();
+
+        return view('admin-prodi.dashboard', compact('stats', 'prodis', 'recentClasses', 'activeSemester', 'activeProdi'));
     }
 }
