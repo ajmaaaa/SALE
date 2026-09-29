@@ -24,9 +24,9 @@
 
         {{-- Semester & Tahun Penyesuaian --}}
         @if(!empty($semesterOptions))
-            <form method="get" action="{{ route('mahasiswa.nilai') }}" class="flex flex-wrap items-center gap-2.5">
+            <form method="get" action="{{ route('mahasiswa.nilai') }}" class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                 <label for="semester" class="text-xs font-medium text-muted shrink-0">Tahun &amp; Semester:</label>
-                <select id="semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 sm:w-64">
+                <select id="semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 w-full sm:w-72">
                     @foreach($semesterOptions as $key => $opt)
                         <option value="{{ $opt['code'] ?? $key }}" @selected($selectedSemesterKey === ($opt['code'] ?? $key))>
                             {{ $opt['label'] }}

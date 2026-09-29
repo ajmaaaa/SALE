@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-3 pb-1">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,15 +15,15 @@
             <h1 class="page-heading">Mata Kuliah Program Studi</h1>
             <p class="page-description">Kelola mata kuliah kurikulum, penetapan SKS, dan pembukaan kelas perkuliahan.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
                         {{ $p->code }} - {{ $p->name }}
                     </option>
                 @endforeach
             </select>
-            <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs whitespace-nowrap">
+            <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
                 + Tambah Mata Kuliah
             </button>
         </div>

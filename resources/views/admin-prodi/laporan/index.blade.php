@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-3 pb-1">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,12 +15,12 @@
             <h1 class="page-heading">Laporan Akademik &amp; Capaian Nilai Prodi</h1>
             <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, intake mahasiswa baru, rata-rata nilai, dan ekspor data.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center gap-1.5 shadow-2xs">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+            <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center justify-center gap-1.5 shadow-2xs flex-1 sm:flex-initial">
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
                 <span>Cetak PDF</span>
             </a>
-            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
+            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex-1 sm:flex-initial">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>

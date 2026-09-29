@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-3 pb-1">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,8 +15,8 @@
             <h1 class="page-heading">Kelas Perkuliahan &amp; Penugasan Dosen</h1>
             <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Wakil, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs whitespace-nowrap">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
                 + Buka Kelas Baru
             </button>
         </div>

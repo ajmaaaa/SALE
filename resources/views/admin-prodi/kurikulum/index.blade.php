@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-3 pb-1">
+    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,9 +15,9 @@
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
             <p class="page-description">Tetapkan butir CPL prodi dan CPMK per mata kuliah secara terpusat. Dosen pengampu nantinya tinggal memilih CPMK yang telah disiapkan saat menyusun asesmen kelas.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
             <label for="select-prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
-            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
+            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
                         {{ $p->code }} - {{ $p->name }}
@@ -48,7 +48,7 @@
                 <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Lulusan (CPL): {{ $activeProdi?->name }}</h2>
             </div>
             <div class="flex items-center justify-end shrink-0 sm:ml-auto w-full sm:w-auto">
-                <button type="button" onclick="openCreateCplModal()" class="button-primary text-xs whitespace-nowrap">
+                <button type="button" onclick="openCreateCplModal()" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
                     + Tambah Butir CPL
                 </button>
             </div>
@@ -120,7 +120,7 @@
                 <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Mata Kuliah (CPMK)</h2>
                 <p class="text-xs text-muted mt-0.5">Kelola butir CPMK per mata kuliah beserta standar kelulusan dan pemetaan CPL terkait.</p>
             </div>
-            <div class="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2.5 shrink-0 w-full sm:w-auto">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 shrink-0 w-full sm:w-auto">
                 <div class="relative w-full sm:w-64 max-w-full">
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,7 +129,7 @@
                     </div>
                     <input type="text" id="cpmk-search" onkeyup="filterCpmkCards()" placeholder="Cari mata kuliah atau CPMK..." class="field text-xs py-1.5 h-8 w-full" style="padding-left: 2.25rem !important;">
                 </div>
-                <button type="button" onclick="openCreateCpmkModal()" class="button-primary text-xs h-8 px-3 whitespace-nowrap shrink-0">
+                <button type="button" onclick="openCreateCpmkModal()" class="button-primary text-xs h-8 px-3 whitespace-nowrap shrink-0 w-full sm:w-auto justify-center">
                     + Tetapkan CPMK Baru
                 </button>
             </div>

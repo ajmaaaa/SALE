@@ -7,16 +7,16 @@
 <div class="space-y-6">
     @include('dosen.partials.header')
 
-    <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="section-heading">Rekap Capaian CPMK Mahasiswa</h2>
             <p class="text-sm text-muted">
                 Perhitungan nilai CPMK per mahasiswa dihitung dari rata-rata tertimbang seluruh instrumen asesmen pembentuknya sesuai formula OBE.
             </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
             <a href="{{ route('dosen.penilaian.export.cpmk.excel', $section->id) }}" 
-               class="button-primary text-xs flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+               class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs w-full sm:w-auto"
                title="Export ke Excel (.xlsx) dengan Kop Surat resmi dan format berwarna">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
