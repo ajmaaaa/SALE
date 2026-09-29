@@ -44,7 +44,7 @@ abstract class AdminProdiController extends Controller
 
         $managedProdiId = $user->managing_prodi_id ?? $user->prodi_id;
         if (! $managedProdiId) {
-            return null;
+            abort(403, 'Akun Admin Prodi belum ditugaskan ke Program Studi manapun. Silakan hubungi Administrator Sistem.');
         }
 
         return (int) $managedProdiId;
@@ -160,7 +160,7 @@ abstract class AdminProdiController extends Controller
 
         // Default: untuk admin prodi tunggal gunakan prodinya
         if ($ownProdiId) {
-            return $prodis->firstWhere('id', $ownProdiId);
+            return $prodis->firstWhere('id', $ownProdiId) ?? Prodi::find($ownProdiId);
         }
 
         // Untuk admin global: jangan paksa default prodi pertama kecuali jika eksplisit diizinkan
