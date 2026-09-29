@@ -20,12 +20,9 @@
     @if($assessments->isEmpty())
         <div class="surface p-10 text-center">
             <h2 class="section-heading">Belum Ada Komponen Asesmen</h2>
-            <p class="mt-2 text-sm text-muted max-w-md mx-auto mb-5">
+            <p class="mt-2 text-sm text-muted max-w-md mx-auto">
                 Belum ada instrumen asesmen yang dibuat untuk kelas ini. Tambahkan komponen asesmen untuk memulai pengisian nilai.
             </p>
-            <a href="{{ route('dosen.item.create', $section->id) }}" class="button-primary inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 shadow-2xs">
-                <span>+ Tambah Konten / Asesmen Baru</span>
-            </a>
         </div>
     @else
         <div class="surface overflow-x-auto rounded-xl border border-line shadow-2xs">
