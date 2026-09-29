@@ -57,8 +57,8 @@ class NotificationFeatureTest extends TestCase
         $response = $this->actingAs($this->student)->get(route('mahasiswa.notifications', ['category' => 'sistem']));
 
         $response->assertOk();
-        $response->assertSee('Asisten Lumina AI');
-        $response->assertSee('Sinkronisasi Kurikulum OBE');
+        $response->assertDontSee('Asisten Lumina AI');
+        $response->assertDontSee('Sinkronisasi Kurikulum OBE');
     }
 
     public function test_hapus_semua_clears_notifications(): void
