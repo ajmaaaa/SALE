@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SystemSetting;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureRole
@@ -17,6 +19,16 @@ class EnsureRole
         // Akun lama yang dibuat sebelum kolom is_active tersedia dapat bernilai
         // null. Hanya nilai false/0 yang merupakan penonaktifan eksplisit.
         abort_if($user->is_active === false, 403, 'Akun ini sedang dinonaktifkan.');
+
+        if (SystemSetting::valueFor('maintenance_mode', '0') === '1' && ! $user->hasRole('admin')) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'login_id' => 'Sistem sedang dalam masa pemeliharaan. Hanya Administrator yang dapat masuk.',
+            ]);
+        }
 
         $hasRole = collect($roles)->contains(fn (string $role): bool => $user->hasRole($role));
 
