@@ -1240,7 +1240,13 @@ if (contentType) {
 
         const showAssignment = ['tugas', 'coding'].includes(category);
         const showMaterialMode = category === 'materi';
-        const showQuizOrExam = ['kuis', 'uts', 'uas'].includes(category);
+        const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const selectedMaterialMode = document.querySelector('[data-material-mode]:checked')?.value || 'regular';
+        const isCoding = (showAssignment && (category === 'coding' || selectedTaskMode === 'coding'))
+            || (showMaterialMode && selectedMaterialMode === 'coding');
+
+        const isQuestionContent = ['kuis', 'uts', 'uas'].includes(category);
+
         setSectionVisibility(assignmentFields, showAssignment);
         setSectionVisibility(materialModeSettings, showMaterialMode);
         setSectionVisibility(pinVideoOption, showMaterialMode);
@@ -1249,23 +1255,21 @@ if (contentType) {
             if (pinInput) pinInput.disabled = !showMaterialMode;
         }
         const isQuestionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
-        setSectionVisibility(questionBuilder, showQuizOrExam && isQuestionStep);
-        setSectionVisibility(quizDurationSettings, showQuizOrExam);
+        setSectionVisibility(questionBuilder, isQuestionContent && isQuestionStep);
+        setSectionVisibility(quizDurationSettings, ['kuis', 'uts', 'uas'].includes(category));
 
-        const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const selectedMaterialMode = document.querySelector('[data-material-mode]:checked')?.value || 'regular';
-        const isCoding = (showAssignment && (category === 'coding' || selectedTaskMode === 'coding'))
-            || (showMaterialMode && selectedMaterialMode === 'coding');
         if (questionType) questionType.value = isCoding ? 'coding' : 'uraian';
-        setSectionVisibility(codingStepBuilder, isCoding);
+        setSectionVisibility(codingStepBuilder, isCoding && isQuestionStep);
         codingStepBuilder?.querySelectorAll('input,select,textarea').forEach(field => {
-            field.disabled = !isCoding;
+            field.disabled = !(isCoding && isQuestionStep);
         });
-        const isRegularTask = showAssignment && !isCoding;
-        setSectionVisibility(manualCpmkSettings, isRegularTask);
-        manualCpmkSettings?.querySelectorAll('input').forEach(field => {
-            field.disabled = !isRegularTask;
-        });
+        const showManualCpmk = category === 'tugas' && !isCoding;
+        if (manualCpmkSettings) {
+            setSectionVisibility(manualCpmkSettings, showManualCpmk);
+            manualCpmkSettings.querySelectorAll('input').forEach(field => {
+                field.disabled = !showManualCpmk;
+            });
+        }
     };
 
     let previousType = contentType.value;
@@ -1323,7 +1327,20 @@ if (contentForm) {
     const backButton = contentForm.querySelector('[data-back-to-setup]');
     const submitButton = contentForm.querySelector('[data-submit-content]');
     const formErrorEl = contentForm.querySelector('[data-form-error]');
-    const isQuiz = () => ['kuis', 'uts', 'uas'].includes(parseCategory(typeInput?.value));
+    const getStepMode = () => {
+        const cat = parseCategory(typeInput?.value);
+        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const selectedMaterialMode = contentForm.querySelector('[data-material-mode]:checked')?.value || 'regular';
+        const isCoding = (['tugas', 'coding'].includes(cat) && (cat === 'coding' || selectedTaskMode === 'coding'))
+            || (cat === 'materi' && selectedMaterialMode === 'coding');
+
+        if (isCoding) return 'coding';
+        if (['kuis', 'uts', 'uas'].includes(cat)) return 'questions';
+        return 'none';
+    };
+
+    const isQuestionAssessment = () => getStepMode() === 'questions';
+    const isQuiz = isQuestionAssessment;
 
     // Submit button is never permanently disabled
     if (submitButton) {
@@ -1363,31 +1380,72 @@ if (contentForm) {
     };
 
     const showStep = (step) => {
-        const quizActive = isQuiz();
-        if (!quizActive) step = 'setup';
+        const mode = getStepMode();
+        const twoStepActive = mode !== 'none';
+        if (!twoStepActive) step = 'setup';
         contentForm.dataset.step = step;
         const questionsStep = step === 'questions';
 
         if (setup) setup.hidden = questionsStep;
+
         if (builder) {
-            builder.hidden = !questionsStep || !quizActive;
-            if (questionsStep && quizActive) {
+            const showQuestions = questionsStep && mode === 'questions';
+            builder.hidden = !showQuestions;
+            if (showQuestions) {
                 builder.style.opacity = '1';
                 builder.style.transform = 'translateY(0)';
             }
         }
-        if (durationSettings) durationSettings.hidden = !quizActive;
-        if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding'].includes(parseCategory(typeInput?.value));
-        if (progress) progress.hidden = !quizActive;
-        if (nextButton) nextButton.hidden = questionsStep || !quizActive;
-        if (backButton) backButton.hidden = !questionsStep || !quizActive;
-        if (submitButton) submitButton.hidden = quizActive && !questionsStep;
+
+        const codingBuilder = contentForm.querySelector('[data-coding-step-builder]');
+        if (codingBuilder) {
+            const showCoding = questionsStep && mode === 'coding';
+            codingBuilder.hidden = !showCoding;
+            if (showCoding) {
+                codingBuilder.style.opacity = '1';
+                codingBuilder.style.transform = 'translateY(0)';
+            }
+            codingBuilder.querySelectorAll('input,select,textarea').forEach(field => {
+                field.disabled = !showCoding;
+            });
+        }
+
+        const cat = parseCategory(typeInput?.value);
+        if (durationSettings) durationSettings.hidden = !['kuis', 'uts', 'uas'].includes(cat);
+        if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding'].includes(cat);
+        const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
+        if (manualCpmkSettings) {
+            const showManualCpmk = cat === 'tugas' && mode === 'none' && !questionsStep;
+            manualCpmkSettings.hidden = !showManualCpmk;
+            manualCpmkSettings.querySelectorAll('input').forEach(field => {
+                field.disabled = !showManualCpmk;
+            });
+        }
+        if (progress) progress.hidden = !twoStepActive;
+        if (nextButton) nextButton.hidden = questionsStep || !twoStepActive;
+        if (backButton) backButton.hidden = !questionsStep || !twoStepActive;
+        if (submitButton) submitButton.hidden = twoStepActive && !questionsStep;
+
+        // Sesuaikan teks label langkah 2 dan tombol next
+        const step2Label = contentForm.querySelector('[data-step-2-label]');
+        const nextBtnText = contentForm.querySelector('[data-next-btn-text]');
+        if (step2Label) {
+            step2Label.textContent = mode === 'coding' ? 'Susun tahapan' : 'Susun soal';
+        }
+        if (nextBtnText) {
+            nextBtnText.textContent = mode === 'coding' ? 'Selanjutnya: Susun tahapan' : 'Selanjutnya: Susun soal';
+        }
 
         paintProgress(step);
 
-        if (questionsStep && builder) {
-            const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
-            firstInput?.focus();
+        if (questionsStep) {
+            if (mode === 'questions' && builder) {
+                const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
+                firstInput?.focus();
+            } else if (mode === 'coding' && codingBuilder) {
+                const firstInput = codingBuilder.querySelector('input[data-step-field="title"], textarea');
+                firstInput?.focus();
+            }
         }
     };
 
@@ -1398,6 +1456,12 @@ if (contentForm) {
     });
     typeInput?.addEventListener('input', () => {
         showStep('setup');
+    });
+
+    contentForm.querySelectorAll('[data-task-mode], [data-material-mode]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            showStep(contentForm.dataset.step || 'setup');
+        });
     });
 
     nextButton?.addEventListener('click', () => {
@@ -1572,8 +1636,12 @@ if (contentForm) {
             return false;
         }
 
-        // 4. Khusus Kuis / UTS / UAS
-        if (['kuis', 'uts', 'uas'].includes(category)) {
+        // 4. Validasi berdasarkan mode konten
+        const stepMode = getStepMode();
+        const cat = parseCategory(typeInput?.value);
+
+        // A. Khusus Asesmen Soal (Kuis / UTS / UAS)
+        if (stepMode === 'questions') {
             const questionRows = [...contentForm.querySelectorAll('[data-question-row]')];
             if (questionRows.length === 0) {
                 showStep('questions');
@@ -1677,44 +1745,105 @@ if (contentForm) {
                 const badge = builder?.querySelector('[data-total-points-badge]');
                 badge?.classList.add('ring-2', 'ring-danger/50');
                 setTimeout(() => badge?.classList.remove('ring-2', 'ring-danger/50'), 3000);
-                showFormError(`Total skor adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Klik "Bagi Rata (100 / n)" di toolbar atau sesuaikan skor agar pas 100.`);
+                showFormError(`Total skor adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Sesuaikan skor agar pas 100.`);
                 e.preventDefault();
                 return false;
             }
         }
 
-        // 5. Khusus Tugas / Coding / CPMK Manual
-        const codingRows = [...contentForm.querySelectorAll('[data-coding-step-row]')].filter(row => !row.querySelector('[data-step-field]')?.disabled);
-        for (let idx = 0; idx < codingRows.length; idx++) {
-            const row = codingRows[idx];
-            const titleInp = row.querySelector('[data-step-field="title"]');
-            const bodyInp = row.querySelector('[data-step-field="body"]');
-            if (!titleInp?.value.trim()) {
-                titleInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-                titleInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                titleInp?.focus();
-                showFormError(`Tahap ${idx + 1}: Judul tahap belum diisi.`);
+        // B. Khusus Tahapan Pemrograman (Tugas / Praktik Pemrograman)
+        else if (stepMode === 'coding') {
+            const codingBuilder = contentForm.querySelector('[data-coding-step-builder]');
+            const codingRows = [...contentForm.querySelectorAll('[data-coding-step-row]')];
+            if (codingRows.length === 0) {
+                showStep('questions');
+                codingBuilder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showFormError('Tambahkan minimal 1 tahapan pemrograman.');
                 e.preventDefault();
                 return false;
             }
-            if (!bodyInp?.value.trim()) {
-                bodyInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-                bodyInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                bodyInp?.focus();
-                showFormError(`Tahap ${idx + 1}: Materi / instruksi tahap belum diisi.`);
+
+            for (let idx = 0; idx < codingRows.length; idx++) {
+                const row = codingRows[idx];
+                const titleInp = row.querySelector('[data-step-field="title"]');
+                const cpmkSelect = row.querySelector('[data-step-field="cpmk"]');
+                const pointsInp = row.querySelector('[data-step-field="points"]');
+                const bodyInp = row.querySelector('[data-step-field="body"]');
+                const pts = pointsInp ? (parseInt(pointsInp.value) || 0) : 0;
+
+                if (!titleInp?.value.trim()) {
+                    showStep('questions');
+                    const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
+                    tabs?.[idx]?.click();
+                    titleInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    titleInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    titleInp?.focus();
+                    showFormError(`Tahap ${idx + 1}: Judul tahap belum diisi.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!cpmkSelect?.value) {
+                    showStep('questions');
+                    const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
+                    tabs?.[idx]?.click();
+                    cpmkSelect?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    cpmkSelect?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    cpmkSelect?.focus();
+                    showFormError(`Tahap ${idx + 1}: Pilih target CPMK.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (pts <= 0) {
+                    showStep('questions');
+                    const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
+                    tabs?.[idx]?.click();
+                    pointsInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    pointsInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    pointsInp?.focus();
+                    showFormError(`Tahap ${idx + 1}: Skor poin harus lebih dari 0.`);
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (!bodyInp?.value.trim()) {
+                    showStep('questions');
+                    const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
+                    tabs?.[idx]?.click();
+                    bodyInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+                    bodyInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    bodyInp?.focus();
+                    showFormError(`Tahap ${idx + 1}: Materi / instruksi tahap belum diisi.`);
+                    e.preventDefault();
+                    return false;
+                }
+            }
+
+            const totalPoints = codingRows.reduce((sum, r) => sum + (parseInt(r.querySelector('[data-step-field="points"]')?.value) || 0), 0);
+            if (totalPoints !== 100) {
+                showStep('questions');
+                codingBuilder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const badge = codingBuilder?.querySelector('[data-coding-total-points-badge]');
+                badge?.classList.add('ring-2', 'ring-danger/50');
+                setTimeout(() => badge?.classList.remove('ring-2', 'ring-danger/50'), 3000);
+                showFormError(`Total skor tahapan adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Sesuaikan skor agar pas 100.`);
                 e.preventDefault();
                 return false;
             }
         }
 
-        const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')].filter(input => !input.disabled);
-        if (manualWeights.length > 0) {
-            const sum = manualWeights.reduce((s, input) => s + Number(input.value || 0), 0);
-            if (Math.abs(sum - 100) >= 0.01) {
-                showFormError(`Total bobot CPMK tugas saat ini ${sum}%. Pastikan tepat 100%.`);
-                contentForm.querySelector('[data-manual-weight-total]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                e.preventDefault();
-                return false;
+        // C. Khusus Tugas Biasa (Bobot CPMK Manual 100%)
+        if (cat === 'tugas' && stepMode === 'none') {
+            const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')].filter(input => !input.disabled);
+            if (manualWeights.length > 0) {
+                const sum = manualWeights.reduce((s, input) => s + Number(input.value || 0), 0);
+                if (Math.abs(sum - 100) >= 0.01) {
+                    showFormError(`Total bobot CPMK tugas saat ini ${sum}%. Pastikan tepat 100%.`);
+                    contentForm.querySelector('[data-manual-weight-total]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    e.preventDefault();
+                    return false;
+                }
             }
         }
 
@@ -1737,84 +1866,446 @@ if (contentForm) {
         showFormError('');
     });
 
-    const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')];
-    const syncManualWeight = () => {
-        const enabled = manualWeights.filter(input => !input.disabled);
-        const total = enabled.reduce((sum, input) => sum + Number(input.value || 0), 0);
-        const output = contentForm.querySelector('[data-manual-weight-total]');
-        if (output) {
-            output.textContent = `Total: ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(total)}%`;
-            output.classList.toggle('text-danger', enabled.length > 0 && Math.abs(total - 100) >= 0.01);
+    // Dynamic CPMK picker untuk Tugas Biasa (Hanya CPMK yang dipilih yang muncul)
+    const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
+    if (manualCpmkSettings) {
+        const picker = manualCpmkSettings.querySelector('[data-cpmk-select-picker]');
+        const container = manualCpmkSettings.querySelector('[data-selected-cpmk-container]');
+        const emptyMsg = manualCpmkSettings.querySelector('[data-empty-cpmk-message]');
+        const totalOutput = manualCpmkSettings.querySelector('[data-manual-weight-total]');
+
+        let cpmkDefs = [];
+        try {
+            cpmkDefs = JSON.parse(manualCpmkSettings.querySelector('[data-cpmk-meta-dictionary]')?.textContent || '[]');
+        } catch (_) {}
+
+        let preloadedWeights = {};
+        try {
+            preloadedWeights = JSON.parse(manualCpmkSettings.querySelector('[data-cpmk-preloaded-weights]')?.textContent || '{}');
+        } catch (_) {}
+
+        // State CPMK terpilih: Map<code, { description, cpl, weight }>
+        const selectedCpmks = new Map();
+
+        const updateTotal = () => {
+            const inputs = [...container.querySelectorAll('[data-manual-cpmk-weight]')];
+            const sum = inputs.reduce((total, inp) => total + (parseFloat(inp.value) || 0), 0);
+            if (totalOutput) {
+                const formatted = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(sum);
+                totalOutput.textContent = `Total: ${formatted}% / 100%`;
+                const isExact = Math.abs(sum - 100) < 0.01;
+                totalOutput.className = isExact
+                    ? 'text-xs font-bold text-slate-700'
+                    : 'text-xs font-bold text-rose-600';
+            }
+        };
+
+        const render = () => {
+            container.replaceChildren();
+            if (selectedCpmks.size === 0) {
+                if (emptyMsg) emptyMsg.hidden = false;
+            } else {
+                if (emptyMsg) emptyMsg.hidden = true;
+                selectedCpmks.forEach((meta, code) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between gap-3 rounded-lg border border-line/60 bg-canvas/30 p-3';
+                    row.dataset.cpmkRow = code;
+                    row.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <strong class="block text-xs font-bold text-ink">${code} <span class="text-muted font-normal">(${meta.cpl || 'CPL'})</span></strong>
+                            <span class="line-clamp-2 text-[11px] text-muted">${meta.description || ''}</span>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <div class="flex items-center gap-1">
+                                <input type="number" min="0.01" max="100" step="0.01" name="manual_cpmk_weights[${code}]" value="${meta.weight}" class="field w-20 px-2 py-1.5 text-right text-xs bg-white font-mono font-bold" data-manual-cpmk-weight required>
+                                <span class="text-xs text-muted">%</span>
+                            </div>
+                            <button type="button" class="text-danger hover:text-danger/80 text-xs font-bold px-1.5 py-1" data-remove-cpmk="${code}" title="Hapus CPMK">✕</button>
+                        </div>
+                    `;
+                    const input = row.querySelector('input');
+                    input?.addEventListener('input', (e) => {
+                        meta.weight = parseFloat(e.target.value) || 0;
+                        updateTotal();
+                    });
+                    const removeBtn = row.querySelector('[data-remove-cpmk]');
+                    removeBtn?.addEventListener('click', () => {
+                        selectedCpmks.delete(code);
+                        render();
+                    });
+                    container.appendChild(row);
+                });
+            }
+
+            // Nonaktifkan opsi yang sudah terpilih di dropdown picker
+            if (picker) {
+                [...picker.options].forEach(opt => {
+                    if (!opt.value) return;
+                    opt.disabled = selectedCpmks.has(opt.value);
+                });
+                picker.value = '';
+            }
+
+            updateTotal();
+        };
+
+        picker?.addEventListener('change', () => {
+            const code = picker.value;
+            if (!code || selectedCpmks.has(code)) return;
+            const def = cpmkDefs.find(c => c.code === code) || {};
+            let currentSum = 0;
+            selectedCpmks.forEach(v => { currentSum += (parseFloat(v.weight) || 0); });
+            const remaining = Math.max(0, Math.round((100 - currentSum) * 100) / 100);
+            const initialW = selectedCpmks.size === 0 ? 100 : remaining;
+            selectedCpmks.set(code, {
+                description: def.description || picker.options[picker.selectedIndex]?.dataset.description || '',
+                cpl: def.cpl || picker.options[picker.selectedIndex]?.dataset.cpl || 'CPL',
+                weight: initialW,
+            });
+            render();
+        });
+
+        // Inisialisasi awal dari data lama / default
+        if (preloadedWeights && typeof preloadedWeights === 'object') {
+            Object.entries(preloadedWeights).forEach(([code, w]) => {
+                if (parseFloat(w) > 0) {
+                    const def = cpmkDefs.find(c => c.code === code) || {};
+                    selectedCpmks.set(code, {
+                        description: def.description || '',
+                        cpl: def.cpl || 'CPL',
+                        weight: parseFloat(w),
+                    });
+                }
+            });
         }
-        enabled.forEach(input => input.setCustomValidity(''));
-        if (enabled.length && Math.abs(total - 100) >= 0.01) {
-            enabled[0].setCustomValidity('Total persentase CPMK harus tepat 100%.');
+
+        // Jika tidak ada data lama sama sekali dan ada list definisi CPMK, pilih CPMK pertama dengan 100%
+        if (selectedCpmks.size === 0 && cpmkDefs.length > 0) {
+            const first = cpmkDefs[0];
+            selectedCpmks.set(first.code, {
+                description: first.description || '',
+                cpl: first.cpl || 'CPL',
+                weight: 100,
+            });
         }
-    };
-    manualWeights.forEach(input => input.addEventListener('input', syncManualWeight));
-    contentForm.addEventListener('change', () => requestAnimationFrame(syncManualWeight));
-    syncManualWeight();
+
+        render();
+    }
 
     const initialStep = contentForm.dataset.step || 'setup';
     showStep(initialStep);
 }
 
-// Tahapan tutorial/tugas pemrograman menggunakan pola satu tahap per layar.
+// Tahapan tutorial/tugas pemrograman menggunakan stepper mirip kuis.
 const codingStepBuilder = document.querySelector('[data-coding-step-builder]');
 if (codingStepBuilder) {
     const rows = codingStepBuilder.querySelector('[data-coding-step-rows]');
     const template = codingStepBuilder.querySelector('[data-coding-step-template]');
     const tabs = codingStepBuilder.querySelector('[data-coding-step-tabs]');
+    const targetCountInput = codingStepBuilder.querySelector('[data-coding-target-count]');
+    const totalPointsBadge = codingStepBuilder.querySelector('[data-coding-total-points-badge]');
+    const stepCountBadge = codingStepBuilder.querySelector('[data-coding-step-total]');
     let activeIndex = 0;
+
+    const updateTotalPointsBadge = () => {
+        const pointInputs = [...rows.querySelectorAll('[data-step-field="points"]')];
+        const total = pointInputs.reduce((sum, inp) => sum + (parseInt(inp.value, 10) || 0), 0);
+        if (totalPointsBadge) {
+            totalPointsBadge.textContent = `Total Skor: ${total} / 100`;
+            if (total === 100) {
+                totalPointsBadge.className = 'text-xs font-semibold text-slate-700';
+            } else {
+                totalPointsBadge.className = 'text-xs font-semibold text-rose-600';
+            }
+        }
+        if (stepCountBadge) {
+            stepCountBadge.textContent = `${rows.children.length} soal`;
+        }
+        if (targetCountInput && document.activeElement !== targetCountInput) {
+            targetCountInput.value = rows.children.length;
+        }
+    };
+
+    const distributePoints = () => {
+        const total = rows.children.length;
+        if (total === 0) return;
+        const base = Math.floor(100 / total);
+        let remainder = 100 % total;
+        [...rows.children].forEach((row) => {
+            const ptsInput = row.querySelector('[data-step-field="points"]');
+            if (ptsInput) {
+                const pts = base + (remainder > 0 ? 1 : 0);
+                if (remainder > 0) remainder--;
+                ptsInput.value = pts;
+            }
+        });
+        updateTotalPointsBadge();
+    };
 
     const update = () => {
         const total = rows.children.length;
+        const paginationHeader = codingStepBuilder.querySelector('[data-coding-pagination-header]');
+        if (paginationHeader) {
+            paginationHeader.hidden = (total === 0);
+        }
         activeIndex = Math.max(0, Math.min(activeIndex, total - 1));
         [...rows.children].forEach((row, index) => {
             row.hidden = index !== activeIndex;
-            row.querySelector('[data-coding-step-title]').textContent = `Tahap ${index + 1}`;
+            const titleEl = row.querySelector('[data-coding-step-title]');
+            if (titleEl) titleEl.textContent = `Soal ${index + 1}`;
             row.querySelectorAll('[data-step-field]').forEach(input => {
                 input.name = `coding_steps[${index}][${input.dataset.stepField}]`;
             });
+            const ptsInput = row.querySelector('input[data-step-field="points"]');
+            const pts = ptsInput ? (parseInt(ptsInput.value, 10) || 0) : 0;
+            const pointShare = row.querySelector('[data-step-point-share]');
+            if (pointShare) {
+                pointShare.textContent = `${pts} / 100`;
+            }
         });
-        tabs.replaceChildren();
-        for (let index = 0; index < total; index++) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = `Tahap ${index + 1}`;
-            button.className = index === activeIndex
-                ? 'rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white'
-                : 'rounded-lg border border-line/60 bg-white px-3 py-1.5 text-xs font-semibold text-ink';
-            button.addEventListener('click', () => { activeIndex = index; update(); });
-            tabs.appendChild(button);
+
+        if (tabs) {
+            tabs.replaceChildren();
+            for (let index = 0; index < total; index++) {
+                const row = rows.children[index];
+                const ptsInput = row?.querySelector('input[data-step-field="points"]');
+                const pts = ptsInput ? (parseInt(ptsInput.value, 10) || 0) : 0;
+                const button = document.createElement('button');
+                const isActive = index === activeIndex;
+                button.type = 'button';
+                button.className = isActive
+                    ? 'px-2.5 py-1 text-xs font-bold rounded-md bg-brand text-white shadow-2xs transition shrink-0'
+                    : 'px-2.5 py-1 text-xs font-medium rounded-md bg-slate-50 border border-line/60 text-ink hover:bg-slate-100 transition shrink-0';
+                button.textContent = pts > 0 ? `Soal ${index + 1} (${pts}p)` : `Soal ${index + 1}`;
+                button.addEventListener('click', () => { activeIndex = index; update(); });
+                tabs.appendChild(button);
+            }
         }
-        const previous = codingStepBuilder.querySelector('[data-prev-coding-step]');
-        const next = codingStepBuilder.querySelector('[data-next-coding-step]');
-        if (previous) previous.disabled = activeIndex === 0;
-        if (next) next.disabled = activeIndex >= total - 1;
+
+        codingStepBuilder.querySelectorAll('[data-prev-coding-step]').forEach(btn => {
+            btn.disabled = activeIndex === 0;
+            btn.classList.toggle('opacity-50', activeIndex === 0);
+            btn.classList.toggle('pointer-events-none', activeIndex === 0);
+        });
+        codingStepBuilder.querySelectorAll('[data-next-coding-step]').forEach(btn => {
+            btn.disabled = activeIndex === total - 1;
+            btn.classList.toggle('opacity-50', activeIndex === total - 1);
+            btn.classList.toggle('pointer-events-none', activeIndex === total - 1);
+        });
+        updateTotalPointsBadge();
     };
-    const add = (data = {}) => {
-        if (rows.children.length >= 20) return;
+
+    const add = (data = {}, shouldDistribute = false) => {
+        if (rows.children.length >= 100) return;
         const row = template.content.firstElementChild.cloneNode(true);
         row.querySelectorAll('[data-step-field]').forEach(input => {
-            if (input.type !== 'file' && data[input.dataset.stepField] !== undefined) input.value = data[input.dataset.stepField];
+            if (input.type !== 'file' && data[input.dataset.stepField] !== undefined) {
+                input.value = data[input.dataset.stepField];
+            }
             input.disabled = codingStepBuilder.hidden;
         });
+        const ptsInput = row.querySelector('[data-step-field="points"]');
+        if (ptsInput) {
+            ptsInput.addEventListener('input', () => {
+                update();
+            });
+        }
+
+        const addonMenu = row.querySelector('[data-step-addon-menu]');
+        const filesPanel = row.querySelector('[data-step-addon-panel="files"]');
+        const linkPanel = row.querySelector('[data-step-addon-panel="link"]');
+        const fileInput = row.querySelector('input[data-step-field="attachment"]');
+        const filePreview = row.querySelector('[data-step-file-preview]');
+        const linkInput = row.querySelector('input[data-step-field="link"]');
+        const removeLinkBtn = row.querySelector('[data-remove-step-link]');
+        let currentObjUrl = null;
+
+        const renderFilePreview = (fileInfo) => {
+            if (!filePreview) return;
+            if (currentObjUrl) {
+                URL.revokeObjectURL(currentObjUrl);
+                currentObjUrl = null;
+            }
+            filePreview.replaceChildren();
+            if (!fileInfo) return;
+
+            const card = document.createElement('div');
+            card.className = 'flex items-center justify-between gap-3 rounded-lg border border-line/60 bg-white p-2.5 shadow-2xs';
+
+            const fileName = fileInfo.name || 'Berkas Lampiran';
+            const ext = (fileName.split('.').pop() || 'file').toLowerCase();
+            const isImage = (fileInfo.type && fileInfo.type.startsWith('image/')) || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+            const isPdf = fileInfo.type === 'application/pdf' || ext === 'pdf';
+            const isWord = ['doc', 'docx'].includes(ext);
+            const isSlides = ['ppt', 'pptx'].includes(ext);
+            const isVideo = (fileInfo.type && fileInfo.type.startsWith('video/')) || ['mp4', 'webm'].includes(ext);
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-2.5 min-w-0 flex-1';
+
+            if (isImage && fileInfo instanceof File) {
+                const img = document.createElement('img');
+                currentObjUrl = URL.createObjectURL(fileInfo);
+                img.src = currentObjUrl;
+                img.className = 'h-10 w-10 shrink-0 rounded object-cover border border-line/40';
+                left.append(img);
+            } else {
+                const badge = document.createElement('span');
+                badge.className = `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${
+                    isPdf ? 'bg-rose-50 text-rose-700' :
+                    isWord ? 'bg-blue-50 text-blue-700' :
+                    isSlides ? 'bg-orange-50 text-orange-700' :
+                    isVideo ? 'bg-violet-50 text-violet-700' :
+                    'bg-slate-100 text-slate-700'
+                }`;
+                badge.textContent = ext.toUpperCase().slice(0, 4);
+                left.append(badge);
+            }
+
+            const info = document.createElement('div');
+            info.className = 'min-w-0 flex-1';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'block truncate text-xs font-semibold text-ink';
+            nameEl.textContent = fileName;
+            nameEl.title = fileName;
+            info.append(nameEl);
+
+            if (fileInfo.size) {
+                const sizeEl = document.createElement('span');
+                sizeEl.className = 'block text-[11px] text-muted';
+                sizeEl.textContent = `${(fileInfo.size / 1024 / 1024).toFixed(1)} MB`;
+                info.append(sizeEl);
+            }
+            left.append(info);
+            card.append(left);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'text-muted hover:text-danger p-1 text-sm font-bold shrink-0 transition';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.title = 'Hapus lampiran';
+            removeBtn.setAttribute('aria-label', `Hapus lampiran ${fileName}`);
+            removeBtn.addEventListener('click', () => {
+                if (fileInput) fileInput.value = '';
+                if (currentObjUrl) {
+                    URL.revokeObjectURL(currentObjUrl);
+                    currentObjUrl = null;
+                }
+                filePreview.replaceChildren();
+                if (filesPanel) filesPanel.hidden = true;
+            });
+            card.append(removeBtn);
+
+            filePreview.append(card);
+            if (filesPanel) filesPanel.hidden = false;
+        };
+
+        row.querySelector('[data-step-addon="files"]')?.addEventListener('click', () => {
+            if (filesPanel) filesPanel.hidden = false;
+            addonMenu?.removeAttribute('open');
+            fileInput?.click();
+        });
+
+        row.querySelector('[data-step-addon="link"]')?.addEventListener('click', () => {
+            if (linkPanel) linkPanel.hidden = false;
+            addonMenu?.removeAttribute('open');
+            linkInput?.focus();
+        });
+
+        removeLinkBtn?.addEventListener('click', () => {
+            if (linkInput) linkInput.value = '';
+            if (linkPanel) linkPanel.hidden = true;
+        });
+
+        fileInput?.addEventListener('change', () => {
+            if (fileInput.files && fileInput.files[0]) {
+                renderFilePreview(fileInput.files[0]);
+            } else {
+                filePreview?.replaceChildren();
+            }
+        });
+
+        if (data.link) {
+            if (linkPanel) linkPanel.hidden = false;
+            if (linkInput) linkInput.value = data.link;
+        }
+
+        if (data.attachment) {
+            const attName = data.attachment_name || (typeof data.attachment === 'string' && !data.attachment.match(/^[0-9a-f-]{36}$/i) ? data.attachment : 'Berkas Terlampir');
+            renderFilePreview({ name: attName, size: data.attachment_size });
+        }
+
         rows.appendChild(row);
         activeIndex = rows.children.length - 1;
+        if (shouldDistribute) {
+            distributePoints();
+        }
         update();
     };
-    codingStepBuilder.querySelector('[data-add-coding-step]')?.addEventListener('click', () => add());
-    codingStepBuilder.querySelector('[data-prev-coding-step]')?.addEventListener('click', () => { if (activeIndex > 0) activeIndex--; update(); });
-    codingStepBuilder.querySelector('[data-next-coding-step]')?.addEventListener('click', () => { if (activeIndex < rows.children.length - 1) activeIndex++; update(); });
+
+    codingStepBuilder.querySelector('[data-add-coding-step]')?.addEventListener('click', () => {
+        add({}, true);
+    });
+
+    codingStepBuilder.querySelectorAll('[data-prev-coding-step]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (activeIndex > 0) activeIndex--;
+            update();
+        });
+    });
+
+    codingStepBuilder.querySelectorAll('[data-next-coding-step]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (activeIndex < rows.children.length - 1) activeIndex++;
+            update();
+        });
+    });
+
     rows.addEventListener('click', event => {
         if (!event.target.closest('[data-remove-coding-step]') || rows.children.length === 1) return;
         event.target.closest('[data-coding-step-row]')?.remove();
+        distributePoints();
         update();
     });
+
+    // Auto-adjust target count on live typing without enter
+    if (targetCountInput) {
+        targetCountInput.addEventListener('input', () => {
+            const rawVal = targetCountInput.value.replace(/[^0-9]/g, '');
+            if (targetCountInput.value !== rawVal) targetCountInput.value = rawVal;
+            if (!rawVal) return;
+            let num = parseInt(rawVal, 10);
+            if (isNaN(num) || num < 1) num = 1;
+            if (num > 100) {
+                num = 100;
+                targetCountInput.value = '100';
+            }
+            const current = rows.children.length;
+            if (num > current) {
+                for (let i = current; i < num; i++) {
+                    add({}, false);
+                }
+            } else if (num < current) {
+                for (let i = current - 1; i >= num; i--) {
+                    rows.children[i]?.remove();
+                }
+            }
+            distributePoints();
+            update();
+        });
+    }
+
     let oldSteps = [];
-    try { oldSteps = JSON.parse(codingStepBuilder.querySelector('[data-old-coding-steps]')?.textContent || '[]'); } catch (_) {}
-    (oldSteps.length ? oldSteps : [{}]).forEach(step => add(step));
+    try {
+        oldSteps = JSON.parse(codingStepBuilder.querySelector('[data-old-coding-steps]')?.textContent || '[]');
+    } catch (_) {}
+
+    if (oldSteps.length > 0) {
+        oldSteps.forEach(step => add(step, false));
+    } else {
+        add({ points: 100 }, false);
+    }
+    update();
 }
 
 document.querySelectorAll('[data-code-steps]').forEach(stepper => {
@@ -2219,7 +2710,8 @@ if (builder) {
 
     const update = () => {
         const category = parseCategory(type.value);
-        const active = ['kuis', 'uts', 'uas'].includes(category);
+        const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const active = ['kuis', 'uts', 'uas'].includes(category) || (category === 'tugas' && selectedTaskMode !== 'coding');
         const questionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
         builder.hidden = !active || !questionStep;
         builder.querySelectorAll('input,textarea,select').forEach(input => input.disabled = !active);
@@ -2479,7 +2971,7 @@ if (builder) {
     const countInput = builder.querySelector('[data-target-question-count]');
 
     const setQuestionCount = (targetCount) => {
-        targetCount = Math.max(1, parseInt(targetCount) || 1);
+        targetCount = Math.max(1, Math.min(100, parseInt(targetCount, 10) || 1));
         const currentCount = rows.children.length;
         if (targetCount > currentCount) {
             for (let i = currentCount; i < targetCount; i++) {
@@ -2490,7 +2982,7 @@ if (builder) {
                 rows.lastElementChild.remove();
             }
         }
-        // Auto-distribute 100 points evenly across all targetCount questions
+        // Auto-distribute 100 points evenly across all targetCount questions (pukul rata)
         const base = Math.floor(100 / targetCount);
         const remainder = 100 - (base * targetCount);
         [...rows.children].forEach((row, idx) => {
@@ -2499,13 +2991,46 @@ if (builder) {
                 input.value = idx < remainder ? (base + 1) : base;
             }
         });
-        if (countInput) countInput.value = targetCount;
-        activePageIndex = 0;
+        if (countInput && document.activeElement !== countInput) {
+            countInput.value = targetCount;
+        }
+        if (activePageIndex >= rows.children.length) {
+            activePageIndex = 0;
+        }
         update();
     };
 
+    if (countInput) {
+        countInput.addEventListener('input', () => {
+            // Sanitasi: hanya izinkan karakter angka
+            const raw = countInput.value;
+            const cleaned = raw.replace(/\D/g, '');
+            if (raw !== cleaned) {
+                countInput.value = cleaned;
+            }
+            if (!cleaned) {
+                return; // Biarkan kosong sementara saat user sedang mengetik atau menghapus
+            }
+            let num = parseInt(cleaned, 10);
+            if (num > 100) {
+                num = 100;
+                countInput.value = '100';
+            }
+            if (num >= 1 && num <= 100) {
+                setQuestionCount(num);
+            }
+        });
+
+        countInput.addEventListener('blur', () => {
+            if (!countInput.value || parseInt(countInput.value, 10) < 1) {
+                countInput.value = rows.children.length || 1;
+                setQuestionCount(parseInt(countInput.value, 10));
+            }
+        });
+    }
+
     builder.querySelector('[data-apply-question-count]')?.addEventListener('click', () => {
-        const target = parseInt(countInput?.value) || 5;
+        const target = parseInt(countInput?.value, 10) || 1;
         setQuestionCount(target);
     });
 
@@ -2517,13 +3042,27 @@ if (builder) {
     countInput?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            const target = parseInt(countInput.value) || 5;
+            const target = parseInt(countInput.value, 10) || 1;
             setQuestionCount(target);
         }
     });
 
     builder.querySelectorAll('[data-add-question]').forEach(button => {
-        button.addEventListener('click', () => add({}, true));
+        button.addEventListener('click', () => {
+            if (rows.children.length >= 100) return;
+            add({}, true);
+            const count = rows.children.length;
+            const base = Math.floor(100 / count);
+            const remainder = 100 - (base * count);
+            [...rows.children].forEach((row, idx) => {
+                const input = row.querySelector('input[data-q-field="points"]');
+                if (input) {
+                    input.value = idx < remainder ? (base + 1) : base;
+                }
+            });
+            if (countInput) countInput.value = count;
+            update();
+        });
     });
     builder.querySelectorAll('[data-auto-distribute-points]').forEach(button => {
         button.addEventListener('click', () => {
@@ -2781,6 +3320,16 @@ if (builder) {
         if (event.target.closest('[data-remove-question]') && rows.children.length > 1) {
             row.remove();
             activePageIndex = Math.min(activePageIndex, rows.children.length - 1);
+            const count = rows.children.length;
+            const base = Math.floor(100 / count);
+            const remainder = 100 - (base * count);
+            [...rows.children].forEach((r, idx) => {
+                const input = r.querySelector('input[data-q-field="points"]');
+                if (input) {
+                    input.value = idx < remainder ? (base + 1) : base;
+                }
+            });
+            if (countInput) countInput.value = count;
             update();
         }
     });
@@ -2816,15 +3365,25 @@ if (builder) {
         const savedQuestions = categoryQuestionsMap[newCategory];
         if (savedQuestions?.length) {
             savedQuestions.forEach((question, index) => add(question, index === 0));
+        } else {
+            add({ points: 100 }, true);
+            if (countInput) countInput.value = 1;
         }
         activePageIndex = 0;
         update();
     };
 
-    const old = JSON.parse(builder.querySelector('[data-old-questions]').textContent);
-    if (old.length) {
+    let old = [];
+    try {
+        old = JSON.parse(builder.querySelector('[data-old-questions]')?.textContent || '[]');
+    } catch (_) {}
+    if (Array.isArray(old) && old.length) {
         if (activeCategory) categoryQuestionsMap[activeCategory] = old;
         old.forEach((question, index) => add(question, index === 0));
+    } else {
+        // Default langsung 1 soal sehingga halaman soal 1 langsung muncul
+        add({ points: 100 }, true);
+        if (countInput) countInput.value = 1;
     }
 
     const sync = () => {
