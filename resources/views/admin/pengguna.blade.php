@@ -78,7 +78,7 @@
     <section id="bulk-import-section" hidden class="surface p-6">
         <div class="flex items-center justify-between pb-3 border-b border-line/60">
             <div>
-                <h2 class="text-base font-semibold text-ink">Import Pengguna Sekaligus (Excel / CSV)</h2>
+                <h2 class="text-base font-semibold text-ink">Import Pengguna Sekaligus (Excel)</h2>
                 <p class="mt-0.5 text-xs text-muted">Unggah file spreadsheet Excel (.xlsx, .xls) atau masukkan data untuk menambahkan banyak pengguna sekaligus.</p>
             </div>
             <button type="button" onclick="document.getElementById('bulk-import-section').setAttribute('hidden', '')" class="text-xs text-muted hover:text-ink">
@@ -89,7 +89,7 @@
         <form class="mt-4 space-y-4" method="post" action="{{ route('admin.users.bulk') }}" enctype="multipart/form-data">
             @csrf
             <div>
-                <label class="form-label text-xs mb-1" for="file_upload">Pilih File Spreadsheet Excel / CSV</label>
+                <label class="form-label text-xs mb-1" for="file_upload">Pilih File Excel (.xlsx, .xls)</label>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input id="file_upload" name="file" type="file" accept=".xlsx,.xls,.csv,.txt" class="field text-xs file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
                     <a href="{{ route('admin.users.template') }}" class="button-secondary text-xs shrink-0 flex items-center justify-center gap-1.5">

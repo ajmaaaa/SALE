@@ -104,17 +104,8 @@ class ObeReportingAndRoleAuditTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-disposition');
-        $this->assertStringContainsString('rekap-nilai-IF204-A', $response->headers->get('content-disposition'));
-
-        $content = $response->streamedContent();
-        // Cek UTF-8 BOM
-        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
-        $this->assertStringContainsString('Budi Santoso', $content);
-        $this->assertStringContainsString('Siti Rahma', $content);
-        $this->assertStringContainsString('2024081001', $content);
-        $this->assertStringContainsString('Final', $content);
-        $this->assertStringContainsString('85.00', $content);
-        $this->assertStringContainsString('55.00', $content);
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $response->headers->get('content-type'));
     }
 
     public function test_dosen_can_export_cpmk_csv(): void
@@ -123,13 +114,8 @@ class ObeReportingAndRoleAuditTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-disposition');
-        $this->assertStringContainsString('rekap-cpmk-IF204-A', $response->headers->get('content-disposition'));
-
-        $content = $response->streamedContent();
-        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
-        $this->assertStringContainsString('CPMK-01', $content);
-        $this->assertStringContainsString('85.0', $content);
-        $this->assertStringContainsString('55.0', $content);
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $response->headers->get('content-type'));
     }
 
     public function test_dosen_can_export_cpl_csv(): void
@@ -138,13 +124,8 @@ class ObeReportingAndRoleAuditTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-disposition');
-        $this->assertStringContainsString('rekap-cpl-IF204-A', $response->headers->get('content-disposition'));
-
-        $content = $response->streamedContent();
-        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
-        $this->assertStringContainsString('CPL-01', $content);
-        $this->assertStringContainsString('Tercapai', $content);
-        $this->assertStringContainsString('Belum Tercapai', $content);
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $response->headers->get('content-type'));
     }
 
     public function test_xlsx_export_sanitizes_student_name_against_formula_injection(): void

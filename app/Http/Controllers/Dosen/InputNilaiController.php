@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class InputNilaiController extends Controller
 {
@@ -502,7 +507,7 @@ class InputNilaiController extends Controller
     }
 
     /**
-     * Download template CSV for bulk import (tanpa feedback, per CPMK jika ada).
+     * Download template Excel (.xlsx) for bulk import (tanpa feedback, per CPMK jika ada).
      */
     public function downloadTemplate(ClassSection $section, Assessment $assessment): StreamedResponse
     {
@@ -512,35 +517,79 @@ class InputNilaiController extends Controller
         $students = $section->students()->orderBy('name')->get();
         $cpmks = $assessment->cpmks()->orderBy('code')->get();
 
-        $filename = 'template_nilai_'.$assessment->code.'.csv';
+        $filename = 'template_nilai_'.$assessment->code.'.xlsx';
 
-        return response()->streamDownload(function () use ($students, $cpmks) {
-            $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
-            if ($cpmks->isNotEmpty()) {
-                $header = ['NIM', 'Nama'];
-                foreach ($cpmks as $cpmk) {
-                    $header[] = $cpmk->code;
-                }
-                fputcsv($handle, $header, ';');
-
-                foreach ($students as $student) {
-                    $row = [$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
-                    foreach ($cpmks as $cpmk) {
-                        $row[] = '';
-                    }
-                    fputcsv($handle, $row, ';');
-                }
-            } else {
-                fputcsv($handle, ['NIM', 'Nama', 'Nilai'], ';');
-                foreach ($students as $student) {
-                    fputcsv($handle, [$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name), ''], ';');
-                }
+        // Build header row
+        if ($cpmks->isNotEmpty()) {
+            $header = ['NIM', 'Nama'];
+            foreach ($cpmks as $cpmk) {
+                $header[] = $cpmk->code;
             }
+        } else {
+            $header = ['NIM', 'Nama', 'Nilai'];
+        }
 
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        $sheet->fromArray([$header], null, 'A1');
+
+        // Data rows
+        $rowIdx = 2;
+        if ($cpmks->isNotEmpty()) {
+            foreach ($students as $student) {
+                $row = [$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name)];
+                foreach ($cpmks as $cpmk) {
+                    $row[] = '';
+                }
+                $sheet->fromArray([$row], null, 'A'.$rowIdx);
+                $rowIdx++;
+            }
+        } else {
+            foreach ($students as $student) {
+                $sheet->fromArray([[$this->sanitizeCsv($student->nim_nidn ?? ''), $this->sanitizeCsv($student->name), '']], null, 'A'.$rowIdx);
+                $rowIdx++;
+            }
+        }
+
+        // Header styling: background #4472C4, white bold Calibri 11
+        $colCount = count($header);
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+        $headerRange = 'A1:'.$lastCol.'1';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'name' => 'Calibri',
+                'size' => 11,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4472C4'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_LEFT,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        // Auto-width columns
+        for ($i = 1; $i <= $colCount; $i++) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Freeze header row
+        $sheet->freezePane('A2');
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     /**
@@ -577,14 +626,169 @@ class InputNilaiController extends Controller
 
         // Phase 1: parse and preview
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,txt', 'max:2048'],
         ], [
-            'file.required' => 'Pilih file CSV untuk diimport.',
-            'file.mimes' => 'Format file harus CSV (.csv).',
+            'file.required' => 'Pilih file untuk diimport.',
+            'file.mimes' => 'Format file harus Excel (.xlsx/.xls) atau CSV (.csv).',
             'file.max' => 'Ukuran file maksimal 2 MB.',
         ]);
 
         $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        // Excel parsing (xlsx/xls)
+        if (in_array($ext, ['xlsx', 'xls'], true)) {
+            try {
+                $spreadsheet = IOFactory::load($file->getPathname());
+            } catch (\Throwable $e) {
+                return back()->withErrors(['file' => 'Gagal membaca file Excel: '.$e->getMessage()]);
+            }
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheetRows = $sheet->toArray(null, true, true, false);
+            // Remove empty rows
+            $sheetRows = array_values(array_filter($sheetRows, function ($r) {
+                return is_array($r) && count(array_filter(array_map('strval', $r), fn ($v) => trim($v) !== '')) > 0;
+            }));
+
+            if (count($sheetRows) < 2) {
+                return back()->withErrors(['file' => 'File Excel kosong atau hanya berisi header.']);
+            }
+
+            $rawHeaderCols = array_map(fn ($v) => trim((string) $v), $sheetRows[0]);
+
+            if (count($rawHeaderCols) < 3) {
+                return back()->withErrors(['file' => 'Format header tidak valid (minimal 3 kolom: NIM, Nama, Nilai/CPMK).']);
+            }
+
+            $assessmentCpmks = $assessment->cpmks()->orderBy('code')->get();
+            $cpmkByCode = $assessmentCpmks->keyBy(fn ($c) => strtoupper(trim($c->code)));
+
+            $colsToCheck = array_slice($rawHeaderCols, 2);
+            $firstColName = strtolower(trim($colsToCheck[0] ?? ''));
+
+            $mode = 'legacy';
+            $cpmkMapping = [];
+
+            if ($assessmentCpmks->isNotEmpty() && $firstColName !== 'nilai' && $firstColName !== 'score' && ! str_starts_with($firstColName, 'nilai')) {
+                $mode = 'cpmk';
+                foreach ($colsToCheck as $idxOffset => $headerColName) {
+                    $colIdx = 2 + $idxOffset;
+                    $code = strtoupper(trim($headerColName));
+                    if ($code === '') {
+                        continue;
+                    }
+                    if (! $cpmkByCode->has($code)) {
+                        return back()->withErrors(['file' => "Kolom header '$headerColName' bukan CPMK yang diukur oleh asesmen ini."]);
+                    }
+                    $cpmk = $cpmkByCode->get($code);
+                    $maxScore = $this->obe->assessmentCpmkMaxScore($assessment, $cpmk);
+                    $cpmkMapping[$colIdx] = ['cpmk_id' => $cpmk->id, 'code' => $cpmk->code, 'max' => $maxScore];
+                }
+                if (empty($cpmkMapping)) {
+                    return back()->withErrors(['file' => 'Tidak ditemukan kolom CPMK yang valid pada header.']);
+                }
+            }
+
+            $enrolledStudents = $section->students()->orderBy('name')->get();
+            $studentsByNim = $enrolledStudents->keyBy('nim_nidn');
+            $rows = [];
+            $errors = [];
+
+            for ($i = 1; $i < count($sheetRows); $i++) {
+                $cols = array_map(fn ($v) => trim((string) $v), $sheetRows[$i]);
+                $nim = $cols[0] ?? '';
+                $student = $studentsByNim[$nim] ?? null;
+                if (! $student) {
+                    $errors[] = 'Baris '.($i + 1).": NIM '$nim' tidak ditemukan di kelas ini.";
+                    continue;
+                }
+
+                if ($mode === 'cpmk') {
+                    $cpmkScores = [];
+                    $sumOfPoints = 0.0;
+                    $hasAnyScore = false;
+                    $rowHasError = false;
+                    foreach ($cpmkMapping as $colIndex => $mapping) {
+                        $rawVal = $cols[$colIndex] ?? '';
+                        $cpmkId = $mapping['cpmk_id'];
+                        $cpmkCode = $mapping['code'];
+                        $maxScore = $mapping['max'];
+                        if ($rawVal === '') {
+                            $cpmkScores[$cpmkId] = null;
+                            continue;
+                        }
+                        if (! is_numeric($rawVal)) {
+                            $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} ('$rawVal') tidak valid.";
+                            $rowHasError = true;
+                            continue;
+                        }
+                        $numVal = (float) $rawVal;
+                        if ($numVal < 0) {
+                            $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} tidak boleh kurang dari 0.";
+                            $rowHasError = true;
+                            continue;
+                        }
+                        if ($numVal > $maxScore) {
+                            $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} ($numVal) melebihi batas maksimal ".(int) $maxScore.'.';
+                            $rowHasError = true;
+                            continue;
+                        }
+                        $cpmkScores[$cpmkId] = $numVal;
+                        $sumOfPoints += $numVal;
+                        $hasAnyScore = true;
+                    }
+                    if ($rowHasError) {
+                        continue;
+                    }
+                    $overallScore = $hasAnyScore ? min(100.0, round($sumOfPoints, 2)) : null;
+                    $rows[] = [
+                        'mahasiswa_id' => $student->id,
+                        'nim' => $nim,
+                        'name' => $student->name,
+                        'cpmk_scores' => $cpmkScores,
+                        'overall_score' => $overallScore,
+                        'status' => $hasAnyScore ? 'valid' : 'kosong',
+                    ];
+                } else {
+                    $score = $cols[2] ?? '';
+                    $feedback = $cols[3] ?? '';
+                    if ($score !== '' && (! is_numeric($score) || (float) $score < 0 || (float) $score > 100)) {
+                        $errors[] = 'Baris '.($i + 1).": Nilai '$score' tidak valid (harus 0-100).";
+                        continue;
+                    }
+                    $scoreVal = $score !== '' ? (float) $score : null;
+                    $rows[] = [
+                        'mahasiswa_id' => $student->id,
+                        'nim' => $nim,
+                        'name' => $student->name,
+                        'score' => $scoreVal,
+                        'feedback' => $feedback,
+                        'status' => $scoreVal !== null ? 'valid' : 'kosong',
+                    ];
+                }
+            }
+
+            if (empty($rows) && ! empty($errors)) {
+                return back()->withErrors(['file' => 'Semua baris mengandung error.'])->with('import_errors', $errors);
+            }
+
+            session([
+                'import_preview' => [
+                    'mode' => $mode,
+                    'cpmk_headers' => array_values($cpmkMapping),
+                    'rows' => $rows,
+                    'errors' => $errors,
+                    'assessment_id' => $assessment->id,
+                    'section_id' => $section->id,
+                ],
+            ]);
+
+            return redirect()
+                ->route('dosen.penilaian.asesmen.nilai.import', [$section->id, $assessment->id])
+                ->with('import_preview_ready', true);
+        }
+
+        // CSV / TXT parsing (fallback)
         $content = file_get_contents($file->getRealPath());
         // Remove BOM if present
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);

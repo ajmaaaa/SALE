@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserProdiController extends AdminProdiController
@@ -165,26 +170,70 @@ class UserProdiController extends AdminProdiController
     public function downloadTemplate(string $type): StreamedResponse
     {
         $type = in_array($type, ['dosen', 'mahasiswa']) ? $type : 'mahasiswa';
-        $fileName = "template-import-{$type}.csv";
+        $fileName = "template-import-{$type}.xlsx";
 
-        return response()->streamDownload(function () use ($type) {
-            $file = fopen('php://output', 'w');
-            fwrite($file, "\xEF\xBB\xBF"); // UTF-8 BOM
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Template Import');
 
-            if ($type === 'dosen') {
-                fputcsv($file, ['NIDN_NIP', 'Nama Lengkap', 'Email Institusi', 'Password']);
-                fputcsv($file, ['198502022010121002', 'Dr. Hendra Wijaya, M.Kom.', 'hendra@example.test', '']);
-                fputcsv($file, ['199003032015042001', 'Nurul Hidayah, S.Kom., M.T.', 'nurul@example.test', '']);
-            } else {
-                fputcsv($file, ['NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Password']);
-                fputcsv($file, ['231011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', '']);
-                fputcsv($file, ['231011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', '']);
-            }
+        if ($type === 'dosen') {
+            $headers = ['NIDN_NIP', 'Nama Lengkap', 'Email Institusi', 'Password'];
+            $samples = [
+                ['198502022010121002', 'Dr. Hendra Wijaya, M.Kom.', 'hendra@example.test', ''],
+                ['199003032015042001', 'Nurul Hidayah, S.Kom., M.T.', 'nurul@example.test', ''],
+            ];
+        } else {
+            $headers = ['NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Password'];
+            $samples = [
+                ['231011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', ''],
+                ['231011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', ''],
+            ];
+        }
 
-            fclose($file);
+        $sheet->fromArray([$headers], null, 'A1');
+        $sheet->getStyle('A1:D1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4472C4'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(24);
+
+        $row = 2;
+        foreach ($samples as $sample) {
+            $sheet->fromArray([$sample], null, "A{$row}");
+            // Nomor NIM/NIDN sebagai teks agar tidak dipotong
+            $sheet->getCell("A{$row}")->setValueExplicit($sample[0], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->getRowDimension($row)->setRowHeight(20);
+            $row++;
+        }
+
+        $lastRow = $row - 1;
+        $sheet->getStyle("A1:D{$lastRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D1D5DB'],
+                ],
+            ],
+        ]);
+
+        foreach (['A', 'B', 'C', 'D'] as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
         }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Cache-Control' => 'max-age=0',
         ]);
     }
 
@@ -193,10 +242,10 @@ class UserProdiController extends AdminProdiController
         $request->validate([
             'prodi_id' => ['required', 'exists:prodis,id'],
             'role_type' => ['required', Rule::in(['dosen', 'mahasiswa'])],
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:4096'],
         ], [
-            'file.required' => 'Pilih file Excel/CSV yang akan diimpor.',
-            'file.mimes' => 'File yang diunggah harus berformat CSV atau TXT.',
+            'file.required' => 'Pilih file Excel yang akan diimpor.',
+            'file.mimes' => 'File yang diunggah harus berformat Excel (.xlsx, .xls) atau CSV.',
         ]);
 
         $prodiId = $request->integer('prodi_id');
@@ -208,36 +257,59 @@ class UserProdiController extends AdminProdiController
         $role = Role::where('name', $roleName)->firstOrFail();
 
         $uploadedFile = $request->file('file');
-        $raw = file_get_contents($uploadedFile->getRealPath());
-        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
-        $lines = preg_split('/\r\n|\r|\n/', trim($clean));
+        $extension = strtolower($uploadedFile->getClientOriginalExtension());
 
-        if (empty($lines) || count($lines) < 2) {
-            return back()->withErrors(['file' => 'File CSV/Excel kosong atau tidak berisi baris data.']);
+        // Parsing baris data: support xlsx/xls dan csv/txt
+        $rows = [];
+        if (in_array($extension, ['xlsx', 'xls'])) {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($uploadedFile->getRealPath());
+            $sheet = $spreadsheet->getActiveSheet();
+            foreach ($sheet->getRowIterator(2) as $row) {
+                $cellIter = $row->getCellIterator();
+                $cellIter->setIterateOnlyExistingCells(false);
+                $cols = [];
+                foreach ($cellIter as $cell) {
+                    $cols[] = trim((string) $cell->getValue());
+                }
+                if (array_filter($cols) === []) {
+                    continue;
+                }
+                $rows[] = $cols;
+            }
+        } else {
+            $raw = file_get_contents($uploadedFile->getRealPath());
+            $clean = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
+            $lines = preg_split('/\r\n|\r|\n/', trim($clean));
+            if (! empty($lines) && count($lines) >= 2) {
+                $headerLine = $lines[0];
+                $delimiter = str_contains($headerLine, "\t") ? "\t" : (str_contains($headerLine, ';') ? ';' : ',');
+                for ($i = 1; $i < count($lines); $i++) {
+                    $line = trim($lines[$i]);
+                    if ($line === '' || str_starts_with($line, '#')) {
+                        continue;
+                    }
+                    $rows[] = array_map('trim', str_getcsv($line, $delimiter, '"', '\\'));
+                }
+            }
         }
 
-        $headerLine = $lines[0];
-        $delimiter = str_contains($headerLine, "\t") ? "\t" : (str_contains($headerLine, ';') ? ';' : ',');
+        if (empty($rows)) {
+            return back()->withErrors(['file' => 'File Excel kosong atau tidak berisi baris data.']);
+        }
 
         $successCount = 0;
         $skippedCount = 0;
         $errors = [];
         $temporaryCredentials = [];
 
-        DB::transaction(function () use ($lines, $delimiter, $prodiId, $role, &$successCount, &$skippedCount, &$errors, &$temporaryCredentials) {
-            for ($i = 1; $i < count($lines); $i++) {
-                $line = trim($lines[$i]);
-                if ($line === '' || str_starts_with($line, '#')) {
-                    continue;
-                }
+        DB::transaction(function () use ($rows, $prodiId, $role, &$successCount, &$skippedCount, &$errors, &$temporaryCredentials) {
+            foreach ($rows as $idx => $cols) {
+                $rowNum = $idx + 2; // +2: baris 1 adalah header, index 0 = baris data ke-2
 
-                $cols = array_map('trim', str_getcsv($line, $delimiter, '"', '\\'));
-                $rowNum = $i + 1;
-
-                $idNum = isset($cols[0]) ? trim($cols[0], "'\" \t\n\r\0\x0B") : '';
-                $name = isset($cols[1]) ? trim($cols[1], "'\" \t\n\r\0\x0B") : '';
-                $email = isset($cols[2]) ? trim($cols[2], "'\" \t\n\r\0\x0B") : '';
-                $pass = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : null;
+                $idNum = isset($cols[0]) ? trim($cols[0], "'\"\t\n\r\0\x0B ") : '';
+                $name  = isset($cols[1]) ? trim($cols[1], "'\"\t\n\r\0\x0B ") : '';
+                $email = isset($cols[2]) ? trim($cols[2], "'\"\t\n\r\0\x0B ") : '';
+                $pass  = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : null;
 
                 if ($idNum === '' || $name === '' || $email === '') {
                     $skippedCount++;
@@ -275,20 +347,20 @@ class UserProdiController extends AdminProdiController
                 }
 
                 User::create([
-                    'name' => $name,
-                    'email' => strtolower($email),
-                    'nim_nidn' => $idNum,
-                    'prodi_id' => $prodiId,
-                    'role_id' => $role->id,
-                    'password' => Hash::make($pass),
+                    'name'                 => $name,
+                    'email'                => strtolower($email),
+                    'nim_nidn'             => $idNum,
+                    'prodi_id'             => $prodiId,
+                    'role_id'              => $role->id,
+                    'password'             => Hash::make($pass),
                     'must_change_password' => true,
-                    'email_verified_at' => now(),
+                    'email_verified_at'    => now(),
                 ]);
 
                 if ($autoGenerated) {
                     $temporaryCredentials[] = [
                         'identity' => $idNum,
-                        'email' => strtolower($email),
+                        'email'    => strtolower($email),
                         'password' => $pass,
                     ];
                 }
@@ -296,7 +368,6 @@ class UserProdiController extends AdminProdiController
                 $successCount++;
             }
         });
-
         $typeLabel = $roleType === 'dosen' ? 'Dosen' : 'Mahasiswa';
         $msg = "Impor data {$typeLabel} selesai: {$successCount} berhasil ditambahkan.";
         if ($skippedCount > 0) {

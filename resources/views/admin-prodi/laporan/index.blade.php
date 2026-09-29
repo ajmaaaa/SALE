@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Laporan Akademik &amp; Capaian Nilai Prodi</h1>
             <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, intake mahasiswa baru, rata-rata nilai, dan ekspor data.</p>
         </div>
-        <div class="flex items-center justify-end gap-2.5 shrink-0 sm:ml-auto">
+        <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center gap-1.5 shadow-2xs">
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
                 <span>Cetak PDF</span>
@@ -61,7 +61,7 @@
     </div>
 
     <!-- Metrik Spesifik Cards -->
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Jumlah Mahasiswa</p>
             <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['total_mahasiswa'] }} <span class="text-xs font-normal text-muted">Orang</span></p>
@@ -72,12 +72,6 @@
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Jumlah Dosen</p>
             <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['total_dosen'] }} <span class="text-xs font-normal text-muted">Dosen</span></p>
             <p class="mt-1 text-[11px] text-muted">Dosen homebase &amp; pengampu</p>
-        </div>
-
-        <div class="surface p-4">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Mahasiswa Baru (Intake)</p>
-            <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['mahasiswa_baru'] }} <span class="text-xs font-normal text-muted">Orang</span></p>
-            <p class="mt-1 text-[11px] text-muted">Masuk pada semester ini</p>
         </div>
 
         <div class="surface p-4">

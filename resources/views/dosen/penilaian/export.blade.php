@@ -9,7 +9,7 @@
 
     <header>
         <h2 class="section-heading">5. Export Data Penilaian</h2>
-        <p class="mt-1 text-sm text-muted">Pilih jenis rekap data penilaian yang ingin diunduh. Tersedia format <strong>Excel (.xlsx)</strong> lengkap dengan kop surat resmi &amp; header berwarna, serta format <strong>CSV</strong>.</p>
+        <p class="mt-1 text-sm text-muted">Pilih jenis rekap data penilaian yang ingin diunduh. Tersedia format <strong>Excel (.xlsx)</strong> lengkap dengan kop surat resmi &amp; header berwarna.</p>
     </header>
 
     <div class="grid gap-5 sm:grid-cols-2">
@@ -27,10 +27,6 @@
                    class="button-primary text-xs flex-1 justify-center items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
                     <span>Excel (.xlsx)</span>
-                </a>
-                <a href="{{ route('dosen.penilaian.export.keseluruhan', [$section->id, 'format' => 'csv']) }}"
-                   class="button-secondary text-xs justify-center">
-                    CSV
                 </a>
             </div>
         </div>
@@ -50,10 +46,6 @@
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
                     <span>Excel (.xlsx)</span>
                 </a>
-                <a href="{{ route('dosen.penilaian.export.cpmk', [$section->id, 'format' => 'csv']) }}"
-                   class="button-secondary text-xs justify-center">
-                    CSV
-                </a>
             </div>
         </div>
 
@@ -71,10 +63,6 @@
                    class="button-primary text-xs flex-1 justify-center items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
                     <span>Excel (.xlsx)</span>
-                </a>
-                <a href="{{ route('dosen.penilaian.export.cpl', [$section->id, 'format' => 'csv']) }}"
-                   class="button-secondary text-xs justify-center">
-                    CSV
                 </a>
             </div>
         </div>
@@ -94,10 +82,6 @@
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
                     <span>Excel (.xlsx)</span>
                 </a>
-                <a href="{{ route('dosen.penilaian.export.nilai', [$section->id, 'format' => 'csv']) }}"
-                   class="button-secondary text-xs justify-center">
-                    CSV
-                </a>
             </div>
         </div>
     </div>
@@ -105,7 +89,7 @@
     <div class="surface p-4 rounded-xl border border-line/60 bg-canvas/30 text-xs text-muted flex items-start gap-2.5">
         <svg class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <div>
-            <strong class="text-ink">Format Ekspor:</strong> File <strong>Excel (.xlsx)</strong> diformat resmi menggunakan Kop Surat Kementerian &amp; SALE, banner pembobotan hijau (#92D050), garis aksen biru (#00B0F0), serta banner oranye (#F79646) sesuai standar OBE. File <strong>CSV</strong> menggunakan encoding UTF-8 dengan BOM dan delimiter titik koma (;) untuk kompatibilitas data mentah.
+            <strong class="text-ink">Format Ekspor:</strong> File <strong>Excel (.xlsx)</strong> diformat resmi menggunakan Kop Surat Kementerian &amp; SALE, banner pembobotan hijau (#92D050), garis aksen biru (#00B0F0), serta banner oranye (#F79646) sesuai standar OBE.
         </div>
     </div>
 </div>

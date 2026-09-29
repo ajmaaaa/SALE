@@ -13,7 +13,7 @@
             <span>/</span>
             <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="hover:text-brand">Input Nilai</a>
             <span>/</span>
-            <span class="text-ink font-semibold">Import CSV</span>
+            <span class="text-ink font-semibold">Import Excel / CSV</span>
         </nav>
         <h2 class="section-heading">Import Nilai: {{ $assessment->name }}</h2>
         <p class="mt-1 text-sm text-muted">{{ $assessment->code }} ({{ ucfirst($assessment->type) }})</p>
@@ -123,13 +123,13 @@
     @else
         {{-- Upload form --}}
         <div class="surface p-5 space-y-4">
-            <h3 class="section-heading">Upload File CSV</h3>
-            <p class="text-sm text-muted">Format file: CSV dengan delimiter titik koma (;) atau koma (,). Format kolom mengikuti template yang diunduh.</p>
+            <h3 class="section-heading">Upload File Excel / CSV</h3>
+            <p class="text-sm text-muted">Format file: Excel (.xlsx/.xls) atau CSV (.csv). Format kolom mengikuti template yang diunduh.</p>
 
             <div class="p-4 rounded-lg bg-canvas">
                 <p class="text-xs font-semibold text-ink mb-2">Alur Import:</p>
                 <ol class="text-xs text-muted space-y-1 list-decimal list-inside">
-                    <li>Download template CSV dari halaman <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="text-brand hover:underline">Input Nilai</a></li>
+                    <li>Unduh template Excel dari halaman <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="text-brand hover:underline">Input Nilai</a></li>
                     <li>Isi nilai mahasiswa pada template sesuai kolom yang tersedia</li>
                     <li>Upload file yang sudah diisi di sini</li>
                     <li>Periksa preview data, lalu konfirmasi untuk menyimpan</li>
@@ -139,10 +139,10 @@
             <form method="post" action="{{ route('dosen.penilaian.asesmen.nilai.import.process', [$section->id, $assessment->id]) }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 <label class="block">
-                    <span class="form-label text-xs">File CSV</span>
-                    <input type="file" name="file" accept=".csv,.txt" required class="field text-sm">
+                    <span class="form-label text-xs">File Nilai</span>
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv,.txt" required class="field text-sm">
                 </label>
-                <p class="text-xs text-muted">Maksimal 2 MB. Format CSV (.csv) dengan encoding UTF-8.</p>
+                <p class="text-xs text-muted">Maksimal 2 MB. Format Excel (.xlsx/.xls) atau CSV (.csv).</p>
                 <div class="flex items-center gap-3">
                     <button type="submit" class="button-primary">Upload & Preview</button>
                     <a href="{{ route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id]) }}" class="quiet-link text-sm">Batal</a>

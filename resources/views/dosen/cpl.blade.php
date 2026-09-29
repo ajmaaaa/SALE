@@ -24,7 +24,6 @@
                 </svg>
                 <span>Export Excel (.xlsx)</span>
             </a>
-            <a href="{{ route('dosen.penilaian.export.cpl', $section->id) }}" class="button-secondary text-xs">Export CSV</a>
         </div>
     </div>
 

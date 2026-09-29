@@ -34,91 +34,198 @@ class LaporanProdiController extends AdminProdiController
     {
         $data = $this->prepareReportData($request);
 
-        $activeProdi = $data['activeProdi'];
+        $activeProdi    = $data['activeProdi'];
         $activeSemester = $data['activeSemester'];
         $safeProdi = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeProdi?->code ?? 'PRODI');
-        $safeSem = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeSemester?->code ?? 'SEM');
-        $fileName = "laporan-prodi-{$safeProdi}-{$safeSem}.xlsx";
+        $safeSem   = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeSemester?->code ?? 'SEM');
+        $fileName  = "laporan-prodi-{$safeProdi}-{$safeSem}.xlsx";
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Laporan Prodi');
 
-        // Header Dokumen
+        $borderThin   = ['borderStyle' => Border::BORDER_THIN,   'color' => ['argb' => 'FF000000']];
+        $borderMedium = ['borderStyle' => Border::BORDER_MEDIUM,  'color' => ['argb' => 'FF000000']];
+        $colLetters   = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+        // ── Baris 1: Judul ────────────────────────────────────────────────────
         $sheet->setCellValue('A1', 'LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:J1');
+        $sheet->getStyle('A1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['outline' => $borderMedium],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(28);
 
-        $sheet->setCellValue('A2', 'Program Studi: ' . ($data['activeProdi']?->name ?? 'Semua') . ' (' . ($data['activeProdi']?->code ?? '-') . ')');
-        $sheet->setCellValue('A3', 'Semester: ' . ($data['activeSemester']?->name ?? 'Semua') . ' (' . ($data['activeSemester']?->code ?? '-') . ')');
+        // ── Baris 2–4: Info dokumen ───────────────────────────────────────────
+        $sheet->setCellValue('A2', 'Program Studi: ' . ($activeProdi?->name ?? 'Semua') . ' (' . ($activeProdi?->code ?? '-') . ')');
+        $sheet->mergeCells('A2:J2');
+        $sheet->setCellValue('A3', 'Semester: ' . ($activeSemester?->name ?? 'Semua') . ' (' . ($activeSemester?->code ?? '-') . ')');
+        $sheet->mergeCells('A3:J3');
         $sheet->setCellValue('A4', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheet->mergeCells('A4:J4');
 
-        // Seksi 1: Ringkasan Metrik
-        $sheet->setCellValue('A6', 'RINGKASAN METRIK SEMESTER');
-        $sheet->getStyle('A6')->getFont()->setBold(true);
+        foreach ([2, 3, 4] as $rInfo) {
+            $sheet->getStyle("A{$rInfo}:J{$rInfo}")->applyFromArray([
+                'font'    => ['bold' => ($rInfo === 2)],
+                'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+                'borders' => ['allBorders' => $borderThin],
+            ]);
+            $sheet->getRowDimension($rInfo)->setRowHeight(20);
+        }
 
-        $sheet->setCellValue('A7', 'Indikator');
-        $sheet->setCellValue('B7', 'Nilai');
-        $sheet->getStyle('A7:B7')->getFont()->setBold(true);
-        $sheet->getStyle('A7:B7')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
+        // ── Baris 6: Sub-judul Ringkasan ─────────────────────────────────────
+        $r = 6;
+        $sheet->setCellValue('A' . $r, 'RINGKASAN METRIK SEMESTER');
+        $sheet->mergeCells('A' . $r . ':J' . $r);
+        $sheet->getStyle('A' . $r)->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'borders'   => ['outline' => $borderMedium],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension($r)->setRowHeight(22);
 
-        $metrics = [
-            ['Total Dosen Homebase / Pengampu', $data['metrics']['total_dosen']],
-            ['Total Mahasiswa Terdaftar di Prodi', $data['metrics']['total_mahasiswa']],
-            ['Mahasiswa Baru Masuk Semester Ini', $data['metrics']['mahasiswa_baru']],
-            ['Total Kelas Perkuliahan Aktif', $data['metrics']['total_kelas']],
-            ['Rata-rata Nilai Mahasiswa (Skala 0-100)', $data['metrics']['average_grade'] !== null ? number_format($data['metrics']['average_grade'], 2) : 'Belum ada nilai'],
+        // ── Baris 7: Header ringkasan ──────────────────────────────────────────
+        $r = 7;
+        $sheet->setCellValue('A' . $r, 'Indikator');
+        $sheet->setCellValue('B' . $r, 'Nilai');
+        $sheet->mergeCells('B' . $r . ':J' . $r);
+        $sheet->getStyle('A' . $r . ':J' . $r)->applyFromArray([
+            'font'      => ['bold' => true],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+            'borders'   => ['allBorders' => $borderThin],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension($r)->setRowHeight(20);
+
+        // ── Baris 8–12: Data ringkasan (5 metrik) ───────────────────────────
+        $metricsData = [
+            ['Total Dosen Homebase / Pengampu',        $data['metrics']['total_dosen']    . ' Orang'],
+            ['Total Mahasiswa Terdaftar di Prodi',      $data['metrics']['total_mahasiswa'] . ' Orang'],
+            ['Mahasiswa Baru Masuk Semester Ini',       $data['metrics']['mahasiswa_baru']  . ' Orang'],
+            ['Total Kelas Perkuliahan Aktif',           $data['metrics']['total_kelas']     . ' Kelas'],
+            ['Rata-rata Nilai Mahasiswa (Skala 0-100)',
+                $data['metrics']['average_grade'] !== null
+                    ? number_format($data['metrics']['average_grade'], 2)
+                    : 'Belum ada nilai diinput'],
         ];
-
-        $rowIdx = 8;
-        foreach ($metrics as $m) {
-            $sheet->setCellValue('A' . $rowIdx, $m[0]);
-            $sheet->setCellValue('B' . $rowIdx, $m[1]);
-            $rowIdx++;
+        $r = 8;
+        foreach ($metricsData as [$label, $val]) {
+            $sheet->setCellValue('A' . $r, $label);
+            $sheet->setCellValue('B' . $r, $val);
+            $sheet->mergeCells('B' . $r . ':J' . $r);
+            $sheet->getStyle('A' . $r)->applyFromArray([
+                'borders' => ['allBorders' => $borderThin],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheet->getStyle('B' . $r . ':J' . $r)->applyFromArray([
+                'borders' => ['allBorders' => $borderThin],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheet->getRowDimension($r)->setRowHeight(20);
+            $r++;
         }
 
-        // Seksi 2: Rincian Kelas Perkuliahan
-        $rowIdx += 2;
-        $sheet->setCellValue('A' . $rowIdx, 'RINCIAN KELAS PERKULIAHAN & RATA-RATA NILAI');
-        $sheet->getStyle('A' . $rowIdx)->getFont()->setBold(true);
+        // ── Baris 13 & 14 kosong ──
+        // ── Baris 15: Sub-judul tabel kelas ──────────────────────────────────
+        $r = 15;
+        $sheet->setCellValue('A' . $r, 'RINCIAN KELAS PERKULIAHAN & RATA-RATA NILAI');
+        $sheet->mergeCells('A' . $r . ':J' . $r);
+        $sheet->getStyle('A' . $r)->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'borders'   => ['outline' => $borderMedium],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension($r)->setRowHeight(22);
 
-        $rowIdx++;
-        $headers = ['No', 'Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Mahasiswa', 'Asesmen', 'Rata-rata Nilai'];
-        $cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        // ── Baris 16: Header tabel kelas ─────────────────────────────────────
+        $r = 16;
+        $tableHeaderRow = $r;
+        $headers = ['No', 'Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kode Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Jml Mhs', 'Jml Asesmen', 'Rata-rata Nilai'];
         foreach ($headers as $k => $h) {
-            $sheet->setCellValue($cols[$k] . $rowIdx, $h);
+            $sheet->setCellValue($colLetters[$k] . $r, $h);
         }
-        $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
+        $sheet->getStyle("A{$r}:J{$r}")->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
+            'borders'   => ['allBorders' => $borderThin],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+        ]);
+        $sheet->getRowDimension($r)->setRowHeight(26);
 
-        $rowIdx++;
+        // ── Data baris kelas ──────────────────────────────────────────────────
+        $r++;
         $no = 1;
         foreach ($data['classReports'] as $cr) {
-            $sheet->setCellValue('A' . $rowIdx, $no++);
-            $sheet->setCellValue('B' . $rowIdx, $cr['mk_code']);
-            $sheet->setCellValue('C' . $rowIdx, $cr['mk_name']);
-            $sheet->setCellValue('D' . $rowIdx, $cr['sks']);
-            $sheet->setCellValue('E' . $rowIdx, $cr['section_code']);
-            $sheet->setCellValue('F' . $rowIdx, $cr['dosen_ketua']);
-            $sheet->setCellValue('G' . $rowIdx, $cr['dosen_wakil']);
-            $sheet->setCellValue('H' . $rowIdx, $cr['students_count']);
-            $sheet->setCellValue('I' . $rowIdx, $cr['assessments_count']);
-            $sheet->setCellValue('J' . $rowIdx, $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai');
-            $rowIdx++;
+            $sheet->setCellValue('A' . $r, $no++);
+            $sheet->setCellValue('B' . $r, $cr['mk_code']);
+            $sheet->setCellValue('C' . $r, $cr['mk_name']);
+            $sheet->setCellValue('D' . $r, $cr['sks']);
+            $sheet->setCellValue('E' . $r, $cr['section_code']);
+            $sheet->setCellValue('F' . $r, $cr['dosen_ketua']);
+            $sheet->setCellValue('G' . $r, $cr['dosen_wakil'] !== '-' ? $cr['dosen_wakil'] : '');
+            $sheet->setCellValue('H' . $r, $cr['students_count']);
+            $sheet->setCellValue('I' . $r, $cr['assessments_count']);
+            $sheet->setCellValue('J' . $r,
+                $cr['class_average'] !== null
+                    ? number_format($cr['class_average'], 2)
+                    : 'Belum dinilai'
+            );
+            $bgZebra = ($no % 2 === 0) ? 'F8FAFC' : 'FFFFFF';
+            $sheet->getStyle("A{$r}:J{$r}")->applyFromArray([
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgZebra]],
+                'borders'   => ['allBorders' => $borderThin],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            // Center kolom angka
+            $sheet->getStyle("A{$r}:B{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$r}:E{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("H{$r}:J{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getRowDimension($r)->setRowHeight(20);
+            $r++;
         }
 
-        foreach ($cols as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+        // ── Baris total ───────────────────────────────────────────────────────
+        if ($no > 1) {
+            $sheet->setCellValue('A' . $r, 'TOTAL');
+            $sheet->mergeCells('A' . $r . ':G' . $r);
+            $sheet->setCellValue('H' . $r, array_sum(array_column($data['classReports'], 'students_count')));
+            $sheet->setCellValue('I' . $r, array_sum(array_column($data['classReports'], 'assessments_count')));
+            $sheet->setCellValue('J' . $r, count($data['classReports']) . ' Kelas');
+            $sheet->getStyle("A{$r}:J{$r}")->applyFromArray([
+                'font'      => ['bold' => true],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+                'borders'   => ['allBorders' => $borderThin, 'outline' => $borderMedium],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheet->getStyle("A{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getRowDimension($r)->setRowHeight(22);
+            $r++;
         }
+
+        // ── Lebar kolom tetap ──────────────────────────────────────────────────
+        $colWidths = [5, 12, 32, 5, 10, 26, 24, 10, 12, 14];
+        foreach ($colLetters as $k => $col) {
+            $sheet->getColumnDimension($col)->setWidth($colWidths[$k]);
+        }
+
+        // ── Freeze pane di bawah header tabel ────────────────────────────────
+        $sheet->freezePane('A' . ($tableHeaderRow + 1));
 
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
         }, $fileName, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-            'Cache-Control' => 'max-age=0',
+            'Cache-Control'       => 'max-age=0',
         ]);
     }
+
 
     public function print(Request $request): View
     {

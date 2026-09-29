@@ -258,11 +258,19 @@ class AdminProdiManagementTest extends TestCase
         // 1. Download template Excel Dosen & Mahasiswa
         $response = $this->get(route('admin-prodi.users.template', 'dosen'));
         $response->assertStatus(200);
-        $this->assertStringContainsString('NIDN_NIP', $response->streamedContent());
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
+        file_put_contents($tempFile, $response->streamedContent());
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile)->getActiveSheet();
+        $this->assertSame('NIDN_NIP', $sheet->getCell('A1')->getValue());
+        @unlink($tempFile);
 
         $response = $this->get(route('admin-prodi.users.template', 'mahasiswa'));
         $response->assertStatus(200);
-        $this->assertStringContainsString('NIM', $response->streamedContent());
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
+        file_put_contents($tempFile, $response->streamedContent());
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile)->getActiveSheet();
+        $this->assertSame('NIM', $sheet->getCell('A1')->getValue());
+        @unlink($tempFile);
 
         // 2. Input Manual Mahasiswa
         $response = $this->post(route('admin-prodi.users.store'), [

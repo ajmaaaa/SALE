@@ -3,7 +3,7 @@
     <header class="flex items-start justify-between gap-4 border-b border-line p-5">
         <div>
             <h2 id="grade-import-title" class="text-lg font-semibold">Unggah Nilai {{ strtoupper($activeType) }}</h2>
-            <p class="mt-1 text-xs text-muted">Isi nilai massal dari file CSV atau Excel (.xlsx).</p>
+            <p class="mt-1 text-xs text-muted">Isi nilai massal dari file Excel (.xlsx) atau CSV.</p>
         </div>
         <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" data-grade-import-close aria-label="Tutup">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -12,11 +12,11 @@
     <div class="space-y-4 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <p class="max-w-md text-xs leading-relaxed text-muted">Kolom wajib: <strong class="text-ink">NIM, CPMK_01, CPMK_02</strong>. Nilai 0 sampai 100, kelipatan 0,5. Simpan NIM sebagai teks agar angka nol di depan tidak hilang. Excel dibaca dari lembar pertama.</p>
-            <button type="button" class="button-secondary text-xs" data-grade-import-template>Unduh Template CSV</button>
+            <button type="button" class="button-secondary text-xs" data-grade-import-template>Unduh Template Excel</button>
         </div>
         <div>
             <label for="grade-import-file" class="mb-2 block text-xs font-semibold">File nilai (maksimal 2 MB, 500 baris)</label>
-            <input id="grade-import-file" type="file" accept=".csv,.xlsx" class="field text-xs" data-grade-import-file aria-describedby="grade-import-status">
+            <input id="grade-import-file" type="file" accept=".xlsx,.xls,.csv" class="field text-xs" data-grade-import-file aria-describedby="grade-import-status">
         </div>
         <p id="grade-import-status" class="text-xs text-muted" role="status" data-grade-import-status>Pilih file untuk memeriksa nilai sebelum diterapkan.</p>
         <ul class="list-disc space-y-1 pl-5 text-xs text-danger" data-grade-import-errors role="alert" hidden></ul>
@@ -29,7 +29,6 @@
         <p class="text-xs leading-relaxed text-muted">Hanya mahasiswa dalam file yang diperbarui. Nilai akhir dihitung dari rata-rata CPMK sesuai tabel. Perubahan hanya berlaku pada halaman preview ini dan hilang saat halaman dimuat ulang; belum tersimpan ke database.</p>
     </div>
     <footer class="flex justify-end gap-3 border-t border-line p-5">
-        <button type="button" class="button-secondary text-xs" data-grade-import-close>Batal</button>
         <button type="button" class="button-primary text-xs" data-grade-import-apply disabled>Terapkan Nilai ke Tabel</button>
     </footer>
 </dialog>

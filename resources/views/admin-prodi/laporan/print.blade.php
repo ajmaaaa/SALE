@@ -6,118 +6,342 @@
     <title>Laporan Akademik Prodi {{ $activeProdi?->code }} - {{ $activeSemester?->name }} | SALE</title>
     @vite(['resources/css/app.css'])
     <style>
+        /* ── Variabel ukuran kertas ── */
+        :root {
+            --paper-width: 210mm;
+            --paper-min-height: 297mm;
+            --paper-padding: 20mm 20mm 25mm 25mm; /* top right bottom left */
+        }
+        body {
+            background: #e5e7eb;
+            margin: 0;
+            padding: 0;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            color: #000;
+        }
+
+        /* ── Action bar (di luar area kertas) ── */
+        #action-bar {
+            background: #fff;
+            border-bottom: 1px solid #d1d5db;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        #action-bar .left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #action-bar label {
+            font-size: 12px;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            color: #374151;
+            font-weight: 600;
+        }
+        #action-bar select {
+            font-size: 12px;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 5px 10px;
+            color: #111827;
+            background: #f9fafb;
+            cursor: pointer;
+        }
+        #action-bar .btn {
+            font-size: 12px;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            padding: 6px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            color: #374151;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #action-bar .btn-primary {
+            background: #1e3a5f;
+            color: #fff;
+            border-color: #1e3a5f;
+        }
+        #action-bar .btn:hover { opacity: 0.85; }
+
+        /* ── Area kertas ── */
+        #paper-wrap {
+            display: flex;
+            justify-content: center;
+            padding: 32px 0 64px;
+        }
+        #paper {
+            background: #fff;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+            width: var(--paper-width);
+            min-height: var(--paper-min-height);
+            padding: var(--paper-padding);
+            box-sizing: border-box;
+        }
+
+        /* ── Konten laporan ── */
+        .doc-header {
+            text-align: center;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #000;
+            margin-bottom: 16px;
+        }
+        .doc-header h1 {
+            font-size: 13pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0 0 4px;
+        }
+        .doc-header h2 {
+            font-size: 11pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 0 0 6px;
+        }
+        .doc-header p {
+            font-size: 10pt;
+            margin: 2px 0;
+            color: #000;
+        }
+
+        /* ── Summary table (gantikan cards) ── */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 10pt;
+        }
+        .summary-table th, .summary-table td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+        }
+        .summary-table thead th {
+            background: #f3f4f6;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 9pt;
+            letter-spacing: 0.03em;
+        }
+        .summary-table tbody td {
+            text-align: center;
+        }
+        .summary-table tbody td.label {
+            text-align: left;
+            font-weight: bold;
+        }
+        .summary-table .val {
+            font-size: 14pt;
+            font-weight: bold;
+        }
+
+        /* ── Tabel kelas ── */
+        .section-title {
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+            margin-top: 0;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .data-table thead th {
+            background: #e5e7eb;
+            font-weight: bold;
+            text-align: center;
+            font-size: 9pt;
+        }
+        .data-table tbody td.center {
+            text-align: center;
+        }
+        .data-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        /* ── Tanda tangan ── */
+        .signatures {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10pt;
+        }
+        .sig-block { }
+        .sig-block .sig-line {
+            margin-top: 4px;
+            font-weight: bold;
+        }
+        .sig-space { height: 56px; }
+        .sig-name { font-weight: bold; text-decoration: underline; }
+        .sig-nip { font-size: 9pt; color: #374151; }
+
+        /* ── Print media ── */
         @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; font-size: 12px; }
-            .page-break { page-break-after: always; }
+            #action-bar { display: none !important; }
+            #paper-wrap { padding: 0; background: #fff; }
+            #paper {
+                box-shadow: none;
+                width: var(--paper-width);
+                min-height: var(--paper-min-height);
+                padding: var(--paper-padding);
+            }
+            body { background: #fff; }
+            @page {
+                size: var(--paper-width) var(--paper-min-height);
+                margin: 0;
+            }
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 p-6 sm:p-10 antialiased font-sans">
-    <div class="max-w-4xl mx-auto bg-white p-8 sm:p-12 rounded-xl shadow-xs border border-slate-200">
-        <!-- Action Bar (Hidden on print) -->
-        <div class="no-print flex items-center justify-between pb-6 mb-6 border-b border-slate-200">
-            <a href="{{ route('admin-prodi.laporan.index', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-secondary text-xs">
-                &larr; Kembali ke Sistem
+<body>
+    <!-- ── Action Bar (di luar area kertas, hidden saat print) ── -->
+    <div id="action-bar">
+        <div class="left-group">
+            <a href="{{ route('admin-prodi.laporan.index', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="btn">
+                Kembali ke Sistem
             </a>
-            <div class="flex gap-2">
-                <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-secondary text-xs">
-                    Ekspor CSV / Excel
-                </a>
-                <button type="button" onclick="window.print()" class="button-primary text-xs">
-                    Cetak Dokumen (Print)
-                </button>
-            </div>
+            <label for="paperSize">Format Kertas:</label>
+            <select id="paperSize" onchange="changePaperSize(this.value)">
+                <option value="a4" selected>A4 (210 × 297 mm)</option>
+                <option value="f4">F4 / Folio (215 × 330 mm)</option>
+                <option value="letter">Letter (216 × 279 mm)</option>
+            </select>
         </div>
-
-        <!-- Institutional Header -->
-        <div class="text-center pb-6 border-b-2 border-slate-900 space-y-1">
-            <h1 class="text-lg font-bold uppercase tracking-wider text-slate-900">{{ \App\Models\SystemSetting::valueFor('institution', 'SMART ACADEMIC LEARNING ECOSYSTEM (SALE)') }}</h1>
-            <h2 class="text-base font-semibold text-slate-800">LAPORAN AKADEMIK &amp; KELAS PERKULIAHAN PROGRAM STUDI</h2>
-            <p class="text-xs text-slate-600">
-                Program Studi: <strong>{{ $activeProdi?->name }} ({{ $activeProdi?->code }})</strong>, Semester: <strong>{{ $activeSemester?->name }}</strong>
-            </p>
-            <p class="text-[11px] text-slate-400">Dicetak pada: {{ now()->translatedFormat('d F Y, H:i:s') }}</p>
+        <div class="left-group">
+            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                Ekspor Excel
+            </a>
+            <button type="button" onclick="window.print()" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                Cetak Dokumen (Print)
+            </button>
         </div>
+    </div>
 
-        <!-- Executive Summary Cards -->
-        <div class="my-6 grid grid-cols-5 gap-3 text-center">
-            <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
-                <p class="text-[10px] uppercase font-semibold text-slate-500">Mahasiswa Aktif</p>
-                <p class="text-xl font-bold text-slate-900 mt-1">{{ $metrics['total_mahasiswa'] }}</p>
-            </div>
-            <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
-                <p class="text-[10px] uppercase font-semibold text-slate-500">Dosen Pengampu</p>
-                <p class="text-xl font-bold text-slate-900 mt-1">{{ $metrics['total_dosen'] }}</p>
-            </div>
-            <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
-                <p class="text-[10px] uppercase font-semibold text-slate-500">Mahasiswa Baru</p>
-                <p class="text-xl font-bold text-blue-700 mt-1">{{ $metrics['mahasiswa_baru'] }}</p>
-            </div>
-            <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
-                <p class="text-[10px] uppercase font-semibold text-slate-500">Rata-rata Nilai</p>
-                <p class="text-xl font-bold text-emerald-700 mt-1">{{ $metrics['average_grade'] !== null ? number_format($metrics['average_grade'], 2) : '0.00' }}</p>
-            </div>
-            <div class="p-3 border border-slate-200 rounded-lg bg-slate-50/50">
-                <p class="text-[10px] uppercase font-semibold text-slate-500">Total Kelas</p>
-                <p class="text-xl font-bold text-slate-900 mt-1">{{ $metrics['total_kelas'] }}</p>
-            </div>
-        </div>
+    <!-- ── Area Kertas ── -->
+    <div id="paper-wrap">
+        <div id="paper">
 
-        <!-- Detail Kelas -->
-        <div class="my-6">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">Daftar Kelas Perkuliahan &amp; Capaian Nilai</h3>
-            <table class="w-full text-left text-xs border border-slate-300 divide-y divide-slate-300">
+            <!-- Kop Laporan -->
+            <div class="doc-header">
+                <h1>{{ \App\Models\SystemSetting::valueFor('institution', 'SMART ACADEMIC LEARNING ECOSYSTEM (SALE)') }}</h1>
+                <h2>LAPORAN AKADEMIK &amp; KELAS PERKULIAHAN PROGRAM STUDI</h2>
+                <p>Program Studi: <strong>{{ $activeProdi?->name }} ({{ $activeProdi?->code }})</strong> &nbsp;|&nbsp; Semester: <strong>{{ $activeSemester?->name }}</strong></p>
+                <p style="font-size:9pt;color:#555;">Dicetak pada: {{ now()->translatedFormat('d F Y, H:i:s') }}</p>
+            </div>
+
+            <!-- Ringkasan Metrik (tabel, bukan card web) -->
+            <table class="summary-table">
                 <thead>
-                    <tr class="bg-slate-100 text-slate-700 font-bold">
-                        <th class="p-2 border-r border-slate-300 text-center w-8">No</th>
-                        <th class="p-2 border-r border-slate-300">Kode &amp; Seksi</th>
-                        <th class="p-2 border-r border-slate-300">Mata Kuliah (SKS)</th>
-                        <th class="p-2 border-r border-slate-300">Dosen Ketua</th>
-                        <th class="p-2 border-r border-slate-300">Dosen Wakil</th>
-                        <th class="p-2 border-r border-slate-300 text-center">Mahasiswa</th>
-                        <th class="p-2 text-center">Rata-rata Nilai</th>
+                    <tr>
+                        <th>Mahasiswa Aktif</th>
+                        <th>Dosen Pengampu</th>
+                        <th>Rata-rata Nilai</th>
+                        <th>Total Kelas</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200">
+                <tbody>
+                    <tr>
+                        <td><span class="val">{{ $metrics['total_mahasiswa'] }}</span></td>
+                        <td><span class="val">{{ $metrics['total_dosen'] }}</span></td>
+                        <td><span class="val">{{ $metrics['average_grade'] !== null ? number_format($metrics['average_grade'], 2) : '0.00' }}</span></td>
+                        <td><span class="val">{{ $metrics['total_kelas'] }}</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Daftar Kelas Perkuliahan -->
+            <p class="section-title">Daftar Kelas Perkuliahan &amp; Capaian Nilai</p>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:5%">No</th>
+                        <th style="width:10%">Kode &amp; Seksi</th>
+                        <th style="width:22%">Mata Kuliah (SKS)</th>
+                        <th style="width:22%">Dosen Ketua</th>
+                        <th style="width:20%">Dosen Wakil</th>
+                        <th style="width:9%">Mahasiswa</th>
+                        <th style="width:12%">Rata-rata Nilai</th>
+                    </tr>
+                </thead>
+                <tbody>
                     @forelse($classReports as $idx => $cr)
                     <tr>
-                        <td class="p-2 border-r border-slate-200 text-center text-slate-500">{{ $idx + 1 }}</td>
-                        <td class="p-2 border-r border-slate-200 font-mono font-bold">{{ $cr['mk_code'] }}-{{ $cr['section_code'] }}</td>
-                        <td class="p-2 border-r border-slate-200">{{ $cr['mk_name'] }} ({{ $cr['sks'] }} SKS)</td>
-                        <td class="p-2 border-r border-slate-200 font-medium">{{ $cr['dosen_ketua'] }}</td>
-                        <td class="p-2 border-r border-slate-200 text-slate-600">{{ $cr['dosen_wakil'] }}</td>
-                        <td class="p-2 border-r border-slate-200 text-center">{{ $cr['students_count'] }}</td>
-                        <td class="p-2 text-center font-bold {{ $cr['class_average'] !== null ? 'text-emerald-800' : 'text-slate-400' }}">
-                            {{ $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai' }}
-                        </td>
+                        <td class="center">{{ $idx + 1 }}</td>
+                        <td class="center" style="font-family:monospace;font-weight:bold;">{{ $cr['mk_code'] }}-{{ $cr['section_code'] }}</td>
+                        <td>{{ $cr['mk_name'] }} ({{ $cr['sks'] }} SKS)</td>
+                        <td>{{ $cr['dosen_ketua'] }}</td>
+                        <td>{{ $cr['dosen_wakil'] !== '-' ? $cr['dosen_wakil'] : '' }}</td>
+                        <td class="center">{{ $cr['students_count'] }}</td>
+                        <td class="center">{{ $cr['class_average'] !== null ? number_format($cr['class_average'], 2) : 'Belum dinilai' }}</td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="p-4 text-center text-slate-500">Tidak ada kelas perkuliahan pada periode ini.</td>
+                        <td colspan="7" class="center">Tidak ada kelas perkuliahan pada periode ini.</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
-        </div>
 
-        <!-- Signatures -->
-        <div class="mt-12 pt-6 grid grid-cols-2 gap-8 text-xs text-slate-800">
-            <div>
-                <p>Mengetahui,</p>
-                <p class="font-bold mt-1">Ketua Program Studi {{ $activeProdi?->name }}</p>
-                <div class="h-20"></div>
-                <p class="font-bold underline">Dr. H. Kaprodi, M.T.</p>
-                <p class="text-slate-500">NIP. 197501012000031001</p>
+            <!-- Tanda Tangan -->
+            <div class="signatures">
+                <div class="sig-block">
+                    <p style="margin:0;">Mengetahui,</p>
+                    <p class="sig-line">Ketua Program Studi {{ $activeProdi?->name }}</p>
+                    <div class="sig-space"></div>
+                    <p class="sig-name">Dr. H. Kaprodi, M.T.</p>
+                    <p class="sig-nip">NIP. 197501012000031001</p>
+                </div>
+                <div class="sig-block" style="text-align:right;">
+                    <p style="margin:0;">Batam, {{ now()->translatedFormat('d F Y') }}</p>
+                    <p class="sig-line">Admin Program Studi</p>
+                    <div class="sig-space"></div>
+                    <p class="sig-name">Admin Prodi {{ $activeProdi?->code }}</p>
+                    <p class="sig-nip">NIP/ID. AP001</p>
+                </div>
             </div>
-            <div class="text-right">
-                <p>Batam, {{ now()->translatedFormat('d F Y') }}</p>
-                <p class="font-bold mt-1">Admin Program Studi</p>
-                <div class="h-20"></div>
-                <p class="font-bold underline">Admin Prodi {{ $activeProdi?->code }}</p>
-                <p class="text-slate-500">NIP/ID. AP001</p>
-            </div>
-        </div>
-    </div>
+
+        </div><!-- #paper -->
+    </div><!-- #paper-wrap -->
+
+    <script>
+        const paperSizes = {
+            a4:     { width: '210mm', height: '297mm', padding: '20mm 20mm 25mm 25mm' },
+            f4:     { width: '215mm', height: '330mm', padding: '20mm 20mm 25mm 25mm' },
+            letter: { width: '216mm', height: '279mm', padding: '20mm 20mm 25mm 20mm' },
+        };
+
+        function changePaperSize(val) {
+            const s = paperSizes[val];
+            if (!s) return;
+            const root = document.documentElement;
+            root.style.setProperty('--paper-width', s.width);
+            root.style.setProperty('--paper-min-height', s.height);
+            root.style.setProperty('--paper-padding', s.padding);
+        }
+    </script>
 </body>
 </html>

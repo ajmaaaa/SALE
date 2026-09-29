@@ -17,6 +17,7 @@ use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -433,15 +434,112 @@ class AdminPreviewController extends Controller
 
     public function export()
     {
-        AdminPreview::log('Mengunduh rekap data akademik CSV.');
-        return response()->streamDownload(function () {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['Jenis', 'Kode', 'Nama', 'Status', 'Jumlah peserta'], ',', '"', '');
-            foreach (AdminPreview::academic() as $record) {
-                $row = [$record['type'], $record['code'], $record['name'], $record['status'], count($record['students'])];
-                fputcsv($file, array_map(fn ($value) => preg_match('/^[=+@\-\t\r\n]/', (string) $value) ? "'".$value : $value, $row), ',', '"', '');
-            }
-            fclose($file);
-        }, 'sale-rekap-akademik.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        AdminPreview::log('Mengunduh rekap data akademik Excel.');
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap Akademik');
+
+        // 1. Judul Dokumen
+        $sheet->setCellValue('A1', 'REKAPITULASI DATA STRUKTUR AKADEMIK');
+        $sheet->mergeCells('A1:E1');
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        // 2. Info Dokumen
+        $sheet->setCellValue('A2', 'Sistem Informasi Akademik & OBE (SALE)');
+        $sheet->mergeCells('A2:E2');
+        $sheet->getStyle('A2')->applyFromArray([
+            'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '475569']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(2)->setRowHeight(20);
+
+        $sheet->setCellValue('A3', 'Tanggal Unduh: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheet->mergeCells('A3:E3');
+        $sheet->getStyle('A3')->applyFromArray([
+            'font' => ['size' => 9, 'color' => ['rgb' => '64748B']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(3)->setRowHeight(18);
+
+        // 3. Header Tabel
+        $tableHeaderRow = 5;
+        $headers = ['Jenis', 'Kode', 'Nama', 'Status', 'Jumlah Peserta'];
+        $sheet->fromArray([$headers], null, 'A' . $tableHeaderRow);
+        $sheet->getStyle("A{$tableHeaderRow}:E{$tableHeaderRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 10,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '2563EB'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+        $sheet->getRowDimension($tableHeaderRow)->setRowHeight(24);
+
+        // 4. Data rows
+        $rowIdx = 6;
+        $borderThin = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D1D5DB'],
+                ],
+            ],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ];
+
+        foreach (AdminPreview::academic() as $record) {
+            $row = [$record['type'], $record['code'], $record['name'], $record['status'], count($record['students'])];
+            $sheet->fromArray([$row], null, 'A'.$rowIdx);
+            $bgZebra = ($rowIdx % 2 === 0) ? 'F8FAFC' : 'FFFFFF';
+            $sheet->getStyle("A{$rowIdx}:E{$rowIdx}")->applyFromArray($borderThin);
+            $sheet->getStyle("A{$rowIdx}:E{$rowIdx}")->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB($bgZebra);
+
+            // Alignment
+            $sheet->getStyle("A{$rowIdx}:B{$rowIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$rowIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle("D{$rowIdx}:E{$rowIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getRowDimension($rowIdx)->setRowHeight(20);
+            $rowIdx++;
+        }
+
+        // Auto-width columns
+        foreach (range('A', 'E') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $sheet->freezePane('A6');
+
+        $fileName = 'sale-rekap-akademik.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 }
