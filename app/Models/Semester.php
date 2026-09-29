@@ -33,6 +33,19 @@ class Semester extends Model
         };
     }
 
+    public function getAcademicYearStartAttribute(): ?int
+    {
+        if ($this->academic_year && preg_match('/^(\d{4})/', $this->academic_year, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/^(\d{4})/', (string) $this->code, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
     public function getDisplayNameAttribute(): string
     {
         if ($this->academic_year && $this->term) {

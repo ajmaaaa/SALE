@@ -102,6 +102,19 @@ class AdminPreviewController extends Controller
                 : $roleNames[0];
             $primaryRole = $roles[$primaryRoleName];
             $prodiId = ! empty($data['prodi_id']) ? (int) $data['prodi_id'] : null;
+            $detectedAngkatan = null;
+            if (in_array(Role::MAHASISWA, $roleNames, true)) {
+                $num = trim($data['number']);
+                if (preg_match('/^(20\d{2})/', $num, $m)) {
+                    $detectedAngkatan = (int) $m[1];
+                } elseif (preg_match('/^(\d{2})/', $num, $m)) {
+                    $detectedAngkatan = 2000 + (int) $m[1];
+                } else {
+                    $activeYear = Semester::where('is_active', true)->value('academic_year');
+                    $detectedAngkatan = $activeYear ? (int) explode('/', $activeYear)[0] : now()->year;
+                }
+            }
+
             $managingProdiId = in_array(Role::ADMIN_PRODI, $roleNames, true) ? $prodiId : null;
 
             if ($existing) {
@@ -113,6 +126,7 @@ class AdminPreviewController extends Controller
                     'prodi_id' => $prodiId,
                     'managing_prodi_id' => $managingProdiId,
                     'is_active' => $data['status'] === 'aktif',
+                    'angkatan' => $existing->angkatan ?? $detectedAngkatan,
                 ]);
                 $user = $existing;
             } else {
@@ -128,6 +142,7 @@ class AdminPreviewController extends Controller
                     'must_change_password' => true,
                     'is_active' => $data['status'] === 'aktif',
                     'email_verified_at' => now(),
+                    'angkatan' => $detectedAngkatan,
                 ]);
             }
             $user->roles()->sync($roles->pluck('id')->all());
@@ -302,12 +317,28 @@ class AdminPreviewController extends Controller
 
                 $isActive = strtolower($statusRaw) === 'aktif';
 
+                $detectedAngkatan = null;
+                if ($roleName === Role::MAHASISWA) {
+                    if (preg_match('/^(20\d{2})/', $idNum, $m)) {
+                        $detectedAngkatan = (int) $m[1];
+                    } elseif (preg_match('/^(\d{2})/', $idNum, $m)) {
+                        $detectedAngkatan = 2000 + (int) $m[1];
+                    } else {
+                        $activeYear = Semester::where('is_active', true)->value('academic_year');
+                        $detectedAngkatan = $activeYear ? (int) explode('/', $activeYear)[0] : now()->year;
+                    }
+                }
+
                 if ($existing) {
-                    $existing->update([
+                    $updateData = [
                         'name' => $name,
                         'role_id' => $roleId,
                         'is_active' => $isActive,
-                    ]);
+                    ];
+                    if ($roleName === Role::MAHASISWA && ! $existing->angkatan) {
+                        $updateData['angkatan'] = $detectedAngkatan;
+                    }
+                    $existing->update($updateData);
                     $existing->roles()->syncWithoutDetaching([$roleId]);
                 } else {
                     $created = User::create([
@@ -319,6 +350,7 @@ class AdminPreviewController extends Controller
                         'must_change_password' => true,
                         'is_active' => $isActive,
                         'email_verified_at' => now(),
+                        'angkatan' => $detectedAngkatan,
                     ]);
                     $created->roles()->sync([$roleId]);
                 }

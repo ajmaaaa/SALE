@@ -31,6 +31,7 @@ class User extends Authenticatable
         'prodi_id',
         'managing_prodi_id',
         'nim_nidn',
+        'angkatan',
         'must_change_password',
         'is_active',
     ];
@@ -45,6 +46,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'angkatan' => 'integer',
             'notification_preferences' => 'array',
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
@@ -64,6 +66,38 @@ class User extends Authenticatable
         // URL relatif tetap bekerja baik saat SALE dibuka lewat localhost,
         // alamat LAN, reverse proxy, maupun port pengembangan yang berbeda.
         return '/storage/'.ltrim($this->profile_photo_path, '/');
+    }
+
+    public function semesterTempuhAt(?Semester $semester = null): int
+    {
+        $semester ??= Semester::firstWhere('is_active', true) ?? Semester::latest('id')->first();
+        if (! $semester || ! $this->angkatan) {
+            return 1;
+        }
+
+        $startYear = 0;
+        if (! empty($semester->academic_year)) {
+            $parts = explode('/', (string) $semester->academic_year);
+            $startYear = (int) $parts[0];
+        }
+        if ($startYear <= 0 && ! empty($semester->code)) {
+            $startYear = (int) substr((string) $semester->code, 0, 4);
+        }
+        if ($startYear <= 0) {
+            return 1;
+        }
+
+        $yearDiff = $startYear - (int) $this->angkatan;
+        $termOffset = ($semester->term === 2 || str_contains(strtolower((string) $semester->name), 'genap')) ? 2 : 1;
+
+        $calculated = ($yearDiff * 2) + $termOffset;
+
+        return max(1, $calculated);
+    }
+
+    public function getSemesterTempuhAttribute(): int
+    {
+        return $this->semesterTempuhAt();
     }
 
     public function role(): BelongsTo

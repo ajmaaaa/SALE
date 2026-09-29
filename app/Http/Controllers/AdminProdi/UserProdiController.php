@@ -72,6 +72,7 @@ class UserProdiController extends AdminProdiController
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
             'nim_nidn' => ['required', 'string', 'max:30', 'unique:users,nim_nidn'],
+            'angkatan' => ['nullable', 'integer', 'min:2000', 'max:2099'],
             'prodi_id' => ['required', 'exists:prodis,id'],
             'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ], [
@@ -82,6 +83,28 @@ class UserProdiController extends AdminProdiController
 
         // Pastikan admin hanya bisa menambah user ke prodinya sendiri
         $this->assertProdiScope($validated['prodi_id']);
+
+        // Auto-detect angkatan untuk mahasiswa jika tidak diisi manual
+        $angkatan = $validated['angkatan'] ?? null;
+        if (! $angkatan && $roleType === 'mahasiswa') {
+            $nim = trim($validated['nim_nidn']);
+            if (preg_match('/^(20\d{2})/', $nim, $matches)) {
+                $angkatan = (int) $matches[1];
+            } elseif (preg_match('/^(\d{2})/', $nim, $matches)) {
+                $two = (int) $matches[1];
+                if ($two >= 18 && $two <= 35) {
+                    $angkatan = 2000 + $two;
+                }
+            }
+            if (! $angkatan) {
+                $activeSem = \App\Models\Semester::where('is_active', true)->first();
+                if ($activeSem && ! empty($activeSem->academic_year)) {
+                    $angkatan = (int) explode('/', $activeSem->academic_year)[0];
+                } else {
+                    $angkatan = (int) date('Y');
+                }
+            }
+        }
 
         // Gunakan password yang diberikan atau buat password sementara acak.
         // Semua akun baru wajib mengganti kredensial yang diketahui admin saat login pertama.
@@ -94,6 +117,7 @@ class UserProdiController extends AdminProdiController
             'name' => trim($validated['name']),
             'email' => strtolower(trim($validated['email'])),
             'nim_nidn' => trim($validated['nim_nidn']),
+            'angkatan' => $angkatan,
             'prodi_id' => $validated['prodi_id'],
             'role_id' => $role->id,
             'password' => Hash::make($password),
@@ -121,6 +145,7 @@ class UserProdiController extends AdminProdiController
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
             'nim_nidn' => ['required', 'string', 'max:30', Rule::unique('users', 'nim_nidn')->ignore($user->id)],
+            'angkatan' => ['nullable', 'integer', 'min:2000', 'max:2099'],
             'prodi_id' => ['required', 'exists:prodis,id'],
             'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ], [
@@ -136,6 +161,10 @@ class UserProdiController extends AdminProdiController
             'nim_nidn' => trim($validated['nim_nidn']),
             'prodi_id' => $validated['prodi_id'],
         ];
+
+        if ($request->has('angkatan')) {
+            $updateData['angkatan'] = $request->input('angkatan') ?: null;
+        }
 
         if (! empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
@@ -183,15 +212,16 @@ class UserProdiController extends AdminProdiController
                 ['199003032015042001', 'Nurul Hidayah, S.Kom., M.T.', 'nurul@example.test', ''],
             ];
         } else {
-            $headers = ['NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Password'];
+            $headers = ['NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Password', 'Tahun Masuk (Angkatan)'];
             $samples = [
-                ['231011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', ''],
-                ['231011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', ''],
+                ['2024011409001', 'Muhammad Zaky Pratama', 'zaky@student.test', '', 2024],
+                ['2024011409002', 'Aisyah Putri Rahmadhani', 'aisyah@student.test', '', 2024],
             ];
         }
 
+        $lastCol = $type === 'dosen' ? 'D' : 'E';
         $sheet->fromArray([$headers], null, 'A1');
-        $sheet->getStyle('A1:D1')->applyFromArray([
+        $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -214,7 +244,7 @@ class UserProdiController extends AdminProdiController
         }
 
         $lastRow = $row - 1;
-        $sheet->getStyle("A1:D{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A1:{$lastCol}{$lastRow}")->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -223,7 +253,8 @@ class UserProdiController extends AdminProdiController
             ],
         ]);
 
-        foreach (['A', 'B', 'C', 'D'] as $col) {
+        $colsList = $type === 'dosen' ? ['A', 'B', 'C', 'D'] : ['A', 'B', 'C', 'D', 'E'];
+        foreach ($colsList as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -302,7 +333,7 @@ class UserProdiController extends AdminProdiController
         $errors = [];
         $temporaryCredentials = [];
 
-        DB::transaction(function () use ($rows, $prodiId, $role, &$successCount, &$skippedCount, &$errors, &$temporaryCredentials) {
+        DB::transaction(function () use ($rows, $prodiId, $role, $roleType, &$successCount, &$skippedCount, &$errors, &$temporaryCredentials) {
             foreach ($rows as $idx => $cols) {
                 $rowNum = $idx + 2; // +2: baris 1 adalah header, index 0 = baris data ke-2
 
@@ -346,10 +377,36 @@ class UserProdiController extends AdminProdiController
                     continue;
                 }
 
+                $angkatan = null;
+                if ($roleType === 'mahasiswa') {
+                    if (isset($cols[4]) && is_numeric(trim($cols[4]))) {
+                        $angkatan = (int) trim($cols[4]);
+                    }
+                    if (! $angkatan) {
+                        if (preg_match('/^(20\d{2})/', $idNum, $matches)) {
+                            $angkatan = (int) $matches[1];
+                        } elseif (preg_match('/^(\d{2})/', $idNum, $matches)) {
+                            $two = (int) $matches[1];
+                            if ($two >= 18 && $two <= 35) {
+                                $angkatan = 2000 + $two;
+                            }
+                        }
+                        if (! $angkatan) {
+                            $activeSem = \App\Models\Semester::where('is_active', true)->first();
+                            if ($activeSem && ! empty($activeSem->academic_year)) {
+                                $angkatan = (int) explode('/', $activeSem->academic_year)[0];
+                            } else {
+                                $angkatan = (int) date('Y');
+                            }
+                        }
+                    }
+                }
+
                 User::create([
                     'name'                 => $name,
                     'email'                => strtolower($email),
                     'nim_nidn'             => $idNum,
+                    'angkatan'             => $angkatan,
                     'prodi_id'             => $prodiId,
                     'role_id'              => $role->id,
                     'password'             => Hash::make($pass),

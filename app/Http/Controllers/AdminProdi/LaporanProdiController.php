@@ -258,13 +258,14 @@ class LaporanProdiController extends AdminProdiController
 
         // 3. Mahasiswa Baru Masuk per Semester (intake)
         // Kita hitung mahasiswa yang terdaftar di prodi yang masuk pada semester ini (atau semester year)
-        $semesterCodeYear = substr($activeSemester?->code ?? '', 0, 4);
+        $targetYear = (int) ($activeSemester?->academic_year_start ?? substr($activeSemester?->code ?? '', 0, 4));
         $mahasiswaBaruCount = User::withRoleName(Role::MAHASISWA)
             ->where('prodi_id', $prodiId)
-            ->where(function ($q) use ($semesterCodeYear) {
-                if ($semesterCodeYear) {
-                    $q->where('nim_nidn', 'like', $semesterCodeYear.'%')
-                        ->orWhereYear('created_at', (int) $semesterCodeYear);
+            ->where(function ($q) use ($targetYear) {
+                if ($targetYear > 0) {
+                    $q->where('angkatan', $targetYear)
+                        ->orWhere('nim_nidn', 'like', $targetYear.'%')
+                        ->orWhereYear('created_at', $targetYear);
                 }
             })
             ->count();

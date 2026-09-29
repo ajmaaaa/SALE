@@ -255,9 +255,16 @@ class AcademicController extends Controller
 
         $semesterOptions = [];
         foreach ($allSemesters as $s) {
+            $studentSemNum = ($user && method_exists($user, 'semesterTempuhAt')) ? $user->semesterTempuhAt($s) : null;
+            $semLabel = $studentSemNum ? "Semester {$studentSemNum} ({$s->display_name})" : $s->display_name;
+            if ($s->is_active) {
+                $semLabel .= ' — Semester Aktif';
+            }
+
             $semesterOptions[$s->code] = [
                 'id' => $s->id,
-                'label' => $s->display_name.($s->is_active ? ' (Aktif)' : ''),
+                'semester_tempuh' => $studentSemNum,
+                'label' => $semLabel,
                 'code' => $s->code,
                 'is_active' => $s->is_active,
             ];

@@ -170,7 +170,12 @@
                     @forelse($mahasiswas as $idx => $m)
                     <tr class="hover:bg-canvas/30">
                         <td class="px-4 py-3.5 text-center text-muted !align-middle">{{ $mahasiswas->firstItem() + $idx }}</td>
-                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">{{ $m->nim_nidn ?? '' }}</td>
+                        <td class="px-4 py-3.5 font-mono font-bold text-ink !align-middle">
+                            {{ $m->nim_nidn ?? '' }}
+                            @if($m->angkatan)
+                                <span class="block text-[11px] font-sans font-normal text-muted mt-0.5">Angkatan {{ $m->angkatan }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3.5 font-semibold text-ink !align-middle">{{ $m->name }}</td>
                         <td class="px-4 py-3.5 text-muted !align-middle">{{ $m->email }}</td>
                         <td class="px-4 py-3.5 !align-middle">
@@ -179,7 +184,7 @@
                         <td class="px-4 py-3.5 text-right !align-middle">
                             <div class="flex items-center justify-end gap-1.5">
                                 <button type="button" 
-                                        onclick="openEditUserModal({{ $m->id }}, '{{ addslashes($m->name) }}', '{{ addslashes($m->email) }}', '{{ addslashes($m->nim_nidn ?? '') }}', {{ $m->prodi_id ?? 'null' }}, 'mahasiswa')"
+                                        onclick="openEditUserModal({{ $m->id }}, '{{ addslashes($m->name) }}', '{{ addslashes($m->email) }}', '{{ addslashes($m->nim_nidn ?? '') }}', {{ $m->prodi_id ?? 'null' }}, 'mahasiswa', {{ $m->angkatan ?? 'null' }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
@@ -230,6 +235,12 @@
                 <input type="text" name="nim_nidn" id="create_id_num" required maxlength="30" class="field text-xs font-semibold font-mono">
             </div>
 
+            <div id="create_angkatan_group">
+                <label for="create_angkatan" class="block text-xs font-semibold text-ink mb-1">Tahun Masuk (Angkatan)</label>
+                <input type="number" name="angkatan" id="create_angkatan" min="2000" max="2099" placeholder="Contoh: {{ date('Y') }}" class="field text-xs font-semibold font-mono">
+                <p class="mt-1 text-[11px] text-muted">Bisa dikosongkan jika format NIM diawali tahun (misal 2024xxx) atau memakai tahun ajaran aktif.</p>
+            </div>
+
             <div>
                 <label for="create_name" class="block text-xs font-semibold text-ink mb-1">Nama Lengkap</label>
                 <input type="text" name="name" id="create_name" required maxlength="150" class="field text-xs font-semibold">
@@ -270,6 +281,11 @@
             <div>
                 <label for="edit_id_num" id="edit_id_label" class="block text-xs font-semibold text-ink mb-1">NIM / NIDN</label>
                 <input type="text" name="nim_nidn" id="edit_id_num" required maxlength="30" class="field text-xs font-semibold font-mono">
+            </div>
+
+            <div id="edit_angkatan_group">
+                <label for="edit_angkatan" class="block text-xs font-semibold text-ink mb-1">Tahun Masuk (Angkatan)</label>
+                <input type="number" name="angkatan" id="edit_angkatan" min="2000" max="2099" placeholder="Contoh: {{ date('Y') }}" class="field text-xs font-semibold font-mono">
             </div>
 
             <div>
@@ -315,6 +331,7 @@
                 <p class="text-muted">Kolom 2: Nama Lengkap</p>
                 <p class="text-muted">Kolom 3: Email</p>
                 <p class="text-muted">Kolom 4: Password (opsional, minimal 8 karakter; kosong = dibuat acak)</p>
+                <p class="text-muted" id="import_col5_note">Kolom 5: Tahun Masuk / Angkatan (opsional untuk mahasiswa; otomatis jika kosong)</p>
             </div>
 
             <div>
@@ -339,6 +356,11 @@
         const isDosen = type === 'dosen';
         document.getElementById('create_user_modal_title').textContent = isDosen ? 'Tambah Dosen Manual' : 'Tambah Mahasiswa Manual';
         document.getElementById('create_id_label').textContent = isDosen ? 'NIDN / NIP' : 'NIM';
+        const angkatanGroup = document.getElementById('create_angkatan_group');
+        if (angkatanGroup) {
+            angkatanGroup.style.display = isDosen ? 'none' : 'block';
+            document.getElementById('create_angkatan').value = '';
+        }
         document.getElementById('createUserModal').classList.remove('hidden');
         document.getElementById('createUserModal').classList.add('flex');
     }
@@ -347,14 +369,20 @@
         document.getElementById('createUserModal').classList.remove('flex');
     }
 
-    function openEditUserModal(id, name, email, idNum, prodiId, type) {
+    function openEditUserModal(id, name, email, idNum, prodiId, type, angkatan = null) {
         const form = document.getElementById('editUserForm');
         form.action = `/admin-prodi/pengguna/${id}`;
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_email').value = email;
         document.getElementById('edit_id_num').value = idNum;
         if (prodiId) document.getElementById('edit_prodi_id').value = prodiId;
-        document.getElementById('edit_id_label').textContent = (type === 'dosen') ? 'NIDN / NIP' : 'NIM';
+        const isDosen = type === 'dosen';
+        document.getElementById('edit_id_label').textContent = isDosen ? 'NIDN / NIP' : 'NIM';
+        const angkatanGroup = document.getElementById('edit_angkatan_group');
+        if (angkatanGroup) {
+            angkatanGroup.style.display = isDosen ? 'none' : 'block';
+            document.getElementById('edit_angkatan').value = angkatan || '';
+        }
         document.getElementById('editUserModal').classList.remove('hidden');
         document.getElementById('editUserModal').classList.add('flex');
     }
@@ -365,7 +393,12 @@
 
     function openImportModal(type) {
         document.getElementById('import_role_type').value = type;
-        document.getElementById('import_modal_title').textContent = (type === 'dosen') ? 'Impor Data Dosen via Excel' : 'Impor Data Mahasiswa via Excel';
+        const isDosen = type === 'dosen';
+        document.getElementById('import_modal_title').textContent = isDosen ? 'Impor Data Dosen via Excel' : 'Impor Data Mahasiswa via Excel';
+        const col5 = document.getElementById('import_col5_note');
+        if (col5) {
+            col5.style.display = isDosen ? 'none' : 'block';
+        }
         document.getElementById('importUserModal').classList.remove('hidden');
         document.getElementById('importUserModal').classList.add('flex');
     }
