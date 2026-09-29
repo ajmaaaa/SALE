@@ -56,7 +56,7 @@
             <span class="h-px flex-1 bg-line/70"></span>
             <div class="flex items-center gap-2 text-xs font-semibold text-muted" data-step-indicator="questions">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-white font-bold">2</span>
-                <span>Susun soal</span>
+                <span data-step-2-label>Susun soal</span>
             </div>
         </div>
 
@@ -215,6 +215,109 @@
                 </div>
             </div>
         </section>
+
+        {{-- Tugas biasa dan pemrograman berada dalam satu jenis konten. --}}
+        <div data-legacy-question-settings data-assignment-fields class="space-y-4 pt-2 transition-all duration-300 ease-out" hidden>
+            <div class="grid gap-4 sm:grid-cols-1">
+                <fieldset>
+                    <legend class="form-label">Jenis tugas</legend>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
+                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'regular')>
+                            <span class="ml-1 font-semibold text-ink">Tugas biasa</span>
+                        </label>
+                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
+                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding')>
+                            <span class="ml-1 font-semibold text-ink">Pemrograman</span>
+                        </label>
+                    </div>
+                    <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
+                    <input type="hidden" id="points" name="points" value="{{ old('points', $item['points'] ?? 100) }}">
+                </fieldset>
+            </div>
+
+            <div class="rounded-xl border border-line/70 bg-white p-4">
+                <label class="flex cursor-pointer items-center justify-between gap-4">
+                    <span>
+                        <span class="block text-sm font-bold text-ink">Pakai tenggat waktu</span>
+                        <span class="mt-0.5 block text-xs text-muted">Aktifkan jika tugas harus dikumpulkan sebelum waktu tertentu.</span>
+                    </span>
+                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))>
+                </label>
+                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))) hidden @endif>
+                    <label class="form-label" for="task_due">Tanggal dan waktu tenggat</label>
+                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '') }}" @disabled(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true)))>
+                    <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-ink">
+                        <input type="hidden" name="allow_late" value="0">
+                        <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
+                        Izinkan pengumpulan terlambat
+                    </label>
+                </div>
+            </div>
+
+            {{-- Pengaturan CPMK dan Bobot Persentase Khusus Tugas Biasa (Hanya munculkan CPMK yang dipilih) --}}
+            <fieldset data-manual-cpmk-settings class="rounded-xl border border-line/70 bg-white p-4 space-y-3" hidden>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 pb-3">
+                    <div>
+                        <legend class="text-sm font-bold text-ink">CPMK dan persentase tugas</legend>
+                        <p class="text-xs text-muted">Pilih CPMK yang diujikan pada tugas ini, lalu atur persentase bobotnya (total tepat 100%).</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select data-cpmk-select-picker class="field text-xs py-1.5 px-3 bg-white w-auto max-w-xs">
+                            <option value="">+ Pilih CPMK yang dinilai...</option>
+                            @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
+                                <option value="{{ $outcome['code'] }}" data-description="{{ $outcome['description'] }}" data-cpl="{{ $outcome['cpl'] }}">
+                                    {{ $outcome['code'] }} ({{ $outcome['cpl'] }}): {{ \Illuminate\Support\Str::limit($outcome['description'], 40) }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Daftar CPMK yang dipilih oleh dosen --}}
+                <div data-selected-cpmk-container class="space-y-2.5"></div>
+
+                {{-- Template baris CPMK yang dipilih --}}
+                <template data-manual-cpmk-template>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-line/60 bg-canvas/30 p-3" data-cpmk-row>
+                        <div class="min-w-0 flex-1">
+                            <strong class="block text-xs font-bold text-ink"><span data-cpmk-code></span> <span class="text-muted font-normal">(<span data-cpmk-cpl></span>)</span></strong>
+                            <span class="line-clamp-2 text-[11px] text-muted" data-cpmk-desc></span>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <div class="flex items-center gap-1">
+                                <input type="number" min="0.01" max="100" step="0.01" class="field w-20 px-2 py-1.5 text-right text-xs bg-white font-mono font-bold" data-manual-cpmk-weight required>
+                                <span class="text-xs text-muted">%</span>
+                            </div>
+                            <button type="button" class="text-danger hover:text-danger/80 text-xs font-bold px-1.5 py-1" data-remove-cpmk title="Hapus CPMK">✕</button>
+                        </div>
+                    </div>
+                </template>
+
+                {{-- Tampilan saat belum ada CPMK yang dipilih --}}
+                <div data-empty-cpmk-message class="rounded-lg border border-dashed border-line/70 bg-slate-50/50 p-4 text-center text-xs text-muted">
+                    Belum ada CPMK yang dipilih. Gunakan menu <strong>+ Pilih CPMK yang dinilai...</strong> di atas untuk menambahkan CPMK.
+                </div>
+
+                <div class="flex items-center justify-between pt-1 border-t border-line/40 text-xs">
+                    <span class="text-muted font-medium">Total Bobot CPMK:</span>
+                    <span class="font-bold text-slate-700" data-manual-weight-total>Total: 0%</span>
+                </div>
+
+                @php
+                    $preloadedWeights = old('manual_cpmk_weights', $item['manual_cpmk_weights'] ?? []);
+                    if (empty($preloadedWeights) && !empty($item['cpmk'])) {
+                        $preloadedWeights = [$item['cpmk'] => 100];
+                    }
+                @endphp
+                <script type="application/json" data-cpmk-meta-dictionary>@json(\App\Support\AcademicPreview::config($course['id'])['cpmk'])</script>
+                <script type="application/json" data-cpmk-preloaded-weights>@json($preloadedWeights)</script>
+            </fieldset>
+
+            @foreach(['file', 'image', 'link', 'text'] as $format)
+                <input type="hidden" name="formats[]" value="{{ $format }}">
+            @endforeach
+        </div>
         </div>
 
         {{-- Paket Soal Asesmen (Kuis, UTS, UAS) --}}
@@ -234,13 +337,11 @@
                     </div>
                 </div>
 
-                {{-- Baris Pengaturan: Target Jumlah Soal & Bagi Rata --}}
+                {{-- Baris Pengaturan: Target Jumlah Soal (Otomatis menyesuaikan dan bagi rata poin) --}}
                 <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/40 pt-3 text-xs">
                     <div class="flex items-center gap-2">
-                        <span class="text-muted font-medium">Target Jumlah Soal:</span>
-                        <input type="number" min="1" max="500" value="" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-target-question-count placeholder="5">
-                        <button type="button" class="button-secondary py-1 px-2.5 text-xs font-semibold" data-apply-question-count>Atur</button>
-                        <button type="button" data-auto-distribute-points class="button-secondary py-1 px-2.5 text-xs font-semibold text-brand hover:text-brand-dark" title="Bagi rata total 100 poin ke seluruh soal">Bagi Rata (100 / n)</button>
+                        <span class="text-muted font-medium">Target Jumlah Soal (maks. 100):</span>
+                        <input type="number" min="1" max="100" value="1" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-target-question-count placeholder="1">
                     </div>
                 </div>
             </div>
@@ -272,10 +373,10 @@
                         <button type="button" data-remove-question class="text-xs font-medium text-danger hover:underline">Hapus soal</button>
                     </div>
 
-                    {{-- Jenis Soal, Poin Soal & CPMK --}}
+                    {{-- 3 Kolom: Jenis Soal, Target CPMK & Poin Soal --}}
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
-                            <label class="form-label text-xs">Jenis Soal</label>
+                            <label class="form-label text-xs mb-1.5">Jenis Soal</label>
                             <select data-q-field="type" class="field text-xs py-2 bg-white font-medium">
                                 <option value="pilihan">Pilihan Ganda (Satu Jawaban)</option>
                                 <option value="kompleks">Pilihan Ganda Kompleks (Banyak Jawaban)</option>
@@ -285,17 +386,7 @@
                             </select>
                         </div>
                         <div>
-                            <div class="flex items-center justify-between">
-                                <label class="form-label text-xs mb-1">Poin Soal</label>
-                                <span data-q-point-share class="text-xs font-mono font-bold text-brand">20 / 100</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <input data-q-field="points" type="number" min="1" max="1000" value="20" class="field text-xs py-2 bg-white font-mono font-bold text-ink" placeholder="20" required>
-                                <span class="text-xs text-muted shrink-0">poin</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label text-xs">Target CPMK <span class="text-danger">*</span></label>
+                            <label class="form-label text-xs mb-1.5">Target CPMK <span class="text-danger">*</span></label>
                             <select data-q-field="cpmk" class="field text-xs py-2 bg-white" required>
                                 @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
                                     <option value="{{ $outcome['code'] }}">
@@ -303,6 +394,16 @@
                                     </option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="form-label text-xs mb-0">Poin Soal <span class="text-danger">*</span></label>
+                                <span data-q-point-share class="text-[11px] font-semibold font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">100 / 100</span>
+                            </div>
+                            <div class="relative flex items-center">
+                                <input data-q-field="points" type="number" min="1" max="1000" value="100" class="field text-xs py-2 pr-12 bg-white font-mono font-bold text-ink" placeholder="100" required>
+                                <span class="pointer-events-none absolute right-3 text-xs text-muted font-medium">poin</span>
+                            </div>
                         </div>
                         <div data-q-score-mode-container class="sm:col-span-3" hidden>
                             <label class="form-label text-xs">Mode Penilaian PG Kompleks</label>
@@ -416,94 +517,134 @@
             <script type="application/json" data-old-questions>@json(old('questions', $item['questions'] ?? []))</script>
         </section>
 
-        {{-- Tugas biasa dan pemrograman berada dalam satu jenis konten. --}}
-        <div data-legacy-question-settings data-assignment-fields class="space-y-4 pt-2 transition-all duration-300 ease-out" hidden>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <fieldset>
-                    <legend class="form-label">Jenis tugas</legend>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'regular')>
-                            <span class="ml-1 font-semibold text-ink">Tugas biasa</span>
-                        </label>
-                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding')>
-                            <span class="ml-1 font-semibold text-ink">Pemrograman</span>
-                        </label>
+        {{-- Paket Tahapan Pemrograman (Tugas / Praktik Pemrograman) --}}
+        <section data-coding-step-builder class="space-y-4" hidden>
+            {{-- Toolbar Tahapan Pemrograman (Sama persis dengan Toolbar Kuis) --}}
+            <div class="rounded-xl border border-line/80 bg-white p-4 shadow-2xs space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <h2 class="text-sm font-bold text-ink" data-coding-title-label>Susun Soal (Pemrograman)</h2>
+                        <span class="text-xs font-semibold text-slate-700" data-coding-total-points-badge>
+                            Total Skor: 100 / 100
+                        </span>
+                        <span class="text-xs text-muted font-medium" data-coding-step-total>1 soal</span>
                     </div>
-                    <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
-                </fieldset>
-                <div class="rounded-lg border border-line/60 bg-slate-50 px-4 py-3 text-xs text-muted">
-                    <p class="font-semibold text-ink">Pengaturan bobot</p>
-                    <p class="mt-1">Tugas biasa dan tugas pemrograman memakai persentase bobot CPMK untuk integrasi penilaian.</p>
-                    <input type="hidden" id="points" name="points" value="{{ old('points', $item['points'] ?? 100) }}">
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-coding-step>+ Tambah Soal</button>
+                    </div>
+                </div>
+
+                {{-- Baris Pengaturan: Target Jumlah Soal (Otomatis menyesuaikan dan bagi rata poin) --}}
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/40 pt-3 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-muted font-medium">Target Jumlah Soal (maks. 100):</span>
+                        <input type="number" min="1" max="100" value="1" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-coding-target-count placeholder="1">
+                    </div>
                 </div>
             </div>
 
-            <fieldset data-manual-cpmk-settings class="rounded-xl border border-line/70 bg-white p-4">
-                <legend class="px-1 text-sm font-bold text-ink">CPMK dan persentase tugas</legend>
-                <p class="mb-3 text-xs text-muted">Isi hanya CPMK yang dinilai. Total persentase harus 100%.</p>
-                <div class="grid gap-3 sm:grid-cols-2">
-                    @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
-                        <label class="flex items-center justify-between gap-3 rounded-lg border border-line/60 p-3">
-                            <span class="min-w-0"><strong class="block text-xs text-ink">{{ $outcome['code'] }}</strong><span class="line-clamp-2 text-[11px] text-muted">{{ $outcome['description'] }}</span></span>
-                            <span class="flex shrink-0 items-center gap-1"><input type="number" min="0" max="100" step="0.01" name="manual_cpmk_weights[{{ $outcome['code'] }}]" value="{{ old('manual_cpmk_weights.'.$outcome['code'], $item['manual_cpmk_weights'][$outcome['code']] ?? '') }}" class="field w-20 px-2 py-1.5 text-right text-xs" data-manual-cpmk-weight><span class="text-xs text-muted">%</span></span>
-                        </label>
-                    @endforeach
-                </div>
-                <p class="mt-3 text-xs font-semibold text-muted" data-manual-weight-total>Total: 0%</p>
-            </fieldset>
-
-            <div class="rounded-xl border border-line/70 bg-white p-4">
-                <label class="flex cursor-pointer items-center justify-between gap-4">
-                    <span>
-                        <span class="block text-sm font-bold text-ink">Pakai tenggat waktu</span>
-                        <span class="mt-0.5 block text-xs text-muted">Aktifkan jika tugas harus dikumpulkan sebelum waktu tertentu.</span>
-                    </span>
-                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))>
-                </label>
-                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))) hidden @endif>
-                    <label class="form-label" for="task_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '') }}" @disabled(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true)))>
-                    <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-ink">
-                        <input type="hidden" name="allow_late" value="0">
-                        <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
-                        Izinkan pengumpulan terlambat
-                    </label>
+            {{-- Navigasi Tab Tahap Soal (Sama persis dengan Kuis) --}}
+            <div data-coding-pagination-header class="flex items-center justify-between gap-3 rounded-xl border border-line/70 bg-white px-3 py-2 shadow-2xs">
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 max-w-full min-w-0 flex-1" data-coding-step-tabs></div>
+                <div class="flex items-center gap-1.5 shrink-0 pl-2 border-l border-line/60">
+                    <button type="button" data-prev-coding-step class="button-secondary text-xs py-1 px-2.5 font-medium">Sebelumnya</button>
+                    <button type="button" data-next-coding-step class="button-secondary text-xs py-1 px-2.5 font-medium">Selanjutnya</button>
                 </div>
             </div>
 
-            @foreach(['file', 'image', 'link', 'text'] as $format)
-                <input type="hidden" name="formats[]" value="{{ $format }}">
-            @endforeach
-        </div>
+            {{-- Baris Form Tahap --}}
+            <div data-coding-step-rows></div>
 
-        <section data-coding-step-builder class="rounded-xl border border-line/70 bg-canvas/40 p-4 sm:p-5" hidden>
-            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-line/60 pb-3">
-                <div><h2 class="section-heading">Tahapan pemrograman</h2><p class="mt-1 text-xs text-muted">Susun materi atau instruksi per tahap. Mahasiswa berpindah tahap seperti saat mengerjakan kuis.</p></div>
-                <button type="button" class="button-primary px-3 py-2 text-xs" data-add-coding-step>+ Tambah tahap</button>
-            </div>
-            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/60 bg-white p-3">
-                <div class="flex flex-wrap gap-1.5" data-coding-step-tabs></div>
-                <div class="flex gap-2"><button type="button" class="button-secondary px-3 py-1.5 text-xs" data-prev-coding-step>← Sebelumnya</button><button type="button" class="button-secondary px-3 py-1.5 text-xs" data-next-coding-step>Selanjutnya →</button></div>
-            </div>
-            <div class="mt-4" data-coding-step-rows></div>
+            {{-- Template Tahap (3 kolom atas persis seperti Kuis, dengan Judul Tahap menggantikan Jenis Soal) --}}
             <template data-coding-step-template>
-                <article data-coding-step-row class="space-y-4 rounded-xl border border-line/70 bg-white p-4">
-                    <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-ink" data-coding-step-title>Tahap 1</h3><button type="button" class="text-xs font-semibold text-danger hover:underline" data-remove-coding-step>Hapus tahap</button></div>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <label><span class="form-label text-xs">Judul tahap</span><input data-step-field="title" class="field" placeholder="Contoh: Memahami struktur data" required></label>
-                        <label><span class="form-label text-xs">Target CPMK</span><select data-step-field="cpmk" class="field" required>@foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)<option value="{{ $outcome['code'] }}">{{ $outcome['code'] }}: {{ $outcome['description'] }}</option>@endforeach</select></label>
+                <section data-coding-step-row class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4">
+                    <div class="flex items-center justify-between border-b border-line/50 pb-3">
+                        <div class="flex items-center gap-2">
+                            <h3 data-coding-step-title class="text-sm font-bold text-ink">Soal 1</h3>
+                        </div>
+                        <button type="button" data-remove-coding-step class="text-xs font-medium text-danger hover:underline">Hapus soal</button>
                     </div>
-                    <label><span class="form-label text-xs">Materi / instruksi tahap</span><textarea rows="4" data-step-field="body" class="field" placeholder="Jelaskan materi atau pekerjaan pada tahap ini..." required></textarea></label>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <label><span class="form-label text-xs">Lampiran (opsional)</span><span class="button-secondary flex cursor-pointer items-center justify-center px-3 py-2 text-xs">+ Pilih lampiran<input type="file" data-step-field="attachment" class="sr-only" accept=".pdf,.ppt,.pptx,.doc,.docx,.jpg,.jpeg,.png,.webp,.mp4"></span></label>
-                        <label><span class="form-label text-xs">Tautan (opsional)</span><input type="url" data-step-field="link" class="field" placeholder="https://"></label>
+
+                    {{-- 3 Kolom: Judul Tahap, Target CPMK & Poin Soal --}}
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div>
+                            <label class="form-label text-xs mb-1.5">Judul Tahap <span class="text-danger">*</span></label>
+                            <input data-step-field="title" type="text" class="field text-xs py-2 bg-white font-medium" placeholder="Contoh: Implementasi Logika Utama" required>
+                        </div>
+                        <div>
+                            <label class="form-label text-xs mb-1.5">Target CPMK <span class="text-danger">*</span></label>
+                            <select data-step-field="cpmk" class="field text-xs py-2 bg-white" required>
+                                @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
+                                    <option value="{{ $outcome['code'] }}">
+                                        {{ $outcome['code'] }} ({{ $outcome['cpl'] }}): {{ $outcome['description'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="form-label text-xs mb-0">Poin Soal <span class="text-danger">*</span></label>
+                                <span data-step-point-share class="text-[11px] font-semibold font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">100 / 100</span>
+                            </div>
+                            <div class="relative flex items-center">
+                                <input data-step-field="points" type="number" min="1" max="1000" value="100" class="field text-xs py-2 pr-12 bg-white font-mono font-bold text-ink" placeholder="100" required>
+                                <span class="pointer-events-none absolute right-3 text-xs text-muted font-medium">poin</span>
+                            </div>
+                        </div>
                     </div>
-                </article>
+
+                    {{-- Pertanyaan / Materi / Instruksi Tahap --}}
+                    <div>
+                        <label class="form-label text-xs">Pertanyaan / Instruksi Tahap <span class="text-danger">*</span></label>
+                        <textarea rows="4" data-step-field="body" class="field text-xs leading-relaxed" placeholder="Jelaskan materi atau instruksi pekerjaan pemrograman pada tahap ini..." required></textarea>
+                    </div>
+
+                    {{-- Tambahkan pendukung --}}
+                    <div class="rounded-xl border border-line/70 bg-canvas/50 p-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-xs font-bold text-ink">Tambahkan pendukung</h4>
+                                <p class="mt-0.5 text-[11px] text-muted">Pilih hanya yang diperlukan agar form tetap ringkas.</p>
+                            </div>
+                            <details class="relative" data-step-addon-menu>
+                                <summary class="button-secondary flex cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-xs font-semibold">
+                                    <span class="text-sm font-bold text-brand">+</span> Tambahkan
+                                </summary>
+                                <div class="absolute right-0 top-full z-20 mt-1.5 w-44 space-y-1 rounded-xl border border-line/60 bg-white p-1.5 shadow-lg">
+                                    <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-ink hover:bg-slate-100" data-step-addon="files">
+                                        <svg class="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.2 7 8.6 13.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.6a6 6 0 108.4 8.4L20.5 13"/></svg>
+                                        Lampiran
+                                    </button>
+                                    <button type="button" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-ink hover:bg-slate-100" data-step-addon="link">
+                                        <svg class="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.8 10.2a4 4 0 00-5.6 0l-4 4a4 4 0 105.6 5.6l1.1-1.1m-.7-4.9a4 4 0 005.6 0l4-4a4 4 0 00-5.6-5.6l-1.1 1.1"/></svg>
+                                        Tautan
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
+
+                        <div class="space-y-3">
+                            {{-- Panel Lampiran Berkas --}}
+                            <div data-step-addon-panel="files" hidden>
+                                <label class="form-label text-xs mb-1">Lampiran berkas</label>
+                                <input type="file" data-step-field="attachment" class="field text-xs py-1.5 bg-white" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
+                                <p class="mt-1 text-[11px] text-muted">Mendukung PDF, dokumen, arsip, gambar, atau video pendukung. Maksimal 20 MB.</p>
+                                <div data-step-file-preview class="mt-2.5 space-y-2"></div>
+                            </div>
+
+                            {{-- Panel Tautan --}}
+                            <div data-step-addon-panel="link" hidden>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="form-label text-xs mb-0">Tautan referensi / materi pendukung</label>
+                                    <button type="button" data-remove-step-link class="text-[11px] text-danger hover:underline">Hapus tautan</button>
+                                </div>
+                                <input type="url" data-step-field="link" class="field text-xs py-2 bg-white" placeholder="https://tautan-pendukung...">
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </template>
             <script type="application/json" data-old-coding-steps>@json(old('coding_steps', $item['coding_steps'] ?? []))</script>
-            <p class="mt-3 text-xs text-muted">Untuk penilaian otomatis, setiap tahap diperlakukan sebagai satu kriteria pada CPMK yang dipilih.</p>
         </section>
 
         <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', $item['cpmk'] ?? (\App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK')) }}">
@@ -514,7 +655,7 @@
             <a class="button-secondary" href="{{ route('dosen.course.show', $course['id']) }}">Batal</a>
             <div class="flex items-center gap-2">
                 <button type="button" class="button-secondary" data-back-to-setup hidden> Kembali</button>
-                <button type="button" class="button-primary" data-next-to-questions hidden>Selanjutnya: Susun soal </button>
+                <button type="button" class="button-primary" data-next-to-questions hidden><span data-next-btn-text>Selanjutnya: Susun soal</span> </button>
                 <button type="submit" class="button-primary" data-submit-content>{{ $isEdit ? 'Simpan Perubahan' : 'Tambahkan ke course' }}</button>
             </div>
         </div>
