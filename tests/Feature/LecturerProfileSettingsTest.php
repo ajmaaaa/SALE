@@ -94,4 +94,59 @@ class LecturerProfileSettingsTest extends TestCase
             ->put(route('dosen.profile.notifications'), ['preferences' => ['notif_forum' => '1']])
             ->assertForbidden();
     }
+
+    public function test_lecturer_profile_displays_active_semester_and_total_classes_from_database(): void
+    {
+        $semester = \App\Models\Semester::create([
+            'code' => '2026-GANJIL',
+            'name' => 'Ganjil 2026/2027',
+            'is_active' => true,
+        ]);
+
+        $prodi = \App\Models\Prodi::create([
+            'code' => 'IF',
+            'name' => 'Informatika',
+        ]);
+
+        $mataKuliah = \App\Models\MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'IF202',
+            'name' => 'Basis Data',
+            'sks' => 3,
+        ]);
+
+        $otherLecturer = User::create([
+            'name' => 'Dosen Utama',
+            'email' => 'dosen-utama@test.local',
+            'password' => 'Pass123!',
+            'role_id' => Role::where('name', Role::DOSEN)->firstOrFail()->id,
+        ]);
+
+        // Class where lecturer is primary
+        \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $this->lecturer->id,
+            'section_code' => 'A',
+            'capacity' => 30,
+        ]);
+
+        // Class where lecturer is co-lecturer (dosen pendamping)
+        \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $otherLecturer->id,
+            'dosen_pendamping_id' => $this->lecturer->id,
+            'section_code' => 'B',
+            'capacity' => 30,
+        ]);
+
+        $response = $this->actingAs($this->lecturer)
+            ->get(route('dosen.profile.index'));
+
+        $response->assertOk();
+        $response->assertSee('Ganjil 2026/2027');
+        // Total classes should be 2 (1 primary + 1 co-teaching)
+        $response->assertSee('2 Kelas');
+    }
 }
