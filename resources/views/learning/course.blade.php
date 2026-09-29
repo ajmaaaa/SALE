@@ -307,7 +307,7 @@
                                                         <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
                                                     @endif
                                                     <span class="h-2.5 w-px bg-line"></span>
-                                                    <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan' }}</span>
+                                                    <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $isPast ? 'Terlambat' : ($item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan') }}</span>
                                                 </div>
                                             </div>
                                         </a>
