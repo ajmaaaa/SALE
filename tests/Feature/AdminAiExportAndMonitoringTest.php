@@ -59,14 +59,13 @@ class AdminAiExportAndMonitoringTest extends TestCase
         $response->assertSee(route('admin.export.ai'));
     }
 
-    public function test_admin_laporan_has_single_export_ai_button_in_header(): void
+    public function test_admin_laporan_does_not_have_export_ai_button(): void
     {
         $response = $this->actingAs($this->admin)->get('/admin/laporan');
 
         $response->assertOk();
-        $response->assertSee('Unduh Rekap AI (Excel)');
-        // Assert it only appears once on the page (in the top header)
-        $this->assertEquals(1, substr_count($response->getContent(), route('admin.export.ai')));
+        $response->assertDontSee('Unduh Rekap AI (Excel)');
+        $response->assertDontSee(route('admin.export.ai'));
     }
 
     public function test_admin_can_download_ai_excel_report(): void
@@ -98,6 +97,32 @@ class AdminAiExportAndMonitoringTest extends TestCase
         $summarySheet = $spreadsheet->getSheetByName('Ringkasan Per Modul');
         $this->assertEquals('RINGKASAN PEMAKAIAN AI BERDASARKAN MODUL', $summarySheet->getCell('A1')->getValue());
         $this->assertEquals('Modul / Fitur', $summarySheet->getCell('A3')->getValue());
+
+        @unlink($tempPath);
+    }
+
+    public function test_admin_can_download_academic_excel_report(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/admin/laporan/export');
+
+        $response->assertOk();
+        $this->assertEquals(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('content-type')
+        );
+        $this->assertStringContainsString('sale-rekap-akademik.xlsx', $response->headers->get('content-disposition'));
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'academic_export_test_') . '.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $spreadsheet = $reader->load($tempPath);
+
+        $this->assertTrue($spreadsheet->sheetNameExists('Rekap Akademik'));
+        $sheet = $spreadsheet->getSheetByName('Rekap Akademik');
+        $this->assertEquals('REKAPITULASI DATA STRUKTUR AKADEMIK', $sheet->getCell('A1')->getValue());
+        $this->assertEquals('Jenis', $sheet->getCell('A5')->getValue());
+        $this->assertEquals('Kode', $sheet->getCell('B5')->getValue());
 
         @unlink($tempPath);
     }
