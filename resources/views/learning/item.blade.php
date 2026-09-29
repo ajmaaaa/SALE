@@ -165,7 +165,12 @@
                                         <span><strong>{{ count($item['questions'] ?? []) ?: 1 }}</strong> butir soal</span>
                                         <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
                                         @if(!empty($item['due']))
-                                            <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
+                                            @php $isDuePast = \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
+                                            @if($isDuePast)
+                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>Terlambat</strong></span>
+                                            @else
+                                                <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
+                                            @endif
                                         @endif
                                     </div>
 
@@ -583,7 +588,8 @@
                             </div>
                             <div class="flex items-center justify-between text-muted">
                                 <span>Tenggat Waktu:</span>
-                                <span class="font-medium text-ink">{{ $item['due'] ? \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa tenggat' }}</span>
+                                @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
+                                <span class="font-medium {{ $isDuePast ? 'text-rose-600 font-semibold' : 'text-ink' }}">{{ !empty($item['due']) ? ($isDuePast ? 'Terlambat' : \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i')) : 'Tanpa tenggat' }}</span>
                             </div>
                             <div class="flex items-center justify-between text-muted">
                                 <span>Pengumpulan Terlambat:</span>
@@ -690,7 +696,14 @@
 
                     <div class="text-xs text-muted flex items-center gap-2">
                         <span>{{ $item['points'] ?? 100 }} Poin</span>
-                        <span>{{ $item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') : 'Tanpa tenggat' }}</span>
+                        @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
+                        @if($isDuePast)
+                            <span class="text-rose-600 font-semibold">Terlambat</span>
+                        @elseif(!empty($item['due']))
+                            <span>Tenggat {{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') }}</span>
+                        @else
+                            <span>Tanpa tenggat</span>
+                        @endif
                     </div>
 
                     {{-- Attached Work Items (Existing or New) --}}
