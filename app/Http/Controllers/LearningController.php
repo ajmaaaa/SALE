@@ -111,8 +111,14 @@ class LearningController extends Controller
                     $secTasks = $secTasks->reject(fn ($asm) => in_array($asm->id, $submittedAssessmentIds, true) || in_array($asm->id, $scoredAssessmentIds, true));
                 }
 
-                $taskWithDue = $secTasks->filter(fn ($asm) => ! empty($asm->due_at))->sortBy('due_at');
-                $nearestUpcomingTask = $taskWithDue->first() ?? $secTasks->first();
+                // Tugas dengan tenggat yang belum terlewat (upcoming)
+                $upcomingTasks = $secTasks->filter(fn ($asm) => ! empty($asm->due_at) && $asm->due_at->isFuture())->sortBy('due_at');
+                $nearestUpcomingTask = $upcomingTasks->first();
+
+                // Aktivitas terakhir pada kelas (dari materi, tugas, asesmen terupdate, atau section)
+                $latestActivityTime = $secAssessments->map(function ($asm) {
+                    return $asm->updated_at ? $asm->updated_at->timestamp : ($asm->created_at ? $asm->created_at->timestamp : 0);
+                })->max() ?: ($section->updated_at ? $section->updated_at->timestamp : ($section->created_at ? $section->created_at->timestamp : 0));
 
                 // 2. Update materi terbaru
                 $latestMaterial = $secAssessments
@@ -121,14 +127,16 @@ class LearningController extends Controller
                     ->sortByDesc(fn ($asm) => $asm->updated_at ? $asm->updated_at->timestamp : ($asm->created_at ? $asm->created_at->timestamp : 0))
                     ->first();
 
-                // Tentukan level prioritas & ranking
+                // Tentukan level prioritas & ranking:
+                // - Jika ada tugas yang belum lewat waktu (upcoming): Prioritas 1, urutkan berdasarkan tenggat terdekat
+                // - Jika tugas sudah lewat tenggat (terlambat) atau tidak ada tugas aktif: Prioritasnya turun
+                //   dan disesuaikan dengan aktivitas terakhir saja urutannya
                 if ($nearestUpcomingTask) {
                     $priorityLevel = 1;
-                    $sortKey = $nearestUpcomingTask->due_at ? $nearestUpcomingTask->due_at->timestamp : 1900000000;
-                } elseif ($latestMaterial) {
+                    $sortKey = $nearestUpcomingTask->due_at->timestamp;
+                } elseif ($latestActivityTime > 0) {
                     $priorityLevel = 2;
-                    $materialTime = $latestMaterial->updated_at ? $latestMaterial->updated_at->timestamp : ($latestMaterial->created_at ? $latestMaterial->created_at->timestamp : 0);
-                    $sortKey = -1 * $materialTime;
+                    $sortKey = -1 * $latestActivityTime;
                 } else {
                     $priorityLevel = 3;
                     $sortKey = -1 * $section->id;
@@ -446,6 +454,8 @@ class LearningController extends Controller
                             'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case']) ? ($asm->type === 'pbl' ? 'tugas' : $asm->type) : 'tugas',
                             'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
                             'points' => 100,
+                            'updated_at' => $asm->updated_at,
+                            'created_at' => $asm->created_at,
                         ];
                     }
                 }
@@ -475,7 +485,34 @@ class LearningController extends Controller
 
             return true;
         });
-        uasort($filteredItems, fn ($a, $b) => ($b['id'] ?? 0) <=> ($a['id'] ?? 0));
+
+        uasort($filteredItems, function ($a, $b) {
+            $dueA = ! empty($a['due']) ? Carbon::parse($a['due']) : null;
+            $dueB = ! empty($b['due']) ? Carbon::parse($b['due']) : null;
+
+            $isPastA = $dueA && $dueA->isPast();
+            $isPastB = $dueB && $dueB->isPast();
+
+            $isUpcomingA = $dueA && ! $isPastA;
+            $isUpcomingB = $dueB && ! $isPastB;
+
+            if ($isUpcomingA !== $isUpcomingB) {
+                return $isUpcomingA ? -1 : 1;
+            }
+
+            if ($isUpcomingA && $isUpcomingB) {
+                return $dueA <=> $dueB;
+            }
+
+            $timeA = isset($a['updated_at']) && $a['updated_at'] ? Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
+            $timeB = isset($b['updated_at']) && $b['updated_at'] ? Carbon::parse($b['updated_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? Carbon::parse($b['created_at'])->timestamp : ($b['id'] ?? 0));
+
+            if ($timeA !== $timeB) {
+                return $timeB <=> $timeA;
+            }
+
+            return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+        });
 
         return view('learning.assignments', [
             'items' => $filteredItems,
