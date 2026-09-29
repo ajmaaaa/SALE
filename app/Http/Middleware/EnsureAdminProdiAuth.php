@@ -35,6 +35,13 @@ class EnsureAdminProdiAuth
             abort(403, 'Akses ditolak. Halaman ini khusus Admin Program Studi.');
         }
 
+        if ($user->hasRole(Role::ADMIN_PRODI) && ! $user->hasRole(Role::ADMIN)) {
+            $managedProdiId = $user->managing_prodi_id ?? $user->prodi_id;
+            if (! $managedProdiId) {
+                abort(403, 'Akun Admin Prodi belum ditugaskan ke Program Studi manapun. Silakan hubungi Administrator Sistem.');
+            }
+        }
+
         return $next($request);
     }
 }
