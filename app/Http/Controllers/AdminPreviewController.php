@@ -494,13 +494,17 @@ class AdminPreviewController extends Controller
             'ai_model' => ['nullable', 'string', 'max:100'],
             'ai_api_key' => ['nullable', 'string', 'max:255'],
             'maintenance_mode' => ['nullable', Rule::in(['0', '1'])],
+            'session_lifetime' => ['nullable', 'integer', 'min:5', 'max:10080'],
         ]);
         DB::transaction(function () use ($data) {
             foreach ($data as $key => $value) {
-                SystemSetting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
+                SystemSetting::updateOrCreate(['key' => $key], ['value' => (string) ($value ?? '')]);
             }
             Semester::query()->update(['is_active' => false]);
             Semester::where('name', $data['semester'])->update(['is_active' => true]);
+            if (isset($data['session_lifetime']) && (int) $data['session_lifetime'] > 0) {
+                config(['session.lifetime' => (int) $data['session_lifetime']]);
+            }
             AdminPreview::log('Memperbarui pengaturan institusi di database.');
         });
         return back()->with('notice', 'Pengaturan sistem berhasil disimpan ke database.');
@@ -510,6 +514,7 @@ class AdminPreviewController extends Controller
     {
         $providerInput = (string) $request->input('ai_provider', '');
         $model = (string) $request->input('ai_model', '');
+        $hasKeyInput = $request->has('ai_api_key');
         $inputKey = trim((string) $request->input('ai_api_key', ''));
 
         $target = $providerInput ?: $model ?: 'Google AI';
@@ -517,15 +522,45 @@ class AdminPreviewController extends Controller
         if (str_contains($lowerTarget, 'open')) {
             $provider = 'Open AI';
             $envVar = 'OPENAI_API_KEY';
-            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('OPENAI_API_KEY'));
         } elseif (str_contains($lowerTarget, 'deep')) {
             $provider = 'DeepSeek';
             $envVar = 'DEEPSEEK_API_KEY';
-            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('DEEPSEEK_API_KEY'));
         } else {
             $provider = 'Google AI';
             $envVar = 'GEMINI_API_KEY';
-            $key = $inputKey ?: (SystemSetting::valueFor('ai_api_key', '') ?: env('GEMINI_API_KEY') ?: config('ai.key'));
+        }
+
+        // Jika form mengirimkan input API Key kosong, simpan status kosong ke database dan kembalikan status tidak terhubung
+        if ($hasKeyInput && $inputKey === '') {
+            SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => '']);
+            if ($provider) {
+                SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => $provider]);
+            }
+            if ($model) {
+                SystemSetting::updateOrCreate(['key' => 'ai_model'], ['value' => $model]);
+            }
+            AdminPreview::log("Mengosongkan kunci API model {$provider} di pengaturan database.");
+
+            return response()->json([
+                'success' => false,
+                'disconnected' => true,
+                'provider' => $provider,
+                'source' => 'Input Form',
+                'message' => 'Kunci API dikosongkan. Tidak terhubung ke model AI.',
+                'models' => AiModelFetcher::getModels($provider, ''),
+                'flow' => [
+                    ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengosongan kunci API dikirim dari browser.'],
+                    ['step' => 'Backend', 'status' => 'ok', 'detail' => "Controller memperbarui konfigurasi untuk model {$provider}."],
+                    ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kunci API berhasil dikosongkan dari database sistem.'],
+                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => 'Koneksi ke gateway AI dinonaktifkan karena kunci API kosong.']
+                ]
+            ]);
+        }
+
+        $key = $inputKey;
+        if (empty($key)) {
+            $savedKey = trim((string) SystemSetting::valueFor('ai_api_key', ''));
+            $key = $savedKey;
         }
 
         $source = $inputKey ? 'Input Form' : 'Database Sistem';
@@ -533,10 +568,12 @@ class AdminPreviewController extends Controller
         if (empty($key)) {
             return response()->json([
                 'success' => false,
+                'disconnected' => true,
                 'provider' => $provider,
                 'source' => $source,
                 'failed_at' => 'Kredensial API',
                 'message' => "Kunci API belum diisi. Silakan masukkan API Key {$provider} terlebih dahulu.",
+                'models' => AiModelFetcher::getModels($provider, ''),
                 'flow' => [
                     ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari antarmuka browser.'],
                     ['step' => 'Backend', 'status' => 'ok', 'detail' => "Controller memproses permintaan untuk model {$provider}."],
@@ -546,10 +583,8 @@ class AdminPreviewController extends Controller
             ], 422);
         }
 
-        // Simpan kunci API, provider, & model ke SystemSetting (database) tanpa memodifikasi file .env
-        if ($inputKey) {
-            SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => $inputKey]);
-        }
+        // Simpan kunci API, provider, & model ke SystemSetting (database)
+        SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => $key]);
         if ($provider) {
             SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => $provider]);
         }
