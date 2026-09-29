@@ -17,6 +17,17 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ClassSection::class, ClassSectionPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
 
+        try {
+            if (class_exists(\App\Models\SystemSetting::class) && \Illuminate\Support\Facades\Schema::hasTable('system_settings')) {
+                $sessionLifetime = \App\Models\SystemSetting::valueFor('session_lifetime');
+                if ($sessionLifetime && is_numeric($sessionLifetime) && (int) $sessionLifetime > 0) {
+                    config(['session.lifetime' => (int) $sessionLifetime]);
+                }
+            }
+        } catch (\Throwable) {
+            // Abaikan jika database belum terhubung atau saat proses migrasi awal
+        }
+
         $phpConfigDir = config('app.php_config_dir');
         if (! is_string($phpConfigDir) || $phpConfigDir === '' || ! is_dir($phpConfigDir)) {
             return;
