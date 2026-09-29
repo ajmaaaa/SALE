@@ -149,14 +149,13 @@
                     <input class="field" id="email" name="email" type="email" required placeholder="nama@kampus.ac.id" value="{{ old('email', $record['email'] ?? '') }}">
                 </div>
                 <div>
-                    <span class="form-label">Peran akses</span>
-                    @php($selectedRoles = old('roles', $record['roles'] ?? (isset($record['role']) ? [$record['role']] : ['mahasiswa'])))
-                    <div class="grid grid-cols-2 gap-2 rounded-lg border border-line bg-white p-3">
+                    <label class="form-label" for="role">Peran akses</label>
+                    @php($selectedRole = old('role', $record['role'] ?? (isset($record['roles']) && is_array($record['roles']) ? ($record['roles'][0] ?? 'mahasiswa') : 'mahasiswa')))
+                    <select class="field" id="role" name="role" required>
                         @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'] as $key => $label)
-                            <label class="flex cursor-pointer items-center gap-2 text-xs text-ink"><input type="checkbox" name="roles[]" value="{{ $key }}" class="rounded border-line text-brand" @checked(in_array($key, $selectedRoles, true))><span>{{ $label }}</span></label>
+                            <option value="{{ $key }}" @selected($selectedRole === $key)>{{ $label }}</option>
                         @endforeach
-                    </div>
-                    <p class="mt-1.5 text-xs text-muted">Satu identitas dapat memiliki beberapa kewenangan, misalnya Dosen sekaligus Admin Prodi/Kaprodi.</p>
+                    </select>
                 </div>
                 <div>
                     <label class="form-label" for="status">Status Akun</label>
@@ -244,9 +243,7 @@
                             {{ $user['email'] }}
                         </td>
                         <td>
-                            @foreach($user['roles'] ?? [$user['role']] as $role)
-                                {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'][$role] ?? ucfirst($role) }}@if(!$loop->last), @endif
-                            @endforeach
+                            {{ ['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'admin_prodi' => 'Admin Prodi', 'admin' => 'Administrator'][$user['role'] ?? ($user['roles'][0] ?? '')] ?? ucfirst($user['role'] ?? '') }}
                         </td>
                         <td>
                             {{ ucfirst($user['status']) }}
@@ -319,15 +316,15 @@
         searchInput.addEventListener('keyup', filterUsers);
         searchInput.addEventListener('search', filterUsers);
 
-        const roleCheckboxes = document.querySelectorAll('input[name="roles[]"]');
+        const roleSelect = document.getElementById('role');
         const prodiSelect = document.getElementById('prodi_id');
         const prodiEmptyOption = document.getElementById('prodi-empty-option');
         const prodiBadge = document.getElementById('prodi-required-badge');
         const prodiHelp = document.getElementById('prodi-help-text');
 
         function updateProdiRequirement() {
-            if (!prodiSelect) return;
-            const isAdminProdi = Array.from(roleCheckboxes).some(cb => cb.checked && cb.value === 'admin_prodi');
+            if (!prodiSelect || !roleSelect) return;
+            const isAdminProdi = roleSelect.value === 'admin_prodi';
             if (isAdminProdi) {
                 if (prodiBadge) prodiBadge.classList.remove('hidden');
                 if (prodiEmptyOption) prodiEmptyOption.disabled = true;
@@ -349,8 +346,8 @@
             }
         }
 
-        if (roleCheckboxes.length > 0 && prodiSelect) {
-            roleCheckboxes.forEach(cb => cb.addEventListener('change', updateProdiRequirement));
+        if (roleSelect && prodiSelect) {
+            roleSelect.addEventListener('change', updateProdiRequirement);
             updateProdiRequirement();
         }
     });
