@@ -25,7 +25,7 @@
         <p class="page-description">{{ $isEdit ? 'Perbarui informasi materi, kuis, atau tugas pada course ini.' : 'Materi, tugas, kuis, dan pengumuman tetap terhubung ke course ini.' }}</p>
     </div>
 
-    <form class="surface space-y-6 p-6 sm:p-8" action="{{ $isEdit ? route('dosen.item.update', [$course['id'], $item['id']]) : route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ $errors->has('questions.*') ? 'questions' : 'setup' }}" novalidate>
+    <form class="surface space-y-6 p-6 sm:p-8" action="{{ $isEdit ? route('dosen.item.update', [$course['id'], $item['id']]) : route('dosen.item.store', $course['id']) }}" method="post" enctype="multipart/form-data" data-content-form data-step="{{ ($errors->has('questions.*') || $errors->has('coding_steps.*')) ? 'questions' : 'setup' }}" novalidate>
         @csrf
         @if($isEdit)
             @method('PUT')
@@ -199,7 +199,7 @@
                 $itemType = old('type', $item['type'] ?? '');
                 $itemDue = old('due', $item['due'] ?? '');
                 $hasQuizDue = !empty($itemDue) && in_array($itemType, ['kuis', 'uts', 'uas', 'lainnya'], true);
-                $quizDueVal = old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '');
+                $quizDueVal = $hasQuizDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
             @endphp
             <div class="mt-4 border-t border-line/60 pt-4">
                 <label class="flex cursor-pointer items-center justify-between gap-4">
@@ -236,17 +236,37 @@
                 </fieldset>
             </div>
 
+            {{-- Pengaturan Bantuan AI untuk Tugas Pemrograman --}}
+            @php
+                $aiEnabledVal = (bool) old('ai_enabled', $item['ai_enabled'] ?? true);
+                $isCodingSelected = old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding';
+            @endphp
+            <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4" @if(!$isCodingSelected) hidden @endif>
+                <label class="flex cursor-pointer items-center justify-between gap-4">
+                    <span>
+                        <span class="block text-sm font-bold text-ink">Bantuan Asisten AI (Lumina AI)</span>
+                        <span class="mt-0.5 block text-xs text-muted">Aktifkan asisten cerdas Lumina AI untuk membimbing konsep pemrograman mahasiswa selama pengerjaan tugas.</span>
+                    </span>
+                    <input type="hidden" name="ai_enabled" value="0">
+                    <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal)>
+                </label>
+            </div>
+
+            @php
+                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding'], true);
+                $taskDueVal = $hasTaskDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
+            @endphp
             <div class="rounded-xl border border-line/70 bg-white p-4">
                 <label class="flex cursor-pointer items-center justify-between gap-4">
                     <span>
                         <span class="block text-sm font-bold text-ink">Pakai tenggat waktu</span>
                         <span class="mt-0.5 block text-xs text-muted">Aktifkan jika tugas harus dikumpulkan sebelum waktu tertentu.</span>
                     </span>
-                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))>
+                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked($hasTaskDue)>
                 </label>
-                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true))) hidden @endif>
+                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!$hasTaskDue) hidden @endif>
                     <label class="form-label" for="task_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ old('due', !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->format('Y-m-d\TH:i') : '') }}" @disabled(!(old('due', $item['due'] ?? '') && in_array(old('type', $item['type'] ?? ''), ['tugas', 'coding'], true)))>
+                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ $taskDueVal }}" @disabled(!$hasTaskDue)>
                     <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-ink">
                         <input type="hidden" name="allow_late" value="0">
                         <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
@@ -406,11 +426,12 @@
                             </div>
                         </div>
                         <div data-q-score-mode-container class="sm:col-span-3" hidden>
-                            <label class="form-label text-xs">Mode Penilaian PG Kompleks</label>
-                            <select data-q-field="score_mode" class="field text-xs py-2 bg-white text-xs">
-                                <option value="parsial">Mode Parsial (Proporsional)</option>
-                                <option value="semua_atau_nol">Semua atau Nol (Tepat Sesuai Kunci)</option>
+                            <label class="form-label text-xs mb-1.5">Metode Penilaian Pilihan Ganda Kompleks</label>
+                            <select data-q-field="score_mode" class="field text-xs py-2 bg-white font-medium">
+                                <option value="parsial">Nilai Sebagian / Proporsional (Benar sebagian tetap mendapat poin)</option>
+                                <option value="semua_atau_nol">Wajib Benar Semua (Harus tepat seluruh kunci; salah/kurang bernilai 0)</option>
                             </select>
+                            <p class="mt-1 text-[11px] text-muted">Tentukan apakah mahasiswa mendapat nilai proporsional jika menjawab sebagian benar, atau wajib tepat seluruh kunci jawaban untuk mendapat poin.</p>
                         </div>
                     </div>
 
