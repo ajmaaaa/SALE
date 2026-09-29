@@ -9,27 +9,27 @@
     $role = $isDosen ? 'dosen' : 'mahasiswa';
     $submittedAssessmentIds = $submittedAssessmentIds ?? [];
 
-    // Urutkan materi berdasarkan update terbaru
+    // Urutkan materi berdasarkan konten terbaru (paling baru paling atas)
     $materiItems = collect($items)->where('type', 'materi')
-        ->sortByDesc(function ($item) {
-            return !empty($item['updated_at']) ? \Carbon\Carbon::parse($item['updated_at'])->timestamp : (!empty($item['created_at']) ? \Carbon\Carbon::parse($item['created_at'])->timestamp : ($item['id'] ?? 0));
-        });
+        ->sort(function ($a, $b) {
+            $timeA = !empty($a['updated_at']) ? \Carbon\Carbon::parse($a['updated_at'])->timestamp : (!empty($a['created_at']) ? \Carbon\Carbon::parse($a['created_at'])->timestamp : (!empty($a['published_at']) ? \Carbon\Carbon::parse($a['published_at'])->timestamp : 0));
+            $timeB = !empty($b['updated_at']) ? \Carbon\Carbon::parse($b['updated_at'])->timestamp : (!empty($b['created_at']) ? \Carbon\Carbon::parse($b['created_at'])->timestamp : (!empty($b['published_at']) ? \Carbon\Carbon::parse($b['published_at'])->timestamp : 0));
 
-    // Urutkan tugas berdasarkan tingkat prioritas (deadline terdekat & belum dikerjakan di atas)
-    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis'])
-        ->sort(function ($a, $b) use ($submittedAssessmentIds, $isDosen) {
-            $aSub = in_array($a['id'], $submittedAssessmentIds, true);
-            $bSub = in_array($b['id'], $submittedAssessmentIds, true);
-
-            if (!$isDosen && $aSub !== $bSub) {
-                return $aSub ? 1 : -1;
+            if ($timeA !== $timeB) {
+                return $timeB <=> $timeA;
             }
 
-            $aDue = !empty($a['due']) ? \Carbon\Carbon::parse($a['due'])->timestamp : PHP_INT_MAX;
-            $bDue = !empty($b['due']) ? \Carbon\Carbon::parse($b['due'])->timestamp : PHP_INT_MAX;
+            return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+        });
 
-            if ($aDue !== $bDue) {
-                return $aDue <=> $bDue;
+    // Urutkan tugas berdasarkan tanggal upload terbaru (paling baru paling atas)
+    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis'])
+        ->sort(function ($a, $b) {
+            $timeA = !empty($a['created_at']) ? \Carbon\Carbon::parse($a['created_at'])->timestamp : (!empty($a['published_at']) ? \Carbon\Carbon::parse($a['published_at'])->timestamp : (!empty($a['updated_at']) ? \Carbon\Carbon::parse($a['updated_at'])->timestamp : 0));
+            $timeB = !empty($b['created_at']) ? \Carbon\Carbon::parse($b['created_at'])->timestamp : (!empty($b['published_at']) ? \Carbon\Carbon::parse($b['published_at'])->timestamp : (!empty($b['updated_at']) ? \Carbon\Carbon::parse($b['updated_at'])->timestamp : 0));
+
+            if ($timeA !== $timeB) {
+                return $timeB <=> $timeA;
             }
 
             return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
@@ -61,10 +61,7 @@
     $courseVideo = $course['video'] ?? null;
     $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
     $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
-    $youtubePlayerUrl = $youtubeEmbed ? $youtubeEmbed.'&'.http_build_query([
-        'origin' => request()->getSchemeAndHttpHost(),
-        'widget_referrer' => request()->fullUrl(),
-    ]) : null;
+    $youtubePlayerUrl = $youtubeEmbed;
     $courseVideoMeta = in_array($courseVideoType, ['file', 'image'], true) && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
 @endphp
 
@@ -162,7 +159,7 @@
                             <span class="sr-only">Media Foto Utama &bull; {{ $courseVideoMeta['name'] ?? ($photoTitle ?? '') }}</span>
                         </div>
                     @elseif($youtubePlayerUrl)
-                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['video_title'] ?? $course['title'] }}" loading="lazy" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['video_title'] ?? $course['title'] }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                         <a href="{{ $courseVideo }}" target="_blank" rel="noopener noreferrer" class="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-black/75 hover:bg-red-600 rounded-lg backdrop-blur-xs transition shadow-sm" title="Tonton di YouTube">
                             <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                             <span>Tonton di YouTube</span>
