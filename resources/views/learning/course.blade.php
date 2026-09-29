@@ -162,14 +162,18 @@
                             <span class="sr-only">Media Foto Utama &bull; {{ $courseVideoMeta['name'] ?? ($photoTitle ?? '') }}</span>
                         </div>
                     @elseif($youtubePlayerUrl)
-                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['title'] }}" loading="lazy" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-                    @elseif($courseVideoType === 'file' && !empty($courseVideo) && !empty($courseVideoMeta))
-                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? $course['title'] }}">
+                        <iframe id="video-heading" class="h-full w-full border-0" src="{{ $youtubePlayerUrl }}" title="Video {{ $course['video_title'] ?? $course['title'] }}" loading="lazy" referrerpolicy="origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                        <a href="{{ $courseVideo }}" target="_blank" rel="noopener noreferrer" class="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-black/75 hover:bg-red-600 rounded-lg backdrop-blur-xs transition shadow-sm" title="Tonton di YouTube">
+                            <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                            <span>Tonton di YouTube</span>
+                        </a>
+                    @elseif($courseVideoType === 'file' && !empty($courseVideo))
+                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" title="Video {{ $courseVideoMeta['name'] ?? ($course['video_title'] ?? $course['title']) }}">
                             <source src="{{ route('preview.file', ['file' => $courseVideo, 'inline' => 1], false) }}" type="{{ $courseVideoMeta['mime'] ?? 'video/mp4' }}">
                             Browser Anda tidak mendukung pemutaran video.
                         </video>
                     @elseif($courseVideoType === 'url' && !empty($courseVideo))
-                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" src="{{ $courseVideo }}" title="Video {{ $course['title'] }}"></video>
+                        <video id="video-heading" class="h-full w-full object-contain" controls preload="metadata" src="{{ $courseVideo }}" title="Video {{ $course['video_title'] ?? $course['title'] }}"></video>
                     @else
                         <div class="flex h-full items-center justify-center px-6 text-center text-sm text-[#c9d3d9]">Video pengantar belum ditambahkan.</div>
                     @endif
