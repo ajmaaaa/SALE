@@ -192,7 +192,16 @@ class LearningController extends Controller
                 $courseData = Learning::databaseCourse($section);
                 $items = $section->assessments
                     ->when($user->hasRole(Role::MAHASISWA), fn ($assessments) => $assessments->where('status', 'published'))
-                    ->sortByDesc('id')
+                    ->sort(function ($a, $b) {
+                        $timeA = $a->updated_at ? $a->updated_at->timestamp : ($a->created_at ? $a->created_at->timestamp : 0);
+                        $timeB = $b->updated_at ? $b->updated_at->timestamp : ($b->created_at ? $b->created_at->timestamp : 0);
+
+                        if ($timeA !== $timeB) {
+                            return $timeB <=> $timeA;
+                        }
+
+                        return $b->id <=> $a->id;
+                    })
                     ->mapWithKeys(fn ($assessment) => [$assessment->id => Learning::databaseAssessment($assessment)])
                     ->all();
 
@@ -315,9 +324,33 @@ class LearningController extends Controller
             : null;
         $scoreValue = $dbScore?->score;
         $attemptDeadline = null;
+        $isAttemptRejected = false;
+        $attemptRejectionReason = null;
 
-        if ($assessment && ! $submission && $scoreValue === null && $this->timedDurationMinutes($resource) !== null) {
-            $attemptDeadline = $this->startTimedAssessmentAttempt($assessment, $user, $resource)->deadline_at;
+        if ($assessment && $user && ! $submission && $scoreValue === null && $this->timedDurationMinutes($resource) !== null) {
+            $assessmentAttempt = AssessmentAttempt::where('assessment_id', $assessment->id)
+                ->where('mahasiswa_id', $user->id)
+                ->latest('attempt')
+                ->first();
+
+            if (! $assessmentAttempt) {
+                $assessmentAttempt = $this->startTimedAssessmentAttempt($assessment, $user, $resource);
+            }
+
+            if ($assessmentAttempt->status === AssessmentAttempt::STATUS_REJECTED) {
+                $isAttemptRejected = true;
+                $attemptRejectionReason = $assessmentAttempt->rejection_reason ?? 'Batas waktu pengerjaan kuis ini telah habis dan attempt Anda telah ditutup.';
+            } elseif ($assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && now()->greaterThan($assessmentAttempt->deadline_at->copy()->addSeconds(30))) {
+                $attemptRejectionReason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
+                $assessmentAttempt->update([
+                    'status' => AssessmentAttempt::STATUS_REJECTED,
+                    'rejected_at' => now(),
+                    'rejection_reason' => $attemptRejectionReason,
+                ]);
+                $isAttemptRejected = true;
+            } else {
+                $attemptDeadline = $assessmentAttempt->deadline_at;
+            }
         }
 
         if (! empty($resource['randomize_questions']) && ! empty($resource['questions'])) {
@@ -349,44 +382,8 @@ class LearningController extends Controller
             'isCompleted' => ! empty($submission) || $scoreValue !== null,
             'scoreValue' => $scoreValue,
             'attemptDeadline' => $attemptDeadline,
-        ]);
-    }
-
-    public function quizPreview(int $course, int $item)
-    {
-        $user = auth()->user();
-        $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->findOrFail($course);
-        abort_unless($user?->hasRole(Role::DOSEN) && $user->can('manage', $section), 403);
-
-        $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
-        $resource = Learning::databaseAssessment($assessment);
-        abort_unless(in_array($resource['type'], ['kuis', 'uts', 'uas'], true), 404);
-
-        $questions = QuizQuestion::canonicalizeQuestions($resource['questions'] ?? []);
-        $resource['questions'] = $questions;
-        $answers = [];
-        foreach ($questions as $question) {
-            $answers[(string) $question['id']] = [
-                'question_id' => (string) $question['id'],
-                'option_ids' => $question['answer_key']['option_ids'] ?? [],
-                'matches' => $question['answer_key']['matches'] ?? [],
-                'text' => $question['essay_guide'] ?? null,
-            ];
-        }
-
-        return view('learning.quiz-room', [
-            'course' => Learning::databaseCourse($section),
-            'item' => $resource,
-            'submission' => [
-                'question_answers' => $answers,
-                'time' => null,
-                'status' => 'preview',
-            ],
-            'isCompleted' => true,
-            'scoreValue' => null,
-            'attemptDeadline' => null,
-            'isLecturerPreview' => true,
-            'reviewUser' => $user,
+            'isRejected' => $isAttemptRejected,
+            'rejectionReason' => $attemptRejectionReason,
         ]);
     }
 
@@ -633,12 +630,17 @@ class LearningController extends Controller
             $request->merge(['link' => 'https://'.ltrim((string) $request->input('link'), '/')]);
         }
 
+        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas', 'lainnya'], true)) {
+            $request->request->remove('questions');
+        }
+
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
             'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman', 'lainnya'])],
             'custom_type' => 'nullable|string|max:10',
             'task_mode' => 'nullable|in:regular,coding',
             'material_mode' => 'nullable|in:regular,coding',
+            'ai_enabled' => 'nullable|boolean',
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
             'allow_late' => 'nullable|in:0,1,true,false',
             'link' => 'nullable|url:http,https|max:2000',
@@ -877,7 +879,20 @@ class LearningController extends Controller
             $data['video_type'] = $pinnedType;
             $data['video_title'] = $data['title'];
             $data['media_kind'] = $mediaKind;
+            $data['pinned_at'] = now()->timestamp;
 
+            if (Schema::hasTable('assessments') && $section) {
+                $existingPinned = Assessment::where('class_section_id', $section->id)
+                    ->where('type', 'materi')
+                    ->get();
+                foreach ($existingPinned as $existingAsm) {
+                    $existingPayload = $existingAsm->learning_payload ?? [];
+                    if (! empty($existingPayload['pin_video'])) {
+                        $existingPayload['pin_video'] = false;
+                        $existingAsm->update(['learning_payload' => $existingPayload]);
+                    }
+                }
+            }
         }
         $data['points'] = $data['points'] ?? 100;
         $data['allow_late'] = $request->boolean('allow_late', true);
@@ -888,7 +903,9 @@ class LearningController extends Controller
         $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
         $data['randomize_questions'] = $request->boolean('randomize_questions', false);
         $data['language'] = $data['question_type'] === 'coding' ? ($data['code_language'] ?? 'python') : 'python';
-        $data['ai_enabled'] = $data['question_type'] === 'coding' && ! in_array($category, ['kuis', 'uts', 'uas'], true);
+        $data['ai_enabled'] = $request->has('ai_enabled')
+            ? $request->boolean('ai_enabled')
+            : ($data['question_type'] === 'coding' && ! in_array($category, ['kuis', 'uts', 'uas'], true));
         $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
         if (Schema::hasTable('class_sections') && Schema::hasTable('assessments')) {
             if ($section && in_array($category, ['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'pengumuman'], true)) {
@@ -1051,6 +1068,10 @@ class LearningController extends Controller
             $request->merge(['link' => 'https://'.ltrim((string) $request->input('link'), '/')]);
         }
 
+        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas', 'lainnya'], true)) {
+            $request->request->remove('questions');
+        }
+
         $academic = AcademicPreview::config($course);
 
         $data = $request->validate([
@@ -1101,6 +1122,7 @@ class LearningController extends Controller
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
             'randomize_questions' => 'nullable|boolean',
+            'ai_enabled' => 'nullable|boolean',
         ]);
 
         $category = $data['type'];
@@ -1111,6 +1133,9 @@ class LearningController extends Controller
         $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
         $data['randomize_questions'] = $request->boolean('randomize_questions', false);
         $data['pin_video'] = $request->boolean('pin_video');
+        $data['ai_enabled'] = $request->has('ai_enabled')
+            ? $request->boolean('ai_enabled')
+            : ($existingItem['ai_enabled'] ?? ($data['question_type'] === 'coding'));
 
         $newAttachments = array_map(fn ($file) => $this->upload($file), $request->file('attachments', []));
         $data['attachments'] = ! empty($newAttachments) ? $newAttachments : ($existingItem['attachments'] ?? []);
@@ -1187,26 +1212,96 @@ class LearningController extends Controller
         }
 
         if ($data['pin_video'] && $category === 'materi') {
-            $pinnedVal = $data['link'] ?? null;
+            $videoAttachments = collect($data['attachments'])->filter(function ($file) {
+                return str_starts_with((string) Attachment::where('uuid', $file)->value('mime'), 'video/');
+            });
+            $imageAttachments = collect($data['attachments'])->filter(function ($file) {
+                return str_starts_with((string) Attachment::where('uuid', $file)->value('mime'), 'image/');
+            });
+            $videoLink = trim((string) ($data['link'] ?? ''));
+            $playableLink = $videoLink !== '' && (
+                Learning::youtubeEmbedUrl($videoLink) !== null
+                || (bool) preg_match('/\.(?:mp4|webm|ogg)(?:[?#].*)?$/i', $videoLink)
+            );
+
+            $target = $request->input('pin_media_target', 'auto');
+            $pinnedVal = null;
             $pinnedType = 'url';
             $mediaKind = 'video';
+
+            if ($target === 'link' && $playableLink) {
+                $pinnedVal = $videoLink;
+                $pinnedType = 'url';
+                $mediaKind = 'video';
+            } elseif ($target !== 'auto' && $target !== 'link') {
+                $matchedFile = collect($data['attachments'])->first(function ($file) use ($target) {
+                    $name = Attachment::where('uuid', $file)->value('name') ?? '';
+
+                    return $name === $target || $file === $target;
+                });
+                if ($matchedFile) {
+                    $mime = (string) Attachment::where('uuid', $matchedFile)->value('mime');
+                    $isVid = str_starts_with($mime, 'video/');
+                    $pinnedVal = $matchedFile;
+                    $pinnedType = $isVid ? 'file' : 'image';
+                    $mediaKind = $isVid ? 'video' : 'image';
+                }
+            }
+
+            if (! $pinnedVal) {
+                if ($playableLink) {
+                    $pinnedVal = $videoLink;
+                    $pinnedType = 'url';
+                    $mediaKind = 'video';
+                } elseif ($videoAttachments->isNotEmpty()) {
+                    $pinnedVal = $videoAttachments->first();
+                    $pinnedType = 'file';
+                    $mediaKind = 'video';
+                } elseif ($imageAttachments->isNotEmpty()) {
+                    $pinnedVal = $imageAttachments->first();
+                    $pinnedType = 'image';
+                    $mediaKind = 'image';
+                } elseif (! empty($data['question_image'])) {
+                    $pinnedVal = $data['question_image'];
+                    $pinnedType = 'image';
+                    $mediaKind = 'image';
+                }
+            }
+
             if ($pinnedVal) {
                 $data['video'] = $pinnedVal;
                 $data['video_type'] = $pinnedType;
                 $data['video_title'] = $data['title'];
                 $data['media_kind'] = $mediaKind;
-            } elseif (! empty($data['attachments'])) {
-                $att = $data['attachments'][0];
-                $mime = (string) Attachment::where('uuid', $att)->value('mime');
-                $isVid = str_starts_with($mime, 'video/');
-                $data['video'] = $att;
-                $data['video_type'] = $isVid ? 'file' : 'image';
-                $data['video_title'] = $data['title'];
-                $data['media_kind'] = $isVid ? 'video' : 'image';
+                $data['pinned_at'] = now()->timestamp;
             }
+
+            // Otomatis unpin materi lain di kelas ini
+            if (Schema::hasTable('assessments') && $section && $assessment) {
+                $existingPinned = Assessment::where('class_section_id', $section->id)
+                    ->where('type', 'materi')
+                    ->where('id', '!=', $assessment->id)
+                    ->get();
+                foreach ($existingPinned as $existingAsm) {
+                    $existingPayload = $existingAsm->learning_payload ?? [];
+                    if (! empty($existingPayload['pin_video'])) {
+                        $existingPayload['pin_video'] = false;
+                        $existingAsm->update(['learning_payload' => $existingPayload]);
+                    }
+                }
+            }
+        } elseif ($category === 'materi') {
+            $data['pin_video'] = false;
+            $data['video'] = null;
+            $data['video_type'] = null;
+            $data['video_title'] = null;
+            $data['media_kind'] = null;
+            $data['pinned_at'] = null;
         }
 
         if ($assessment) {
+            $data['due'] = $request->input('due') ?: null;
+            $data['allow_late'] = $request->boolean('allow_late', true);
             $databasePayload = array_merge($existingItem, $data);
             unset($databasePayload['id'], $databasePayload['course']);
 
@@ -1232,6 +1327,13 @@ class LearningController extends Controller
                         'class_section_id' => $section->id,
                         'assessment_id' => $assessment->id,
                     ]);
+            }
+
+            if (Schema::hasTable('ai_tasks')) {
+                DB::table('ai_tasks')->updateOrInsert(
+                    ['id' => $assessment->id],
+                    ['title' => $data['title'], 'body' => $data['body'], 'enabled' => (bool) ($data['ai_enabled'] ?? false)]
+                );
             }
 
             if (! in_array($category, ['materi', 'pengumuman'], true)) {
@@ -1403,7 +1505,7 @@ class LearningController extends Controller
                 ])->withInput();
             }
 
-            if ($assessmentAttempt && now()->greaterThanOrEqualTo($assessmentAttempt->deadline_at)) {
+            if ($assessmentAttempt && now()->greaterThan($assessmentAttempt->deadline_at->copy()->addSeconds(30))) {
                 $reason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
                 $assessmentAttempt->update([
                     'status' => AssessmentAttempt::STATUS_REJECTED,
@@ -1460,8 +1562,11 @@ class LearningController extends Controller
             'matching' => 'nullable|array',
         ]);
         $isFromQuizRoom = $request->boolean('from_quiz_room');
+        $isCodingSubmission = in_array($resource['type'] ?? '', ['coding'], true)
+            || ($resource['task_mode'] ?? null) === 'coding'
+            || (($resource['type'] ?? '') === 'tugas' && ($resource['question_type'] ?? '') === 'coding');
 
-        if (! empty($resource['questions'])) {
+        if (! empty($resource['questions']) && ! $isCodingSubmission) {
             $resource['questions'] = QuizQuestion::canonicalizeQuestions($resource['questions']);
             $displayOrder = $user ? session("learning.quiz_order.{$item}.{$user->id}") : null;
             $answers = QuizQuestion::normalizeAnswers(
@@ -1507,10 +1612,10 @@ class LearningController extends Controller
             return back()->withErrors(['files' => 'Maksimal lima lampiran, termasuk berkas sebelumnya.'])->withInput();
         }
         if (! $isFromQuizRoom && empty($data['question_answers']) && ! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices') && ! $request->filled('boolean_choice') && ! $request->filled('matching')) {
-            return back()->withErrors(['answer' => 'Tambahkan jawaban, berkas, atau tautan sebelum mengumpulkan.'])->withInput();
+            return back()->withErrors(['answer' => $isCodingSubmission ? 'Tuliskan kode program sebelum menyerahkan tugas.' : 'Tambahkan jawaban, berkas, atau tautan sebelum mengumpulkan.'])->withInput();
         }
         abort_if($request->filled('link') && ! in_array('link', $resource['formats']), 422);
-        abort_if($request->filled('answer') && ! in_array('text', $resource['formats']) && $resource['type'] !== 'coding', 422);
+        abort_if($request->filled('answer') && ! in_array('text', $resource['formats']) && ! $isCodingSubmission, 422);
         foreach ($request->file('files', []) as $file) {
             $format = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'file';
             abort_unless(in_array($format, $resource['formats']), 422);
