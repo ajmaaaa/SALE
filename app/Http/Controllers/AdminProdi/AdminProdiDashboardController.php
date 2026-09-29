@@ -20,27 +20,23 @@ class AdminProdiDashboardController extends AdminProdiController
         $activeSemester = Semester::where('is_active', true)->first() ?? Semester::latest()->first();
 
         $stats = [
-            'total_prodi' => Prodi::when($prodiId, fn ($q) => $q->whereKey($prodiId))->count(),
-            'total_dosen' => User::withRoleName(Role::DOSEN)->when($prodiId, fn ($q) => $q->where(fn ($scope) => $scope->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId)))->count(),
-            'total_mahasiswa' => User::withRoleName(Role::MAHASISWA)->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
-            'total_matakuliah' => MataKuliah::when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
-            'total_kelas' => ClassSection::when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))->count(),
-            'total_cpl' => Cpl::when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))->count(),
-            'total_cpmk' => Cpmk::when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))->count(),
+            'total_dosen' => User::withRoleName(Role::DOSEN)->where(fn ($scope) => $scope->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId))->count(),
+            'total_mahasiswa' => User::withRoleName(Role::MAHASISWA)->where('prodi_id', $prodiId)->count(),
+            'total_matakuliah' => MataKuliah::where('prodi_id', $prodiId)->count(),
+            'total_kelas' => ClassSection::whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId))->count(),
+            'total_cpl' => Cpl::where('prodi_id', $prodiId)->count(),
+            'total_cpmk' => Cpmk::whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId))->count(),
         ];
 
-        $prodis = Prodi::when($prodiId, fn ($q) => $q->whereKey($prodiId))
-            ->withCount(['mataKuliahs', 'cpls'])
-            ->get();
         $recentClasses = ClassSection::with(['mataKuliah.prodi', 'dosen', 'dosenPendamping', 'semester'])
-            ->when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))
+            ->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId))
             ->withCount('students')
             ->latest()
             ->take(5)
             ->get();
 
-        $activeProdi = $prodiId ? Prodi::find($prodiId) : $prodis->first();
+        $activeProdi = Prodi::findOrFail($prodiId);
 
-        return view('admin-prodi.dashboard', compact('stats', 'prodis', 'recentClasses', 'activeSemester', 'activeProdi'));
+        return view('admin-prodi.dashboard', compact('stats', 'recentClasses', 'activeSemester', 'activeProdi'));
     }
 }
