@@ -176,7 +176,8 @@ Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function
     Route::post('/monitoring/backup/settings', [AdminPreviewController::class, 'saveBackupSettings'])->name('backup.settings');
     Route::post('/monitoring/backup/delete', [AdminPreviewController::class, 'deleteBackup'])->name('backup.destroy');
     Route::get('/pengguna/template', [AdminPreviewController::class, 'downloadUserTemplate'])->name('users.template');
-    Route::post('/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
+    Route::match(['post', 'put'], '/pengguna', [AdminPreviewController::class, 'user'])->name('users.store');
+    Route::put('/pengguna/{id}', [AdminPreviewController::class, 'user'])->whereNumber('id')->name('users.update');
     Route::post('/pengguna/bulk', [AdminPreviewController::class, 'bulkUsers'])->name('users.bulk');
     Route::post('/pengguna/{id}/delete', [AdminPreviewController::class, 'deleteUser'])->whereNumber('id')->name('users.destroy');
     Route::post('/akademik/{id}/delete', [AdminPreviewController::class, 'deleteAcademic'])->whereNumber('id')->name('academic.destroy');
