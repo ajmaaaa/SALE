@@ -37,8 +37,7 @@ class DatabaseNotificationService
                 return null;
             }
 
-            $isDiscussion = Str::startsWith($notification['id'], ['discussion_', 'discuss_']);
-            $notification['is_read'] = (bool) ($state?->read_at && (! $isDiscussion || $state->read_at->greaterThanOrEqualTo($eventAt)));
+            $notification['is_read'] = (bool) ($state?->read_at && $state->read_at->greaterThanOrEqualTo($eventAt));
 
             return $notification;
         }, $notifications)));
@@ -118,7 +117,8 @@ class DatabaseNotificationService
         $assessmentIds = $sections->flatMap->assessments->pluck('id');
         $scores = StudentAssessmentScore::query()
             ->where('mahasiswa_id', $user->id)
-            ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
+            ->whereNotNull('score')
+            ->whereIn('status', [StudentAssessmentScore::STATUS_FINAL, StudentAssessmentScore::STATUS_PUBLISHED])
             ->whereIn('assessment_id', $assessmentIds)
             ->get()
             ->keyBy('assessment_id');
@@ -141,11 +141,25 @@ class DatabaseNotificationService
                     : route('mahasiswa.course.item', [$section->id, $assessment->id], false);
 
                 if ($score && $score->score !== null) {
-                    $eventAt = $score->published_at ?? $score->updated_at;
+                    $eventAt = $score->updated_at ?? $score->published_at ?? now();
+                    $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
+                    $isTask = in_array($type, ['tugas', 'coding', 'pbl', 'case', 'project'], true);
+
+                    if ($isQuiz) {
+                        $title = "Nilai Quiz Diperbarui: {$assessment->name} ({$section->display_code})";
+                        $message = 'Nilai quiz sudah diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
+                    } elseif ($isTask) {
+                        $title = "Nilai Tugas Diperbarui: {$assessment->name} ({$section->display_code})";
+                        $message = 'Nilai tugas sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
+                    } else {
+                        $title = "Nilai Diperbarui: {$assessment->name} ({$section->display_code})";
+                        $message = 'Nilai sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
+                    }
+
                     $notifications[] = $this->notification(
                         "grade_{$assessment->id}",
-                        "Nilai Terbit: {$assessment->name} ({$section->display_code})",
-                        'Hasil evaluasi telah diterbitkan dengan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : ''),
+                        $title,
+                        $message,
                         $eventAt,
                         'grade',
                         $target,
@@ -185,7 +199,37 @@ class DatabaseNotificationService
             $this->appendDiscussionNotification($notifications, $user, $section);
         }
 
+        $notifications = array_merge($notifications, $this->systemNotifications());
+
         return $notifications;
+    }
+
+    private function systemNotifications(): array
+    {
+        return [
+            $this->notification(
+                'system_ai_ready',
+                'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
+                'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
+                now()->subMinutes(2),
+                'system',
+                route('mahasiswa.assignment.index', [], false),
+                'Buka Lab Coding',
+                'sistem',
+                0
+            ),
+            $this->notification(
+                'system_sync_krs',
+                'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
+                'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
+                now()->subHours(4),
+                'system',
+                route('mahasiswa.obe.progress', [], false),
+                'Lihat Pemetaan OBE',
+                'sistem',
+                0
+            ),
+        ];
     }
 
     private function lecturerNotifications(User $user): array
@@ -282,8 +326,15 @@ class DatabaseNotificationService
 
     private function formatTime(Carbon $date): string
     {
-        if ($date->diffInMinutes(now()) < 60) {
-            return $date->diffForHumans();
+        $now = Carbon::now();
+        $diffMin = (int) floor(abs($date->diffInMinutes($now, false)));
+
+        if ($diffMin < 60) {
+            if ($diffMin < 1) {
+                return 'Baru saja';
+            }
+
+            return "{$diffMin} menit lalu";
         }
 
         return $date->isToday() ? $date->format('H:i') : $date->translatedFormat('d M, H:i');
