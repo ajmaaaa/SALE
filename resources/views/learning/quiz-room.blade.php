@@ -106,8 +106,8 @@
                     }
                 }
 
-                if (in_array($qType, ['uraian', 'esai'], true)) {
-                    $essayScore = $submission['answer_scores'][$questionId] ?? null;
+                if (in_array($qType, ['uraian', 'esai', 'essay'], true)) {
+                    $essayScore = $submission['answer_scores'][$questionId] ?? $submission['answer_scores'][(string) $qIdx] ?? null;
                     if ($essayScore !== null) {
                         $earned = (float) $essayScore;
                         $status = 'graded';
@@ -176,7 +176,7 @@
                                     @endif
                                     @if($totalPending > 0)
                                         <span class="text-slate-300">·</span>
-                                        <span class="font-medium text-slate-700">{{ $totalPending }} Uraian</span>
+                                        <span class="font-medium text-amber-600">{{ $totalPending }} Uraian (Menunggu Penilaian)</span>
                                     @endif
                                 </div>
                             </div>
@@ -248,7 +248,7 @@
                                                     @elseif($qType === 'benar_salah') Benar / Salah
                                                     @elseif($qType === 'mencocokkan') Menjodohkan Pasangan
                                                     @elseif($qType === 'coding') Praktikum Coding
-                                                    @elseif($qType === 'uraian' || $qType === 'esai') Uraian / Essay
+                                                    @elseif($qType === 'uraian' || $qType === 'esai' || $qType === 'essay') Uraian / Essay
                                                     @else Isian Singkat / Uraian
                                                     @endif
                                                 </span>
@@ -432,14 +432,18 @@
                                             @endforeach
                                         </div>
 
-                                    {{-- Uraian --}}
-                                    @elseif($qType === 'uraian')
+                                    {{-- Uraian / Essay --}}
+                                    @elseif(in_array($qType, ['uraian', 'esai', 'essay'], true))
                                         <div class="space-y-2 pt-1">
                                             <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-xs font-normal text-slate-800 whitespace-pre-line leading-relaxed">
                                                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Jawaban Anda:</span>
                                                 {{ $ans['text'] ?? '(Tidak ada jawaban tertulis)' }}
                                             </div>
-                                            <p class="text-[11px] text-slate-500 italic">* Jawaban uraian Anda tersimpan dan siap ditinjau oleh dosen pengampu.</p>
+                                            @if($status === 'graded')
+                                                <p class="text-[11px] text-emerald-600 font-semibold">* Jawaban esai telah dinilai oleh dosen pengampu (+{{ number_format($eval['earned'], 1) }} poin).</p>
+                                            @else
+                                                <p class="text-[11px] text-slate-500 italic">* Jawaban uraian Anda tersimpan dan siap ditinjau oleh dosen pengampu.</p>
+                                            @endif
                                         </div>
 
                                     @endif
