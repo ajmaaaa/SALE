@@ -88,7 +88,7 @@
     $language = in_array($requestedLanguage, ['python', 'web'], true) ? $requestedLanguage : $storedLanguage;
 
     $materialSteps = [];
-    if (!empty($item['coding_steps']) && count($item['coding_steps']) > 1) {
+    if (!empty($item['coding_steps']) && count($item['coding_steps']) >= 1) {
         $materialSteps = $item['coding_steps'];
     } elseif ($isMaterial || (int)($item['id'] ?? 0) === 1) {
         if ($language === 'web') {
@@ -268,20 +268,65 @@
                             </div>
 
                             @if(!empty($step['attachment']))
-                                @php $stepFile = \App\Models\Attachment::where('uuid', $step['attachment'])->first(); @endphp
-                                @if(str_starts_with($stepFile?->mime ?? '', 'image/'))
-                                    <div class="rounded border border-slate-200 p-2 bg-slate-50">
-                                        <img class="max-h-44 w-full rounded-lg object-contain" src="{{ route('preview.file', ['file' => $step['attachment'], 'inline' => 1], false) }}" alt="Lampiran {{ $step['title'] }}">
+                                @php
+                                    $stepFile = \App\Models\Attachment::where('uuid', $step['attachment'])->first();
+                                    $stepFileMeta = \App\Support\LearningPreview::fileMeta($step['attachment']);
+                                    $stepMime = $stepFile?->mime ?? ($stepFileMeta['mime'] ?? '');
+                                    $stepName = $stepFile?->name ?? ($stepFileMeta['name'] ?? 'Berkas Lampiran');
+                                    $stepExt = strtolower(pathinfo($stepName, PATHINFO_EXTENSION) ?: (pathinfo($stepFileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
+                                    $isStepImage = str_starts_with($stepMime, 'image/') || in_array($stepExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                                    $isStepPdf = $stepMime === 'application/pdf' || $stepExt === 'pdf' || str_ends_with(strtolower($stepName), '.pdf');
+                                    $stepUrl = route('preview.file', ['file' => $step['attachment'], 'inline' => ($isStepPdf || $isStepImage) ? 1 : null], false);
+                                    $stepDownloadUrl = route('preview.file', ['file' => $step['attachment'], 'download' => 1], false);
+                                @endphp
+                                @if($isStepImage)
+                                    <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
+                                        <img class="max-h-48 w-full rounded-lg object-contain border border-line/40 bg-slate-50" src="{{ $stepUrl }}" alt="{{ $stepName }}">
+                                        <div class="flex items-center justify-between text-xs pt-1">
+                                            <span class="truncate font-medium text-ink" title="{{ $stepName }}">{{ $stepName }}</span>
+                                            <a href="{{ $stepDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold shrink-0">Unduh</a>
+                                        </div>
                                     </div>
                                 @else
-                                    <a class="button-secondary flex w-full items-center justify-center px-3 py-2 text-xs" href="{{ route('preview.file', $step['attachment'], false) }}">Buka lampiran{{ $stepFile?->name ? ': '.$stepFile->name : '' }}</a>
+                                    <div class="flex items-center justify-between gap-2 rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line font-mono font-bold text-[10px] {{ $isStepPdf ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700' }}">
+                                                {{ strtoupper($stepExt ?: 'FILE') }}
+                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <span class="truncate block text-xs font-semibold text-ink" title="{{ $stepName }}">{{ $stepName }}</span>
+                                                <span class="text-[10px] text-muted">Lampiran tahap pembelajaran</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <a href="{{ $stepUrl }}" target="_blank" rel="noopener" class="button-secondary text-[11px] py-1 px-2.5 font-semibold">Buka</a>
+                                            <a href="{{ $stepDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold">Unduh</a>
+                                        </div>
+                                    </div>
                                 @endif
                             @endif
 
                             @if(!empty($step['link']))
-                                <div class="rounded-lg border border-line/70 bg-white p-2.5">
-                                    <a class="quiet-link inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline" href="{{ $step['link'] }}" target="_blank" rel="noopener">
-                                        <span>Buka tautan referensi</span>
+                                @php
+                                    $ytEmbed = \App\Support\LearningPreview::youtubeEmbedUrl($step['link']);
+                                    $isYoutube = !empty($ytEmbed);
+                                @endphp
+                                <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        @if($isYoutube)
+                                            <svg class="h-4 w-4 shrink-0 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                            </svg>
+                                        @else
+                                            <svg class="h-4 w-4 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                            </svg>
+                                        @endif
+                                        <span class="truncate text-xs font-medium text-ink" title="{{ $step['link'] }}">{{ preg_replace('#^https?://#', '', $step['link']) }}</span>
+                                    </div>
+                                    <a class="button-secondary text-[11px] py-1 px-2.5 font-semibold text-brand hover:underline shrink-0 inline-flex items-center gap-1" href="{{ $step['link'] }}" target="_blank" rel="noopener">
+                                        <span>{{ $isYoutube ? 'Tonton Video' : 'Buka Tautan' }}</span>
                                         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                                     </a>
                                 </div>
