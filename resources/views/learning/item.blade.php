@@ -221,7 +221,7 @@
                                     ];
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
-                                    <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-900 group cursor-pointer" title="Putar Video YouTube">
+                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-900 group cursor-pointer" title="Putar Video YouTube">
                                         @if($ytThumb)
                                             <img src="{{ $ytThumb }}" alt="Thumbnail YouTube" class="h-full w-full object-cover group-hover:scale-105 transition duration-300">
                                             <div class="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition"></div>
@@ -238,11 +238,11 @@
                                             <svg class="h-3.5 w-3.5 shrink-0 text-red-600" viewBox="0 0 24 24" fill="currentColor">
                                                 <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
                                             </svg>
-                                            <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline cursor-pointer" title="{{ $item['title'] }}">
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})" class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline cursor-pointer" title="{{ $item['title'] }}">
                                                 Video YouTube
                                             </button>
                                         </div>
-                                        <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})' class="shrink-0 text-muted hover:text-red-600 transition cursor-pointer" title="Putar Video YouTube">
+                                        <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($ytPreviewData) }})" class="shrink-0 text-muted hover:text-red-600 transition cursor-pointer" title="Putar Video YouTube">
                                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
                                             </svg>
@@ -401,7 +401,7 @@
                                     ];
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition">
-                                    <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 text-muted hover:text-brand transition group" title="Pratinjau {{ $item['link'] }}">
+                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 text-muted hover:text-brand transition group" title="Pratinjau {{ $item['link'] }}">
                                         <svg class="h-6 w-6 text-muted group-hover:text-brand transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                             <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                         </svg>
@@ -413,11 +413,11 @@
                                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                                                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                                             </svg>
-                                            <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline" title="Pratinjau {{ $item['link'] }}">
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})" class="min-w-0 flex-1 truncate text-left text-xs font-medium text-ink hover:underline" title="Pratinjau {{ $item['link'] }}">
                                                 {{ preg_replace('#^https?://#', '', $item['link']) }}
                                             </button>
                                         </div>
-                                        <button type="button" onclick='openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})' class="shrink-0 text-muted hover:text-ink" title="Pratinjau tautan">
+                                        <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($linkPreviewData) }})" class="shrink-0 text-muted hover:text-ink" title="Pratinjau tautan">
                                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18v14H3z"/><path d="m8 9 3 3-3 3M13 15h3"/></svg>
                                         </button>
                                     </div>
@@ -884,11 +884,11 @@
         titleEl.textContent = fileData.title || 'Berkas Lampiran';
         badgeEl.textContent = (fileData.ext || 'FILE').toUpperCase().slice(0, 6);
         metaEl.textContent = fileData.meta || 'Lampiran perkuliahan';
-        downloadEl.href = fileData.downloadUrl || fileData.url;
-        openEl.href = fileData.url;
         const isExternalLink = fileData.type === 'link' || fileData.type === 'youtube';
+        downloadEl.href = fileData.downloadUrl || fileData.url;
+        openEl.href = (isExternalLink && fileData.downloadUrl) ? fileData.downloadUrl : fileData.url;
         downloadEl.hidden = isExternalLink;
-        openEl.querySelector('span').textContent = isExternalLink ? 'Buka Sumber' : 'Buka Tab Baru';
+        openEl.querySelector('span').textContent = fileData.type === 'youtube' ? 'Tonton di YouTube' : (isExternalLink ? 'Buka Sumber' : 'Buka Tab Baru');
 
         bodyEl.innerHTML = '';
 
@@ -900,17 +900,33 @@
             vid.autoplay = true;
             vid.className = 'max-h-[75vh] max-w-full rounded-lg shadow-md bg-black';
             bodyEl.appendChild(vid);
-        } else if (fileData.type === 'pdf' || fileData.type === 'link' || fileData.type === 'youtube') {
+        } else if (fileData.type === 'youtube') {
+            bodyEl.className = 'submission-body flex flex-col p-2 sm:p-4 bg-slate-900/90 flex-1 min-h-[500px] h-full';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'w-full flex-1 flex flex-col items-center justify-center';
+            const frame = document.createElement('iframe');
+            frame.src = fileData.url;
+            frame.title = `Pratinjau ${fileData.title}`;
+            frame.className = 'w-full flex-1 min-h-[460px] h-full border-0 rounded-lg bg-black shadow-md';
+            frame.referrerPolicy = 'origin';
+            frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            frame.allowFullscreen = true;
+            wrapper.appendChild(frame);
+            if (fileData.downloadUrl) {
+                const fallback = document.createElement('div');
+                fallback.className = 'mt-2 text-center text-xs text-slate-300 flex items-center justify-center gap-2';
+                fallback.innerHTML = `<span>Jika pemutaran video YouTube terkendala di peramban:</span> <a href="${fileData.downloadUrl}" target="_blank" rel="noopener noreferrer" class="text-red-400 hover:text-red-300 font-medium underline inline-flex items-center gap-1">Tonton di YouTube <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                wrapper.appendChild(fallback);
+            }
+            bodyEl.appendChild(wrapper);
+        } else if (fileData.type === 'pdf' || fileData.type === 'link') {
             bodyEl.className = 'submission-body flex flex-col p-2 sm:p-4 bg-slate-100/90 flex-1 min-h-[500px] h-full';
             const frame = document.createElement('iframe');
             frame.src = fileData.url;
             frame.title = `Pratinjau ${fileData.title}`;
             frame.className = 'w-full flex-1 min-h-[520px] h-full border-0 rounded-lg bg-white shadow-xs';
             frame.referrerPolicy = 'origin';
-            if (fileData.type === 'youtube') {
-                frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-                frame.allowFullscreen = true;
-            } else if (fileData.type === 'link') {
+            if (fileData.type === 'link') {
                 frame.sandbox = 'allow-forms allow-popups allow-same-origin allow-scripts';
             }
             bodyEl.appendChild(frame);
