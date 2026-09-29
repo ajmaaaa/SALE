@@ -68,7 +68,7 @@
                     @endif
                     <div>
                         <p class="text-lg font-semibold text-ink">{{ $userName }}</p>
-                        <p class="mt-1 text-sm text-muted">Dosen Pengampu</p>
+                        <p class="mt-1 text-sm text-muted">Dosen Pengampu{{ !empty($activeSemester) ? ', '.$activeSemester : '' }}</p>
                     </div>
                 </div>
 
@@ -109,7 +109,8 @@
                     <div><dt class="text-sm text-muted">NIDN</dt><dd class="mt-1 font-semibold text-ink">{{ $userNidn }}</dd></div>
                     <div><dt class="text-sm text-muted">Email</dt><dd class="mt-1 break-all font-semibold text-ink">{{ $userEmail }}</dd></div>
                     <div><dt class="text-sm text-muted">Program studi</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->prodi?->name ?? ($sessionUser['prodi'] ?? 'Teknik Informatika') }}</dd></div>
-                    <div><dt class="text-sm text-muted">Kelas diampu</dt><dd class="mt-1 font-semibold text-ink">{{ $user ? $user->classSectionsTeaching()->count() : 1 }} Kelas Aktif</dd></div>
+                    <div><dt class="text-sm text-muted">Semester aktif</dt><dd class="mt-1 font-semibold text-ink">{{ $activeSemester ?? 'Belum ada semester aktif' }}</dd></div>
+                    <div><dt class="text-sm text-muted">Kelas diampu</dt><dd class="mt-1 font-semibold text-ink">{{ $totalClasses ?? ($user ? $user->totalClassSectionsTeachingCount() : 0) }} Kelas</dd></div>
                     <div><dt class="text-sm text-muted">Status</dt><dd class="mt-1 font-semibold text-ink">Aktif</dd></div>
                 </dl>
             </section>
