@@ -655,7 +655,7 @@ class LearningController extends Controller
             'option_images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'points' => 'nullable|integer|min:1|max:1000',
             'component' => ['nullable', Rule::in(array_column($academic['components'], 'code'))],
-            'questions' => 'nullable|array|min:1|max:30',
+            'questions' => 'nullable|array|min:1|max:100',
             'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'benar_salah', 'mencocokkan'])],
             'questions.*.prompt' => 'required|string|max:10000',
             'questions.*.points' => 'nullable|integer|min:1|max:1000',
@@ -668,10 +668,11 @@ class LearningController extends Controller
             'questions.*.matching' => 'nullable|array',
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'questions.*.alt' => 'nullable|string|max:300',
-            'coding_steps' => 'nullable|array|min:1|max:20',
+            'coding_steps' => 'nullable|array|min:1|max:100',
             'coding_steps.*.title' => 'required|string|max:160',
             'coding_steps.*.body' => 'required|string|max:15000',
             'coding_steps.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'coding_steps.*.points' => 'nullable|integer|min:1|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
             'manual_cpmk_weights' => 'nullable|array',
@@ -791,9 +792,9 @@ class LearningController extends Controller
                     'type' => 'coding',
                     'prompt' => $step['title'],
                     'cpmk' => $step['cpmk'],
-                    'points' => 100,
+                    'points' => (isset($step['points']) && (int) $step['points'] > 0) ? (int) $step['points'] : 100,
                 ], $data['coding_steps']);
-                $data['points'] = count($data['questions']) * 100;
+                $data['points'] = array_sum(array_column($data['questions'], 'points'));
                 $data['component'] = 'tugas';
                 $data['scoring_mode'] = 'automatic_cpmk';
             }
@@ -1074,7 +1075,7 @@ class LearningController extends Controller
             'option_images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'points' => 'nullable|integer|min:1|max:1000',
             'component' => ['nullable', Rule::in(array_column($academic['components'], 'code'))],
-            'questions' => 'nullable|array|min:1|max:30',
+            'questions' => 'nullable|array|min:1|max:100',
             'questions.*.type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'benar_salah', 'mencocokkan'])],
             'questions.*.prompt' => 'required|string|max:10000',
             'questions.*.points' => 'nullable|integer|min:1|max:1000',
@@ -1087,10 +1088,11 @@ class LearningController extends Controller
             'questions.*.matching' => 'nullable|array',
             'questions.*.image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'questions.*.alt' => 'nullable|string|max:300',
-            'coding_steps' => 'nullable|array|min:1|max:20',
+            'coding_steps' => 'nullable|array|min:1|max:100',
             'coding_steps.*.title' => 'required|string|max:160',
             'coding_steps.*.body' => 'required|string|max:15000',
             'coding_steps.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'coding_steps.*.points' => 'nullable|integer|min:1|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
             'manual_cpmk_weights' => 'nullable|array',
@@ -1157,6 +1159,31 @@ class LearningController extends Controller
             $data['scoring_mode'] = 'automatic_cpmk';
         } else {
             $data['points'] = $data['points'] ?? ($existingItem['points'] ?? 100);
+        }
+
+        $isCodingContent = $category === 'coding' || ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
+        if ($isCodingContent && ! empty($data['coding_steps'])) {
+            foreach ($data['coding_steps'] as $index => &$step) {
+                if ($request->hasFile("coding_steps.$index.attachment")) {
+                    $step['attachment'] = $this->upload($request->file("coding_steps.$index.attachment"));
+                } else {
+                    $step['attachment'] = $existingItem['coding_steps'][$index]['attachment'] ?? null;
+                }
+                $step['link'] = $step['link'] ?? null;
+            }
+            unset($step);
+            $data['coding_steps'] = array_values($data['coding_steps']);
+            if ($category === 'coding') {
+                $data['questions'] = array_map(fn ($step) => [
+                    'type' => 'coding',
+                    'prompt' => $step['title'],
+                    'cpmk' => $step['cpmk'],
+                    'points' => (isset($step['points']) && (int) $step['points'] > 0) ? (int) $step['points'] : 100,
+                ], $data['coding_steps']);
+                $data['points'] = array_sum(array_column($data['questions'], 'points'));
+                $data['component'] = 'tugas';
+                $data['scoring_mode'] = 'automatic_cpmk';
+            }
         }
 
         if ($data['pin_video'] && $category === 'materi') {
@@ -1414,7 +1441,7 @@ class LearningController extends Controller
         }
 
         $data = $request->validate([
-            'question_answers' => 'nullable|array|max:30',
+            'question_answers' => 'nullable|array|max:100',
             'question_answers.*.question_id' => 'nullable|string|max:100',
             'question_answers.*.option_ids' => 'nullable|array|max:20',
             'question_answers.*.option_ids.*' => 'string|max:100',
