@@ -42,17 +42,22 @@ class AcademicDemoSeeder extends Seeder
 
         $semester = Semester::updateOrCreate(
             ['code' => '2026-1'],
-            ['name' => 'Ganjil 2026/2027', 'is_active' => true]
+            [
+                'name' => 'Ganjil 2026/2027',
+                'academic_year' => '2026/2027',
+                'term' => 1,
+                'is_active' => true,
+            ]
         );
 
         $mataKuliah = [
-            ['code' => 'IF204', 'name' => 'Struktur Data dan Algoritma', 'sks' => 3, 'lecturer' => 'budi@example.test'],
-            ['code' => 'IF230', 'name' => 'Rekayasa Perangkat Lunak', 'sks' => 3, 'lecturer' => 'budi@example.test'],
-            ['code' => 'IF218', 'name' => 'Interaksi Manusia dan Komputer', 'sks' => 3, 'lecturer' => 'ratna.prameswari@example.test'],
-            ['code' => 'IF221', 'name' => 'Kecerdasan Buatan Terapan', 'sks' => 3, 'lecturer' => 'nadia.rahman@example.test'],
-            ['code' => 'IF240', 'name' => 'Basis Data Lanjut', 'sks' => 3, 'lecturer' => 'andi.wicaksono@example.test'],
-            ['code' => 'IF250', 'name' => 'Jaringan Komputer', 'sks' => 3, 'lecturer' => 'fajar.nugroho@example.test'],
-            ['code' => 'IF260', 'name' => 'Pemrograman Web', 'sks' => 3, 'lecturer' => 'sari.lestari@example.test'],
+            ['code' => 'IF204', 'name' => 'Struktur Data dan Algoritma', 'sks' => 3, 'semester_paket' => 3, 'lecturer' => 'budi@example.test'],
+            ['code' => 'IF230', 'name' => 'Rekayasa Perangkat Lunak', 'sks' => 3, 'semester_paket' => 4, 'lecturer' => 'budi@example.test'],
+            ['code' => 'IF218', 'name' => 'Interaksi Manusia dan Komputer', 'sks' => 3, 'semester_paket' => 4, 'lecturer' => 'ratna.prameswari@example.test'],
+            ['code' => 'IF221', 'name' => 'Kecerdasan Buatan Terapan', 'sks' => 3, 'semester_paket' => 5, 'lecturer' => 'nadia.rahman@example.test'],
+            ['code' => 'IF240', 'name' => 'Basis Data Lanjut', 'sks' => 3, 'semester_paket' => 3, 'lecturer' => 'andi.wicaksono@example.test'],
+            ['code' => 'IF250', 'name' => 'Jaringan Komputer', 'sks' => 3, 'semester_paket' => 4, 'lecturer' => 'fajar.nugroho@example.test'],
+            ['code' => 'IF260', 'name' => 'Pemrograman Web', 'sks' => 3, 'semester_paket' => 4, 'lecturer' => 'sari.lestari@example.test'],
         ];
 
         $dosen = User::where('email', 'budi@example.test')->first();
@@ -91,7 +96,12 @@ class AcademicDemoSeeder extends Seeder
             $isAdminOnly = in_array($mk['code'], $adminOnlyCodes, true);
             $model = MataKuliah::updateOrCreate(
                 ['code' => $mk['code']],
-                ['prodi_id' => $prodi->id, 'name' => $mk['name'], 'sks' => $mk['sks']]
+                [
+                    'prodi_id' => $prodi->id,
+                    'name' => $mk['name'],
+                    'sks' => $mk['sks'],
+                    'semester_paket' => $mk['semester_paket'] ?? null,
+                ]
             );
 
             if ($isAdminOnly) {
@@ -150,6 +160,7 @@ class AcademicDemoSeeder extends Seeder
                     'password' => Hash::make('password'),
                     'role_id' => $mahasiswaRole->id,
                     'nim_nidn' => $s['nim'],
+                    'angkatan' => 2023,
                     'email_verified_at' => now(),
                 ]
             );
