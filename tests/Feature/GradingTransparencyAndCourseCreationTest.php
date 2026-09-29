@@ -1353,6 +1353,85 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
             ->assertSee('diagram-arsitektur.png');
     }
 
+    public function test_pinning_new_media_or_photo_automatically_unpins_older_media(): void
+    {
+        Storage::fake('local');
+
+        // 1. Dosen membuat materi pertama dengan pin video link
+        $this->actingAs($this->dosen)->post(route('dosen.item.store', $this->section->id), [
+            'type' => 'materi',
+            'title' => 'Materi Video Pertama',
+            'module' => 'Minggu 1',
+            'body' => 'Tonton video ini.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['file', 'link'],
+            'link' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+            'pin_video' => '1',
+        ])->assertRedirect(route('dosen.course.show', $this->section->id));
+
+        $materi1 = Assessment::where('name', 'Materi Video Pertama')->firstOrFail();
+        $this->assertTrue($materi1->learning_payload['pin_video']);
+
+        // Halaman kelas menampilkan video dari materi 1
+        $this->actingAs($this->student)->get(route('mahasiswa.course.show', $this->section->id))
+            ->assertOk()
+            ->assertSee('youtube-nocookie.com/embed/aqz-KE-bpKQ', false);
+
+        // 2. Dosen membuat materi kedua dengan pin foto
+        $photoFile = UploadedFile::fake()->image('banner-materi-kedua.jpg', 600, 400);
+        $this->actingAs($this->dosen)->post(route('dosen.item.store', $this->section->id), [
+            'type' => 'materi',
+            'title' => 'Materi Foto Kedua',
+            'module' => 'Minggu 2',
+            'body' => 'Perhatikan gambar ini.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['file', 'image'],
+            'pin_video' => '1',
+            'attachments' => [$photoFile],
+        ])->assertRedirect(route('dosen.course.show', $this->section->id));
+
+        $materi2 = Assessment::where('name', 'Materi Foto Kedua')->firstOrFail();
+        $this->assertTrue($materi2->learning_payload['pin_video']);
+
+        // Materi 1 otomatis ter-unpin
+        $materi1->refresh();
+        $this->assertFalse($materi1->learning_payload['pin_video']);
+
+        // Halaman kelas sekarang menampilkan foto materi 2, bukan lagi video materi 1
+        $coursePage2 = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $this->section->id));
+        $coursePage2->assertOk()
+            ->assertSee('banner-materi-kedua.jpg')
+            ->assertDontSee('youtube-nocookie.com/embed/aqz-KE-bpKQ', false);
+
+        // 3. Dosen mengedit materi 1 dan mencentang kembali pin media
+        $this->actingAs($this->dosen)->put(route('dosen.item.update', [$this->section->id, $materi1->id]), [
+            'type' => 'materi',
+            'title' => 'Materi Video Pertama',
+            'module' => 'Minggu 1',
+            'body' => 'Tonton video ini kembali.',
+            'question_type' => 'uraian',
+            'cpmk' => 'CPMK-01',
+            'formats' => ['file', 'link'],
+            'link' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+            'pin_video' => '1',
+        ])->assertRedirect(route('dosen.course.item', [$this->section->id, $materi1->id]));
+
+        $materi1->refresh();
+        $materi2->refresh();
+
+        // Materi 1 kembali ter-pin, Materi 2 otomatis ter-unpin
+        $this->assertTrue($materi1->learning_payload['pin_video']);
+        $this->assertFalse($materi2->learning_payload['pin_video']);
+
+        // Halaman kelas sekarang kembali menampilkan video dari materi 1
+        $coursePage3 = $this->actingAs($this->student)->get(route('mahasiswa.course.show', $this->section->id));
+        $coursePage3->assertOk()
+            ->assertSee('youtube-nocookie.com/embed/aqz-KE-bpKQ', false)
+            ->assertDontSee('banner-materi-kedua.jpg');
+    }
+
     public function test_matching_choices_differ_between_students(): void
     {
         $task = Assessment::create([
