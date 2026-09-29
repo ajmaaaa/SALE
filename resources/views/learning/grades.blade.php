@@ -38,7 +38,7 @@
     {{-- KHS Table (Klik baris langsung untuk melihat detail nilai) --}}
     <div class="surface overflow-hidden">
         <div class="border-b border-line/60 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah Semester</h2>
+            <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah ({{ $selectedSemester?->name ?? 'Semester Terpilih' }})</h2>
             <span class="text-xs text-muted">Total Beban: <strong class="font-semibold text-ink">{{ $totalCredits }} SKS</strong></span>
         </div>
 
@@ -104,7 +104,7 @@
                                         <div class="grid gap-2.5 w-full text-xs" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
                                             @foreach($course['components'] as $component)
                                                 <div class="p-2.5 rounded bg-white border border-line/40 shadow-2xs">
-                                                    <span class="text-muted block text-[11px] truncate" title="{{ $component['name'] }}">{{ $component['name'] }} ({{ rtrim(rtrim(number_format($component['weight'], 1), '0'), '.') }}%)</span>
+                                                    <span class="text-muted block text-[11px] truncate" title="{{ $component['name'] }}">{{ $component['name'] }}</span>
                                                     <span class="font-semibold text-ink mt-0.5 block text-sm">
                                                         {{ $component['score'] !== null ? number_format($component['score'], 1) : '-' }}
                                                     </span>
