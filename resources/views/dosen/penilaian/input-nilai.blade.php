@@ -164,13 +164,13 @@
                                         $hasSub = ! empty($essayInfo['has_submission']);
                                     @endphp
                                     @if($hasSub)
-                                        <div class="flex flex-col items-center gap-1">
+                                        <div class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
                                             <button type="button"
                                                     onclick="openAnswerModal({{ $student->id }}, '{{ addslashes($student->name) }}')"
-                                                    class="button-secondary min-h-0 p-1.5 cursor-pointer shadow-2xs hover:text-brand"
+                                                    class="inline-flex items-center justify-center h-5 w-5 rounded text-slate-500 hover:text-brand hover:bg-slate-100 transition cursor-pointer"
                                                     title="Lihat Jawaban {{ $student->name }}"
                                                     aria-label="Lihat Jawaban {{ $student->name }}">
-                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
                                                     <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
@@ -364,9 +364,10 @@
                     `;
                 }
             }
-        } else {
-            // Kasus Tugas
-            if (heading) heading.textContent = 'Jawaban & Penilaian Tugas';
+            // Kasus Tugas & Coding
+            if (heading) {
+                heading.textContent = data.is_coding ? 'Jawaban Kode & Penilaian' : 'Jawaban & Penilaian Tugas';
+            }
 
             if (data.has_submission) {
                 if (data.submitted_at) {
@@ -394,14 +395,54 @@
                 }
 
                 if (data.answer_text && data.answer_text.trim()) {
-                    html += `
-                        <div class="space-y-1">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-muted">Jawaban Mahasiswa:</p>
-                            <div class="p-3.5 rounded-xl border border-line/80 bg-white text-xs sm:text-sm text-ink leading-relaxed whitespace-pre-wrap font-sans selection:bg-brand/15">
-                                ${escapeHtml(data.answer_text.trim())}
+                    let codeFiles = null;
+                    try {
+                        const parsed = JSON.parse(data.answer_text);
+                        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name && parsed[0].code !== undefined) {
+                            codeFiles = parsed;
+                        }
+                    } catch (e) {
+                        codeFiles = null;
+                    }
+
+                    if (codeFiles) {
+                        html += `
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-muted">Berkas Kode Mahasiswa (${codeFiles.length}):</p>
+                                </div>
+                        `;
+                        codeFiles.forEach((file, fIdx) => {
+                            const fileName = escapeHtml(file.name || `berkas_${fIdx + 1}`);
+                            const fileCode = escapeHtml(file.code || '');
+                            const lineCount = (file.code || '').split('\n').length;
+                            html += `
+                                <div class="rounded-xl border border-slate-700/80 bg-slate-950 overflow-hidden shadow-sm">
+                                    <div class="flex items-center justify-between px-3.5 py-2 bg-slate-900 border-b border-slate-800 text-xs">
+                                        <div class="flex items-center gap-2">
+                                            <span class="inline-flex items-center justify-center h-5 px-1.5 rounded bg-slate-800 font-mono text-[10px] text-brand font-bold border border-slate-700">KODE</span>
+                                            <span class="font-mono font-semibold text-slate-200">${fileName}</span>
+                                            <span class="text-[11px] text-slate-400 font-mono">(${lineCount} baris)</span>
+                                        </div>
+                                        <button type="button" onclick="navigator.clipboard.writeText(this.dataset.code); this.textContent='Tersalin!'; setTimeout(()=>this.textContent='Salin Kode', 2000)" data-code="${escapeHtml(file.code || '')}" class="text-[11px] font-medium text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800 transition cursor-pointer">
+                                            Salin Kode
+                                        </button>
+                                    </div>
+                                    <pre class="p-4 font-mono text-xs text-slate-100 overflow-x-auto leading-relaxed max-h-96 selection:bg-brand/30"><code>${fileCode}</code></pre>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    } else {
+                        html += `
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-muted">${data.is_coding ? 'Jawaban Kode Mahasiswa:' : 'Jawaban Mahasiswa:'}</p>
+                                <div class="p-3.5 rounded-xl border border-line/80 bg-white text-xs sm:text-sm text-ink leading-relaxed whitespace-pre-wrap font-sans selection:bg-brand/15">
+                                    ${escapeHtml(data.answer_text.trim())}
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 }
 
                 if (data.files && data.files.length > 0) {
