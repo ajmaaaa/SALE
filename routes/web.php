@@ -182,6 +182,8 @@ Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function
     Route::post('/pengguna/{id}/delete', [AdminPreviewController::class, 'deleteUser'])->whereNumber('id')->name('users.destroy');
     Route::post('/akademik/{id}/delete', [AdminPreviewController::class, 'deleteAcademic'])->whereNumber('id')->name('academic.destroy');
     Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
+    Route::post('/pengaturan/test-ai', [AdminPreviewController::class, 'testAiConnection'])->name('settings.test-ai');
+    Route::get('/pengaturan/ai-models', [AdminPreviewController::class, 'getAiModels'])->name('settings.ai-models');
     Route::post('/pengaturan', [AdminPreviewController::class, 'settings'])->name('settings.store');
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
