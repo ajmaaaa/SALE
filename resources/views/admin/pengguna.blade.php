@@ -167,16 +167,21 @@
                     </select>
                 </div>
                 <div class="md:col-span-2">
-                    <label class="form-label" for="prodi_id">Program Studi</label>
-                    <select class="field" id="prodi_id" name="prodi_id">
-                        <option value="">Semua Program Studi (Tidak Terikat)</option>
+                    <label class="form-label" for="prodi_id">
+                        Program Studi <span id="prodi-required-badge" class="hidden text-rose-500 font-bold">* (Wajib untuk Admin Prodi)</span>
+                    </label>
+                    <select class="field @error('prodi_id') border-rose-500 @enderror" id="prodi_id" name="prodi_id">
+                        <option value="" id="prodi-empty-option">Semua Program Studi (Tidak Terikat)</option>
                         @foreach(\App\Models\Prodi::orderBy('name')->get() as $p)
                             <option value="{{ $p->id }}" @selected((int)old('prodi_id', $record['prodi_id'] ?? '') === $p->id)>
                                 {{ $p->code }} - {{ $p->name }}
                             </option>
                         @endforeach
                     </select>
-                    <p class="mt-1.5 text-xs text-muted">Program studi yang dinaungi pengguna (diperlukan untuk Dosen, Mahasiswa, atau Admin Prodi).</p>
+                    @error('prodi_id')
+                        <p class="mt-1 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                    @enderror
+                    <p class="mt-1.5 text-xs text-muted" id="prodi-help-text">Program studi yang dinaungi pengguna (diperlukan untuk Dosen, Mahasiswa, dan WAJIB untuk Admin Prodi).</p>
                 </div>
             </div>
             <p class="text-xs text-muted">Perubahan pengguna akan otomatis dicatat ke dalam activity log sistem.</p>
@@ -313,6 +318,41 @@
         searchInput.addEventListener('input', filterUsers);
         searchInput.addEventListener('keyup', filterUsers);
         searchInput.addEventListener('search', filterUsers);
+
+        const roleCheckboxes = document.querySelectorAll('input[name="roles[]"]');
+        const prodiSelect = document.getElementById('prodi_id');
+        const prodiEmptyOption = document.getElementById('prodi-empty-option');
+        const prodiBadge = document.getElementById('prodi-required-badge');
+        const prodiHelp = document.getElementById('prodi-help-text');
+
+        function updateProdiRequirement() {
+            if (!prodiSelect) return;
+            const isAdminProdi = Array.from(roleCheckboxes).some(cb => cb.checked && cb.value === 'admin_prodi');
+            if (isAdminProdi) {
+                if (prodiBadge) prodiBadge.classList.remove('hidden');
+                if (prodiEmptyOption) prodiEmptyOption.disabled = true;
+                if (!prodiSelect.value) {
+                    prodiSelect.required = true;
+                }
+                if (prodiHelp) {
+                    prodiHelp.textContent = 'Admin Prodi wajib terikat pada satu Program Studi yang dikelola.';
+                    prodiHelp.classList.add('text-brand', 'font-medium');
+                }
+            } else {
+                if (prodiBadge) prodiBadge.classList.add('hidden');
+                if (prodiEmptyOption) prodiEmptyOption.disabled = false;
+                prodiSelect.required = false;
+                if (prodiHelp) {
+                    prodiHelp.textContent = 'Program studi yang dinaungi pengguna (diperlukan untuk Dosen, Mahasiswa, atau Admin Prodi).';
+                    prodiHelp.classList.remove('text-brand', 'font-medium');
+                }
+            }
+        }
+
+        if (roleCheckboxes.length > 0 && prodiSelect) {
+            roleCheckboxes.forEach(cb => cb.addEventListener('change', updateProdiRequirement));
+            updateProdiRequirement();
+        }
     });
 </script>
 @endsection
