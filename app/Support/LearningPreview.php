@@ -211,6 +211,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'allow_late' => true,
             'duration_enabled' => false,
             'duration_minutes' => 60,
+            'ai_enabled' => true,
         ];
     }
 
@@ -238,11 +239,23 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             ? $section->assessments
             : $section->assessments()->orderByDesc('id')->get();
 
-        $pinned = $assessments
+        $pinnedList = $assessments
             ->where('type', 'materi')
             ->filter(fn ($asm) => ! empty($asm->learning_payload['pin_video']))
-            ->sortByDesc('id')
-            ->first();
+            ->sortByDesc(fn ($asm) => $asm->learning_payload['pinned_at'] ?? $asm->updated_at?->timestamp ?? $asm->id);
+
+        $pinned = $pinnedList->first();
+
+        // Otomatis unpin materi-materi lama jika ada lebih dari 1 materi yang ter-pin
+        if ($pinned && $pinnedList->count() > 1) {
+            foreach ($pinnedList->slice(1) as $olderPinned) {
+                $oldPayload = $olderPinned->learning_payload ?? [];
+                if (! empty($oldPayload['pin_video'])) {
+                    $oldPayload['pin_video'] = false;
+                    $olderPinned->update(['learning_payload' => $oldPayload]);
+                }
+            }
+        }
 
         if ($pinned && ! empty($pinned->learning_payload['video'])) {
             $customVideo = [
@@ -368,11 +381,14 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'allow_late' => (bool) $assessment->allow_late,
             'published_at' => $publishedAt ? \Carbon\Carbon::parse($publishedAt)->toIso8601String() : null,
             'published_at_formatted' => $publishedAtFormatted,
+            'created_at' => $assessment->created_at?->toIso8601String(),
+            'updated_at' => $assessment->updated_at?->toIso8601String(),
             // Flag eksplisit bahwa ini adalah record database, bukan item preview.
             // Gunakan ini di views dan controller untuk memastikan tidak ada campur-aduk.
             'is_database_record' => true,
             'assessment_id' => $assessment->id,
             'questions_empty' => $questionsEmpty,
+            'ai_enabled' => (bool) ($payload['ai_enabled'] ?? true),
         ]);
     }
 
