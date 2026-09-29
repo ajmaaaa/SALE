@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClassSection;
 use App\Models\Role;
+use App\Models\Semester;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -21,11 +23,27 @@ class ProfileController extends Controller
             'notif_rekap' => true,
         ], $user?->notification_preferences ?? []);
 
+        $activeSemester = Semester::where('is_active', true)->first()?->name
+            ?? $user?->classSectionsTeaching()
+                ->whereHas('semester')
+                ->with('semester')
+                ->first()?->semester?->name
+            ?? Semester::latest('id')->first()?->name;
+
+        $totalClasses = $user
+            ? ClassSection::where(function ($query) use ($user) {
+                $query->where('dosen_id', $user->id)
+                    ->orWhere('dosen_pendamping_id', $user->id);
+            })->count()
+            : 0;
+
         return view('dosen.profil', [
             'user' => $user,
             'preferences' => $preferences,
             'settingsWritable' => $user?->hasRole(Role::DOSEN) ?? false,
             'profilePhotoUrl' => $user?->profile_photo_url,
+            'activeSemester' => $activeSemester,
+            'totalClasses' => $totalClasses,
         ]);
     }
 
