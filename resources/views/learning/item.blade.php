@@ -53,8 +53,16 @@
     $isSubmitted = !empty($submission) || $isGraded;
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
     $allowLate = ($isTask && !$isDedicatedQuiz) ? true : ($item['allow_late'] ?? true);
+    $studentAttempt = null;
+    if (auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('assessment_attempts')) {
+        $studentAttempt = \App\Models\AssessmentAttempt::where('assessment_id', $item['id'])
+            ->where('mahasiswa_id', $studentId)
+            ->latest('attempt')
+            ->first();
+    }
+    $isAttemptRejected = $studentAttempt && ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_REJECTED || ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $studentAttempt->deadline_at && now()->greaterThan($studentAttempt->deadline_at->copy()->addSeconds(30))));
     $isLocked = !$isSubmitted && $isPast && !$allowLate;
-    $isInputsDisabled = !empty($submission) || $isLocked || $isGraded;
+    $isInputsDisabled = !empty($submission) || $isLocked || $isGraded || $isAttemptRejected;
     $isTaskOrQuiz = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true);
     $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
     $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
@@ -181,10 +189,10 @@
                                 <div class="flex shrink-0 items-center">
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($isLecturer)
-                                            <a href="{{ route('dosen.course.quiz.preview', [$course['id'], $item['id']]) }}" class="button-secondary text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
+                                            {{-- Tombol Lihat Jawaban dihapus; gunakan "Lihat dan Nilai Mahasiswa" di halaman penilaian --}}
                                         @elseif($isGraded || $submission)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
-                                        @elseif($isLocked)
+                                        @elseif($isLocked || $isAttemptRejected)
                                             <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Kuis Ditutup</button>
                                         @else
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
@@ -214,10 +222,11 @@
                                     $ytPreviewData = [
                                         'title' => $item['title'].': Video YouTube',
                                         'url' => $youtubeAttachmentUrl,
-                                        'downloadUrl' => $item['link'] ?? '',
+                                        'downloadUrl' => $item['link'] ?? ($ytVideoId ? "https://www.youtube.com/watch?v={$ytVideoId}" : ''),
                                         'type' => 'youtube',
                                         'ext' => 'YOUTUBE',
                                         'meta' => 'Video YouTube perkuliahan',
+                                        'videoId' => $ytVideoId,
                                     ];
                                 @endphp
                                 <div class="w-44 shrink-0 overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition" style="contain: paint;">
@@ -884,9 +893,20 @@
         titleEl.textContent = fileData.title || 'Berkas Lampiran';
         badgeEl.textContent = (fileData.ext || 'FILE').toUpperCase().slice(0, 6);
         metaEl.textContent = fileData.meta || 'Lampiran perkuliahan';
+        let ytId = fileData.videoId || '';
+        if (!ytId && fileData.url) {
+            const m = fileData.url.match(/(?:embed\/|v\/|watch\?v=|\.be\/)([a-zA-Z0-9_-]{11})/);
+            if (m) ytId = m[1];
+        }
+        if (!ytId && fileData.downloadUrl) {
+            const m = fileData.downloadUrl.match(/(?:embed\/|v\/|watch\?v=|\.be\/)([a-zA-Z0-9_-]{11})/);
+            if (m) ytId = m[1];
+        }
+        const ytWatchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : (fileData.downloadUrl || fileData.url);
+
         const isExternalLink = fileData.type === 'link' || fileData.type === 'youtube';
         downloadEl.href = fileData.downloadUrl || fileData.url;
-        openEl.href = (isExternalLink && fileData.downloadUrl) ? fileData.downloadUrl : fileData.url;
+        openEl.href = fileData.type === 'youtube' ? ytWatchUrl : ((isExternalLink && fileData.downloadUrl) ? fileData.downloadUrl : fileData.url);
         downloadEl.hidden = isExternalLink;
         openEl.querySelector('span').textContent = fileData.type === 'youtube' ? 'Tonton di YouTube' : (isExternalLink ? 'Buka Sumber' : 'Buka Tab Baru');
 
@@ -905,17 +925,20 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'w-full flex-1 flex flex-col items-center justify-center';
             const frame = document.createElement('iframe');
-            frame.src = fileData.url;
+            const embedSrc = ytId
+                ? `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&playsinline=1`
+                : fileData.url;
+            frame.src = embedSrc;
             frame.title = `Pratinjau ${fileData.title}`;
             frame.className = 'w-full flex-1 min-h-[460px] h-full border-0 rounded-lg bg-black shadow-md';
-            frame.referrerPolicy = 'origin';
+            frame.referrerPolicy = 'strict-origin-when-cross-origin';
             frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             frame.allowFullscreen = true;
             wrapper.appendChild(frame);
-            if (fileData.downloadUrl) {
+            if (ytWatchUrl) {
                 const fallback = document.createElement('div');
                 fallback.className = 'mt-2 text-center text-xs text-slate-300 flex items-center justify-center gap-2';
-                fallback.innerHTML = `<span>Jika pemutaran video YouTube terkendala di peramban:</span> <a href="${fileData.downloadUrl}" target="_blank" rel="noopener noreferrer" class="text-red-400 hover:text-red-300 font-medium underline inline-flex items-center gap-1">Tonton di YouTube <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
+                fallback.innerHTML = `<span>Jika pemutaran video YouTube terkendala di peramban:</span> <a href="${ytWatchUrl}" target="_blank" rel="noopener noreferrer" class="text-red-400 hover:text-red-300 font-medium underline inline-flex items-center gap-1">Tonton di YouTube <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`;
                 wrapper.appendChild(fallback);
             }
             bodyEl.appendChild(wrapper);
