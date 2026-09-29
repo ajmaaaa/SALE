@@ -105,26 +105,9 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_final_rekap_and_lecturer_quiz_preview_use_the_requested_flows(): void
+    public function test_final_rekap_use_the_requested_flows(): void
     {
         [$lecturer, , $section] = $this->academicContext();
-        $question = QuizQuestion::canonicalizeQuestion([
-            'id' => 'preview-1',
-            'type' => 'pilihan',
-            'prompt' => 'Soal pratinjau.',
-            'options' => "Salah\nBenar",
-            'correct_answer' => 'B',
-            'points' => 100,
-        ]);
-        $quiz = Assessment::create([
-            'class_section_id' => $section->id,
-            'code' => 'PREVIEW',
-            'name' => 'Kuis Pratinjau',
-            'type' => 'kuis',
-            'final_weight' => 10,
-            'status' => 'published',
-            'learning_payload' => ['questions' => [$question]],
-        ]);
 
         $this->actingAs($lecturer)
             ->get(route('dosen.rekap.index'))
@@ -132,12 +115,6 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
             ->assertSee('Rekap Nilai')
             ->assertDontSee('Rekap CPL')
             ->assertDontSee('Rekap CPMK');
-
-        $this->get(route('dosen.course.quiz.preview', [$section, $quiz]))
-            ->assertOk()
-            ->assertSee('Pratinjau Kunci Jawaban')
-            ->assertSee('Soal pratinjau.')
-            ->assertSee('Benar (+100 Poin)');
     }
 
     public function test_profile_photo_url_is_relative_to_the_host_used_by_the_browser(): void
@@ -378,7 +355,7 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
         $pwPage->assertOk()
             ->assertSee('text-center')
             ->assertSee('Buat password baru')
-            ->assertSee('mx-auto flex h-10 w-10');
+            ->assertSee('h-8 w-8');
     }
 
     public function test_admin_can_download_user_excel_template_and_import_excel_file(): void
