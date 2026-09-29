@@ -909,26 +909,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         // Notifikasi Sistem
         $systemNotifs = [
             [
-                'id' => 'system_ai_ready',
-                'title' => 'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
-                'message' => 'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
-                'timestamp' => now()->subMinutes(2)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.assignment.index'),
-                'action_label' => 'Buka Lab Coding',
-                'category' => 'sistem',
-            ],
-            [
-                'id' => 'system_sync_krs',
-                'title' => 'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
-                'message' => 'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
-                'timestamp' => now()->subHours(4)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.obe.progress'),
-                'action_label' => 'Lihat Pemetaan OBE',
-                'category' => 'sistem',
-            ],
-            [
                 'id' => 'system_calendar_update',
                 'title' => 'Pembaruan Kalender Akademik & Jadwal Kuliah',
                 'message' => 'Jadwal tatap muka, batas submisi tugas, dan periode evaluasi tengah semester telah diperbarui oleh Program Studi.',
