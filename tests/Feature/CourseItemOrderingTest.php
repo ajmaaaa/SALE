@@ -169,4 +169,122 @@ class CourseItemOrderingTest extends TestCase
         $mhsPosTugas1 = strpos($mhsContent, 'Tugas Awal Dasar');
         $this->assertTrue($mhsPosTugas2 < $mhsPosTugas1, 'Mahasiswa melihat tugas terbaru di atas');
     }
+
+    public function test_past_deadline_shows_terlambat_and_deprioritizes_task_order_to_last_activity(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $dosenRoleId = Role::where('name', Role::DOSEN)->value('id');
+        $mhsRoleId = Role::where('name', Role::MAHASISWA)->value('id');
+
+        $prodi = Prodi::create(['code' => 'IF2', 'name' => 'Informatika 2']);
+        $semester = Semester::create(['name' => 'Genap 2026/2027', 'code' => '20262', 'is_active' => true]);
+        $matkulA = MataKuliah::create(['code' => 'MK-UPCOMING', 'name' => 'Algoritma Aktif', 'prodi_id' => $prodi->id, 'sks' => 3]);
+        $matkulB = MataKuliah::create(['code' => 'MK-OVERDUE', 'name' => 'Struktur Data Lampau', 'prodi_id' => $prodi->id, 'sks' => 3]);
+
+        $dosen = User::create([
+            'name' => 'Dosen Prioritas',
+            'email' => 'dosen.prio@test.local',
+            'nim_nidn' => '11223344',
+            'password' => Hash::make('secret'),
+            'role_id' => $dosenRoleId,
+        ]);
+        $dosen->roles()->sync([$dosenRoleId]);
+
+        $student = User::create([
+            'name' => 'Mahasiswa Prioritas',
+            'email' => 'mhs.prio@test.local',
+            'nim_nidn' => '55667788',
+            'password' => Hash::make('secret'),
+            'role_id' => $mhsRoleId,
+        ]);
+        $student->roles()->sync([$mhsRoleId]);
+
+        $sectionUpcoming = ClassSection::create([
+            'mata_kuliah_id' => $matkulA->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $dosen->id,
+            'section_code' => 'A',
+            'capacity' => 40,
+        ]);
+        $sectionUpcoming->students()->attach($student->id);
+
+        $sectionOverdue = ClassSection::create([
+            'mata_kuliah_id' => $matkulB->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $dosen->id,
+            'section_code' => 'B',
+            'capacity' => 40,
+        ]);
+        $sectionOverdue->students()->attach($student->id);
+
+        // Buat tugas yang sudah lewat tenggat (2 hari lalu) di Section Overdue
+        $pastDueDate = Carbon::now()->subDays(2);
+        $overdueTask = Assessment::create([
+            'class_section_id' => $sectionOverdue->id,
+            'code' => 'TGS-OLD',
+            'name' => 'Tugas Sudah Terlewat Waktu',
+            'type' => 'tugas',
+            'final_weight' => 20,
+            'status' => 'published',
+            'due_at' => $pastDueDate,
+            'learning_payload' => [
+                'due' => $pastDueDate->format('Y-m-d\TH:i'),
+                'points' => 100,
+            ],
+        ]);
+
+        // Buat tugas yang tenggatnya masih di masa depan (besok) di Section Upcoming
+        $upcomingDueDate = Carbon::now()->addDays(2);
+        $upcomingTask = Assessment::create([
+            'class_section_id' => $sectionUpcoming->id,
+            'code' => 'TGS-NEW',
+            'name' => 'Tugas Mendekati Tenggat',
+            'type' => 'tugas',
+            'final_weight' => 20,
+            'status' => 'published',
+            'due_at' => $upcomingDueDate,
+            'learning_payload' => [
+                'due' => $upcomingDueDate->format('Y-m-d\TH:i'),
+                'points' => 100,
+            ],
+        ]);
+
+        // 1. Dashboard /kelas: Kelas dengan tugas upcoming harus lebih diprioritaskan daripada kelas yang tugasnya sudah terlambat
+        $dashboardResponse = $this->actingAs($student)->get(route('mahasiswa.course.index'));
+        $dashboardResponse->assertOk();
+        $dashboardHtml = $dashboardResponse->getContent();
+
+        $posUpcomingCourse = strpos($dashboardHtml, 'Algoritma Aktif');
+        $posOverdueCourse = strpos($dashboardHtml, 'Struktur Data Lampau');
+        $this->assertNotFalse($posUpcomingCourse);
+        $this->assertNotFalse($posOverdueCourse);
+        $this->assertTrue($posUpcomingCourse < $posOverdueCourse, 'Kelas dengan tugas upcoming harus berada di atas kelas dengan tugas terlambat');
+
+        // Di card kelas yang overdue, teks tenggat harus berubah menjadi 'Terlambat', bukan jam/tanggal
+        $dashboardResponse->assertSee('Terlambat');
+
+        // 2. Pada halaman course: tugas yang lewat waktu harus menampilkan teks 'Terlambat'
+        $courseResponse = $this->actingAs($student)->get(route('mahasiswa.course.show', $sectionOverdue->id));
+        $courseResponse->assertOk();
+        $courseResponse->assertSee('Terlambat');
+        $courseResponse->assertDontSee('Tenggat ' . $pastDueDate->translatedFormat('d M Y, H:i'));
+
+        // 3. Pada halaman item tugas: info tenggat menampilkan teks 'Terlambat'
+        $itemResponse = $this->actingAs($student)->get(route('mahasiswa.course.item', [$sectionOverdue->id, $overdueTask->id]));
+        $itemResponse->assertOk();
+        $itemResponse->assertSee('Terlambat');
+        $itemResponse->assertDontSee($pastDueDate->translatedFormat('d M Y, H:i'));
+
+        // 4. Pada daftar penugasan (/mahasiswa/assignment): tugas upcoming harus diprioritaskan sebelum tugas overdue
+        $assignmentsResponse = $this->actingAs($student)->get(route('mahasiswa.assignment.index'));
+        $assignmentsResponse->assertOk();
+        $assignmentsHtml = $assignmentsResponse->getContent();
+
+        $posUpcomingAssignment = strpos($assignmentsHtml, 'Tugas Mendekati Tenggat');
+        $posOverdueAssignment = strpos($assignmentsHtml, 'Tugas Sudah Terlewat Waktu');
+        $this->assertNotFalse($posUpcomingAssignment);
+        $this->assertNotFalse($posOverdueAssignment);
+        $this->assertTrue($posUpcomingAssignment < $posOverdueAssignment, 'Tugas upcoming harus diprioritaskan sebelum tugas yang sudah lewat tenggat');
+    }
 }
+
