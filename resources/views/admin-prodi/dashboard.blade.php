@@ -33,17 +33,12 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted">Program Studi</p>
                 <div class="mt-3">
-                    @if(auth()->user()?->hasRole(\App\Models\Role::ADMIN))
-                        <span class="text-2xl font-bold tracking-tight text-ink">{{ $stats['total_prodi'] }}</span>
-                        <span class="block text-xs font-medium text-muted mt-0.5">Program Studi Terdaftar</span>
-                    @else
-                        <span class="text-xl sm:text-2xl font-bold tracking-tight text-ink block truncate" title="{{ $activeProdi?->name ?? 'Program Studi' }}">
-                            {{ $activeProdi?->code ?? '-' }}
-                        </span>
-                        <span class="block text-xs font-medium text-muted mt-0.5 truncate" title="{{ $activeProdi?->name }}">
-                            {{ $activeProdi?->name ?? 'Program Studi Terdaftar' }}
-                        </span>
-                    @endif
+                    <span class="text-xl sm:text-2xl font-bold tracking-tight text-ink block truncate" title="{{ $activeProdi?->name ?? 'Program Studi' }}">
+                        {{ $activeProdi?->code ?? '-' }}
+                    </span>
+                    <span class="block text-xs font-medium text-muted mt-0.5 truncate" title="{{ $activeProdi?->name }}">
+                        {{ $activeProdi?->name ?? 'Program Studi Terdaftar' }}
+                    </span>
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-line/40">
@@ -120,71 +115,7 @@
         </div>
     </div>
 
-    @if(auth()->user()?->hasRole(\App\Models\Role::ADMIN))
-    <!-- Program Studi Terdaftar (Global Admin) -->
-    <div class="surface p-5 border border-line/60">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="text-base font-bold text-ink">Program Studi Terdaftar</h2>
-                <p class="text-xs text-muted">Daftar program studi aktif dan ringkasan capaian kurikulum &amp; mata kuliah</p>
-            </div>
-            <span class="text-xs font-medium text-muted">
-                Total {{ $prodis->count() }} Program Studi
-            </span>
-        </div>
 
-        <div class="overflow-x-auto">
-            <table class="admin-table w-full text-left text-xs">
-                <thead>
-                    <tr class="border-b border-line bg-canvas/60 text-muted">
-                        <th class="px-4 py-3.5 w-24 !align-middle">Kode</th>
-                        <th class="px-4 py-3.5 !align-middle">Nama Program Studi</th>
-                        <th class="px-4 py-3.5 text-center w-32 !align-middle">Mata Kuliah</th>
-                        <th class="px-4 py-3.5 text-center w-32 !align-middle">CPL OBE</th>
-                        <th class="px-4 py-3.5 text-right w-64 !align-middle">Aksi Cepat</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-line/60">
-                    @forelse($prodis as $prodi)
-                    <tr class="hover:bg-canvas/30 transition-colors">
-                        <td class="px-4 py-3.5 font-bold text-brand font-mono text-xs !align-middle whitespace-nowrap">
-                            {{ $prodi->code }}
-                        </td>
-                        <td class="px-4 py-3.5 !align-middle">
-                            <span class="font-semibold text-ink block">{{ $prodi->name }}</span>
-                        </td>
-                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
-                            {{ $prodi->mata_kuliahs_count ?? 0 }} <span class="font-normal text-muted text-[11px]">MK</span>
-                        </td>
-                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
-                            {{ $prodi->cpls_count ?? 0 }} <span class="font-normal text-muted text-[11px]">CPL</span>
-                        </td>
-                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
-                            <div class="inline-flex items-center justify-end gap-1.5">
-                                <a href="{{ route('admin-prodi.akademik.matakuliah', ['prodi_id' => $prodi->id]) }}" class="button-secondary text-[11px] py-1 px-2.5">
-                                    Mata Kuliah
-                                </a>
-                                <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $prodi->id]) }}" class="button-secondary text-[11px] py-1 px-2.5">
-                                    Kurikulum
-                                </a>
-                                <a href="{{ route('admin-prodi.akademik.kelas', ['prodi_id' => $prodi->id]) }}" class="button-secondary text-[11px] py-1 px-2.5">
-                                    Kelas
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="py-12 text-center text-muted !align-middle">
-                            <p class="text-xs">Belum ada program studi yang terdaftar.</p>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @else
     <!-- Profil Capaian Akademik Program Studi (Admin Prodi) -->
     <div class="surface p-5 border border-line/60 rounded-2xl">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 pb-4 border-b border-line/60">
@@ -277,7 +208,6 @@
             </div>
         </div>
     </div>
-    @endif
 
     <!-- Kelas Aktif Terbaru -->
     <div class="surface p-5 border border-line/60">
