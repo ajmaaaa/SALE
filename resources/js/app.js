@@ -1193,6 +1193,7 @@ if (contentType) {
     const taskModes = document.querySelectorAll('[data-task-mode]');
     const materialModes = document.querySelectorAll('[data-material-mode]');
     const codingStepBuilder = document.querySelector('[data-coding-step-builder]');
+    const codingAiSetting = document.querySelector('[data-coding-ai-setting]');
     const manualCpmkSettings = document.querySelector('[data-manual-cpmk-settings]');
     let initialized = false;
 
@@ -1248,6 +1249,7 @@ if (contentType) {
         const isQuestionContent = ['kuis', 'uts', 'uas'].includes(category);
 
         setSectionVisibility(assignmentFields, showAssignment);
+        setSectionVisibility(codingAiSetting, showAssignment && selectedTaskMode === 'coding');
         setSectionVisibility(materialModeSettings, showMaterialMode);
         setSectionVisibility(pinVideoOption, showMaterialMode);
         if (pinVideoOption) {
@@ -1395,6 +1397,9 @@ if (contentForm) {
                 builder.style.opacity = '1';
                 builder.style.transform = 'translateY(0)';
             }
+            builder.querySelectorAll('input,select,textarea').forEach(field => {
+                field.disabled = !showQuestions;
+            });
         }
 
         const codingBuilder = contentForm.querySelector('[data-coding-step-builder]');
@@ -1421,6 +1426,8 @@ if (contentForm) {
                 field.disabled = !showManualCpmk;
             });
         }
+        syncDue();
+        syncQuizDue();
         if (progress) progress.hidden = !twoStepActive;
         if (nextButton) nextButton.hidden = questionsStep || !twoStepActive;
         if (backButton) backButton.hidden = !questionsStep || !twoStepActive;
@@ -1556,34 +1563,40 @@ if (contentForm) {
     const dueToggle = contentForm.querySelector('[data-due-toggle]');
     const dueOptions = contentForm.querySelector('[data-due-options]');
     const dueInput = contentForm.querySelector('#task_due');
-    const syncDue = () => {
-        const enabled = !!dueToggle?.checked;
-        if (dueOptions) dueOptions.hidden = !enabled;
+    function syncDue() {
+        const cat = parseCategory(typeInput?.value);
+        const isTask = ['tugas', 'coding'].includes(cat);
+        const enabled = isTask && !!dueToggle?.checked;
+        if (dueOptions) dueOptions.hidden = !dueToggle?.checked;
         if (dueInput) {
             dueInput.disabled = !enabled;
-            if (!enabled) dueInput.value = '';
+            if (!dueToggle?.checked) dueInput.value = '';
         }
-    };
+    }
     dueToggle?.addEventListener('change', syncDue);
     syncDue();
 
     const quizDueToggle = contentForm.querySelector('[data-quiz-due-toggle]');
     const quizDueOptions = contentForm.querySelector('[data-quiz-due-options]');
     const quizDueInput = contentForm.querySelector('#quiz_due');
-    const syncQuizDue = () => {
-        const enabled = !!quizDueToggle?.checked;
-        if (quizDueOptions) quizDueOptions.hidden = !enabled;
+    function syncQuizDue() {
+        const cat = parseCategory(typeInput?.value);
+        const isQuiz = ['kuis', 'uts', 'uas'].includes(cat);
+        const enabled = isQuiz && !!quizDueToggle?.checked;
+        if (quizDueOptions) quizDueOptions.hidden = !quizDueToggle?.checked;
         if (quizDueInput) {
             quizDueInput.disabled = !enabled;
-            if (!enabled) quizDueInput.value = '';
+            if (!quizDueToggle?.checked) quizDueInput.value = '';
         }
-    };
+    }
     quizDueToggle?.addEventListener('change', syncQuizDue);
     syncQuizDue();
 
     contentForm.addEventListener('submit', (e) => {
         clearHighlights();
         showFormError('');
+        syncDue();
+        syncQuizDue();
 
         const category = parseCategory(typeInput?.value);
         const moduleInput = contentForm.querySelector('#module');
@@ -1855,6 +1868,14 @@ if (contentForm) {
             const prompt = row.querySelector('[data-q-field="prompt"]')?.value.trim();
             if (alt && !alt.value.trim()) alt.value = (prompt ? `Gambar pendukung untuk ${prompt}` : 'Gambar pendukung soal').slice(0, 300);
         });
+
+        const currentCat = parseCategory(typeInput?.value);
+        if (!['tugas', 'coding'].includes(currentCat) || !dueToggle?.checked) {
+            if (dueInput) dueInput.disabled = true;
+        }
+        if (!['kuis', 'uts', 'uas'].includes(currentCat) || !quizDueToggle?.checked) {
+            if (quizDueInput) quizDueInput.disabled = true;
+        }
     });
 
     contentForm.addEventListener('input', (e) => {
@@ -2710,11 +2731,10 @@ if (builder) {
 
     const update = () => {
         const category = parseCategory(type.value);
-        const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const active = ['kuis', 'uts', 'uas'].includes(category) || (category === 'tugas' && selectedTaskMode !== 'coding');
+        const active = ['kuis', 'uts', 'uas'].includes(category);
         const questionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
         builder.hidden = !active || !questionStep;
-        builder.querySelectorAll('input,textarea,select').forEach(input => input.disabled = !active);
+        builder.querySelectorAll('input,textarea,select').forEach(input => input.disabled = !active || !questionStep);
 
         const hideCoding = ['tugas', 'kuis', 'uts', 'uas'].includes(category);
         const templateCodingOption = template.content.querySelector('select[data-q-field="type"] option[value="coding"]');
@@ -3349,11 +3369,14 @@ if (builder) {
     // sebelum browser membangun payload form. Ini juga menangani autofill dan
     // input yang berubah tanpa memicu event `input` pada beberapa browser.
     builder.closest('form')?.addEventListener('submit', () => {
-        [...rows.children].forEach(row => {
-            const questionType = row.querySelector('[data-q-field="type"]')?.value;
-            if (['pilihan', 'kompleks'].includes(questionType)) syncChoices(row);
-            if (questionType === 'mencocokkan') syncPairs(row);
-        });
+        const category = parseCategory(type?.value);
+        if (['kuis', 'uts', 'uas'].includes(category)) {
+            [...rows.children].forEach(row => {
+                const questionType = row.querySelector('[data-q-field="type"]')?.value;
+                if (['pilihan', 'kompleks'].includes(questionType)) syncChoices(row);
+                if (questionType === 'mencocokkan') syncPairs(row);
+            });
+        }
         update();
     }, true);
 
