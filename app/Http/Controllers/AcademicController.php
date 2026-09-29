@@ -81,18 +81,18 @@ class AcademicController extends Controller
             ]);
 
             if ($selectedSemester) {
-                $sectionsQuery->where('semester_id', $selectedSemester->id);
+                $sectionsQuery->where('class_sections.semester_id', $selectedSemester->id);
             }
 
             $sections = $sectionsQuery->get();
 
             // Jika kosong di semester terpilih dan pengguna belum memilih filter eksplisit, cari semester yang ada kelasnya
             if ($sections->isEmpty() && ! $request->has('semester') && $allSemesters->isNotEmpty()) {
-                $enrolledSemId = $user->classSectionsEnrolled()->value('semester_id');
+                $enrolledSemId = $user->classSectionsEnrolled()->value('class_sections.semester_id');
                 if ($enrolledSemId && $enrolledSemId !== $selectedSemester?->id) {
                     $selectedSemester = $allSemesters->firstWhere('id', $enrolledSemId) ?? $selectedSemester;
                     $sections = $user->classSectionsEnrolled()
-                        ->where('semester_id', $selectedSemester->id)
+                        ->where('class_sections.semester_id', $selectedSemester->id)
                         ->with([
                             'mataKuliah',
                             'dosen',
@@ -151,8 +151,8 @@ class AcademicController extends Controller
             }
         }
 
-        // Fallback untuk unauthenticated demo / testing
-        if (empty($courses) && (! $user || (config('app.demo_mode') && app()->environment(['local', 'testing'])))) {
+        // Fallback untuk unauthenticated demo / testing (hanya jika pengguna belum login)
+        if (empty($courses) && ! $user && (config('app.demo_mode') && app()->environment(['local', 'testing']))) {
             $demoCourses = Learning::courses();
             $studentId = session('auth_user.id') ?? 1;
             foreach ($demoCourses as $c) {
