@@ -125,7 +125,10 @@ class InputNilaiController extends Controller
             $rawQuestions = QuizQuestion::canonicalizeQuestions($rawQuestions);
         }
 
-        $isTipeSoal = in_array($assessment->type, ['kuis', 'uts', 'uas'], true) || ! empty($rawQuestions);
+        $isCoding = in_array($assessment->type, ['coding'], true)
+            || ($payload['task_mode'] ?? null) === 'coding'
+            || (($payload['type'] ?? '') === 'tugas' && ($payload['question_type'] ?? '') === 'coding');
+        $isTipeSoal = ! $isCoding && (in_array($assessment->type, ['kuis', 'uts', 'uas'], true) || ! empty($rawQuestions));
         $isAssignment = ! $isTipeSoal;
 
         $essayQuestions = collect($rawQuestions)->filter(function ($q) {
@@ -301,9 +304,10 @@ class InputNilaiController extends Controller
                 'due_at' => $dueAt?->translatedFormat('d M Y, H:i'),
                 'is_tipe_soal' => $isTipeSoal,
                 'is_assignment' => $isAssignment,
+                'is_coding' => $isCoding,
                 'questions' => $processedQuestions,
                 'essays' => $essays,
-                'answer_text' => $sub?->answer,
+                'answer_text' => $sub?->answer ?? $sub?->answers?->first()?->answer_text,
                 'link' => $sub?->link,
                 'files' => $attachedFiles,
                 'score_url' => route('dosen.penilaian.asesmen.student.score', [$section->id, $assessment->id, $student->id]),
