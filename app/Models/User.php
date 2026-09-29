@@ -69,6 +69,21 @@ class User extends Authenticatable
         return '/storage/'.ltrim($this->profile_photo_path, '/');
     }
 
+    public function getAngkatanAttribute($value): ?int
+    {
+        if ($value !== null && (int) $value > 0) {
+            return (int) $value;
+        }
+
+        if (! empty($this->nim_nidn) && preg_match('/^(\d{2})/', (string) $this->nim_nidn, $matches)) {
+            $yearPrefix = (int) $matches[1];
+
+            return $yearPrefix >= 50 ? (1900 + $yearPrefix) : (2000 + $yearPrefix);
+        }
+
+        return null;
+    }
+
     public function semesterTempuhAt(?Semester $semester = null): int
     {
         $semester ??= Semester::firstWhere('is_active', true) ?? Semester::latest('id')->first();
