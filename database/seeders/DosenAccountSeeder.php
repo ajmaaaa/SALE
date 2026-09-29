@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -15,6 +16,16 @@ class DosenAccountSeeder extends Seeder
         $adminProdiRole = Role::where('name', Role::ADMIN_PRODI)->first();
         $adminRole = Role::where('name', Role::ADMIN)->first();
         $mahasiswaRole = Role::where('name', Role::MAHASISWA)->first();
+
+        $prodiTI = Prodi::firstOrCreate(
+            ['code' => 'IF'],
+            ['name' => 'Teknik Informatika']
+        );
+
+        $prodiTE = Prodi::firstOrCreate(
+            ['code' => 'TE'],
+            ['name' => 'Teknik Elektro']
+        );
 
         // firstOrCreate preserves credentials and profile data on existing accounts.
 
@@ -44,6 +55,7 @@ class DosenAccountSeeder extends Seeder
         $repairDemoRole('ahmad.maulana@student.test', $mahasiswaRole?->id);
         $repairDemoRole('budi@example.test', $dosenRole?->id);
         $repairDemoRole('adminprodi@example.test', $adminProdiRole?->id);
+        $repairDemoRole('adminprodi.te@example.test', $adminProdiRole?->id);
         $repairDemoRole('admin@example.test', $adminRole?->id);
 
         User::firstOrCreate(
@@ -56,15 +68,39 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::firstOrCreate(
+        $adminProdiTI = User::firstOrCreate(
             ['email' => 'adminprodi@example.test'],
             [
                 'name' => 'Admin Prodi TI',
                 'password' => Hash::make('password'),
                 'role_id' => $adminProdiRole?->id,
+                'prodi_id' => $prodiTI->id,
+                'managing_prodi_id' => $prodiTI->id,
                 'nim_nidn' => 'AP001',
             ]
         );
+        $adminProdiTI->update([
+            'role_id' => $adminProdiRole?->id,
+            'prodi_id' => $prodiTI->id,
+            'managing_prodi_id' => $prodiTI->id,
+        ]);
+
+        $adminProdiTE = User::firstOrCreate(
+            ['email' => 'adminprodi.te@example.test'],
+            [
+                'name' => 'Admin Prodi TE',
+                'password' => Hash::make('password'),
+                'role_id' => $adminProdiRole?->id,
+                'prodi_id' => $prodiTE->id,
+                'managing_prodi_id' => $prodiTE->id,
+                'nim_nidn' => 'AP002',
+            ]
+        );
+        $adminProdiTE->update([
+            'role_id' => $adminProdiRole?->id,
+            'prodi_id' => $prodiTE->id,
+            'managing_prodi_id' => $prodiTE->id,
+        ]);
 
         User::firstOrCreate(
             ['email' => 'admin@example.test'],
@@ -76,24 +112,26 @@ class DosenAccountSeeder extends Seeder
             ]
         );
 
-        User::firstOrCreate(
-            ['email' => '2401020071@student.umrah.ac.id'],
-            [
+        $auriel = User::where('nim_nidn', '2401020071')->first() ?? User::where('email', '2401020071@student.umrah.ac.id')->first();
+        if (! $auriel) {
+            User::create([
+                'email' => '2401020071@student.umrah.ac.id',
                 'name' => 'Auriel Lifta Ekeriana G, S. T',
                 'password' => Hash::make('password123'),
                 'role_id' => $dosenRole?->id,
                 'nim_nidn' => '2401020071',
-            ]
-        );
+            ]);
+        }
 
-        User::firstOrCreate(
-            ['email' => '2401020070@student.umrah.ac.id'],
-            [
+        $meyky = User::where('nim_nidn', '2401020070')->first() ?? User::where('email', '2401020070@student.umrah.ac.id')->first();
+        if (! $meyky) {
+            User::create([
+                'email' => '2401020070@student.umrah.ac.id',
                 'name' => 'Meyky Ajmariadi',
                 'password' => Hash::make('password123'),
                 'role_id' => $dosenRole?->id,
                 'nim_nidn' => '2401020070',
-            ]
-        );
+            ]);
+        }
     }
 }
