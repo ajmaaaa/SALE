@@ -167,9 +167,14 @@
                                         <div class="flex flex-col items-center gap-1">
                                             <button type="button"
                                                     onclick="openAnswerModal({{ $student->id }}, '{{ addslashes($student->name) }}')"
-                                                    class="button-secondary min-h-0 text-xs py-1 px-2.5 cursor-pointer shadow-2xs"
-                                                    title="Lihat jawaban {{ $student->name }}">
-                                                Lihat Jawaban
+                                                    class="button-secondary min-h-0 p-1.5 cursor-pointer shadow-2xs hover:text-brand"
+                                                    title="Lihat Jawaban {{ $student->name }}"
+                                                    aria-label="Lihat Jawaban {{ $student->name }}">
+                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                                <span class="sr-only">Lihat Jawaban</span>
                                             </button>
                                             @if(!empty($essayInfo['is_late']))
                                                 <span class="text-[11px] font-semibold text-amber-800">
