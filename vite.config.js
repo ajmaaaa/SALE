@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+    const rawHost = env.VITE_HOST || '';
+    const viteHost = rawHost.replace(/^https?:\/\//, '').split(':')[0].trim() || 'localhost';
 
     return {
         server: {
@@ -12,7 +14,7 @@ export default defineConfig(({ mode }) => {
             cors: true,
             allowedHosts: true,
             hmr: {
-                host: env.VITE_HOST || 'localhost',
+                host: viteHost,
             },
         },
         plugins: [
