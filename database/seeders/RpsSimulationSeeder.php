@@ -33,9 +33,14 @@ class RpsSimulationSeeder extends Seeder
             ['name' => 'Teknik Informatika']
         );
 
-        $semester = Semester::firstOrCreate(
+        $semester = Semester::updateOrCreate(
             ['code' => '2026-1'],
-            ['name' => 'Ganjil 2026/2027', 'is_active' => true]
+            [
+                'name' => 'Ganjil 2026/2027',
+                'academic_year' => '2026/2027',
+                'term' => 1,
+                'is_active' => true,
+            ]
         );
 
         // 3. Akun Dosen Baru
@@ -57,6 +62,7 @@ class RpsSimulationSeeder extends Seeder
             [
                 'name' => 'Aditya Pratama',
                 'nim_nidn' => '2311501001',
+                'angkatan' => 2023,
                 'password' => Hash::make('password123'),
                 'role_id' => $mhsRole->id,
                 'prodi_id' => $prodi->id,
@@ -69,6 +75,7 @@ class RpsSimulationSeeder extends Seeder
             [
                 'name' => 'Bella Safitri',
                 'nim_nidn' => '2311501002',
+                'angkatan' => 2023,
                 'password' => Hash::make('password123'),
                 'role_id' => $mhsRole->id,
                 'prodi_id' => $prodi->id,
@@ -81,6 +88,7 @@ class RpsSimulationSeeder extends Seeder
             [
                 'name' => 'Citra Dewi',
                 'nim_nidn' => '2311501003',
+                'angkatan' => 2023,
                 'password' => Hash::make('password123'),
                 'role_id' => $mhsRole->id,
                 'prodi_id' => $prodi->id,
@@ -95,6 +103,7 @@ class RpsSimulationSeeder extends Seeder
                 'prodi_id' => $prodi->id,
                 'name' => 'Pengembangan Aplikasi Terdistribusi',
                 'sks' => 3,
+                'semester_paket' => 5,
             ]
         );
 
