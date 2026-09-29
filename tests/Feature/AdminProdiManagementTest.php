@@ -46,16 +46,18 @@ class AdminProdiManagementTest extends TestCase
         $dosenRole = Role::where('name', Role::DOSEN)->first();
         $mahasiswaRole = Role::where('name', Role::MAHASISWA)->first();
 
-        $this->prodi = Prodi::create([
-            'code' => 'IF',
-            'name' => 'Teknik Informatika',
-        ]);
+        $this->prodi = Prodi::firstOrCreate(
+            ['code' => 'IF'],
+            ['name' => 'Teknik Informatika']
+        );
 
-        $this->semester = Semester::create([
-            'code' => '2026-1',
-            'name' => 'Ganjil 2026/2027',
-            'is_active' => true,
-        ]);
+        $this->semester = Semester::firstOrCreate(
+            ['code' => '2026-1'],
+            [
+                'name' => 'Ganjil 2026/2027',
+                'is_active' => true,
+            ]
+        );
 
         $this->adminProdi = User::where('email', 'adminprodi@example.test')->first() ?? User::create([
             'name' => 'Admin Prodi TI',
@@ -63,9 +65,13 @@ class AdminProdiManagementTest extends TestCase
             'password' => Hash::make('password'),
             'role_id' => $adminProdiRole->id,
             'prodi_id' => $this->prodi->id,
+            'managing_prodi_id' => $this->prodi->id,
             'nim_nidn' => 'AP001',
         ]);
-        $this->adminProdi->update(['prodi_id' => $this->prodi->id]);
+        $this->adminProdi->update([
+            'prodi_id' => $this->prodi->id,
+            'managing_prodi_id' => $this->prodi->id,
+        ]);
 
         $this->dosenKetua = User::where('email', 'budi@example.test')->first() ?? User::create([
             'name' => 'Budi Santoso, M.Kom.',
@@ -794,10 +800,10 @@ class AdminProdiManagementTest extends TestCase
 
     public function test_all_added_prodis_are_integrated_and_visible_in_admin_prodi_dashboard_and_modules(): void
     {
-        $newProdi = Prodi::create([
-            'code' => 'TE',
-            'name' => 'Teknik Elektro',
-        ]);
+        $newProdi = Prodi::firstOrCreate(
+            ['code' => 'TE'],
+            ['name' => 'Teknik Elektro']
+        );
 
         $globalAdmin = User::factory()->create([
             'role_id' => Role::where('name', Role::ADMIN)->value('id'),
@@ -828,18 +834,26 @@ class AdminProdiManagementTest extends TestCase
             'prodi_id' => $newProdi->id,
         ]);
 
-        // 3. Unconstrained Admin Prodi can view and manage both prodis
-        $institutionalAdminProdi = User::factory()->create([
+        // 3. Admin Prodi without assigned prodi is safely blocked (403)
+        $unassignedAdminProdi = User::factory()->create([
             'role_id' => Role::where('name', Role::ADMIN_PRODI)->value('id'),
             'prodi_id' => null,
             'managing_prodi_id' => null,
         ]);
-        $this->actingAs($institutionalAdminProdi);
+        $this->actingAs($unassignedAdminProdi);
+        $this->get(route('admin-prodi.dashboard'))->assertStatus(403);
+
+        // 4. Admin Prodi assigned to TE can manage TE directly
+        $teAdminProdi = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN_PRODI)->value('id'),
+            'prodi_id' => $newProdi->id,
+            'managing_prodi_id' => $newProdi->id,
+        ]);
+        $this->actingAs($teAdminProdi);
 
         $instDashResponse = $this->get(route('admin-prodi.dashboard'));
         $instDashResponse->assertOk();
         $instDashResponse->assertSee('Teknik Elektro');
-        $instDashResponse->assertSee('Teknik Informatika');
 
         $kurikulumResponse = $this->get(route('admin-prodi.kurikulum.index', ['prodi_id' => $newProdi->id]));
         $kurikulumResponse->assertOk();
@@ -918,5 +932,67 @@ class AdminProdiManagementTest extends TestCase
         $exportResp = $this->get(route('admin-prodi.users.export', ['prodi_id' => $this->prodi->id]));
         $exportResp->assertOk();
         $this->assertStringContainsString('spreadsheet', $exportResp->headers->get('content-type'));
+    }
+
+    public function test_admin_prodi_requires_prodi_selection_and_supports_multiple_admin_prodi_per_prodi_option_two(): void
+    {
+        $globalAdmin = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN)->value('id'),
+            'prodi_id' => null,
+        ]);
+        $this->actingAs($globalAdmin);
+
+        // 1. Gagal jika prodi_id kosong saat role admin_prodi
+        $failResponse = $this->post(route('admin.users.store'), [
+            'name' => 'Admin Prodi Tanpa Jurusan',
+            'email' => 'admin.tanpaprodi@example.test',
+            'number' => 'APT001',
+            'roles' => ['admin_prodi'],
+            'status' => 'aktif',
+            'prodi_id' => '',
+        ]);
+        $failResponse->assertSessionHasErrors('prodi_id');
+
+        // 2. Berhasil membuat staf Admin Prodi 1 untuk Prodi IF
+        $successResponse1 = $this->post(route('admin.users.store'), [
+            'name' => 'Staf TU 1 TI',
+            'email' => 'tu1.ti@example.test',
+            'number' => 'TU001',
+            'roles' => ['admin_prodi'],
+            'status' => 'aktif',
+            'prodi_id' => $this->prodi->id,
+        ]);
+        $successResponse1->assertRedirect(route('admin.page', 'pengguna'));
+        $this->assertDatabaseHas('users', [
+            'email' => 'tu1.ti@example.test',
+            'prodi_id' => $this->prodi->id,
+            'managing_prodi_id' => $this->prodi->id,
+        ]);
+
+        // 3. Opsi 2 (Fleksibel): Berhasil membuat staf Admin Prodi 2 untuk Prodi IF yang sama
+        $successResponse2 = $this->post(route('admin.users.store'), [
+            'name' => 'Staf TU 2 TI',
+            'email' => 'tu2.ti@example.test',
+            'number' => 'TU002',
+            'roles' => ['admin_prodi'],
+            'status' => 'aktif',
+            'prodi_id' => $this->prodi->id,
+        ]);
+        $successResponse2->assertRedirect(route('admin.page', 'pengguna'));
+        $this->assertDatabaseHas('users', [
+            'email' => 'tu2.ti@example.test',
+            'prodi_id' => $this->prodi->id,
+            'managing_prodi_id' => $this->prodi->id,
+        ]);
+
+        // 4. Staf kedua login dan langsung terkunci ke Prodi IF
+        $userTU2 = User::where('email', 'tu2.ti@example.test')->first();
+        $userTU2->update(['must_change_password' => false]);
+        $this->actingAs($userTU2);
+
+        $dashResp = $this->get(route('admin-prodi.dashboard'));
+        $dashResp->assertOk();
+        $dashResp->assertSee($this->prodi->name);
+        $dashResp->assertSee('Profil Capaian Akademik Program Studi');
     }
 }
