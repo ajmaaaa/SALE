@@ -47,8 +47,8 @@
     <div class="my-auto w-full flex flex-col items-center z-10 py-6 sm:py-8">
         <main class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/20 text-ink">
             <div class="text-center">
-                <div class="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand-dark">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg>
+                <div class="mx-auto flex items-center justify-center text-brand-dark">
+                    <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg>
                 </div>
                 <h1 class="mt-4 text-xl font-bold tracking-tight text-ink">Buat password baru</h1>
                 <p class="mt-1 text-xs leading-5 text-muted">Password sementara perlu diganti sebelum Anda melanjutkan ke ruang akademik.</p>
