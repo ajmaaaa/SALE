@@ -149,12 +149,17 @@
 
                     <div>
                         <label class="form-label" for="ai_model">Pilih Model dari Penyedia</label>
-                        <select class="field" name="ai_model" id="ai_model">
+                        <select class="field disabled:bg-canvas/80 disabled:text-muted disabled:cursor-not-allowed disabled:border-line/60" name="ai_model" id="ai_model" @disabled(empty($aiApiKey))>
+                            @if(empty($aiApiKey))
+                                <option value="" disabled selected>-- Kunci API belum disimpan --</option>
+                            @endif
                             @foreach($availableModels as $m)
                                 <option value="{{ $m['id'] }}" @selected($currentModelVal === $m['id'])>{{ $m['displayName'] }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-[11px] text-muted">Varian model bahasa yang disinkronkan langsung dari penyedia AI.</p>
+                        <p id="ai_model_hint" class="mt-1 text-[11px] {{ empty($aiApiKey) ? 'text-amber-600 font-medium' : 'text-muted' }}">
+                            {{ empty($aiApiKey) ? 'Kunci API belum disimpan. Masukkan dan simpan API Key terlebih dahulu untuk memilih model.' : 'Varian model bahasa yang disinkronkan langsung dari penyedia AI.' }}
+                        </p>
                     </div>
                 </div>
 
@@ -232,6 +237,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const providerSelect = document.getElementById('ai_provider');
     const modelSelect = document.getElementById('ai_model');
+    const modelHint = document.getElementById('ai_model_hint');
     const keyInput = document.getElementById('ai_api_key');
     const btnTest = document.getElementById('btn-test-ai-conn');
     const btnLabel = document.getElementById('btn-ai-label');
@@ -239,6 +245,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleKey = document.getElementById('toggle-ai-key');
     const eyeShow = document.getElementById('eye-icon-show');
     const eyeHide = document.getElementById('eye-icon-hide');
+
+    let isApiSaved = {{ !empty($aiApiKey) ? 'true' : 'false' }};
+
+    function setModelSelectState(enabled, message = null) {
+        if (!modelSelect) return;
+        modelSelect.disabled = !enabled;
+        if (modelHint) {
+            if (enabled) {
+                modelHint.textContent = message || 'Varian model bahasa yang disinkronkan langsung dari penyedia AI.';
+                modelHint.className = 'mt-1 text-[11px] text-muted';
+            } else {
+                modelHint.textContent = message || 'Kunci API belum disimpan. Masukkan dan simpan API Key terlebih dahulu untuk memilih model.';
+                modelHint.className = 'mt-1 text-[11px] text-amber-600 font-medium';
+            }
+        }
+    }
 
     function populateModels(models, selectedValue) {
         if (!modelSelect) return;
@@ -259,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchModelsForProvider(prov) {
-        if (!modelSelect) return;
+        if (!modelSelect || !isApiSaved) return;
         const currentKey = keyInput?.value || '';
         try {
             const url = "{{ route('admin.settings.ai-models') }}?ai_provider=" + encodeURIComponent(prov) + "&ai_api_key=" + encodeURIComponent(currentKey);
@@ -278,7 +300,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     providerSelect?.addEventListener('change', () => {
+        if (!isApiSaved) return;
         fetchModelsForProvider(providerSelect.value);
+    });
+
+    keyInput?.addEventListener('input', () => {
+        // Jika input API key diubah/dikosongkan dan belum di-save
+        if (!keyInput.value.trim()) {
+            isApiSaved = false;
+            setModelSelectState(false);
+            if (statusText) {
+                statusText.textContent = 'Tidak terhubung ke model AI';
+                statusText.className = 'text-xs font-semibold text-muted';
+            }
+        }
     });
 
     toggleKey?.addEventListener('click', () => {
@@ -291,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTest?.addEventListener('click', async () => {
         btnTest.disabled = true;
         btnLabel.textContent = 'Menyimpan...';
-        statusText.textContent = 'Memeriksa...';
+        statusText.textContent = 'Memeriksa & menyimpan...';
         statusText.className = 'text-xs text-muted font-medium';
 
         const csrfToken = document.querySelector('input[name="_token"]')?.value;
@@ -314,24 +349,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if (res.ok && data.success) {
+                isApiSaved = true;
                 statusText.textContent = 'Terhubung ke model AI';
                 statusText.className = 'text-xs font-semibold text-emerald-600';
+                setModelSelectState(true);
                 if (data.models && data.models.length > 0) {
                     populateModels(data.models, modelSelect?.value);
                 }
             } else {
                 statusText.textContent = data.message || 'Tidak terhubung ke model AI';
                 statusText.className = 'text-xs font-semibold ' + (data.disconnected ? 'text-muted' : 'text-red-600');
+                if (data.disconnected || !data.success) {
+                    isApiSaved = false;
+                    setModelSelectState(false, data.disconnected ? 'Kunci API dikosongkan. Masukkan dan simpan API Key untuk memilih model.' : (data.message || 'Kunci API belum disimpan. Simpan API Key terlebih dahulu.'));
+                }
                 if (data.models && data.models.length > 0) {
                     populateModels(data.models, modelSelect?.value);
                 }
             }
         } catch (err) {
+            isApiSaved = false;
             statusText.textContent = 'Tidak terhubung ke model AI';
             statusText.className = 'text-xs font-semibold text-red-600';
+            setModelSelectState(false, 'Gagal menghubungi server untuk verifikasi kunci API.');
         } finally {
             btnTest.disabled = false;
             btnLabel.textContent = 'Save';
+        }
+    });
+
+    const settingsForm = document.querySelector('form[action="{{ route('admin.settings.store') }}"]');
+    settingsForm?.addEventListener('submit', () => {
+        if (modelSelect && modelSelect.disabled) {
+            modelSelect.disabled = false;
         }
     });
 });
