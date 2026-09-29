@@ -23,7 +23,6 @@ use App\Http\Controllers\LearningController;
 use App\Http\Controllers\Mahasiswa\AssignmentController;
 use App\Http\Controllers\Mahasiswa\DashboardController;
 use App\Http\Controllers\Mahasiswa\EnrollmentController;
-use App\Http\Controllers\Mahasiswa\ObeProgressController;
 use App\Http\Controllers\Mahasiswa\ProfileController;
 use App\Http\Controllers\PasswordChangeController;
 use Illuminate\Support\Facades\Route;
@@ -197,7 +196,6 @@ Route::post('/ai/logout', [AiTutorController::class, 'logout'])->middleware('aut
 Route::get('/ai/tasks/{assignment}', [AiTutorController::class, 'status'])->middleware('auth')->whereNumber('assignment')->name('ai.status');
 Route::post('/ai/tasks/{assignment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assignment')->name('ai.send');
 
-Route::get('/mahasiswa/capaian-obe', [ObeProgressController::class, 'index'])->middleware('role:mahasiswa')->name('mahasiswa.obe.progress');
 
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
 Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.post');
