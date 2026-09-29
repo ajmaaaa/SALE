@@ -161,9 +161,9 @@ class AdminProdiManagementTest extends TestCase
             'sks' => 3,
         ]);
 
-        // 3. Tambah CPMK
+        // 3. Tambah CPMK (Cuma butuh CPL, tanpa mata kuliah sasaran)
         $response = $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
-            'mata_kuliah_id' => $mk->id,
+            'prodi_id' => $this->prodi->id,
             'code' => 'CPMK-01',
             'description' => 'Mampu mengimplementasikan binary search tree.',
             'threshold' => 65,
@@ -171,9 +171,13 @@ class AdminProdiManagementTest extends TestCase
             'weights' => [$cpl->id => 100],
         ]);
         $response->assertRedirect();
-        $this->assertDatabaseHas('cpmks', ['code' => 'CPMK-01', 'mata_kuliah_id' => $mk->id]);
+        $this->assertDatabaseHas('cpmks', ['code' => 'CPMK-01', 'prodi_id' => $this->prodi->id]);
         $cpmk = Cpmk::where('code', 'CPMK-01')->first();
         $this->assertTrue($cpmk->cpls->contains($cpl->id));
+
+        // Hubungkan CPMK ke Mata Kuliah
+        $mk->cpmks()->sync([$cpmk->id]);
+        $this->assertTrue($mk->fresh()->cpmks->contains($cpmk->id));
 
         // 4. Update Matriks Pemetaan
         $response = $this->post(route('admin-prodi.kurikulum.mapping.update'), [
@@ -190,6 +194,125 @@ class AdminProdiManagementTest extends TestCase
             'cpmk_id' => $cpmk->id,
             'weight' => 85,
         ]);
+    }
+
+    /**
+     * Test alur baru penetapan CPMK (hanya butuh CPL) dan pemilihan multiple choice CPMK pada Mata Kuliah
+     */
+    public function test_admin_prodi_cpmk_workflow_and_matakuliah_cpmk_selection(): void
+    {
+        $this->actingAs($this->adminProdi);
+
+        // Buat 2 CPL
+        $cpl1 = Cpl::create([
+            'prodi_id' => $this->prodi->id,
+            'code' => 'CPL-01',
+            'description' => 'Kemampuan merancang algoritma.',
+        ]);
+        $cpl2 = Cpl::create([
+            'prodi_id' => $this->prodi->id,
+            'code' => 'CPL-02',
+            'description' => 'Kemampuan implementasi struktur data.',
+        ]);
+
+        // 1. Buat CPMK baru dengan multiple CPL (CPL-01 dan CPL-02), tanpa mata kuliah sasaran
+        $response = $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
+            'prodi_id' => $this->prodi->id,
+            'cpl_ids' => [$cpl1->id, $cpl2->id],
+            'code' => 'CPMK-01',
+            'description' => 'Mampu menganalisis efisiensi algoritma.',
+            'threshold' => 70,
+        ]);
+        $response->assertRedirect();
+        $this->assertDatabaseHas('cpmks', [
+            'prodi_id' => $this->prodi->id,
+            'code' => 'CPMK-01',
+            'threshold' => 70,
+        ]);
+        $cpmk1 = Cpmk::where('prodi_id', $this->prodi->id)->where('code', 'CPMK-01')->first();
+        $this->assertTrue($cpmk1->cpls->contains($cpl1->id));
+        $this->assertTrue($cpmk1->cpls->contains($cpl2->id));
+
+        // Buat CPMK kedua
+        $response = $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
+            'prodi_id' => $this->prodi->id,
+            'cpl_ids' => [$cpl2->id],
+            'code' => 'CPMK-02',
+            'description' => 'Mampu menyusun struktur graf.',
+            'threshold' => 65,
+        ]);
+        $response->assertRedirect();
+        $cpmk2 = Cpmk::where('prodi_id', $this->prodi->id)->where('code', 'CPMK-02')->first();
+
+        // 2. Buat Mata Kuliah baru dengan pilihan multiple choice CPMK
+        $mkResponse = $this->post(route('admin-prodi.akademik.matakuliah.store'), [
+            'prodi_id' => $this->prodi->id,
+            'code' => 'IF101',
+            'name' => 'Dasar Pemrograman',
+            'sks' => 3,
+            'semester_paket' => 1,
+            'cpmk_ids' => [$cpmk1->id, $cpmk2->id],
+        ]);
+        $mkResponse->assertRedirect();
+        $mk1 = MataKuliah::where('code', 'IF101')->first();
+        $this->assertNotNull($mk1);
+        $this->assertEquals(2, $mk1->cpmks()->count());
+        $this->assertTrue($mk1->cpmks->contains($cpmk1->id));
+        $this->assertTrue($mk1->cpmks->contains($cpmk2->id));
+
+        // 3. Update Mata Kuliah untuk mengubah pilihan CPMK (misal hanya CPMK-01)
+        $updateResponse = $this->put(route('admin-prodi.akademik.matakuliah.update', $mk1->id), [
+            'code' => 'IF101',
+            'name' => 'Dasar Pemrograman',
+            'sks' => 3,
+            'semester_paket' => 1,
+            'cpmk_ids' => [$cpmk1->id],
+        ]);
+        $updateResponse->assertRedirect();
+        $this->assertEquals(1, $mk1->fresh()->cpmks()->count());
+        $this->assertTrue($mk1->fresh()->cpmks->contains($cpmk1->id));
+        $this->assertFalse($mk1->fresh()->cpmks->contains($cpmk2->id));
+
+        // 4. Sinkronisasi CPMK pada Mata Kuliah melalui route kurikulum
+        $syncResponse = $this->post(route('admin-prodi.kurikulum.matakuliah.cpmk.sync', $mk1->id), [
+            'cpmk_ids' => [$cpmk1->id, $cpmk2->id],
+        ]);
+        $syncResponse->assertRedirect();
+        $this->assertEquals(2, $mk1->fresh()->cpmks()->count());
+
+        // 5. Validasi: store CPMK tanpa CPL harus gagal validasi
+        $invalidResponse = $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
+            'prodi_id' => $this->prodi->id,
+            'code' => 'CPMK-99',
+            'description' => 'Deskripsi tanpa CPL',
+            'threshold' => 65,
+        ]);
+        $invalidResponse->assertSessionHasErrors('cpl_ids');
+
+        // 6. Validasi: store CPMK tanpa code/desc harus gagal validasi
+        $invalidResponse2 = $this->post(route('admin-prodi.kurikulum.cpmk.store'), [
+            'prodi_id' => $this->prodi->id,
+            'cpl_ids' => [$cpl1->id],
+        ]);
+        $invalidResponse2->assertSessionHasErrors(['code', 'description']);
+
+        // 7. Tampilan halaman kurikulum tab CPMK
+        $viewResponse = $this->get(route('admin-prodi.kurikulum.index', [
+            'prodi_id' => $this->prodi->id,
+            'tab' => 'cpmk',
+        ]));
+        $viewResponse->assertOk()
+            ->assertSee('Pilih CPL yang Didukung')
+            ->assertDontSee('Mata Kuliah Sasaran')
+            ->assertSee('cpl_ids[]');
+
+        // 8. Tampilan halaman mata kuliah menampilkan multiple choice CPMK
+        $mkViewResponse = $this->get(route('admin-prodi.akademik.matakuliah', [
+            'prodi_id' => $this->prodi->id,
+        ]));
+        $mkViewResponse->assertOk()
+            ->assertSee('Pilih Butir CPMK yang Diampu (Multiple Choice)')
+            ->assertSee('cpmk_ids[]');
     }
 
     /**
@@ -729,5 +852,71 @@ class AdminProdiManagementTest extends TestCase
         $kelasResponse = $this->get(route('admin-prodi.akademik.kelas', ['prodi_id' => $newProdi->id]));
         $kelasResponse->assertOk();
         $kelasResponse->assertSee('Teknik Elektro');
+    }
+
+    public function test_admin_prodi_shows_large_prodi_selection_page_before_active_prodi_is_chosen(): void
+    {
+        $globalAdmin = User::factory()->create([
+            'role_id' => Role::where('name', Role::ADMIN)->value('id'),
+            'prodi_id' => null,
+        ]);
+        $this->actingAs($globalAdmin);
+
+        // Akses menu tanpa prodi_id harus menampilkan halaman 'Pilih Program Studi' dengan kartu prodi besar
+        $pages = [
+            route('admin-prodi.akademik.matakuliah'),
+            route('admin-prodi.kurikulum.index'),
+            route('admin-prodi.akademik.kelas'),
+            route('admin-prodi.users.index'),
+        ];
+
+        foreach ($pages as $url) {
+            $resp = $this->get($url);
+            $resp->assertOk();
+            $resp->assertSee('Pilih Program Studi');
+            $resp->assertSee('Teknik Informatika');
+            $resp->assertDontSee('id="select-prodi"', false);
+            $resp->assertDontSee('id="select_prodi"', false);
+            $resp->assertDontSee('id="filter_prodi"', false);
+        }
+
+        // Ketika memilih prodi_id, halaman masuk ke pengelolaan data prodi aktif tanpa badge Ganti Prodi di header
+        $mkSelected = $this->get(route('admin-prodi.akademik.matakuliah', ['prodi_id' => $this->prodi->id]));
+        $mkSelected->assertOk();
+        $mkSelected->assertDontSee('Ganti Prodi');
+        $mkSelected->assertSee($this->prodi->name);
+
+        $kurikulumSelected = $this->get(route('admin-prodi.kurikulum.index', ['prodi_id' => $this->prodi->id]));
+        $kurikulumSelected->assertOk();
+        $kurikulumSelected->assertDontSee('Ganti Prodi');
+        $kurikulumSelected->assertSee($this->prodi->name);
+
+        $kelasSelected = $this->get(route('admin-prodi.akademik.kelas', ['prodi_id' => $this->prodi->id]));
+        $kelasSelected->assertOk();
+        $kelasSelected->assertDontSee('Ganti Prodi');
+        $kelasSelected->assertSee($this->prodi->name);
+
+        $usersSelected = $this->get(route('admin-prodi.users.index', ['prodi_id' => $this->prodi->id]));
+        $usersSelected->assertOk();
+        $usersSelected->assertDontSee('Ganti Prodi');
+        $usersSelected->assertSee($this->prodi->name);
+
+        // Pastikan button Tambah Mata Kuliah dan Buka Kelas selalu tampak di header
+        $mkPage = $this->get(route('admin-prodi.akademik.matakuliah'));
+        $mkPage->assertOk();
+        $mkPage->assertSee('Tambah Mata Kuliah');
+
+        $kelasPage = $this->get(route('admin-prodi.akademik.kelas'));
+        $kelasPage->assertOk();
+        $kelasPage->assertSee('Buka Kelas Baru');
+
+        // Pastikan tombol Ekspor Data Pengguna tampak dan route export dapat diunduh
+        $usersPage = $this->get(route('admin-prodi.users.index'));
+        $usersPage->assertOk();
+        $usersPage->assertSee('Ekspor Data Pengguna');
+
+        $exportResp = $this->get(route('admin-prodi.users.export', ['prodi_id' => $this->prodi->id]));
+        $exportResp->assertOk();
+        $this->assertStringContainsString('spreadsheet', $exportResp->headers->get('content-type'));
     }
 }

@@ -217,6 +217,7 @@ Route::prefix('admin-prodi')->name('admin-prodi.')->middleware(['admin_prodi.aut
     Route::put('/kurikulum/cpl/{cpl}', [KurikulumController::class, 'updateCpl'])->name('kurikulum.cpl.update');
     Route::delete('/kurikulum/cpl/{cpl}', [KurikulumController::class, 'destroyCpl'])->name('kurikulum.cpl.destroy');
     Route::post('/kurikulum/cpmk', [KurikulumController::class, 'storeCpmk'])->name('kurikulum.cpmk.store');
+    Route::post('/kurikulum/matakuliah/{mataKuliah}/cpmk', [KurikulumController::class, 'syncMataKuliahCpmks'])->name('kurikulum.matakuliah.cpmk.sync');
     Route::put('/kurikulum/cpmk/{cpmk}', [KurikulumController::class, 'updateCpmk'])->name('kurikulum.cpmk.update');
     Route::delete('/kurikulum/cpmk/{cpmk}', [KurikulumController::class, 'destroyCpmk'])->name('kurikulum.cpmk.destroy');
     Route::post('/kurikulum/mapping', [KurikulumController::class, 'updateMapping'])->name('kurikulum.mapping.update');
@@ -235,6 +236,7 @@ Route::prefix('admin-prodi')->name('admin-prodi.')->middleware(['admin_prodi.aut
     Route::get('/akademik/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->name('akademik.kelas.barcode');
 
     Route::get('/pengguna', [UserProdiController::class, 'index'])->name('users.index');
+    Route::get('/pengguna/export', [UserProdiController::class, 'export'])->name('users.export');
     Route::post('/pengguna', [UserProdiController::class, 'store'])->name('users.store');
     Route::put('/pengguna/{user}', [UserProdiController::class, 'update'])->name('users.update');
     Route::delete('/pengguna/{user}', [UserProdiController::class, 'destroy'])->name('users.destroy');

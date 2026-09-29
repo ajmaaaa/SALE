@@ -22,6 +22,11 @@ class Prodi extends Model
         return $this->hasMany(Cpl::class);
     }
 
+    public function cpmks(): HasMany
+    {
+        return $this->hasMany(Cpmk::class);
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

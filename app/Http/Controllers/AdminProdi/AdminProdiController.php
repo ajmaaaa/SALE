@@ -121,8 +121,9 @@ abstract class AdminProdiController extends Controller
      */
     protected function assertCpmkScope(Cpmk $cpmk): void
     {
-        $cpmk->loadMissing('mataKuliah');
-        $this->assertProdiScope($cpmk->mataKuliah->prodi_id);
+        $prodiId = $cpmk->prodi_id ?? $cpmk->mataKuliah?->prodi_id;
+        abort_unless($prodiId, 404, 'CPMK tidak terhubung ke program studi.');
+        $this->assertProdiScope((int) $prodiId);
     }
 
     /**
@@ -140,10 +141,10 @@ abstract class AdminProdiController extends Controller
 
     /**
      * Resolve prodi aktif dari request dengan memaksa scope prodi.
-     * Jika prodi_id tidak diberikan, gunakan prodi sendiri (untuk admin prodi)
-     * atau prodi pertama (untuk admin global).
+     * Jika prodi_id tidak diberikan, gunakan prodi sendiri (untuk admin prodi tunggal)
+     * atau null (untuk admin global/multi-prodi agar memilih program studi terlebih dahulu).
      */
-    protected function resolveActiveProdi(Request $request): ?Prodi
+    protected function resolveActiveProdi(Request $request, bool $allowDefaultFirst = false): ?Prodi
     {
         $prodis = $this->allowedProdis();
         $ownProdiId = $this->adminProdiId();
@@ -154,12 +155,15 @@ abstract class AdminProdiController extends Controller
             // Pastikan prodi yang diminta boleh diakses
             $this->assertProdiScope($requestedId);
 
-            return $prodis->firstWhere('id', $requestedId) ?? $prodis->first();
+            return $prodis->firstWhere('id', $requestedId) ?? ($allowDefaultFirst ? $prodis->first() : null);
         }
 
-        // Default: untuk admin prodi gunakan prodinya, untuk admin global prodi pertama
-        return $ownProdiId
-            ? $prodis->firstWhere('id', $ownProdiId)
-            : $prodis->first();
+        // Default: untuk admin prodi tunggal gunakan prodinya
+        if ($ownProdiId) {
+            return $prodis->firstWhere('id', $ownProdiId);
+        }
+
+        // Untuk admin global: jangan paksa default prodi pertama kecuali jika eksplisit diizinkan
+        return $allowDefaultFirst ? $prodis->first() : null;
     }
 }

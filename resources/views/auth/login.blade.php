@@ -7,48 +7,56 @@
     <title>Masuk | SALE - Smart Academic Learning Ecosystem</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-white font-sans antialiased text-ink flex flex-col lg:flex-row overflow-x-hidden">
+<body class="min-h-screen bg-gradient-to-br from-[#0e2740] via-[#12385b] to-[#1c5384] font-sans antialiased text-white flex flex-col justify-between items-center p-6 sm:p-10 relative overflow-x-hidden select-none">
 
-    {{-- Kolom Kiri: Sisi Biru dengan Konten Asli, Gradasi Modern, dan Corak Course --}}
-    <section class="relative hidden bg-gradient-to-br from-[#0e2740] via-[#12385b] to-[#1c5384] px-10 py-12 lg:px-14 lg:py-16 text-white lg:flex lg:flex-col lg:justify-between lg:w-1/2 overflow-hidden select-none" aria-label="Tentang SALE">
-        {{-- Ambient Glow Effects --}}
-        <div class="pointer-events-none absolute -top-28 -left-28 h-96 w-96 rounded-full bg-cyan-400/15 blur-3xl"></div>
-        <div class="pointer-events-none absolute -bottom-28 -right-28 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl"></div>
+    {{-- Ambient Glow Effects --}}
+    <div class="pointer-events-none absolute top-12 left-[18%] h-[380px] w-[380px] rounded-full bg-cyan-400/15 blur-3xl"></div>
+    <div class="pointer-events-none absolute bottom-16 right-[15%] h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-20 -left-20 h-[350px] w-[350px] rounded-full bg-cyan-500/10 blur-3xl"></div>
 
-        {{-- Corak SVG seperti pada cover course card --}}
-        <svg class="absolute -right-6 -top-6 h-64 w-64 text-white opacity-[0.14] pointer-events-none" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="60" cy="22" r="10"/><circle cx="31" cy="64" r="10"/><circle cx="89" cy="64" r="10"/><circle cx="17" cy="101" r="8"/><circle cx="47" cy="101" r="8"/><circle cx="75" cy="101" r="8"/><circle cx="104" cy="101" r="8"/><path d="M54 30 36 55M66 30l18 25M27 74l-7 19M35 74l9 19M85 74l-8 19M93 74l8 19"/>
-        </svg>
-        <svg class="absolute -left-10 -bottom-10 h-72 w-72 text-white opacity-[0.10] pointer-events-none" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="60" cy="60" r="13"/><circle cx="22" cy="28" r="8"/><circle cx="98" cy="26" r="8"/><circle cx="18" cy="93" r="8"/><circle cx="101" cy="94" r="8"/><path d="m29 34 21 18M91 32 70 52M26 88l24-19M94 88 70 69"/>
-        </svg>
+    {{-- Corak SVG Pendukung tersebar secara organik di latar belakang --}}
+    {{-- Corak 1: Tree Network di area kanan atas melayang miring --}}
+    <svg class="absolute top-8 right-[10%] xl:right-[16%] h-72 w-72 text-white opacity-[0.13] rotate-12 pointer-events-none" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="60" cy="22" r="10"/><circle cx="31" cy="64" r="10"/><circle cx="89" cy="64" r="10"/><circle cx="17" cy="101" r="8"/><circle cx="47" cy="101" r="8"/><circle cx="75" cy="101" r="8"/><circle cx="104" cy="101" r="8"/><path d="M54 30 36 55M66 30l18 25M27 74l-7 19M35 74l9 19M85 74l-8 19M93 74l8 19"/>
+    </svg>
 
-        <div class="relative z-10">
-            <a href="{{ route('login') }}" class="flex items-baseline gap-2.5" aria-label="SALE, halaman masuk">
-                <span class="text-xl font-bold tracking-tight text-white">SALE</span>
-                <span class="text-xs text-[#b9cedf]">Portal Akademik</span>
-            </a>
+    {{-- Corak 2: Node Network melayang di sisi kiri tengah --}}
+    <svg class="absolute top-[36%] -left-8 sm:left-[4%] xl:left-[8%] h-72 w-72 text-white opacity-[0.12] -rotate-12 pointer-events-none" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="60" cy="60" r="13"/><circle cx="22" cy="28" r="8"/><circle cx="98" cy="26" r="8"/><circle cx="18" cy="93" r="8"/><circle cx="101" cy="94" r="8"/><path d="m29 34 21 18M91 32 70 52M26 88l24-19M94 88 70 69"/>
+    </svg>
+
+    {{-- Corak 3: Browser / Code Window di area kanan bawah --}}
+    <svg class="absolute bottom-12 right-[18%] xl:right-[24%] h-52 w-52 text-white opacity-[0.10] rotate-6 pointer-events-none hidden md:block" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="13" y="17" width="94" height="74" rx="7"/><path d="M13 35h94M27 26h1M36 26h1M45 26h1M76 51 54 74l14 3 5 15 10-4-6-14 14-4z"/>
+    </svg>
+
+    {{-- Corak 4: Arsitektur di area kiri atas --}}
+    <svg class="absolute top-24 left-[14%] xl:left-[18%] h-44 w-44 text-white opacity-[0.08] -rotate-6 pointer-events-none hidden sm:block" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="15" y="20" width="34" height="22" rx="4"/><rect x="70" y="20" width="34" height="22" rx="4"/><rect x="43" y="79" width="34" height="22" rx="4"/><path d="M49 31h21M32 42v24h28v13M87 42v24H60"/>
+    </svg>
+
+    {{-- Header Top Bar: SALE & Portal Akademik di Kiri Atas Layar --}}
+    <header class="w-full flex items-baseline justify-between z-20 mb-4 sm:mb-0">
+        <a href="{{ route('login') }}" class="flex items-baseline gap-2.5 focus:outline-none" aria-label="SALE, halaman masuk">
+            <span class="text-2xl font-bold tracking-tight text-white">SALE</span>
+            <span class="text-xs sm:text-sm text-[#b9cedf] font-medium">Portal Akademik</span>
+        </a>
+    </header>
+
+    {{-- Bagian Tengah: Teks Pengantar & Pop-up Card Login --}}
+    <div class="my-auto w-full flex flex-col items-center z-10 py-6 sm:py-8">
+        {{-- Teks Pengantar Proporsional & Rapi (Tanpa orphan word / wrapping canggung) --}}
+        <div class="text-center mb-6 sm:mb-8 max-w-xl mx-auto w-full px-4">
+            <h1 class="text-xl sm:text-2xl font-semibold tracking-tight text-white sm:whitespace-nowrap">
+                Satu ruang untuk aktivitas perkuliahan
+            </h1>
+            <p class="mt-2 text-xs sm:text-sm text-[#cbdbe8] max-w-md mx-auto leading-relaxed text-balance">
+                Akses course, materi, asesmen, dan administrasi sesuai peran akun institusi Anda.
+            </p>
         </div>
 
-        <div class="relative z-10 max-w-md my-auto py-12">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#b9cedf]">Portal akademik</p>
-            <h1 class="mt-4 text-3xl xl:text-4xl font-semibold leading-tight tracking-[-0.025em]">Satu ruang untuk aktivitas perkuliahan.</h1>
-            <p class="mt-4 text-sm leading-6 text-[#d5e1ea]">Akses course, materi, asesmen, dan administrasi sesuai peran akun institusi Anda.</p>
-        </div>
-
-        <div class="relative z-10">
-            <p class="text-xs text-[#b9cedf]">Smart Academic Learning Ecosystem</p>
-        </div>
-    </section>
-
-    {{-- Kolom Kanan: Form Login Asli --}}
-    <section class="flex flex-col justify-between px-6 py-8 sm:px-12 sm:py-12 lg:px-16 lg:py-16 lg:w-1/2 bg-white flex-1 min-h-screen lg:min-h-0">
-        <div class="lg:hidden flex items-baseline gap-2.5 mb-6">
-            <span class="text-lg font-semibold tracking-[-0.03em] text-ink">SALE</span>
-            <span class="text-xs text-muted">Smart Academic Learning Ecosystem</span>
-        </div>
-
-        <div class="my-auto mx-auto w-full max-w-sm">
+        {{-- Kotak / Card Pop-Up Login di Tengah Layar --}}
+        <main class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/20 text-ink">
             <div class="mb-7 text-center">
                 <h2 class="text-2xl font-bold tracking-[-0.025em] text-ink uppercase">MASUK KE SALE</h2>
             </div>
@@ -102,12 +110,13 @@
                     </button>
                 </div>
             </form>
-        </div>
+        </main>
+    </div>
 
-        <footer class="pt-6 text-center text-xs text-muted">
-            SALE &copy; {{ date('Y') }}
-        </footer>
-    </section>
+    {{-- Footer --}}
+    <footer class="w-full max-w-5xl text-center text-xs text-[#b9cedf] z-20 mt-4 sm:mt-0">
+        Smart Academic Learning Ecosystem &copy; {{ date('Y') }}
+    </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

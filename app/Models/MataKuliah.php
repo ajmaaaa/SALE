@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MataKuliah extends Model
@@ -40,8 +41,9 @@ class MataKuliah extends Model
         return $this->hasMany(ClassSection::class);
     }
 
-    public function cpmks(): HasMany
+    public function cpmks(): BelongsToMany
     {
-        return $this->hasMany(Cpmk::class);
+        return $this->belongsToMany(Cpmk::class, 'cpmk_mata_kuliah', 'mata_kuliah_id', 'cpmk_id')
+            ->withTimestamps();
     }
 }

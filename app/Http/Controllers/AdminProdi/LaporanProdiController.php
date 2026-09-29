@@ -237,7 +237,7 @@ class LaporanProdiController extends AdminProdiController
     private function prepareReportData(Request $request): array
     {
         $prodis = $this->allowedProdis();
-        $activeProdi = $this->resolveActiveProdi($request);
+        $activeProdi = $this->resolveActiveProdi($request, true);
 
         $semesters = Semester::orderByDesc('id')->get();
         $selectedSemesterId = $request->integer('semester_id') ?: ($semesters->firstWhere('is_active', true)?->id ?? $semesters->first()?->id ?? 0);

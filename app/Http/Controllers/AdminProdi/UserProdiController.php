@@ -28,24 +28,28 @@ class UserProdiController extends AdminProdiController
 
         $tab = $request->query('tab', 'dosen');
 
-        $dosens = User::query()
-            ->withRoleName(Role::DOSEN)
-            ->when($activeProdi, fn ($q) => $q->where(function ($sub) use ($activeProdi) {
-                $sub->where('prodi_id', $activeProdi->id)->orWhere('managing_prodi_id', $activeProdi->id);
-            }))
-            ->with('prodi')
-            ->orderBy('name')
-            ->get();
+        $dosens = $activeProdi
+            ? User::query()
+                ->withRoleName(Role::DOSEN)
+                ->where(function ($sub) use ($activeProdi) {
+                    $sub->where('prodi_id', $activeProdi->id)->orWhere('managing_prodi_id', $activeProdi->id);
+                })
+                ->with('prodi')
+                ->orderBy('name')
+                ->get()
+            : collect();
 
-        $mahasiswas = User::query()
-            ->withRoleName(Role::MAHASISWA)
-            ->when($activeProdi, fn ($q) => $q->where(function ($sub) use ($activeProdi) {
-                $sub->where('prodi_id', $activeProdi->id);
-            }))
-            ->with('prodi')
-            ->orderBy('nim_nidn')
-            ->paginate(25)
-            ->withQueryString();
+        $mahasiswas = $activeProdi
+            ? User::query()
+                ->withRoleName(Role::MAHASISWA)
+                ->where(function ($sub) use ($activeProdi) {
+                    $sub->where('prodi_id', $activeProdi->id);
+                })
+                ->with('prodi')
+                ->orderBy('nim_nidn')
+                ->paginate(25)
+                ->withQueryString()
+            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
 
         return view('admin-prodi.users.index', compact(
             'prodis',
@@ -194,6 +198,170 @@ class UserProdiController extends AdminProdiController
 
         return redirect()->route('admin-prodi.users.index', ['prodi_id' => $prodiId, 'tab' => $roleType])
             ->with('notice', "Pengguna {$name} berhasil dihapus.");
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $activeProdi = $this->resolveActiveProdi($request);
+        $prodiId = $activeProdi?->id;
+
+        $dosens = User::query()
+            ->withRoleName(Role::DOSEN)
+            ->when($prodiId, fn ($q) => $q->where(fn ($sub) => $sub->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId)))
+            ->with('prodi')
+            ->orderBy('name')
+            ->get();
+
+        $mahasiswas = User::query()
+            ->withRoleName(Role::MAHASISWA)
+            ->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))
+            ->with('prodi')
+            ->orderBy('nim_nidn')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+
+        $borderThin = ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']];
+        $borderMedium = ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF000000']];
+
+        // ── Sheet 1: Data Dosen ──────────────────────────────────────────────
+        $sheetDosen = $spreadsheet->getActiveSheet();
+        $sheetDosen->setTitle('Data Dosen');
+
+        $prodiTitle = $activeProdi ? "PROGRAM STUDI {$activeProdi->name} ({$activeProdi->code})" : 'SEMUA PROGRAM STUDI';
+        $sheetDosen->setCellValue('A1', "DATA DOSEN PENGAMPU - {$prodiTitle}");
+        $sheetDosen->mergeCells('A1:F1');
+        $sheetDosen->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['outline' => $borderMedium],
+        ]);
+        $sheetDosen->getRowDimension(1)->setRowHeight(26);
+
+        $sheetDosen->setCellValue('A2', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheetDosen->mergeCells('A2:F2');
+        $sheetDosen->getStyle('A2:F2')->applyFromArray([
+            'font' => ['size' => 10, 'italic' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+            'borders' => ['allBorders' => $borderThin],
+        ]);
+        $sheetDosen->getRowDimension(2)->setRowHeight(18);
+
+        $dosenHeaders = ['No', 'NIDN / NIP', 'Nama Lengkap & Gelar', 'Email Institusi', 'Program Studi', 'Status Akun'];
+        $cols = ['A', 'B', 'C', 'D', 'E', 'F'];
+        foreach ($dosenHeaders as $k => $head) {
+            $sheetDosen->setCellValue($cols[$k] . '4', $head);
+        }
+        $sheetDosen->getStyle('A4:F4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'borders' => ['allBorders' => $borderThin, 'outline' => $borderMedium],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheetDosen->getRowDimension(4)->setRowHeight(22);
+
+        $rowD = 5;
+        foreach ($dosens as $i => $d) {
+            $sheetDosen->setCellValue('A' . $rowD, $i + 1);
+            $sheetDosen->setCellValueExplicit('B' . $rowD, $d->nim_nidn ?? '-', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheetDosen->setCellValue('C' . $rowD, $d->name);
+            $sheetDosen->setCellValue('D' . $rowD, $d->email);
+            $sheetDosen->setCellValue('E' . $rowD, $d->prodi?->name ?? 'Semua / Lintas Prodi');
+            $sheetDosen->setCellValue('F' . $rowD, $d->is_active ? 'Aktif' : 'Nonaktif');
+
+            $sheetDosen->getStyle("A{$rowD}:F{$rowD}")->applyFromArray([
+                'borders' => ['allBorders' => $borderThin],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheetDosen->getStyle("A{$rowD}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetDosen->getStyle("B{$rowD}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetDosen->getStyle("F{$rowD}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetDosen->getRowDimension($rowD)->setRowHeight(20);
+            $rowD++;
+        }
+
+        $colWidthsDosen = [6, 22, 32, 30, 26, 14];
+        foreach ($cols as $k => $col) {
+            $sheetDosen->getColumnDimension($col)->setWidth($colWidthsDosen[$k]);
+        }
+
+        // ── Sheet 2: Data Mahasiswa ──────────────────────────────────────────
+        $sheetMhs = $spreadsheet->createSheet();
+        $sheetMhs->setTitle('Data Mahasiswa');
+
+        $sheetMhs->setCellValue('A1', "DATA MAHASISWA - {$prodiTitle}");
+        $sheetMhs->mergeCells('A1:G1');
+        $sheetMhs->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['outline' => $borderMedium],
+        ]);
+        $sheetMhs->getRowDimension(1)->setRowHeight(26);
+
+        $sheetMhs->setCellValue('A2', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheetMhs->mergeCells('A2:G2');
+        $sheetMhs->getStyle('A2:G2')->applyFromArray([
+            'font' => ['size' => 10, 'italic' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+            'borders' => ['allBorders' => $borderThin],
+        ]);
+        $sheetMhs->getRowDimension(2)->setRowHeight(18);
+
+        $mhsHeaders = ['No', 'NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Program Studi', 'Angkatan', 'Status Akun'];
+        $colsMhs = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+        foreach ($mhsHeaders as $k => $head) {
+            $sheetMhs->setCellValue($colsMhs[$k] . '4', $head);
+        }
+        $sheetMhs->getStyle('A4:G4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '10B981']],
+            'borders' => ['allBorders' => $borderThin, 'outline' => $borderMedium],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheetMhs->getRowDimension(4)->setRowHeight(22);
+
+        $rowM = 5;
+        foreach ($mahasiswas as $i => $m) {
+            $sheetMhs->setCellValue('A' . $rowM, $i + 1);
+            $sheetMhs->setCellValueExplicit('B' . $rowM, $m->nim_nidn ?? '-', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheetMhs->setCellValue('C' . $rowM, $m->name);
+            $sheetMhs->setCellValue('D' . $rowM, $m->email);
+            $sheetMhs->setCellValue('E' . $rowM, $m->prodi?->name ?? '-');
+            $sheetMhs->setCellValue('F' . $rowM, $m->angkatan ?? '-');
+            $sheetMhs->setCellValue('G' . $rowM, $m->is_active ? 'Aktif' : 'Nonaktif');
+
+            $sheetMhs->getStyle("A{$rowM}:G{$rowM}")->applyFromArray([
+                'borders' => ['allBorders' => $borderThin],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheetMhs->getStyle("A{$rowM}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetMhs->getStyle("B{$rowM}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetMhs->getStyle("F{$rowM}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetMhs->getStyle("G{$rowM}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetMhs->getRowDimension($rowM)->setRowHeight(20);
+            $rowM++;
+        }
+
+        $colWidthsMhs = [6, 20, 32, 30, 26, 12, 14];
+        foreach ($colsMhs as $k => $col) {
+            $sheetMhs->getColumnDimension($col)->setWidth($colWidthsMhs[$k]);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $safeProdi = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeProdi?->code ?? 'SEMUA');
+        $fileName = "data-pengguna-{$safeProdi}-" . date('Ymd_His') . ".xlsx";
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     public function downloadTemplate(string $type): StreamedResponse

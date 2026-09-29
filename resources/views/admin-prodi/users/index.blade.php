@@ -7,25 +7,53 @@
 <div class="space-y-6 w-full">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
-            <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-                <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
-                <span>/</span>
-                <span class="text-ink font-semibold">Pengguna</span>
+            <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-1">
+                <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.dashboard') }}">
+                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                    <span>Admin Prodi</span>
+                </a>
+                <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                @if($activeProdi)
+                    <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.users.index') }}">
+                        Dosen &amp; Mahasiswa
+                    </a>
+                    <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        {{ $activeProdi->name }}
+                    </span>
+                @else
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        Dosen &amp; Mahasiswa
+                    </span>
+                @endif
             </nav>
             <h1 class="page-heading">Data Dosen &amp; Mahasiswa</h1>
             <p class="page-description">Input data dosen dan mahasiswa secara manual atau impor massal melalui file template Excel.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
-            <label for="select_prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
-            <select id="select_prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
-                @foreach($prodis as $p)
-                    <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
-                        {{ $p->code }} - {{ $p->name }}
-                    </option>
-                @endforeach
-            </select>
+            <a href="{{ route('admin-prodi.users.export', ['prodi_id' => $activeProdi?->id]) }}" class="button-primary text-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Ekspor Data Pengguna</span>
+            </a>
         </div>
     </header>
+
+@if(! $activeProdi)
+    @include('admin-prodi.partials.prodi-selector', [
+        'hideHeader' => true,
+        'menuTitle' => 'Pengguna',
+        'description' => 'Silakan pilih program studi terlebih dahulu untuk mengelola data dosen dan mahasiswa.',
+        'targetRoute' => 'admin-prodi.users.index',
+        'targetParams' => ['tab' => $tab ?? 'dosen'],
+        'actionLabel' => 'Kelola Dosen & Mahasiswa',
+    ])
+@else
 
     @if(session('import_errors') && count(session('import_errors')) > 0)
     <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900">
@@ -214,6 +242,7 @@
         @endif
     </div>
     @endif
+@endif
 </div>
 
 <!-- Modal Tambah Pengguna Manual -->

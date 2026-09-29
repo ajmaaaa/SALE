@@ -7,27 +7,45 @@
 <div class="space-y-6 w-full">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
-            <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-                <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
-                <span>/</span>
-                <span class="text-ink font-semibold">Mata Kuliah</span>
+            <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-1">
+                <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.dashboard') }}">
+                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                    <span>Admin Prodi</span>
+                </a>
+                <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                @if($activeProdi)
+                    <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.akademik.matakuliah') }}">
+                        Mata Kuliah
+                    </a>
+                    <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        {{ $activeProdi->name }}
+                    </span>
+                @else
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        Mata Kuliah
+                    </span>
+                @endif
             </nav>
             <h1 class="page-heading">Mata Kuliah Program Studi</h1>
             <p class="page-description">Kelola mata kuliah kurikulum, penetapan SKS, dan pembukaan kelas perkuliahan.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
-            <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-full sm:w-56 max-w-full">
-                @foreach($prodis as $p)
-                    <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
-                        {{ $p->code }} - {{ $p->name }}
-                    </option>
-                @endforeach
-            </select>
             <button type="button" onclick="openCreateMkModal()" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
                 + Tambah Mata Kuliah
             </button>
         </div>
     </header>
+
+@if(! $activeProdi)
+    @include('admin-prodi.partials.prodi-selector', [
+        'hideHeader' => true,
+        'menuTitle' => 'Mata Kuliah',
+        'description' => 'Silakan pilih program studi terlebih dahulu untuk mengelola kurikulum dan mata kuliah.',
+        'targetRoute' => 'admin-prodi.akademik.matakuliah',
+        'actionLabel' => 'Kelola Mata Kuliah',
+    ])
+@else
 
     <div class="surface p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -99,7 +117,7 @@
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button"
-                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }}, {{ $mk->is_lintas_prodi ? 'true' : 'false' }}, {{ $mk->semester_paket ?? 'null' }})"
+                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }}, {{ $mk->is_lintas_prodi ? 'true' : 'false' }}, {{ $mk->semester_paket ?? 'null' }}, {{ json_encode($mk->cpmks->pluck('id')) }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
@@ -129,6 +147,7 @@
             </table>
         </div>
     </div>
+@endif
 </div>
 
 <!-- Modal Tambah MK -->
@@ -142,7 +161,19 @@
         </div>
         <form action="{{ route('admin-prodi.akademik.matakuliah.store') }}" method="POST" class="space-y-4">
             @csrf
-            <input type="hidden" name="prodi_id" value="{{ $activeProdi?->id }}">
+            @if($activeProdi)
+                <input type="hidden" name="prodi_id" value="{{ $activeProdi->id }}">
+            @else
+                <div>
+                    <label for="mk_create_prodi" class="block text-xs font-semibold text-ink mb-1">Program Studi</label>
+                    <select name="prodi_id" id="mk_create_prodi" required class="field text-xs font-semibold">
+                        <option value="" disabled selected>-- Pilih Program Studi --</option>
+                        @foreach($prodis as $p)
+                            <option value="{{ $p->id }}">{{ $p->code }} - {{ $p->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="grid grid-cols-4 gap-3">
                 <div class="col-span-2">
                     <label for="mk_create_code" class="block text-xs font-semibold text-ink mb-1">Kode MK (contoh: IF204)</label>
@@ -171,6 +202,38 @@
                 <input type="checkbox" name="is_lintas_prodi" value="1" class="mt-0.5 rounded border-line text-brand">
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain pada kelas mata kuliah ini.</span></span>
             </label>
+            {{-- Pilihan Multiple Choice CPMK untuk Mata Kuliah --}}
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-semibold text-ink">
+                        Pilih Butir CPMK yang Diampu (Multiple Choice)
+                    </label>
+                    <span class="text-[11px] text-muted">Bisa memilih lebih dari satu</span>
+                </div>
+                @if(isset($cpmks) && $cpmks->isNotEmpty())
+                    <div class="space-y-1.5 max-h-40 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
+                        @foreach($cpmks as $cpmk)
+                        <label class="flex items-start gap-2.5 p-2 rounded-md border border-line/70 bg-white hover:bg-canvas/50 transition cursor-pointer text-xs">
+                            <input type="checkbox" name="cpmk_ids[]" value="{{ $cpmk->id }}" class="mk-create-cpmk-checkbox mt-0.5 rounded text-brand focus:ring-brand">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-brand text-white">{{ $cpmk->code }}</span>
+                                    <span class="text-[11px] text-muted font-medium">Standar: {{ (float)$cpmk->threshold }}%</span>
+                                    @foreach($cpmk->cpls as $cplBadge)
+                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-canvas border border-line text-ink">{{ $cplBadge->code }}</span>
+                                    @endforeach
+                                </div>
+                                <p class="text-ink text-[11px] mt-1 leading-snug line-clamp-2">{{ $cpmk->description }}</p>
+                            </div>
+                        </label>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-3 text-center rounded-lg border border-dashed border-line bg-canvas/30 text-xs text-muted">
+                        Belum ada butir CPMK yang dibuat pada prodi ini. Buat CPMK terlebih dahulu di menu <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" class="text-brand underline font-semibold">Kurikulum &gt; CPMK</a>.
+                    </div>
+                @endif
+            </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="submit" class="button-primary text-xs">Simpan Mata Kuliah</button>
             </div>
@@ -218,6 +281,38 @@
                 <input type="checkbox" name="is_lintas_prodi" id="mk_edit_lintas" value="1" class="mt-0.5 rounded border-line text-brand">
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain.</span></span>
             </label>
+            {{-- Pilihan Multiple Choice CPMK untuk Mata Kuliah --}}
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-semibold text-ink">
+                        Pilih Butir CPMK yang Diampu (Multiple Choice)
+                    </label>
+                    <span class="text-[11px] text-muted">Bisa memilih lebih dari satu</span>
+                </div>
+                @if(isset($cpmks) && $cpmks->isNotEmpty())
+                    <div class="space-y-1.5 max-h-40 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
+                        @foreach($cpmks as $cpmk)
+                        <label class="flex items-start gap-2.5 p-2 rounded-md border border-line/70 bg-white hover:bg-canvas/50 transition cursor-pointer text-xs">
+                            <input type="checkbox" name="cpmk_ids[]" value="{{ $cpmk->id }}" class="mk-edit-cpmk-checkbox mt-0.5 rounded text-brand focus:ring-brand">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-brand text-white">{{ $cpmk->code }}</span>
+                                    <span class="text-[11px] text-muted font-medium">Standar: {{ (float)$cpmk->threshold }}%</span>
+                                    @foreach($cpmk->cpls as $cplBadge)
+                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-canvas border border-line text-ink">{{ $cplBadge->code }}</span>
+                                    @endforeach
+                                </div>
+                                <p class="text-ink text-[11px] mt-1 leading-snug line-clamp-2">{{ $cpmk->description }}</p>
+                            </div>
+                        </label>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-3 text-center rounded-lg border border-dashed border-line bg-canvas/30 text-xs text-muted">
+                        Belum ada butir CPMK yang dibuat pada prodi ini. Buat CPMK terlebih dahulu di menu <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" class="text-brand underline font-semibold">Kurikulum &gt; CPMK</a>.
+                    </div>
+                @endif
+            </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
@@ -241,6 +336,9 @@
     }
 
     function openCreateMkModal() {
+        document.querySelectorAll('.mk-create-cpmk-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
         document.getElementById('createMkModal').classList.remove('hidden');
         document.getElementById('createMkModal').classList.add('flex');
     }
@@ -249,7 +347,7 @@
         document.getElementById('createMkModal').classList.remove('flex');
     }
 
-    function openEditMkModal(id, code, name, sks, isLintasProdi, semesterPaket) {
+    function openEditMkModal(id, code, name, sks, isLintasProdi, semesterPaket, cpmkIds = []) {
         const form = document.getElementById('editMkForm');
         form.action = `/admin-prodi/akademik/matakuliah/${id}`;
         document.getElementById('mk_edit_code').value = code;
@@ -257,6 +355,12 @@
         document.getElementById('mk_edit_sks').value = sks;
         document.getElementById('mk_edit_sem').value = semesterPaket || '';
         document.getElementById('mk_edit_lintas').checked = Boolean(isLintasProdi);
+
+        const assignedIds = Array.isArray(cpmkIds) ? cpmkIds.map(Number) : [];
+        document.querySelectorAll('.mk-edit-cpmk-checkbox').forEach(cb => {
+            cb.checked = assignedIds.includes(parseInt(cb.value));
+        });
+
         document.getElementById('editMkModal').classList.remove('hidden');
         document.getElementById('editMkModal').classList.add('flex');
     }

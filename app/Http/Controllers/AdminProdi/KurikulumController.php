@@ -25,11 +25,12 @@ class KurikulumController extends AdminProdiController
             ? $activeProdi->mataKuliahs()->with(['cpmks.cpls'])->orderBy('code')->get()
             : collect();
 
-        $allCpmks = Cpmk::whereIn('mata_kuliah_id', $mataKuliahs->pluck('id'))
-            ->with(['mataKuliah', 'cpls'])
-            ->orderBy('mata_kuliah_id')
-            ->orderBy('code')
-            ->get();
+        $allCpmks = $activeProdi
+            ? Cpmk::where('prodi_id', $activeProdi->id)
+                ->with(['cpls', 'mataKuliahs'])
+                ->orderBy('code')
+                ->get()
+            : collect();
 
         $tab = $request->query('tab', 'cpl');
 
@@ -111,56 +112,91 @@ class KurikulumController extends AdminProdiController
     public function storeCpmk(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'mata_kuliah_id' => ['required', 'exists:mata_kuliahs,id'],
-            'code' => [
-                'required', 'string', 'max:20',
-                Rule::unique('cpmks', 'code')->where('mata_kuliah_id', $request->input('mata_kuliah_id')),
-            ],
+            'prodi_id' => ['nullable', 'exists:prodis,id'],
+            'cpl_ids' => ['required', 'array', 'min:1'],
+            'cpl_ids.*' => ['exists:cpls,id'],
+            'code' => ['required', 'string', 'max:20'],
             'description' => ['required', 'string', 'max:1000'],
             'threshold' => ['required', 'numeric', 'min:0', 'max:100'],
-            'cpl_ids' => ['nullable', 'array'],
-            'cpl_ids.*' => ['exists:cpls,id'],
             'weights' => ['nullable', 'array'],
         ], [
-            'code.unique' => 'Kode CPMK sudah digunakan pada mata kuliah ini.',
+            'cpl_ids.required' => 'Pilih minimal satu CPL yang didukung oleh CPMK.',
+            'cpl_ids.min' => 'Pilih minimal satu CPL yang didukung oleh CPMK.',
+            'code.required' => 'Kode CPMK wajib diisi.',
+            'description.required' => 'Deskripsi CPMK wajib diisi.',
             'threshold.required' => 'Standar kelulusan minimum (threshold) wajib diisi.',
+            'threshold.min' => 'Standar kelulusan minimum (threshold) minimal 0%.',
+            'threshold.max' => 'Standar kelulusan minimum (threshold) maksimal 100%.',
         ]);
 
-        $validated['code'] = strtoupper(trim($validated['code']));
+        $prodiId = (int) ($validated['prodi_id'] ?? $this->adminProdiId() ?? 0);
+        abort_unless($prodiId > 0, 400, 'Program studi tidak valid.');
+        $this->assertProdiScope($prodiId);
+        $this->assertCplIdsBelongToProdi($validated['cpl_ids'], $prodiId);
 
-        $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
-        $this->assertMataKuliahScope($mk);
-        $this->assertCplIdsBelongToProdi($request->input('cpl_ids', []), $mk->prodi_id);
+        $code = strtoupper(trim($validated['code']));
 
-        DB::transaction(function () use ($validated, $request) {
+        $exists = Cpmk::where('prodi_id', $prodiId)->where('code', $code)->exists();
+        if ($exists) {
+            return back()->withInput()->withErrors([
+                'code' => "Kode CPMK {$code} sudah terdaftar pada program studi ini.",
+            ]);
+        }
+
+        $cplIds = $validated['cpl_ids'];
+        $weights = $request->input('weights', []);
+        $syncData = [];
+        foreach ($cplIds as $cplId) {
+            $w = isset($weights[$cplId]) && is_numeric($weights[$cplId]) ? (float) $weights[$cplId] : 100.0;
+            $syncData[(int) $cplId] = ['weight' => $w];
+        }
+
+        $cpmk = DB::transaction(function () use ($prodiId, $code, $validated, $syncData) {
             $cpmk = Cpmk::create([
-                'mata_kuliah_id' => $validated['mata_kuliah_id'],
-                'code' => $validated['code'],
-                'description' => $validated['description'],
-                'threshold' => $validated['threshold'],
+                'prodi_id' => $prodiId,
+                'code' => $code,
+                'description' => trim($validated['description']),
+                'threshold' => (float) $validated['threshold'],
             ]);
 
-            $cplIds = $request->input('cpl_ids', []);
-            $weights = $request->input('weights', []);
-            $syncData = [];
-            foreach ($cplIds as $cplId) {
-                $w = isset($weights[$cplId]) && is_numeric($weights[$cplId]) ? (float) $weights[$cplId] : 100.0;
-                $syncData[$cplId] = ['weight' => $w];
-            }
             $cpmk->cpls()->sync($syncData);
+
+            return $cpmk;
         });
 
-        return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $mk->prodi_id, 'tab' => 'cpmk'])
-            ->with('notice', "CPMK {$validated['code']} untuk mata kuliah {$mk->name} berhasil ditetapkan. Dosen kini dapat memilih CPMK ini.");
+        return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'cpmk'])
+            ->with('notice', "Butir CPMK {$cpmk->code} berhasil ditambahkan ke kurikulum program studi.");
+    }
+
+    public function syncMataKuliahCpmks(Request $request, MataKuliah $mataKuliah): RedirectResponse
+    {
+        $this->assertMataKuliahScope($mataKuliah);
+        $cpmkIds = $request->input('cpmk_ids', []);
+
+        if (!empty($cpmkIds)) {
+            $validCount = Cpmk::where('prodi_id', $mataKuliah->prodi_id)->whereIn('id', $cpmkIds)->count();
+            abort_unless($validCount === count($cpmkIds), 403, 'CPMK yang dipilih bukan milik program studi ini.');
+        }
+
+        $mataKuliah->cpmks()->sync($cpmkIds);
+
+        return redirect()->route('admin-prodi.kurikulum.index', [
+            'prodi_id' => $mataKuliah->prodi_id,
+            'tab' => 'cpmk',
+        ])->with('notice', "CPMK untuk mata kuliah {$mataKuliah->name} berhasil diperbarui.");
     }
 
     public function updateCpmk(Request $request, Cpmk $cpmk): RedirectResponse
     {
         $this->assertCpmkScope($cpmk);
+        $prodiId = $cpmk->prodi_id ?? $cpmk->mataKuliah?->prodi_id;
+
         $validated = $request->validate([
             'code' => [
                 'required', 'string', 'max:20',
-                Rule::unique('cpmks', 'code')->where('mata_kuliah_id', $cpmk->mata_kuliah_id)->ignore($cpmk->id),
+                Rule::unique('cpmks', 'code')
+                    ->where(fn ($q) => $q->where('prodi_id', $prodiId))
+                    ->ignore($cpmk->id),
             ],
             'description' => ['required', 'string', 'max:1000'],
             'threshold' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -170,7 +206,9 @@ class KurikulumController extends AdminProdiController
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
-        $this->assertCplIdsBelongToProdi($request->input('cpl_ids', []), $cpmk->mataKuliah->prodi_id);
+        if ($request->has('cpl_ids')) {
+            $this->assertCplIdsBelongToProdi($request->input('cpl_ids', []), $prodiId);
+        }
 
         DB::transaction(function () use ($cpmk, $validated, $request) {
             $cpmk->update([
@@ -179,17 +217,17 @@ class KurikulumController extends AdminProdiController
                 'threshold' => $validated['threshold'],
             ]);
 
-            $cplIds = $request->input('cpl_ids', []);
-            $weights = $request->input('weights', []);
-            $syncData = [];
-            foreach ($cplIds as $cplId) {
-                $w = isset($weights[$cplId]) && is_numeric($weights[$cplId]) ? (float) $weights[$cplId] : 100.0;
-                $syncData[$cplId] = ['weight' => $w];
+            if ($request->has('cpl_ids')) {
+                $cplIds = $request->input('cpl_ids', []);
+                $weights = $request->input('weights', []);
+                $syncData = [];
+                foreach ($cplIds as $cplId) {
+                    $w = isset($weights[$cplId]) && is_numeric($weights[$cplId]) ? (float) $weights[$cplId] : 100.0;
+                    $syncData[$cplId] = ['weight' => $w];
+                }
+                $cpmk->cpls()->sync($syncData);
             }
-            $cpmk->cpls()->sync($syncData);
         });
-
-        $prodiId = $cpmk->mataKuliah->prodi_id;
 
         return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'cpmk'])
             ->with('notice', "CPMK {$cpmk->code} berhasil diperbarui.");
@@ -198,8 +236,15 @@ class KurikulumController extends AdminProdiController
     public function destroyCpmk(Cpmk $cpmk): RedirectResponse
     {
         $this->assertCpmkScope($cpmk);
-        $prodiId = $cpmk->mataKuliah->prodi_id;
+        $prodiId = $cpmk->prodi_id ?? $cpmk->mataKuliah?->prodi_id;
         $code = $cpmk->code;
+
+        $hasScores = StudentAssessmentCpmkScore::where('cpmk_id', $cpmk->id)->exists();
+        if ($hasScores) {
+            return back()->withErrors([
+                'cpmk' => "CPMK {$code} tidak dapat dihapus karena sudah memiliki data penilaian mahasiswa.",
+            ]);
+        }
 
         if ($cpmk->assessments()->exists()) {
             return back()->withErrors([
@@ -208,6 +253,7 @@ class KurikulumController extends AdminProdiController
         }
 
         $cpmk->cpls()->detach();
+        $cpmk->mataKuliahs()->detach();
         $cpmk->delete();
 
         return redirect()->route('admin-prodi.kurikulum.index', ['prodi_id' => $prodiId, 'tab' => 'cpmk'])
@@ -232,8 +278,7 @@ class KurikulumController extends AdminProdiController
         $this->assertCplIdsBelongToProdi($cplIds, $prodiId);
 
         DB::transaction(function () use ($matrix, $prodiId) {
-            $mkIds = MataKuliah::where('prodi_id', $prodiId)->pluck('id');
-            $cpmks = Cpmk::whereIn('mata_kuliah_id', $mkIds)->get();
+            $cpmks = Cpmk::where('prodi_id', $prodiId)->get();
 
             foreach ($cpmks as $cpmk) {
                 $cplMappings = $matrix[$cpmk->id] ?? [];

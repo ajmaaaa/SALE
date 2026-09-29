@@ -7,10 +7,15 @@
 <div class="space-y-6 w-full">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
-            <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-                <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
-                <span>/</span>
-                <span class="text-ink font-semibold">Laporan Semester</span>
+            <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-1">
+                <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.dashboard') }}">
+                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                    <span>Admin Prodi</span>
+                </a>
+                <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                <span class="font-semibold text-slate-800" aria-current="page">
+                    Laporan Semester
+                </span>
             </nav>
             <h1 class="page-heading">Laporan Akademik &amp; Capaian Nilai Prodi</h1>
             <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, intake mahasiswa baru, rata-rata nilai, dan ekspor data.</p>
@@ -94,14 +99,8 @@
 
     <!-- Tabel Rincian Kelas & Nilai Semester -->
     <div class="surface p-5 space-y-4">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-base font-bold text-ink">Rincian Kelas Perkuliahan &amp; Rata-rata Nilai</h2>
-            </div>
-            <a href="{{ route('admin-prodi.laporan.export', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" class="button-primary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs rounded-lg">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
-                <span>Ekspor Excel (.xlsx)</span>
-            </a>
+        <div>
+            <h2 class="text-base font-bold text-ink">Rincian Kelas Perkuliahan &amp; Rata-rata Nilai</h2>
         </div>
 
         <div class="overflow-x-auto">

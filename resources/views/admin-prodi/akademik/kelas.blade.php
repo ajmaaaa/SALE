@@ -7,33 +7,50 @@
 <div class="space-y-6 w-full">
     <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="min-w-0 flex-1">
-            <nav class="flex items-center gap-2 text-xs text-muted mb-1">
-                <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
-                <span>/</span>
-                <span class="text-ink font-semibold">Kelas Perkuliahan</span>
+            <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-1">
+                <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.dashboard') }}">
+                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                    <span>Admin Prodi</span>
+                </a>
+                <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                @if($activeProdi)
+                    <a class="font-medium text-slate-500 hover:text-brand transition" href="{{ route('admin-prodi.akademik.kelas') }}">
+                        Kelas Perkuliahan
+                    </a>
+                    <svg class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        {{ $activeProdi->name }}
+                    </span>
+                @else
+                    <span class="font-semibold text-slate-800" aria-current="page">
+                        Kelas Perkuliahan
+                    </span>
+                @endif
             </nav>
             <h1 class="page-heading">Kelas Perkuliahan &amp; Penugasan Dosen</h1>
             <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Wakil, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
-            <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
+            <button type="button" onclick="{{ $activeProdi ? 'openCreateKelasModal()' : 'window.saleNotice({ title: \'Pilih Program Studi\', message: \'Silakan pilih salah satu program studi terlebih dahulu untuk membuka kelas baru.\' })' }}" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
                 + Buka Kelas Baru
             </button>
         </div>
     </header>
 
+@if(! $activeProdi)
+    @include('admin-prodi.partials.prodi-selector', [
+        'hideHeader' => true,
+        'menuTitle' => 'Kelas Perkuliahan',
+        'description' => 'Silakan pilih program studi terlebih dahulu untuk mengelola kelas perkuliahan dan penugasan dosen.',
+        'targetRoute' => 'admin-prodi.akademik.kelas',
+        'actionLabel' => 'Kelola Kelas Perkuliahan',
+    ])
+@else
+
     <!-- Filter Bar -->
     <div class="surface p-4 flex flex-wrap items-center justify-between gap-4">
         <form id="filterForm" method="GET" class="flex flex-wrap items-center gap-3">
-            <label for="filter_prodi" class="text-xs font-semibold text-muted">Prodi:</label>
-            <select name="prodi_id" id="filter_prodi" onchange="this.form.submit()" class="field text-xs font-semibold w-52">
-                @foreach($prodis as $p)
-                    <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
-                        {{ $p->code }} - {{ $p->name }}
-                    </option>
-                @endforeach
-            </select>
-
+            <input type="hidden" name="prodi_id" value="{{ $activeProdi->id }}">
             <label for="filter_semester" class="text-xs font-semibold text-muted">Semester:</label>
             <select name="semester_id" id="filter_semester" onchange="this.form.submit()" class="field text-xs font-semibold w-48">
                 @foreach($semesters as $sem)
@@ -45,7 +62,7 @@
         </form>
 
         <div class="text-xs text-muted">
-            Menampilkan <strong class="text-ink">{{ $classes->count() }}</strong> seksi kelas
+            Menampilkan <strong class="text-ink">{{ $classes->count() }}</strong> seksi kelas prodi <strong class="text-ink">{{ $activeProdi->name }}</strong>
         </div>
     </div>
 
@@ -135,6 +152,7 @@
             </table>
         </div>
     </div>
+@endif
 </div>
 
 <!-- Modal Buka Kelas Baru -->
@@ -151,6 +169,7 @@
             <div>
                 <label for="create_mk_id" class="block text-xs font-semibold text-ink mb-1">Mata Kuliah</label>
                 <select name="mata_kuliah_id" id="create_mk_id" required class="field text-xs font-semibold">
+                    <option value="" disabled selected>-- Pilih Mata Kuliah --</option>
                     @foreach($mataKuliahs as $mk)
                         <option value="{{ $mk->id }}">
                             {{ $mk->code }} - {{ $mk->name }} {{ $mk->semester_paket ? '(Sem. ' . $mk->semester_paket . ')' : '' }} ({{ $mk->sks }} SKS)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AdminProdi;
 
 use App\Models\ClassSection;
+use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
@@ -27,13 +28,21 @@ class AkademikProdiController extends AdminProdiController
         $mataKuliahs = $activeProdi
             ? $activeProdi->mataKuliahs()
                 ->when($selectedSemesterPaket, fn ($q) => $q->where('semester_paket', $selectedSemesterPaket))
+                ->with(['cpmks.cpls'])
                 ->withCount(['classSections', 'cpmks'])
                 ->orderBy('semester_paket')
                 ->orderBy('code')
                 ->get()
             : collect();
 
-        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs', 'selectedSemesterPaket'));
+        $cpmks = $activeProdi
+            ? Cpmk::where('prodi_id', $activeProdi->id)
+                ->with('cpls')
+                ->orderBy('code')
+                ->get()
+            : collect();
+
+        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs', 'selectedSemesterPaket', 'cpmks'));
     }
 
     public function storeMataKuliah(Request $request): RedirectResponse
@@ -53,6 +62,8 @@ class AkademikProdiController extends AdminProdiController
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
             'semester_paket' => ['nullable', 'integer', 'min:1', 'max:8'],
             'is_lintas_prodi' => ['nullable', 'boolean'],
+            'cpmk_ids' => ['nullable', 'array'],
+            'cpmk_ids.*' => ['exists:cpmks,id'],
         ], [
             'code.unique' => 'Kode mata kuliah sudah digunakan pada program studi ini.',
             'sks.required' => 'Bobot SKS wajib diisi.',
@@ -61,7 +72,12 @@ class AkademikProdiController extends AdminProdiController
         $this->assertProdiScope($validated['prodi_id']);
 
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
-        MataKuliah::create($validated);
+        $cpmkIds = $request->input('cpmk_ids', []);
+
+        $mataKuliah = MataKuliah::create($validated);
+        if (!empty($cpmkIds)) {
+            $mataKuliah->cpmks()->sync($cpmkIds);
+        }
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $validated['prodi_id']])
             ->with('notice', "Mata Kuliah {$validated['name']} ({$validated['code']}) berhasil ditambahkan.");
@@ -79,6 +95,8 @@ class AkademikProdiController extends AdminProdiController
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
             'semester_paket' => ['nullable', 'integer', 'min:1', 'max:8'],
             'is_lintas_prodi' => ['nullable', 'boolean'],
+            'cpmk_ids' => ['nullable', 'array'],
+            'cpmk_ids.*' => ['exists:cpmks,id'],
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
@@ -86,6 +104,7 @@ class AkademikProdiController extends AdminProdiController
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
 
         $mataKuliah->update($validated);
+        $mataKuliah->cpmks()->sync($request->input('cpmk_ids', []));
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $mataKuliah->prodi_id])
             ->with('notice', "Mata Kuliah {$mataKuliah->name} berhasil diperbarui.");
@@ -97,12 +116,13 @@ class AkademikProdiController extends AdminProdiController
         $prodiId = $mataKuliah->prodi_id;
         $name = $mataKuliah->name;
 
-        if ($mataKuliah->classSections()->exists() || $mataKuliah->cpmks()->exists()) {
+        if ($mataKuliah->classSections()->exists()) {
             return back()->withErrors([
-                'mata_kuliah' => "Mata kuliah {$name} tidak dapat dihapus karena sudah memiliki kelas perkuliahan atau butir CPMK.",
+                'mata_kuliah' => "Mata kuliah {$name} tidak dapat dihapus karena sudah memiliki kelas perkuliahan.",
             ]);
         }
 
+        $mataKuliah->cpmks()->detach();
         $mataKuliah->delete();
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $prodiId])
