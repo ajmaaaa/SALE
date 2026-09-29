@@ -206,30 +206,7 @@ class DatabaseNotificationService
 
     private function systemNotifications(): array
     {
-        return [
-            $this->notification(
-                'system_ai_ready',
-                'Asisten Lumina AI & Lab Interaktif Siap Digunakan',
-                'Layanan asisten cerdas Lumina AI dan lingkungan coding interaktif telah aktif untuk mendukung perkuliahan semester ini.',
-                now()->subMinutes(2),
-                'system',
-                route('mahasiswa.assignment.index', [], false),
-                'Buka Lab Coding',
-                'sistem',
-                0
-            ),
-            $this->notification(
-                'system_sync_krs',
-                'Sinkronisasi Kurikulum OBE & Rencana Studi Berhasil',
-                'Pemetaan capaian pembelajaran (CPL & CPMK) untuk seluruh mata kuliah terdaftar telah diselaraskan dengan sistem akademik.',
-                now()->subHours(4),
-                'system',
-                route('mahasiswa.obe.progress', [], false),
-                'Lihat Pemetaan OBE',
-                'sistem',
-                0
-            ),
-        ];
+        return [];
     }
 
     private function lecturerNotifications(User $user): array
