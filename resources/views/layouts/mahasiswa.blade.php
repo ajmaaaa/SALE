@@ -293,14 +293,14 @@
                                     ? auth()->user()->roles()->pluck('roles.name')->push(auth()->user()->role?->name)->filter()->unique()->count()
                                     : 0;
                             @endphp
-                            @if(auth()->check() && ($accessibleRoleCount > 1 || auth()->user()->hasRole('admin')))
+                            @if(auth()->check() && $accessibleRoleCount > 1)
                                 <div class="border-b border-line/60 py-2.5">
                                     <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">Ruang kerja yang dapat diakses</p>
                                     <div class="space-y-1 text-xs">
                                         @if(auth()->user()->hasRole('dosen'))
                                             <a href="{{ route('dosen.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Dosen</a>
                                         @endif
-                                        @if(auth()->user()->hasRole('admin_prodi') || auth()->user()->hasRole('admin'))
+                                        @if(auth()->user()->hasRole('admin_prodi'))
                                             <a href="{{ route('admin-prodi.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Program Studi</a>
                                         @endif
                                         @if(auth()->user()->hasRole('admin'))
