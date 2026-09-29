@@ -83,6 +83,7 @@
     @php
     $isLecturer = auth()->user()?->hasRole(\App\Models\Role::DOSEN) ?? false;
     $isMaterial = ($item['type'] ?? '') === 'materi';
+    $aiEnabled = (bool) ($item['ai_enabled'] ?? true);
     $storedLanguage = $item['language'] ?? 'python';
     $requestedLanguage = request()->query('language');
     $language = in_array($requestedLanguage, ['python', 'web'], true) ? $requestedLanguage : $storedLanguage;
@@ -184,15 +185,8 @@
                 </button>
             </div>
 
-            {{-- Right: Stepper Navigasi (Sebelumnya, Selanjutnya / Selesai Course di Bagian Terakhir) --}}
+            {{-- Right: Stepper Navigasi (Sebelumnya & Selanjutnya / Serahkan / Selesaikan Course) --}}
             <div class="flex items-center gap-2">
-                @if($isLecturer)
-                    <span class="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200">
-                        <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        Mode Tinjau Dosen
-                    </span>
-                @endif
-
                 <button type="button" id="btn-step-prev" class="button-secondary text-xs py-1.5 px-3 font-semibold inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" title="Bagian Sebelumnya" disabled>
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
                     <span>Sebelumnya</span>
@@ -204,16 +198,17 @@
                 </button>
 
                 @if($isMaterial || $isLecturer)
-                    <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? 'hidden' : '' }}" title="Selesai Course">
-                        <span>Selesai Course</span>
+                    <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? 'hidden' : '' }}" title="Selesaikan Course">
+                        <span>Selesaikan Course</span>
                         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                     </a>
                 @else
                     <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? 'hidden' : '' }}">
                         @csrf
                         <input type="hidden" name="answer" data-code-answer>
-                        <button disabled class="button-primary text-xs py-1.5 px-3.5 font-bold shadow-xs">
-                            Kumpulkan Kode
+                        <button type="submit" id="btn-submit-code" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="Serahkan Tugas">
+                            <span>Serahkan</span>
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                         </button>
                     </form>
                 @endif
@@ -441,9 +436,11 @@
 
                         {{-- Action Buttons (Kanan): Tanyakan Baris | Terminal (Icon) | Play (Icon) --}}
                         <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                            <button type="button" data-mention-code disabled class="h-8 !min-h-0 px-3 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white text-xs font-semibold text-ink transition hover:border-ink hover:bg-slate-50 disabled:opacity-40 shadow-2xs leading-none" title="Tanyakan baris kode terpilih ke AI Asisten">
-                                Tanyakan Baris
-                            </button>
+                            @if($aiEnabled)
+                                <button type="button" data-mention-code disabled class="h-8 !min-h-0 px-3 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white text-xs font-semibold text-ink transition hover:border-ink hover:bg-slate-50 disabled:opacity-40 shadow-2xs leading-none" title="Tanyakan baris kode terpilih ke AI Asisten">
+                                    Tanyakan Baris
+                                </button>
+                            @endif
                             <button type="button" data-terminal-toggle class="h-8 w-8 !p-0 !min-h-0 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white hover:bg-slate-50 text-slate-700 transition hover:border-ink shadow-2xs leading-none" title="Buka / Tutup Terminal" aria-label="Terminal">
                                 <svg class="h-3.5 w-3.5 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                             </button>
@@ -511,6 +508,7 @@
                 </div>
             </div>
 
+            @if($aiEnabled)
             {{-- Handle Geser Kanan (Editor <-> AI Asisten) --}}
             <div data-resizer="right" class="hidden xl:flex w-3 shrink-0 cursor-col-resize items-center justify-center group relative z-10 select-none py-4 hover:bg-brand/5 active:bg-brand/10 transition-colors" title="Geser untuk mengatur lebar AI Asisten">
                 <div class="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-brand group-active:bg-brand group-hover:w-1.5 transition-all"></div>
@@ -586,6 +584,7 @@
                     </div>
                 </form>
             </aside>
+            @endif
 
         </div>
     </main>
