@@ -98,12 +98,14 @@ class StudentGradebookAndObeProgressTest extends TestCase
         $response->assertSee('Struktur Data &amp; Algoritma', false);
         $response->assertSee('IF204-A');
 
-        // 3. Rincian komponen nilai
+        // 3. Rincian komponen nilai (tanpa label persentase dalam kurung)
         $response->assertSee('Rincian Komponen Nilai:');
         $response->assertSee('Tugas 1 Linked List');
         $response->assertSee('80.0');
         $response->assertSee('Ujian Tengah Semester');
         $response->assertSee('90.0');
+        $response->assertDontSee('Tugas 1 Linked List (');
+        $response->assertDontSee('Ujian Tengah Semester (');
 
         // 4. Pastikan tab navigasi capaian OBE tidak ada pada halaman KHS
         $response->assertDontSee('Capaian Pembelajaran OBE');
