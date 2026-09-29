@@ -93,7 +93,6 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
     Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
     Route::get('/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('course.item');
-    Route::get('/course/{course}/item/{item}/quiz-preview', [LearningController::class, 'quizPreview'])->whereNumber(['course', 'item'])->name('course.quiz.preview');
     Route::post('/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('course.discuss');
     Route::get('/course/{course}/create', [LearningController::class, 'createItem'])->whereNumber('course')->name('item.create');
     Route::post('/course/{course}/items', [LearningController::class, 'storeItem'])->whereNumber('course')->name('item.store');
