@@ -21,6 +21,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Services\Ai\AiModelFetcher;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -97,28 +98,38 @@ class AdminPreviewController extends Controller
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($request->integer('id'))],
             'number' => ['required', 'string', 'max:30', Rule::unique('users', 'nim_nidn')->ignore($request->integer('id'))],
             'role' => ['nullable', Rule::in([Role::MAHASISWA, Role::DOSEN, Role::ADMIN, Role::ADMIN_PRODI])],
-            'roles' => ['nullable', 'array', 'min:1'],
+            'roles' => ['nullable', 'array', 'max:1'],
             'roles.*' => [Rule::in([Role::MAHASISWA, Role::DOSEN, Role::ADMIN, Role::ADMIN_PRODI])],
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
             'prodi_id' => ['nullable', 'exists:prodis,id'],
         ]);
 
-        $roleNames = array_values(array_unique($data['roles'] ?? array_filter([$data['role'] ?? null])));
-        if (! $roleNames) {
-            return back()->withErrors(['roles' => 'Pilih minimal satu peran akses.'])->withInput();
-        }
-        $roles = Role::whereIn('name', $roleNames)->get()->keyBy('name');
-        if ($roles->count() !== count($roleNames)) {
-            return back()->withErrors(['roles' => 'Peran yang dipilih belum tersedia di database.'])->withInput();
+        $roleNames = array_values(array_unique(array_filter(array_merge(
+            (array) ($data['role'] ?? []),
+            $data['roles'] ?? []
+        ))));
+
+        if (count($roleNames) > 1) {
+            return back()->withErrors(['role' => 'Satu akun hanya boleh memiliki satu peran akses.'])->withInput();
         }
 
-        if (in_array(Role::ADMIN_PRODI, $roleNames, true) && empty($data['prodi_id'])) {
+        $roleName = $roleNames[0] ?? null;
+        if (! $roleName) {
+            return back()->withErrors(['role' => 'Pilih satu peran akses.'])->withInput();
+        }
+
+        $role = Role::where('name', $roleName)->first();
+        if (! $role) {
+            return back()->withErrors(['role' => 'Peran yang dipilih belum tersedia di database.'])->withInput();
+        }
+
+        if ($roleName === Role::ADMIN_PRODI && empty($data['prodi_id'])) {
             return back()->withErrors(['prodi_id' => 'Program studi wajib dipilih untuk peran Admin Prodi.'])->withInput();
         }
         $existing = isset($data['id']) ? User::findOrFail($data['id']) : null;
 
         if ($existing?->hasRole(Role::ADMIN)
-            && (! in_array(Role::ADMIN, $roleNames, true) || $data['status'] !== 'aktif')
+            && ($roleName !== Role::ADMIN || $data['status'] !== 'aktif')
             && User::where('is_active', true)->where('id', '!=', $existing->id)
                 ->where(fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', Role::ADMIN))
                     ->orWhereHas('role', fn ($roleQuery) => $roleQuery->where('name', Role::ADMIN)))
@@ -127,14 +138,10 @@ class AdminPreviewController extends Controller
         }
 
         $temporaryPassword = null;
-        DB::transaction(function () use ($data, $roles, $roleNames, $existing, &$temporaryPassword) {
-            $primaryRoleName = $existing?->role && in_array($existing->role->name, $roleNames, true)
-                ? $existing->role->name
-                : $roleNames[0];
-            $primaryRole = $roles[$primaryRoleName];
+        DB::transaction(function () use ($data, $role, $roleName, $existing, &$temporaryPassword) {
             $prodiId = ! empty($data['prodi_id']) ? (int) $data['prodi_id'] : null;
             $detectedAngkatan = null;
-            if (in_array(Role::MAHASISWA, $roleNames, true)) {
+            if ($roleName === Role::MAHASISWA) {
                 $num = trim($data['number']);
                 if (preg_match('/^(20\d{2})/', $num, $m)) {
                     $detectedAngkatan = (int) $m[1];
@@ -146,14 +153,14 @@ class AdminPreviewController extends Controller
                 }
             }
 
-            $managingProdiId = in_array(Role::ADMIN_PRODI, $roleNames, true) ? $prodiId : null;
+            $managingProdiId = $roleName === Role::ADMIN_PRODI ? $prodiId : null;
 
             if ($existing) {
                 $existing->update([
                     'name' => trim($data['name']),
                     'email' => strtolower(trim($data['email'])),
                     'nim_nidn' => trim($data['number']),
-                    'role_id' => $primaryRole->id,
+                    'role_id' => $role->id,
                     'prodi_id' => $prodiId,
                     'managing_prodi_id' => $managingProdiId,
                     'is_active' => $data['status'] === 'aktif',
@@ -166,7 +173,7 @@ class AdminPreviewController extends Controller
                     'name' => trim($data['name']),
                     'email' => strtolower(trim($data['email'])),
                     'nim_nidn' => trim($data['number']),
-                    'role_id' => $primaryRole->id,
+                    'role_id' => $role->id,
                     'prodi_id' => $prodiId,
                     'managing_prodi_id' => $managingProdiId,
                     'password' => Hash::make($temporaryPassword),
@@ -176,8 +183,8 @@ class AdminPreviewController extends Controller
                     'angkatan' => $detectedAngkatan,
                 ]);
             }
-            $user->roles()->sync($roles->pluck('id')->all());
-            AdminPreview::log('Menyimpan pengguna '.$user->name.' dengan peran '.implode(', ', $roleNames).'.', ['user_id' => $user->id]);
+            $user->roles()->sync([$role->id]);
+            AdminPreview::log('Menyimpan pengguna '.$user->name.' dengan peran '.$roleName.'.', ['user_id' => $user->id]);
         });
 
         $notice = 'Data pengguna berhasil disimpan ke database.';
@@ -370,7 +377,7 @@ class AdminPreviewController extends Controller
                         $updateData['angkatan'] = $detectedAngkatan;
                     }
                     $existing->update($updateData);
-                    $existing->roles()->syncWithoutDetaching([$roleId]);
+                    $existing->roles()->sync([$roleId]);
                 } else {
                     $created = User::create([
                         'nim_nidn' => $idNum,
@@ -440,8 +447,20 @@ class AdminPreviewController extends Controller
                 if ($data['status'] === 'aktif') {
                     Semester::query()->update(['is_active' => false]);
                 }
+                $academicYear = null;
+                if (preg_match('/(\d{4}\/\d{4})/', $data['name'], $m)) {
+                    $academicYear = $m[1];
+                } elseif (preg_match('/(\d{4})/', $data['name'], $m)) {
+                    $academicYear = $m[1] . '/' . ((int) $m[1] + 1);
+                }
+                $term = str_contains(strtolower($data['name']), 'genap') ? 2 : 1;
+
                 Semester::updateOrCreate(['id' => $modelId], [
-                    'code' => trim($data['code']), 'name' => trim($data['name']), 'is_active' => $data['status'] === 'aktif',
+                    'code' => trim($data['code']),
+                    'name' => trim($data['name']),
+                    'academic_year' => $academicYear,
+                    'term' => $term,
+                    'is_active' => $data['status'] === 'aktif',
                 ]);
             }
             AdminPreview::log('Menyimpan '.$data['type'].' '.$data['name'].' ke database.');
