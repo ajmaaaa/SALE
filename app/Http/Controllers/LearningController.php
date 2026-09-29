@@ -318,8 +318,16 @@ class LearningController extends Controller
                     'version' => $dbSub->version,
                     'answer_scores' => $dbSub->answers
                         ->where('version', $dbSub->version)
-                        ->filter(fn ($answer) => $answer->question_id !== null)
-                        ->mapWithKeys(fn ($answer) => [(string) $answer->question_id => $answer->earned_score === null ? null : (float) $answer->earned_score])
+                        ->mapWithKeys(function ($answer) {
+                            $res = [];
+                            if ($answer->question_id !== null) {
+                                $res[(string) $answer->question_id] = $answer->earned_score === null ? null : (float) $answer->earned_score;
+                            }
+                            if ($answer->question_index !== null) {
+                                $res[(string) $answer->question_index] = $answer->earned_score === null ? null : (float) $answer->earned_score;
+                            }
+                            return $res;
+                        })
                         ->all(),
                 ];
             }
