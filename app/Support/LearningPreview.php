@@ -814,10 +814,19 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                     }
                 }
 
+                $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
+                $isTask = in_array($type, ['tugas', 'coding', 'pbl', 'case', 'project'], true);
+                $title = $isQuiz
+                    ? "Nilai Quiz Diperbarui: {$item['title']} ({$courseCode})"
+                    : ($isTask ? "Nilai Tugas Diperbarui: {$item['title']} ({$courseCode})" : "Nilai Diperbarui: {$item['title']} ({$courseCode})");
+                $message = $isQuiz
+                    ? 'Nilai quiz sudah diperbarui oleh dosen dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg
+                    : ($isTask ? 'Nilai tugas sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg : 'Nilai sudah dinilai dan diperbarui dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg);
+
                 $notifications[] = [
                     'id' => $notifKey,
-                    'title' => "Nilai Terbit: {$item['title']} ({$courseCode})",
-                    'message' => 'Hasil evaluasi pengerjaan Anda telah dinilai oleh dosen pengampu dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg,
+                    'title' => $title,
+                    'message' => $message,
                     'time' => self::formatNotificationTime($scoreTimestamp),
                     'timestamp' => $scoreTimestamp,
                     'icon_type' => 'grade',
