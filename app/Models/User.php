@@ -76,10 +76,15 @@ class User extends Authenticatable
             return 1;
         }
 
-        $startYear = 0;
-        if (! empty($semester->academic_year)) {
+        $startYear = $semester->academic_year_start ?? 0;
+        if ($startYear <= 0 && ! empty($semester->academic_year)) {
             $parts = explode('/', (string) $semester->academic_year);
             $startYear = (int) $parts[0];
+        }
+        if ($startYear <= 0 && ! empty($semester->name)) {
+            if (preg_match('/(\d{4})/', (string) $semester->name, $matches)) {
+                $startYear = (int) $matches[1];
+            }
         }
         if ($startYear <= 0 && ! empty($semester->code)) {
             $startYear = (int) substr((string) $semester->code, 0, 4);
@@ -89,7 +94,7 @@ class User extends Authenticatable
         }
 
         $yearDiff = $startYear - (int) $this->angkatan;
-        $termOffset = ($semester->term === 2 || str_contains(strtolower((string) $semester->name), 'genap')) ? 2 : 1;
+        $termOffset = ($semester->term === 2 || str_contains(strtolower((string) ($semester->name . ' ' . $semester->code)), 'genap')) ? 2 : 1;
 
         $calculated = ($yearDiff * 2) + $termOffset;
 
@@ -134,6 +139,14 @@ class User extends Authenticatable
     public function classSectionsAssisting(): HasMany
     {
         return $this->hasMany(ClassSection::class, 'dosen_pendamping_id');
+    }
+
+    public function totalClassSectionsTeachingCount(): int
+    {
+        return ClassSection::where(function ($q) {
+            $q->where('dosen_id', $this->id)
+                ->orWhere('dosen_pendamping_id', $this->id);
+        })->count();
     }
 
     public function classSectionsEnrolled(): BelongsToMany
