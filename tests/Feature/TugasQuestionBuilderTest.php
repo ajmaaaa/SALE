@@ -309,4 +309,214 @@ class TugasQuestionBuilderTest extends TestCase
         $response->assertSee('PDF');
         $response->assertSee('Tonton Video');
     }
+
+    public function test_lecturer_can_store_regular_task_even_if_hidden_empty_question_payload_is_present(): void
+    {
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'regular',
+            'title' => 'Tugas Normal Tanpa Question',
+            'module' => 'Minggu 5: Struktur Data Linear',
+            'body' => 'Selesaikan instruksi tugas berikut secara mandiri.',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['file', 'text'],
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            // Simulasi input hidden question builder yang ikut terkirim dari DOM browser
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => '',
+                    'points' => 100,
+                    'cpmk' => $this->cpmk1->code,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('name', 'Tugas Normal Tanpa Question')->firstOrFail();
+        $this->assertSame('tugas', $assessment->type);
+        $this->assertSame('manual_cpmk', $assessment->learning_payload['scoring_mode']);
+
+        $cpmkPivot = $assessment->cpmks()->get()->keyBy('code');
+        $this->assertEqualsWithDelta(100.0, (float) $cpmkPivot['CPMK-1']->pivot->weight, 0.01);
+    }
+
+    public function test_lecturer_can_update_regular_task_even_if_hidden_empty_question_payload_is_present(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-EXISTING',
+            'name' => 'Tugas Awal',
+            'type' => 'tugas',
+            'final_weight' => 10,
+            'status' => 'published',
+            'learning_payload' => [
+                'type' => 'tugas',
+                'task_mode' => 'regular',
+                'title' => 'Tugas Awal',
+                'module' => 'Minggu 1',
+                'body' => 'Instruksi awal',
+                'scoring_mode' => 'manual_cpmk',
+                'manual_cpmk_weights' => ['CPMK-1' => 100],
+            ],
+        ]);
+
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'regular',
+            'title' => 'Tugas Awal Diperbarui',
+            'module' => 'Minggu 1 Update',
+            'body' => 'Instruksi diperbarui',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['file', 'text'],
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => '',
+                    'points' => 100,
+                    'cpmk' => $this->cpmk1->code,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->put(
+            route('dosen.item.update', [$this->section->id, $assessment->id]),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.item', [$this->section->id, $assessment->id]))
+            ->assertSessionHasNoErrors();
+
+        $assessment->refresh();
+        $this->assertSame('Tugas Awal Diperbarui', $assessment->name);
+    }
+
+    public function test_quiz_creation_still_validates_questions_prompt(): void
+    {
+        $payload = [
+            'type' => 'kuis',
+            'title' => 'Kuis Algoritma',
+            'module' => 'Minggu 6: Kuis',
+            'body' => 'Kerjakan kuis berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['text'],
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => '', // kosong, wajib gagal validasi untuk kuis
+                    'points' => 100,
+                    'cpmk' => $this->cpmk1->code,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertSessionHasErrors(['questions.0.prompt']);
+    }
+
+    public function test_task_deadline_is_optional_on_create(): void
+    {
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'regular',
+            'title' => 'Tugas Tanpa Tenggat',
+            'module' => 'Minggu 7: Analisis Algoritma',
+            'body' => 'Kerjakan tugas tanpa batasan tenggat.',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['file', 'text'],
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            // 'due' tidak dikirim sama sekali (toggle nonaktif)
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('name', 'Tugas Tanpa Tenggat')->firstOrFail();
+        $this->assertNull($assessment->due_at);
+        $this->assertNull($assessment->learning_payload['due'] ?? null);
+
+        // Pastikan tampilan course dapat dirender dan menampilkan label "Tugas perkuliahan"
+        $courseResponse = $this->actingAs($this->dosen)->get(route('dosen.course.show', $this->section->id));
+        $courseResponse->assertOk();
+        $courseResponse->assertSee('Tugas Tanpa Tenggat');
+        $courseResponse->assertSee('Tugas perkuliahan');
+    }
+
+    public function test_task_deadline_is_optional_on_update(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-DUE',
+            'name' => 'Tugas Ber-Tenggat Semula',
+            'type' => 'tugas',
+            'final_weight' => 10,
+            'status' => 'published',
+            'due_at' => now()->addDays(3),
+            'learning_payload' => [
+                'type' => 'tugas',
+                'task_mode' => 'regular',
+                'title' => 'Tugas Ber-Tenggat Semula',
+                'module' => 'Minggu 2',
+                'body' => 'Instruksi tugas',
+                'due' => now()->addDays(3)->format('Y-m-d\TH:i'),
+                'scoring_mode' => 'manual_cpmk',
+                'manual_cpmk_weights' => ['CPMK-1' => 100],
+            ],
+        ]);
+
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'regular',
+            'title' => 'Tugas Ber-Tenggat Diubah Tanpa Tenggat',
+            'module' => 'Minggu 2 Update',
+            'body' => 'Instruksi tugas diperbarui',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['file', 'text'],
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            'due' => '', // kosong karena toggle dinonaktifkan
+        ];
+
+        $response = $this->actingAs($this->dosen)->put(
+            route('dosen.item.update', [$this->section->id, $assessment->id]),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.item', [$this->section->id, $assessment->id]))
+            ->assertSessionHasNoErrors();
+
+        $assessment->refresh();
+        $this->assertSame('Tugas Ber-Tenggat Diubah Tanpa Tenggat', $assessment->name);
+        $this->assertNull($assessment->due_at);
+        $this->assertNull($assessment->learning_payload['due']);
+    }
 }
