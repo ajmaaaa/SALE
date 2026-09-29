@@ -25,22 +25,6 @@
         </div>
     </header>
 
-    {{-- Banner Batasan 1 Fakultas --}}
-    @if($hasFakultas)
-        <div class="rounded-xl border border-line/70 bg-canvas/60 p-4 text-xs text-muted flex items-start justify-between gap-4">
-            <div class="flex items-center gap-2.5">
-                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold">1</span>
-                <div>
-                    <span class="font-semibold text-ink">Fakultas Terdaftar: {{ $existingFakultas['name'] }} ({{ $existingFakultas['code'] }})</span>
-                    <p class="mt-0.5 text-muted">Sistem institusi saat ini dibatasi maksimal 1 fakultas. Anda dapat mengubah data fakultas melalui tombol Edit atau menghapusnya jika ingin mengganti.</p>
-                </div>
-            </div>
-            <a href="{{ route('admin.page', 'akademik') }}?edit={{ $existingFakultas['id'] }}" class="text-xs font-semibold text-brand hover:text-brand-dark shrink-0">
-                Edit Fakultas
-            </a>
-        </div>
-    @endif
-
     {{-- Form Tambah / Edit Data Akademik --}}
     @if(request('create') || $record || $errors->any())
         <form method="post" action="{{ route('admin.academic.store') }}" class="surface space-y-5 p-6 border border-line/60">
