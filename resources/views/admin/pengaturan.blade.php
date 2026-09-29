@@ -16,6 +16,7 @@
     $aiModel = (!in_array(strtolower($rawModel), ['google ai', 'open ai', 'deepseek'])) ? $rawModel : 'gemini-2.5-flash';
     $aiApiKey = $settings['ai_api_key'] ?? '';
     $maintenance = $settings['maintenance_mode'] ?? '0';
+    $sessionLifetime = $settings['session_lifetime'] ?? (string) config('session.lifetime', 120);
 
     $selectedProviderKey = 'Google AI';
     $currentAiProvider = strtolower(old('ai_provider', $aiProvider));
@@ -179,7 +180,7 @@
                             </button>
                         </div>
                         <div class="mt-1 flex items-center min-h-4">
-                            <span id="ai-conn-status-text" class="text-xs font-semibold {{ !empty($aiApiKey) ? 'text-emerald-600' : '' }}">{{ !empty($aiApiKey) ? 'Terhubung ke model AI' : '' }}</span>
+                            <span id="ai-conn-status-text" class="text-xs font-semibold {{ !empty($aiApiKey) ? 'text-emerald-600' : 'text-muted' }}">{{ !empty($aiApiKey) ? 'Terhubung ke model AI' : 'Tidak terhubung ke model AI' }}</span>
                         </div>
                     </div>
 
@@ -210,16 +211,10 @@
                 </div>
 
                 <div>
-                    <label class="form-label">Durasi Masa Aktif Sesi</label>
-                    <input class="field" type="text" disabled readonly value="120 Menit (Otomatis Diperpanjang)">
-                    <p class="mt-1 text-[11px] text-muted">Sesi pratinjau interaktif disimpan lokal pada browser sesi ini.</p>
+                    <label class="form-label" for="session_lifetime">Durasi Masa Aktif Sesi (Menit)</label>
+                    <input class="field font-mono" name="session_lifetime" id="session_lifetime" type="number" min="5" max="10080" step="5" value="{{ old('session_lifetime', $sessionLifetime) }}" placeholder="120" required>
+                    <p class="mt-1 text-[11px] text-muted">Durasi kedaluwarsa sesi pengguna (dalam menit) sebelum harus masuk kembali.</p>
                 </div>
-            </div>
-
-            <div class="flex items-center justify-end pt-3 border-t border-line/50">
-                <button type="submit" name="action" value="update_maintenance" class="button-secondary text-xs font-semibold py-1.5 px-3">
-                    Simpan Status Pemeliharaan Saja
-                </button>
             </div>
         </section>
 
@@ -325,8 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     populateModels(data.models, modelSelect?.value);
                 }
             } else {
-                statusText.textContent = 'Tidak terhubung ke model AI';
-                statusText.className = 'text-xs font-semibold text-red-600';
+                statusText.textContent = data.message || 'Tidak terhubung ke model AI';
+                statusText.className = 'text-xs font-semibold ' + (data.disconnected ? 'text-muted' : 'text-red-600');
+                if (data.models && data.models.length > 0) {
+                    populateModels(data.models, modelSelect?.value);
+                }
             }
         } catch (err) {
             statusText.textContent = 'Tidak terhubung ke model AI';
