@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -13,11 +13,11 @@
                 <span class="text-ink font-semibold">Pengguna</span>
             </nav>
             <h1 class="page-heading">Data Dosen &amp; Mahasiswa</h1>
-            <p class="page-description">Input data dosen dan mahasiswa secara manual atau impor massal melalui file template Excel/CSV.</p>
+            <p class="page-description">Input data dosen dan mahasiswa secara manual atau impor massal melalui file template Excel.</p>
         </div>
-        <div class="flex items-center justify-end gap-2 shrink-0 sm:ml-auto">
+        <div class="flex flex-wrap items-center gap-2">
             <label for="select_prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
-            <select id="select_prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56">
+            <select id="select_prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
                         {{ $p->code }} - {{ $p->name }}
@@ -247,7 +247,6 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeCreateUserModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Data Pengguna</button>
             </div>
         </form>
@@ -290,18 +289,17 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeEditUserModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Modal Impor Excel/CSV -->
+<!-- Modal Impor Excel -->
 <div id="importUserModal" onclick="if(event.target === this) closeImportModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
     <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
-            <h2 id="import_modal_title" class="text-base font-bold text-ink">Impor Data via Excel / CSV</h2>
+            <h2 id="import_modal_title" class="text-base font-bold text-ink">Impor Data via Excel</h2>
             <button type="button" onclick="closeImportModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -312,7 +310,7 @@
             <input type="hidden" name="prodi_id" value="{{ $activeProdi?->id }}">
 
             <div class="p-3 bg-canvas/60 rounded-lg border border-line text-xs space-y-1">
-                <p class="font-bold text-ink">Format File Template Excel/CSV:</p>
+                <p class="font-bold text-ink">Format File Template Excel (.xlsx):</p>
                 <p class="text-muted">Kolom 1: Nomor Identitas (NIM / NIDN)</p>
                 <p class="text-muted">Kolom 2: Nama Lengkap</p>
                 <p class="text-muted">Kolom 3: Email</p>
@@ -320,12 +318,11 @@
             </div>
 
             <div>
-                <label for="import_file" class="block text-xs font-semibold text-ink mb-1">Pilih File (.csv, .xlsx, .xls)</label>
-                <input type="file" name="file" id="import_file" required accept=".csv,.txt,.xlsx,.xls" class="field text-xs">
+                <label for="import_file" class="block text-xs font-semibold text-ink mb-1">Pilih File Excel (.xlsx, .xls)</label>
+                <input type="file" name="file" id="import_file" required accept=".xlsx,.xls,.csv" class="field text-xs">
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeImportModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Unggah &amp; Proses Impor</button>
             </div>
         </form>

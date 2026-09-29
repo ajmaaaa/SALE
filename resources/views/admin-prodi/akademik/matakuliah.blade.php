@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Mata Kuliah Program Studi</h1>
             <p class="page-description">Kelola mata kuliah kurikulum, penetapan SKS, dan pembukaan kelas perkuliahan.</p>
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0 sm:ml-auto w-full sm:w-auto">
+        <div class="flex flex-wrap items-center gap-2">
             <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
                 @foreach($prodis as $p)
                     <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
@@ -147,7 +147,6 @@
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain pada kelas mata kuliah ini.</span></span>
             </label>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeCreateMkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Mata Kuliah</button>
             </div>
         </form>
@@ -186,7 +185,6 @@
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain.</span></span>
             </label>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeEditMkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>

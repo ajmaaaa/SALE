@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div>
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <span>Administrasi</span>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Tata Kelola Akademik &amp; Kurikulum Prodi</h1>
             <p class="page-description">Kelola kurikulum OBE (CPL &amp; CPMK), penugasan Dosen Ketua &amp; Wakil kelas, input mahasiswa, serta laporan semesteran.</p>
         </div>
-        <div class="flex flex-wrap gap-2.5 shrink-0">
+        <div class="flex flex-wrap gap-2">
             <a href="{{ route('admin-prodi.kurikulum.index') }}" class="button-secondary text-xs">Kelola Kurikulum OBE</a>
             <a href="{{ route('admin-prodi.akademik.kelas') }}" class="button-primary text-xs">+ Buat Kelas Baru</a>
         </div>
@@ -188,7 +188,7 @@
                         <th class="px-4 py-3.5 !align-middle">Mata Kuliah</th>
                         <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua (Koordinator)</th>
                         <th class="px-4 py-3.5 w-44 !align-middle">Dosen Wakil (Pendamping)</th>
-                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Kode Masuk</th>
+                        <th class="px-4 py-3.5 text-center w-20 !align-middle">QR</th>
                         <th class="px-4 py-3.5 text-center w-28 !align-middle">Mahasiswa</th>
                         <th class="px-4 py-3.5 text-right w-28 !align-middle">Aksi</th>
                     </tr>
@@ -212,7 +212,12 @@
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
-                            <span class="font-mono font-bold tracking-wider text-ink text-xs">{{ $rc->enrollment_code }}</span>
+                            <button type="button"
+                                onclick="showDashboardQrModal('{{ $rc->display_code }}', '{{ addslashes($rc->mataKuliah->name) }}', '{{ $rc->enrollment_code }}', '{{ $rc->enrollment_url }}', '{{ route('kelas.qr', $rc->id) }}')"
+                                class="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted hover:text-brand hover:bg-canvas transition cursor-pointer"
+                                title="Tampilkan QR Code">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="2" height="2"/><rect x="18" y="18" width="3" height="3"/></svg>
+                            </button>
                         </td>
                         <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
                             {{ $rc->students_count }} <span class="font-normal text-muted text-[11px]">/ {{ $rc->capacity ?? '∞' }}</span>
@@ -233,4 +238,83 @@
         </div>
     </div>
 </div>
+
+{{-- Modal QR Code Kelas (Dashboard) --}}
+<div id="dashboardQrModal" onclick="if(event.target === this) closeDashboardQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line">
+        <div class="flex items-start justify-between px-6 pt-6 pb-4">
+            <div>
+                <h2 class="text-base font-bold text-ink">QR Code &amp; Akses Kelas</h2>
+                <p id="dash_qr_subtitle" class="text-xs text-muted mt-0.5"></p>
+            </div>
+            <button type="button" onclick="closeDashboardQrModal()"
+                    class="text-muted hover:text-ink transition p-1 rounded-lg hover:bg-canvas ml-3 shrink-0"
+                    aria-label="Tutup">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="flex justify-center px-6 pb-4">
+            <div class="p-4 bg-white border border-line rounded-2xl shadow-xs inline-flex">
+                <img id="dash_qr_image" src="" alt="QR Code Akses Kelas" class="h-44 w-44 object-contain">
+            </div>
+        </div>
+        <div class="text-center px-6 pb-4">
+            <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Kode Akses Kelas</p>
+            <p id="dash_qr_code_display" class="text-3xl font-bold text-ink tracking-[0.15em] font-mono"></p>
+            <p class="mt-3 text-xs text-muted leading-relaxed max-w-[260px] mx-auto">
+                Mahasiswa dapat memindai QR Code di atas atau memasukkan kode akses kelas untuk bergabung ke kelas ini.
+            </p>
+        </div>
+        <input type="hidden" id="dash_qr_code">
+        <input type="hidden" id="dash_qr_url">
+        <div class="flex gap-2 px-6 pb-6">
+            <button type="button" onclick="dashCopyCode()"
+                    class="flex-1 button-secondary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Salin Kode
+            </button>
+            <button type="button" onclick="dashCopyUrl()" id="dashBtnCopyUrl"
+                    class="flex-1 button-primary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Salin Link
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDashboardQrModal(classCode, mkName, code, url, qrSrc) {
+    document.getElementById('dash_qr_subtitle').textContent = mkName + ' (' + classCode + ')';
+    document.getElementById('dash_qr_code_display').textContent = code;
+    document.getElementById('dash_qr_code').value = code;
+    document.getElementById('dash_qr_url').value = url;
+    document.getElementById('dash_qr_image').src = qrSrc;
+    document.getElementById('dashboardQrModal').classList.remove('hidden');
+    document.getElementById('dashboardQrModal').classList.add('flex');
+}
+function closeDashboardQrModal() {
+    document.getElementById('dashboardQrModal').classList.add('hidden');
+    document.getElementById('dashboardQrModal').classList.remove('flex');
+}
+function dashCopyCode() {
+    const code = document.getElementById('dash_qr_code').value;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = event.currentTarget;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+    });
+}
+function dashCopyUrl() {
+    const url = document.getElementById('dash_qr_url').value;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('dashBtnCopyUrl');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+    });
+}
+</script>
 @endsection

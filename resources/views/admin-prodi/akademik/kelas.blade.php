@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Kelas Perkuliahan &amp; Penugasan Dosen</h1>
             <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Wakil, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0 sm:ml-auto">
+        <div class="flex flex-wrap items-center gap-2">
             <button type="button" onclick="openCreateKelasModal()" class="button-primary text-xs whitespace-nowrap">
                 + Buka Kelas Baru
             </button>
@@ -89,10 +89,9 @@
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
                             <button type="button" 
                                     onclick="showBarcodeModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}', '{{ route('kelas.barcode', $cls->id) }}')"
-                                    class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1.5"
+                                    class="button-secondary text-xs py-1 px-2.5 inline-flex items-center"
                                     title="Tampilkan Barcode / QR Code">
                                 <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
-                                <span>Barcode</span>
                             </button>
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
@@ -205,7 +204,6 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeCreateKelasModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Buat Kelas &amp; Generate Barcode</button>
             </div>
         </form>
@@ -258,7 +256,6 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeEditKelasModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>

@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
+    <header class="flex flex-col gap-3 pb-1">
         <div class="min-w-0 flex-1">
             <nav class="flex items-center gap-2 text-xs text-muted mb-1">
                 <a href="{{ route('admin-prodi.dashboard') }}" class="hover:text-brand">Admin Prodi</a>
@@ -15,7 +15,7 @@
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
             <p class="page-description">Tetapkan butir CPL prodi dan CPMK per mata kuliah secara terpusat. Dosen pengampu nantinya tinggal memilih CPMK yang telah disiapkan saat menyusun asesmen kelas.</p>
         </div>
-        <div class="flex items-center justify-end gap-2 shrink-0 sm:ml-auto w-full sm:w-auto">
+        <div class="flex flex-wrap items-center gap-2">
             <label for="select-prodi" class="text-xs font-semibold text-muted whitespace-nowrap">Program Studi:</label>
             <select id="select-prodi" onchange="switchProdi(this.value)" class="field text-xs font-semibold w-56 max-w-full">
                 @foreach($prodis as $p)
@@ -279,7 +279,6 @@
                 <textarea name="description" id="cpl_create_desc" required rows="4" placeholder="Mampu merancang dan menerapkan algoritma komputasi..." class="field text-xs"></textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeCreateCplModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Butir CPL</button>
             </div>
         </form>
@@ -307,7 +306,6 @@
                 <textarea name="description" id="cpl_edit_desc" required rows="4" class="field text-xs"></textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeEditCplModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>
@@ -362,7 +360,6 @@
             </div>
             @endif
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeCreateCpmkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan &amp; Tetapkan CPMK</button>
             </div>
         </form>
@@ -396,7 +393,6 @@
                 <textarea name="description" id="cpmk_edit_desc" required rows="4" class="field text-xs"></textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeEditCpmkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>
