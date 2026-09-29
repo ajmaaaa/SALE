@@ -187,6 +187,8 @@
                                     @elseif(!$isLecturer && $submission)
                                         <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
                                             <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '· '.$submission['time'] : '' }}</span>
+                                            <span class="text-xs text-slate-300">·</span>
+                                            <span class="text-xs font-medium text-amber-600">Menunggu penilaian esai</span>
                                         </div>
                                     @endif
                                 </div>
