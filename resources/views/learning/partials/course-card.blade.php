@@ -58,6 +58,10 @@
                     <span class="font-mono leading-4">{{ $course['code'] }}</span>
                     <span class="h-3 w-px self-center bg-brand/30" aria-hidden="true"></span>
                     <span class="leading-4">{{ $sks }}</span>
+                    @if(!empty($course['semester_paket']))
+                        <span class="h-3 w-px self-center bg-brand/30" aria-hidden="true"></span>
+                        <span class="leading-4">Sem. {{ $course['semester_paket'] }}</span>
+                    @endif
                 </div>
                 <h2 class="mt-1 text-lg font-semibold leading-snug text-ink group-hover:text-brand transition line-clamp-2 min-h-[3.25rem]">{{ $course['title'] }}</h2>
                 <div class="mt-2 text-xs text-muted truncate">
@@ -83,6 +87,10 @@
                         <span class="font-mono leading-4">{{ $course['code'] }}</span>
                         <span class="h-3 w-px self-center bg-white/30" aria-hidden="true"></span>
                         <span class="leading-4">{{ $sks }}</span>
+                        @if(!empty($course['semester_paket']))
+                            <span class="h-3 w-px self-center bg-white/30" aria-hidden="true"></span>
+                            <span class="leading-4">Sem. {{ $course['semester_paket'] }}</span>
+                        @endif
                     </div>
                     <h2 class="mt-2 text-lg sm:text-xl font-bold leading-snug text-white group-hover:text-slate-100 transition line-clamp-2 min-h-[3.25rem]">{{ $course['title'] }}</h2>
                 </div>

@@ -10,13 +10,28 @@
             <h2 class="section-heading text-xl font-bold text-ink">Capaian Pembelajaran OBE &amp; Nilai Mandiri</h2>
             <p class="mt-1 text-xs text-muted">Pantau pemenuhan standar CPMK dan ketercapaian CPL Anda secara transparan pada setiap mata kuliah yang diambil.</p>
         </div>
-        <div class="surface px-4 py-2 flex items-center gap-3">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-brand-dark font-bold text-xs shadow-2xs">
-                {{ mb_substr($student->name, 0, 1) }}
-            </div>
-            <div>
-                <p class="text-xs font-bold text-ink leading-tight">{{ $student->name }}</p>
-                <p class="text-[11px] text-muted">{{ $student->nim_nip ?? 'Mahasiswa' }}</p>
+        <div class="flex flex-wrap items-center gap-3">
+            @if(!empty($semesters) && $semesters->count())
+                <form method="GET" action="{{ route('mahasiswa.obe.progress') }}" class="flex items-center gap-2">
+                    <label for="filter_semester" class="sr-only">Semester</label>
+                    <select id="filter_semester" name="semester" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold sm:w-56">
+                        <option value="">Semua Semester</option>
+                        @foreach($semesters as $sem)
+                            <option value="{{ $sem->id }}" {{ (string) request('semester', $selectedSemesterId ?? '') === (string) $sem->id ? 'selected' : '' }}>
+                                {{ $sem->display_name }} {{ $sem->is_active ? '(Aktif)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            @endif
+            <div class="surface px-4 py-2 flex items-center gap-3">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-brand-dark font-bold text-xs shadow-2xs">
+                    {{ mb_substr($student->name, 0, 1) }}
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-ink leading-tight">{{ $student->name }}</p>
+                    <p class="text-[11px] text-muted">{{ $student->nim_nip ?? 'Mahasiswa' }}</p>
+                </div>
             </div>
         </div>
     </div>
@@ -61,7 +76,10 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs font-bold text-brand">{{ $sec->mataKuliah->code }}</span>
-                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} - Semester {{ $sec->semester->name ?? '' }}</span>
+                                @if($sec->mataKuliah->semester_paket)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">Sem. {{ $sec->mataKuliah->semester_paket }}</span>
+                                @endif
+                                <span class="text-xs font-medium text-muted">Kelas {{ $sec->name }} &bull; {{ $sec->semester->display_name ?? ($sec->semester->name ?? '') }}</span>
                             </div>
                             <h3 class="mt-1 text-base font-bold text-ink">{{ $sec->mataKuliah->name }}</h3>
                             <p class="text-xs text-muted">Dosen Pengampu: {{ $sec->dosen->name ?? '' }}</p>

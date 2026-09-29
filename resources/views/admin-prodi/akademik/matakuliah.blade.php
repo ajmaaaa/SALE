@@ -31,13 +31,21 @@
 
     <div class="surface p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <div class="relative w-72 max-w-full">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                    </svg>
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="relative w-64 max-w-full">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama..." class="field text-xs font-medium w-full" style="padding-left: 2.25rem !important;">
                 </div>
-                <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama mata kuliah..." class="field text-xs font-medium w-full" style="padding-left: 2.25rem !important;">
+                <select id="filter-semester-paket" onchange="switchSemesterPaket(this.value)" class="field text-xs font-semibold w-40">
+                    <option value="">Semua Semester</option>
+                    @for($i = 1; $i <= 8; $i++)
+                        <option value="{{ $i }}" {{ isset($selectedSemesterPaket) && $selectedSemesterPaket === $i ? 'selected' : '' }}>Semester {{ $i }}</option>
+                    @endfor
+                </select>
             </div>
             <div class="text-xs text-muted whitespace-nowrap">
                 Total terdaftar di <span class="font-semibold text-ink">{{ $activeProdi?->name }}</span>: <strong class="text-ink font-bold" id="mk-count">{{ $mataKuliahs->count() }}</strong> mata kuliah
@@ -51,7 +59,8 @@
                         <th class="px-4 py-3.5 text-center w-14 !align-middle">No</th>
                         <th class="px-4 py-3.5 w-32 !align-middle">Kode MK</th>
                         <th class="px-4 py-3.5 !align-middle">Nama Mata Kuliah</th>
-                        <th class="px-4 py-3.5 text-center w-28 !align-middle">Bobot SKS</th>
+                        <th class="px-4 py-3.5 text-center w-24 !align-middle">Semester</th>
+                        <th class="px-4 py-3.5 text-center w-24 !align-middle">Bobot SKS</th>
                         <th class="px-4 py-3.5 text-center w-32 !align-middle">Kelas Terbuka</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">CPMK Terdefinisi</th>
                         <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
@@ -66,6 +75,13 @@
                         </td>
                         <td class="px-4 py-3.5 font-semibold text-ink !align-middle">
                             {{ $mk->name }}
+                        </td>
+                        <td class="px-4 py-3.5 text-center font-medium text-ink !align-middle whitespace-nowrap">
+                            @if($mk->semester_paket)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">Sem. {{ $mk->semester_paket }}</span>
+                            @else
+                                <span class="text-xs text-muted">-</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3.5 text-center font-medium text-ink !align-middle whitespace-nowrap">
                             {{ $mk->sks }} SKS
@@ -83,7 +99,7 @@
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button"
-                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }}, {{ $mk->is_lintas_prodi ? 'true' : 'false' }})"
+                                        onclick="openEditMkModal({{ $mk->id }}, '{{ addslashes($mk->code) }}', '{{ addslashes($mk->name) }}', {{ $mk->sks }}, {{ $mk->is_lintas_prodi ? 'true' : 'false' }}, {{ $mk->semester_paket ?? 'null' }})"
                                         class="button-secondary text-[11px] py-1 px-2.5">
                                     Ubah
                                 </button>
@@ -99,7 +115,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-muted !align-middle">
+                        <td colspan="8" class="py-12 text-center text-muted !align-middle">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -127,7 +143,7 @@
         <form action="{{ route('admin-prodi.akademik.matakuliah.store') }}" method="POST" class="space-y-4">
             @csrf
             <input type="hidden" name="prodi_id" value="{{ $activeProdi?->id }}">
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
                 <div class="col-span-2">
                     <label for="mk_create_code" class="block text-xs font-semibold text-ink mb-1">Kode MK (contoh: IF204)</label>
                     <input type="text" name="code" id="mk_create_code" required maxlength="20" placeholder="IF204" class="field text-xs font-semibold uppercase">
@@ -135,6 +151,15 @@
                 <div>
                     <label for="mk_create_sks" class="block text-xs font-semibold text-ink mb-1">Bobot SKS</label>
                     <input type="number" name="sks" id="mk_create_sks" required min="1" max="8" value="3" class="field text-xs font-semibold">
+                </div>
+                <div>
+                    <label for="mk_create_sem" class="block text-xs font-semibold text-ink mb-1">Semester</label>
+                    <select name="semester_paket" id="mk_create_sem" class="field text-xs">
+                        <option value="">-</option>
+                        @for($i = 1; $i <= 8; $i++)
+                            <option value="{{ $i }}">Sem. {{ $i }}</option>
+                        @endfor
+                    </select>
                 </div>
             </div>
             <div>
@@ -165,7 +190,7 @@
         <form id="editMkForm" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
                 <div class="col-span-2">
                     <label for="mk_edit_code" class="block text-xs font-semibold text-ink mb-1">Kode MK</label>
                     <input type="text" name="code" id="mk_edit_code" required maxlength="20" class="field text-xs font-semibold uppercase">
@@ -173,6 +198,15 @@
                 <div>
                     <label for="mk_edit_sks" class="block text-xs font-semibold text-ink mb-1">Bobot SKS</label>
                     <input type="number" name="sks" id="mk_edit_sks" required min="1" max="8" class="field text-xs font-semibold">
+                </div>
+                <div>
+                    <label for="mk_edit_sem" class="block text-xs font-semibold text-ink mb-1">Semester</label>
+                    <select name="semester_paket" id="mk_edit_sem" class="field text-xs">
+                        <option value="">-</option>
+                        @for($i = 1; $i <= 8; $i++)
+                            <option value="{{ $i }}">Sem. {{ $i }}</option>
+                        @endfor
+                    </select>
                 </div>
             </div>
             <div>
@@ -196,6 +230,16 @@
         window.location.href = `{{ route('admin-prodi.akademik.matakuliah') }}?prodi_id=${prodiId}`;
     }
 
+    function switchSemesterPaket(sem) {
+        const url = new URL(window.location.href);
+        if (sem) {
+            url.searchParams.set('semester_paket', sem);
+        } else {
+            url.searchParams.delete('semester_paket');
+        }
+        window.location.href = url.toString();
+    }
+
     function openCreateMkModal() {
         document.getElementById('createMkModal').classList.remove('hidden');
         document.getElementById('createMkModal').classList.add('flex');
@@ -205,12 +249,13 @@
         document.getElementById('createMkModal').classList.remove('flex');
     }
 
-    function openEditMkModal(id, code, name, sks, isLintasProdi) {
+    function openEditMkModal(id, code, name, sks, isLintasProdi, semesterPaket) {
         const form = document.getElementById('editMkForm');
         form.action = `/admin-prodi/akademik/matakuliah/${id}`;
         document.getElementById('mk_edit_code').value = code;
         document.getElementById('mk_edit_name').value = name;
         document.getElementById('mk_edit_sks').value = sks;
+        document.getElementById('mk_edit_sem').value = semesterPaket || '';
         document.getElementById('mk_edit_lintas').checked = Boolean(isLintasProdi);
         document.getElementById('editMkModal').classList.remove('hidden');
         document.getElementById('editMkModal').classList.add('flex');

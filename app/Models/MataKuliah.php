@@ -13,12 +13,21 @@ class MataKuliah extends Model
         'code',
         'name',
         'sks',
+        'semester_paket',
         'is_lintas_prodi',
     ];
 
     protected function casts(): array
     {
-        return ['is_lintas_prodi' => 'boolean'];
+        return [
+            'semester_paket' => 'integer',
+            'is_lintas_prodi' => 'boolean',
+        ];
+    }
+
+    public function getSemesterPaketLabelAttribute(): ?string
+    {
+        return $this->semester_paket ? 'Semester ' . $this->semester_paket : null;
     }
 
     public function prodi(): BelongsTo

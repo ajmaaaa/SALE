@@ -127,7 +127,12 @@
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cr['mk_name'] }}</span>
-                            <span class="text-[11px] text-muted block mt-0.5">{{ $cr['sks'] }} SKS</span>
+                            <span class="text-[11px] text-muted block mt-0.5">
+                                {{ $cr['sks'] }} SKS
+                                @if(!empty($cr['semester_paket']))
+                                    &bull; <span class="text-slate-600 font-semibold">Sem. {{ $cr['semester_paket'] }}</span>
+                                @endif
+                            </span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cr['dosen_ketua'] }}</span>

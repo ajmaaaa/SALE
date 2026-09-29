@@ -54,7 +54,7 @@ class AcademicController extends Controller
         }
 
         $allSemesters = Schema::hasTable('semesters')
-            ? Semester::orderByDesc('code')->get()
+            ? Semester::orderChronological()->get()
             : collect();
         $activeSemester = $allSemesters->firstWhere('is_active', true) ?? $allSemesters->first();
 
@@ -156,6 +156,7 @@ class AcademicController extends Controller
                     'id' => $sec->id,
                     'code' => $sec->display_code,
                     'title' => $sec->mataKuliah->name,
+                    'semester_paket' => $sec->mataKuliah->semester_paket,
                     'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
                     'sks' => $sks,
                     'final_score' => $finalScore,
@@ -256,7 +257,7 @@ class AcademicController extends Controller
         foreach ($allSemesters as $s) {
             $semesterOptions[$s->code] = [
                 'id' => $s->id,
-                'label' => $s->name.($s->is_active ? ' (Aktif)' : ''),
+                'label' => $s->display_name.($s->is_active ? ' (Aktif)' : ''),
                 'code' => $s->code,
                 'is_active' => $s->is_active,
             ];

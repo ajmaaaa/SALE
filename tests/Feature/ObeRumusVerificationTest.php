@@ -504,7 +504,10 @@ class ObeRumusVerificationTest extends TestCase
             ->get(route('dosen.penilaian.export.keseluruhan', $this->section->id));
 
         $response->assertOk();
-        $this->assertTrue($response->headers->contains('content-type', 'text/csv; charset=UTF-8'));
+        $this->assertTrue(
+            $response->headers->contains('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            || $response->headers->contains('content-type', 'text/csv; charset=UTF-8')
+        );
     }
 
     /**

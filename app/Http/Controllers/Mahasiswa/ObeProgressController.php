@@ -24,9 +24,13 @@ class ObeProgressController extends Controller
         $student = $this->resolveStudent();
         abort_unless($student, 403, 'Akses khusus Mahasiswa.');
 
+        $semesters = \App\Models\Semester::orderChronological()->get();
+        $selectedSemesterId = $request->query('semester');
+
         // Hanya kelas yang diikuti oleh mahasiswa ini
         $enrolledSections = $student->classSectionsEnrolled()
             ->with(['mataKuliah', 'semester', 'dosen'])
+            ->when($selectedSemesterId, fn ($q) => $q->where('semester_id', $selectedSemesterId))
             ->get();
 
         $courseProgress = $enrolledSections->map(function ($section) use ($student) {
@@ -63,6 +67,8 @@ class ObeProgressController extends Controller
         return view('mahasiswa.obe-progress', [
             'student' => $student,
             'courseProgress' => $courseProgress,
+            'semesters' => $semesters,
+            'selectedSemesterId' => $selectedSemesterId,
         ]);
     }
 

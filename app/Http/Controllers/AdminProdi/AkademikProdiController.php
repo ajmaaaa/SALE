@@ -22,14 +22,18 @@ class AkademikProdiController extends AdminProdiController
         $prodis = $this->allowedProdis();
         $activeProdi = $this->resolveActiveProdi($request);
 
+        $selectedSemesterPaket = $request->filled('semester_paket') ? $request->integer('semester_paket') : null;
+
         $mataKuliahs = $activeProdi
             ? $activeProdi->mataKuliahs()
+                ->when($selectedSemesterPaket, fn ($q) => $q->where('semester_paket', $selectedSemesterPaket))
                 ->withCount(['classSections', 'cpmks'])
+                ->orderBy('semester_paket')
                 ->orderBy('code')
                 ->get()
             : collect();
 
-        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs'));
+        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs', 'selectedSemesterPaket'));
     }
 
     public function storeMataKuliah(Request $request): RedirectResponse
@@ -47,6 +51,7 @@ class AkademikProdiController extends AdminProdiController
             ],
             'name' => ['required', 'string', 'max:150'],
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
+            'semester_paket' => ['nullable', 'integer', 'min:1', 'max:8'],
             'is_lintas_prodi' => ['nullable', 'boolean'],
         ], [
             'code.unique' => 'Kode mata kuliah sudah digunakan pada program studi ini.',
@@ -72,6 +77,7 @@ class AkademikProdiController extends AdminProdiController
             ],
             'name' => ['required', 'string', 'max:150'],
             'sks' => ['required', 'integer', 'min:1', 'max:8'],
+            'semester_paket' => ['nullable', 'integer', 'min:1', 'max:8'],
             'is_lintas_prodi' => ['nullable', 'boolean'],
         ]);
 

@@ -308,6 +308,7 @@ class LaporanProdiController extends AdminProdiController
                 'section_id' => $section->id,
                 'mk_code' => $section->mataKuliah->code,
                 'mk_name' => $section->mataKuliah->name,
+                'semester_paket' => $section->mataKuliah->semester_paket,
                 'sks' => $section->mataKuliah->sks,
                 'section_code' => $section->section_code,
                 'dosen_ketua' => $section->dosen?->name ?? '-',

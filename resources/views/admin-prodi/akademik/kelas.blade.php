@@ -74,7 +74,12 @@
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cls->mataKuliah->name }}</span>
-                            <span class="text-[11px] text-muted block mt-0.5">{{ $cls->mataKuliah->code }} &bull; {{ $cls->mataKuliah->sks }} SKS</span>
+                            <span class="text-[11px] text-muted block mt-0.5">
+                                {{ $cls->mataKuliah->code }} &bull; {{ $cls->mataKuliah->sks }} SKS
+                                @if($cls->mataKuliah->semester_paket)
+                                    &bull; <span class="text-slate-600 font-semibold">Sem. {{ $cls->mataKuliah->semester_paket }}</span>
+                                @endif
+                            </span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-medium text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
@@ -147,7 +152,9 @@
                 <label for="create_mk_id" class="block text-xs font-semibold text-ink mb-1">Mata Kuliah</label>
                 <select name="mata_kuliah_id" id="create_mk_id" required class="field text-xs font-semibold">
                     @foreach($mataKuliahs as $mk)
-                        <option value="{{ $mk->id }}">{{ $mk->code }} - {{ $mk->name }} ({{ $mk->sks }} SKS)</option>
+                        <option value="{{ $mk->id }}">
+                            {{ $mk->code }} - {{ $mk->name }} {{ $mk->semester_paket ? '(Sem. ' . $mk->semester_paket . ')' : '' }} ({{ $mk->sks }} SKS)
+                        </option>
                     @endforeach
                 </select>
             </div>

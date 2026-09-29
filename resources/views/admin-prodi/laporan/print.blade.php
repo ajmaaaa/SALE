@@ -292,7 +292,7 @@
                     <tr>
                         <td class="center">{{ $idx + 1 }}</td>
                         <td class="center" style="font-family:monospace;font-weight:bold;">{{ $cr['mk_code'] }}-{{ $cr['section_code'] }}</td>
-                        <td>{{ $cr['mk_name'] }} ({{ $cr['sks'] }} SKS)</td>
+                        <td>{{ $cr['mk_name'] }} ({{ $cr['sks'] }} SKS{{ !empty($cr['semester_paket']) ? ' - Sem. ' . $cr['semester_paket'] : '' }})</td>
                         <td>{{ $cr['dosen_ketua'] }}</td>
                         <td>{{ $cr['dosen_wakil'] !== '-' ? $cr['dosen_wakil'] : '' }}</td>
                         <td class="center">{{ $cr['students_count'] }}</td>

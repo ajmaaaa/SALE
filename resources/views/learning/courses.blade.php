@@ -17,10 +17,26 @@
         </div>
     </header>
 
-    <form class="flex flex-col gap-3 sm:flex-row" action="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" method="GET">
+    <form class="flex flex-col gap-3 sm:flex-row sm:items-center" action="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" method="GET">
         <label class="sr-only" for="course-search">Cari course</label>
         <input id="course-search" name="q" type="search" class="field sm:max-w-md" placeholder="Cari judul, kode, atau dosen" value="{{ request('q') }}">
+
+        @if(!empty($semesters) && $semesters->count())
+            <label class="sr-only" for="course-semester">Semester</label>
+            <select id="course-semester" name="semester" onchange="this.form.submit()" class="field sm:w-56 text-xs font-semibold">
+                <option value="">Semua Semester</option>
+                @foreach($semesters as $sem)
+                    <option value="{{ $sem->id }}" {{ (string) request('semester', $selectedSemesterId ?? '') === (string) $sem->id ? 'selected' : '' }}>
+                        {{ $sem->display_name }} {{ $sem->is_active ? '(Aktif)' : '' }}
+                    </option>
+                @endforeach
+            </select>
+        @endif
+
         <button type="submit" class="button-secondary">Terapkan</button>
+        @if(request()->filled('q') || request()->filled('semester'))
+            <a href="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" class="button-secondary">Reset</a>
+        @endif
     </form>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Daftar course">

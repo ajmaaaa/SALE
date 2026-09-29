@@ -43,10 +43,12 @@ class LearningController extends Controller
     public function courses(Request $request)
     {
         $q = mb_strtolower((string) $request->query('q', ''));
+        $selectedSemesterId = $request->query('semester');
         $user = auth()->user();
 
         $isDosen = $user?->hasRole(Role::DOSEN) ?? request()->is('dosen*');
         $sections = collect();
+        $semesters = Semester::orderChronological()->get();
 
         if ($user && Schema::hasTable('class_sections')) {
             $query = $isDosen
@@ -64,6 +66,9 @@ class LearningController extends Controller
                         $mataKuliah->whereRaw('LOWER(name) LIKE ?', ["%{$q}%"])
                             ->orWhereRaw('LOWER(code) LIKE ?', ["%{$q}%"]);
                     });
+                })
+                ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
+                    $query->where('semester_id', $selectedSemesterId);
                 })
                 ->get();
         }
@@ -140,6 +145,10 @@ class LearningController extends Controller
                     'cover' => $payload['cover'] ?? null,
                     'type' => 'Kelas Aktif',
                     'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),
+                    'semester_id' => $section->semester_id,
+                    'semester_name' => $section->semester?->name,
+                    'semester_display' => $section->semester?->display_name ?? $section->semester?->name,
+                    'semester_paket' => $section->mataKuliah?->semester_paket,
                     'due' => '',
                     'students_count' => $section->students_count,
                     'assessments_count' => $section->assessments_count,
@@ -163,7 +172,7 @@ class LearningController extends Controller
             $courses = [];
         }
 
-        return view('learning.courses', compact('courses'));
+        return view('learning.courses', compact('courses', 'semesters', 'selectedSemesterId'));
     }
 
     public function course(int $course)
