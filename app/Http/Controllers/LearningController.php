@@ -1606,7 +1606,7 @@ class LearningController extends Controller
             'boolean_choice' => 'nullable|string|in:Benar,Salah',
             'matching' => 'nullable|array',
         ], [
-            'files.*.max' => 'Ukuran berkas tidak boleh melebihi batas maksimal 5 MB. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja.',
+            'files.*.max' => 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.',
         ]);
         $isFromQuizRoom = $request->boolean('from_quiz_room');
         $isCodingSubmission = in_array($resource['type'] ?? '', ['coding'], true)
@@ -2242,6 +2242,32 @@ class LearningController extends Controller
             return $carbon->translatedFormat('d F Y');
         });
 
+        if ($request->wantsJson() || $request->ajax() || $request->query('format') === 'json') {
+            $html = view('learning.partials.notification-list', [
+                'notifications' => $notifications,
+                'groupedNotifications' => $groupedNotifications,
+                'selectedCategory' => $category,
+            ])->render();
+
+            $fingerprint = md5(json_encode(
+                collect($notifications)->map(fn ($n) => $n['id'] . ':' . (!empty($n['is_read']) ? '1' : '0'))->all()
+            ));
+
+            return response()->json([
+                'success' => true,
+                'unread_count' => count($unreadNotifications),
+                'category_counts' => $categoryCounts,
+                'has_unread' => count($unreadNotifications) > 0,
+                'total_count' => count($notifications),
+                'fingerprint' => $fingerprint,
+                'html' => $html,
+            ], 200, [
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
+            ]);
+        }
+
         return response()
             ->view('learning.notifications', [
                 'notifications' => $notifications,
@@ -2301,6 +2327,32 @@ class LearningController extends Controller
             return $carbon->translatedFormat('d F Y');
         });
 
+        if ($request->wantsJson() || $request->ajax() || $request->query('format') === 'json') {
+            $html = view('dosen.partials.notification-list', [
+                'notifications' => $notifications,
+                'groupedNotifications' => $groupedNotifications,
+                'selectedCategory' => $category,
+            ])->render();
+
+            $fingerprint = md5(json_encode(
+                collect($notifications)->map(fn ($n) => $n['id'] . ':' . (!empty($n['is_read']) ? '1' : '0'))->all()
+            ));
+
+            return response()->json([
+                'success' => true,
+                'unread_count' => count($unreadNotifications),
+                'category_counts' => $categoryCounts,
+                'has_unread' => count($unreadNotifications) > 0,
+                'total_count' => count($notifications),
+                'fingerprint' => $fingerprint,
+                'html' => $html,
+            ], 200, [
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
+            ]);
+        }
+
         return response()
             ->view('dosen.notifikasi', [
                 'notifications' => $notifications,
@@ -2312,6 +2364,67 @@ class LearningController extends Controller
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
+    }
+
+    /**
+     * Endpoint status real-time untuk badge navigasi dan counter aktivitas
+     */
+    public function liveStatus(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false], 401);
+        }
+
+        $isDosen = $user->hasRole(Role::DOSEN) && (request()->is('dosen*') || ! request()->is('mahasiswa*'));
+        $role = $isDosen ? Role::DOSEN : Role::MAHASISWA;
+
+        $allNotifs = $this->notifications->forUser($user, $role);
+        $unreadNotifs = array_filter($allNotifs, fn ($n) => empty($n['is_read']));
+        $unreadCount = count($unreadNotifs);
+
+        $categoryCounts = [
+            'all' => $unreadCount,
+            'tugas' => count(array_filter($unreadNotifs, fn ($n) => ($n['category'] ?? '') === 'tugas')),
+            'nilai' => count(array_filter($unreadNotifs, fn ($n) => ($n['category'] ?? '') === 'nilai')),
+            'sistem' => count(array_filter($unreadNotifs, fn ($n) => ($n['category'] ?? '') === 'sistem')),
+            'diskusi' => count(array_filter($unreadNotifs, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
+        ];
+
+        $forumUnreadCount = $categoryCounts['diskusi'];
+        $pendingTaskCount = $user->hasRole(Role::MAHASISWA) ? $this->notifications->pendingTaskCount($user) : 0;
+        $pendingGradingCount = $user->hasRole(Role::DOSEN) ? \App\Support\DosenNavigation::pendingGradingCount() : 0;
+
+        $dosenUnreadNotifCount = $user->hasRole(Role::DOSEN)
+            ? $this->notifications->unreadCount($user, Role::DOSEN)
+            : 0;
+
+        $mhsUnreadNotifCount = $user->hasRole(Role::MAHASISWA)
+            ? $this->notifications->unreadCount($user, Role::MAHASISWA)
+            : 0;
+
+        $courseDiscussionCounts = collect($unreadNotifs)
+            ->where('category', 'diskusi')
+            ->groupBy('class_section_id')
+            ->map(fn ($items) => count($items))
+            ->all();
+
+        return response()->json([
+            'success' => true,
+            'role' => $role,
+            'unread_notif_count' => $unreadCount,
+            'dosen_unread_notif_count' => $dosenUnreadNotifCount,
+            'mhs_unread_notif_count' => $mhsUnreadNotifCount,
+            'category_counts' => $categoryCounts,
+            'forum_unread_count' => $forumUnreadCount,
+            'pending_task_count' => $pendingTaskCount,
+            'pending_grading_count' => $pendingGradingCount,
+            'course_discussion_counts' => $courseDiscussionCounts,
+        ], 200, [
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function markNotificationRead(Request $request, string $id)

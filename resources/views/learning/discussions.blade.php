@@ -76,7 +76,7 @@
                             <span>(Forum Diskusi &amp; Konsultasi Akademik)</span>
                         </p>
                     </div>
-                    <div class="shrink-0 flex items-center justify-center">
+                    <div data-course-msg-badge="{{ $c['id'] }}" class="shrink-0 flex items-center justify-center">
                         @if($msgCount > 0)
                             <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white" title="{{ $msgCount }} pesan belum dibaca">
                                 {{ $msgCount }} belum dibaca
@@ -94,4 +94,22 @@
         @endforelse
     </section>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        window.addEventListener('sale:live-status', function(e) {
+            if (!e.detail || e.detail.course_discussion_counts === undefined) return;
+            const counts = e.detail.course_discussion_counts || {};
+            document.querySelectorAll('[data-course-msg-badge]').forEach(el => {
+                const courseId = el.getAttribute('data-course-msg-badge');
+                const count = Number(counts[courseId]) || 0;
+                if (count > 0) {
+                    el.innerHTML = `<span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white" title="${count} pesan belum dibaca">${count} belum dibaca</span>`;
+                } else {
+                    el.innerHTML = `<span class="text-xs text-muted font-normal">Tidak ada pesan baru</span>`;
+                }
+            });
+        });
+    });
+</script>
 @endsection

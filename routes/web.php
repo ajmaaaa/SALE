@@ -39,6 +39,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     Route::get('/password/change', [PasswordChangeController::class, 'show'])->name('password.change');
     Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.change.update');
+    Route::get('/live-status', [LearningController::class, 'liveStatus'])->name('live-status');
 });
 
 // Demo personas still require an active matching role; operational environments use database users.

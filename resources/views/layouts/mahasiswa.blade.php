@@ -33,18 +33,15 @@
 
         @if(request()->is('admin-prodi*'))
         <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi admin prodi">
-            <div class="px-3 pb-2">
+            <div class="px-3 pb-3">
                 <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
                 @php
                     $sidebarProdi = auth()->user()?->managingProdi ?? auth()->user()?->prodi;
                 @endphp
                 @if($sidebarProdi)
-                    <div class="mt-1.5 flex items-center">
-                        <span class="inline-flex items-center gap-1.5 rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand max-w-full truncate" title="{{ $sidebarProdi->name }}">
-                            <svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                            <span class="truncate">{{ $sidebarProdi->name }}</span>
-                        </span>
-                    </div>
+                    <p class="mt-1.5 text-sm font-semibold text-ink truncate" title="{{ $sidebarProdi->name }}">
+                        {{ $sidebarProdi->name }}
+                    </p>
                 @endif
             </div>
             <div class="space-y-1">
@@ -116,9 +113,7 @@
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isPenilaianActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
                     <span class="min-w-0 flex-1">Penilaian</span>
-                    @if($pendingGradingCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 99 ? '99+' : $pendingGradingCount }}</span>
-                    @endif
+                    <span id="sidebar-dosen-grading-badge" data-badge="dosen-grading" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingGradingCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 99 ? '99+' : $pendingGradingCount }}</span>
                 </a>
 
                 <a href="{{ $currentSectionId ? route('dosen.penilaian.rekap', $currentSectionId) : route('dosen.rekap.index') }}" 
@@ -145,9 +140,7 @@
                 <a href="{{ route('dosen.notifications') }}" @if($isDosenNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isDosenNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
-                    @if($dosenUnreadNotifCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $dosenUnreadNotifCount }} notifikasi belum dibaca">{{ $dosenUnreadNotifCount > 99 ? '99+' : $dosenUnreadNotifCount }}</span>
-                    @endif
+                    <span id="sidebar-dosen-notif-badge" data-badge="dosen-notif" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $dosenUnreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $dosenUnreadNotifCount }} notifikasi belum dibaca">{{ $dosenUnreadNotifCount > 99 ? '99+' : $dosenUnreadNotifCount }}</span>
                 </a>
                 <a href="{{ route('dosen.profile.index') }}" @if(request()->routeIs('dosen.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
@@ -182,16 +175,12 @@
                 <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
                     <span class="min-w-0 flex-1">Forum Diskusi</span>
-                    @if($forumUnreadCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 99 ? '99+' : $forumUnreadCount }}</span>
-                    @endif
+                    <span id="sidebar-mhs-forum-badge" data-badge="mhs-forum" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $forumUnreadCount > 0 ? '' : 'hidden' }}" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 99 ? '99+' : $forumUnreadCount }}</span>
                 </a>
                 <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     <span class="min-w-0 flex-1">Tugas &amp; Kuis</span>
-                    @if($pendingTaskCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $pendingTaskCount }} tugas dan kuis belum dikerjakan">{{ $pendingTaskCount > 99 ? '99+' : $pendingTaskCount }}</span>
-                    @endif
+                    <span id="sidebar-mhs-task-badge" data-badge="mhs-task" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingTaskCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingTaskCount }} tugas dan kuis belum dikerjakan">{{ $pendingTaskCount > 99 ? '99+' : $pendingTaskCount }}</span>
                 </a>
             </div>
 
@@ -203,9 +192,7 @@
                 <a href="{{ route('mahasiswa.notifications') }}" @if($isNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
-                    @if($unreadNotifCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
-                    @endif
+                    <span id="sidebar-mhs-notif-badge" data-badge="mhs-notif" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $unreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
                 </a>
                 <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
@@ -357,20 +344,18 @@
 
     <dialog id="sale-dialog" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-950/40">
         <div class="p-5 sm:p-6">
-            <div class="flex items-start justify-between gap-3 mb-4">
-                <div class="flex items-start gap-3 min-w-0">
-                    <span data-sale-dialog-icon class="shrink-0 mt-0.5 text-slate-500">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span data-sale-dialog-icon class="shrink-0 text-slate-500">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M9 6V4h6v2M8 10v7M12 10v7M16 10v7M5 6l1 15h12l1-15"/></svg>
                     </span>
-                    <div class="min-w-0 flex-1">
-                        <h2 data-sale-dialog-title class="text-base font-bold text-ink">Konfirmasi tindakan</h2>
-                        <p data-sale-dialog-message class="mt-1 whitespace-pre-line text-sm leading-6 text-muted"></p>
-                    </div>
+                    <h2 data-sale-dialog-title class="text-base font-bold text-ink truncate">Konfirmasi tindakan</h2>
                 </div>
                 <button type="button" data-sale-dialog-close class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Tutup">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
+            <p data-sale-dialog-message class="whitespace-pre-line text-sm leading-relaxed text-muted mb-5"></p>
             <div class="flex justify-end gap-2">
                 <button type="button" data-sale-dialog-cancel class="button-secondary px-4 py-2 text-sm">Batal</button>
                 <button type="button" data-sale-dialog-confirm class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800">Ya, lanjutkan</button>
@@ -408,7 +393,7 @@
                 confirmButton.textContent = config.confirmLabel || 'Ya, lanjutkan';
                 cancel.hidden = false;
                 // Icon polos: hanya warna stroke, tanpa bg berwarna
-                icon.className = 'shrink-0 mt-0.5 text-rose-600';
+                icon.className = 'shrink-0 text-rose-600';
                 confirmButton.className = 'rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800';
                 dialog.showModal();
                 cancel.focus();
@@ -428,7 +413,7 @@
                 confirmButton.textContent = config.confirmLabel || 'Mengerti';
                 cancel.hidden = true;
                 // Icon polos: hanya warna stroke, tanpa bg berwarna
-                icon.className = 'shrink-0 mt-0.5 text-[#102f50]';
+                icon.className = 'shrink-0 text-[#102f50]';
                 confirmButton.className = 'button-primary px-4 py-2 text-sm font-semibold';
                 dialog.showModal();
                 confirmButton.focus();
@@ -441,12 +426,11 @@
                 const file = input.files[0];
                 const maxPhotoSize = 2 * 1024 * 1024; // 2 MB
                 if (file.size > maxPhotoSize) {
-                    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
                     input.value = '';
-                    const message = `Ukuran foto (${sizeMb} MB) melebihi batas maksimal 2 MB.\n\nBerkas foto ditolak. Silakan pilih foto dengan ukuran maksimal 2 MB.`;
+                    const message = 'Foto tidak dapat diunggah jika ukurannya lebih dari 2 MB.';
                     if (typeof window.saleNotice === 'function') {
                         window.saleNotice({
-                            title: 'Ukuran Foto Terlalu Besar (Maks. 2 MB)',
+                            title: 'Ukuran Foto Terlalu Besar',
                             message: message,
                             confirmLabel: 'Mengerti'
                         });
@@ -484,5 +468,80 @@
             }, true);
         })();
     </script>
+    @auth
+    <script>
+        (function() {
+            function updateBadgeEl(el, count, singularLabel) {
+                if (!el) return;
+                const num = Number(count) || 0;
+                if (num > 0) {
+                    el.textContent = num > 99 ? '99+' : num;
+                    el.classList.remove('hidden');
+                    el.setAttribute('aria-label', `${num} ${singularLabel}`);
+                } else {
+                    el.textContent = '0';
+                    el.classList.add('hidden');
+                }
+            }
+
+            function applyLiveStatus(data) {
+                if (!data) return;
+
+                if (data.pending_grading_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-dosen-grading-badge'), data.pending_grading_count, 'kelas belum selesai dinilai');
+                }
+                if (data.dosen_unread_notif_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-dosen-notif-badge'), data.dosen_unread_notif_count, 'notifikasi belum dibaca');
+                } else if (data.unread_notif_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-dosen-notif-badge'), data.unread_notif_count, 'notifikasi belum dibaca');
+                }
+
+                if (data.forum_unread_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-mhs-forum-badge'), data.forum_unread_count, 'pesan belum dibaca');
+                }
+                if (data.pending_task_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-mhs-task-badge'), data.pending_task_count, 'tugas dan kuis belum dikerjakan');
+                }
+                if (data.mhs_unread_notif_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-mhs-notif-badge'), data.mhs_unread_notif_count, 'notifikasi belum dibaca');
+                } else if (data.unread_notif_count !== undefined) {
+                    updateBadgeEl(document.getElementById('sidebar-mhs-notif-badge'), data.unread_notif_count, 'notifikasi belum dibaca');
+                }
+            }
+
+            window.addEventListener('sale:live-status', function(e) {
+                applyLiveStatus(e.detail);
+            });
+
+            async function pollLiveStatus() {
+                if (document.visibilityState !== 'visible') return;
+
+                try {
+                    const res = await fetch('{{ route('live-status') }}', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (!data.success) return;
+
+                    applyLiveStatus(data);
+                    window.dispatchEvent(new CustomEvent('sale:live-status', { detail: data }));
+                } catch (err) {
+                }
+            }
+
+            setInterval(pollLiveStatus, 8000);
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    pollLiveStatus();
+                }
+            });
+        })();
+    </script>
+    @endauth
 </body>
 </html>

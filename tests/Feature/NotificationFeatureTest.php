@@ -28,6 +28,23 @@ class NotificationFeatureTest extends TestCase
             'role_id' => $mhsRole->id,
             'nim_nidn' => '20260001',
         ]);
+
+        $prodi = \App\Models\Prodi::create(['code' => 'TI', 'name' => 'Teknik Informatika']);
+        $mk = \App\Models\MataKuliah::create(['prodi_id' => $prodi->id, 'code' => 'TI-101', 'name' => 'Pemrograman Web', 'sks' => 3]);
+        $sem = \App\Models\Semester::create(['code' => '2026-1', 'name' => 'Ganjil 2026', 'is_active' => true]);
+        $section = \App\Models\ClassSection::create(['mata_kuliah_id' => $mk->id, 'semester_id' => $sem->id, 'section_code' => 'A', 'enrollment_code' => 'TI-A-2026']);
+        $section->students()->attach($this->student->id);
+        $assessment = \App\Models\Assessment::create([
+            'class_section_id' => $section->id,
+            'name' => 'Tugas 1 Pemrograman',
+            'code' => 'TUGAS-1',
+            'type' => 'tugas',
+            'final_weight' => 10,
+            'status' => \App\Models\Assessment::STATUS_PUBLISHED,
+            'max_score' => 100,
+        ]);
+        $assessment->created_at = now()->subMinutes(5);
+        $assessment->saveQuietly();
     }
 
     public function test_notification_page_displays_categories_hapus_semua_and_date_separation(): void
@@ -73,12 +90,16 @@ class NotificationFeatureTest extends TestCase
 
     public function test_individual_notification_can_be_deleted(): void
     {
-        $response = $this->actingAs($this->student)->post(route('mahasiswa.notifications.delete', 'system_ai_ready'));
+        $notifService = app(\App\Services\DatabaseNotificationService::class);
+        $firstNotif = collect($notifService->forUser($this->student))->first();
+        $this->assertNotNull($firstNotif);
+
+        $response = $this->actingAs($this->student)->post(route('mahasiswa.notifications.delete', $firstNotif['id']));
         $response->assertRedirect();
 
         $followUp = $this->actingAs($this->student)->get(route('mahasiswa.notifications'));
         $followUp->assertOk();
-        $followUp->assertDontSee('Asisten Lumina AI & Lab Interaktif Siap Digunakan');
+        $followUp->assertDontSee($firstNotif['title']);
     }
 
     public function test_read_notification_has_faded_styling(): void
