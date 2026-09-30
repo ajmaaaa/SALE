@@ -1,103 +1,21 @@
-# NASKAH VOICE OVER / MASTER VIDEO 02
-# PANDUAN LENGKAP MAHASISWA
+Sebagai mahasiswa, langkah awal perkuliahan Anda dimulai dari halaman login portal akademik SALE. Gunakan Nomor Induk Mahasiswa Anda sebagai identitas dan ketikkan kata sandi resmi yang telah diberikan oleh pihak kampus. Setelah data terisi dengan benar, klik tombol Masuk.
 
-[PROYEK: Video Panduan Resmi SALE 2026]  
-[KATEGORI: Panduan Mahasiswa / Kompilasi Modul 01 hingga 05]  
-[TARGET DURASI TOTAL: 04:30 menit]  
-[VOICE TALENT: Suara Mahasiswa / Muda, Hangat, Energik namun Rapi, Bersahabat]  
-[PANDUAN UMUM PELAFALAN:]  
-- [PRONUNCIATION: NIM dieja 'N-I-M' atau 'nim']  
-- [PRONUNCIATION: Course dilafalkan 'kors']  
-- [PRONUNCIATION: QR Code dilafalkan 'kiyu-ar kod']  
-- [PRONUNCIATION: AI dilafalkan 'ey-ai']  
-- [PRONUNCIATION: Test Case dilafalkan 'tes keis']  
+Sistem akan langsung membawa Anda ke halaman utama Dashboard Mahasiswa. Untuk mulai mengaktifkan perkuliahan semester berjalan, buka menu Course pada bilah navigasi kiri. Di sudut kanan atas daftar mata kuliah, klik tombol Tambah Gabung Kelas. Ketikkan kode akses unik yang dibagikan oleh dosen pengampu Anda ke dalam kolom yang tersedia, kemudian tekan tombol Gabung Kelas.
 
----
+Jika Anda berada langsung di ruang perkuliahan fisik, Anda juga dapat memindai QR Code yang ditampilkan dosen pada proyektor kelas. Tautan akan otomatis membuka jendela konfirmasi, dan cukup dengan satu kali klik konfirmasi, ruang perkuliahan Anda seketika aktif dan siap digunakan.
 
-[TRACK: VO_02_01]  
-[SCENE: Bab 01 Autentikasi dan Masuk Sistem]  
-[TIMING: 00:00 - 00:30 / Durasi 30 detik]  
-[TONE: Bersahabat, menyambut, lugas]  
-[PACING: Sedang, bersahaja]  
-[EMPHASIS: halaman login, NIM, kata sandi resmi, Masuk]  
-[NASKAH BACAAN:]  
-Sebagai mahasiswa, langkah awal perkuliahan Anda dimulai dari halaman login portal akademik SALE. [PAUSE: 0.5s] 
+Setelah bergabung ke dalam kelas, seluruh aktivitas akademik Anda tersaji secara terstruktur dalam satu ruang belajar terpadu. Di halaman utama kelas, Anda dapat memeriksa rincian silabus mingguan, menonton video instruksional langsung dari pemutar yang terintegrasi, serta mengunduh modul perkuliahan format PDF atau dokumen presentasi.
 
-Gunakan Nomor Induk Mahasiswa Anda sebagai identitas dan ketikkan kata sandi resmi yang telah diberikan oleh pihak kampus. [PAUSE: 0.5s] Setelah data terisi dengan benar [PAUSE: 0.2s], klik tombol Masuk.
+Apabila terdapat konsep materi yang membutuhkan penjelasan lebih mendalam, gunakan panel Forum Diskusi di sebelah kanan layar. Ketikkan pertanyaan Anda dan kirimkan langsung ke ruang kelas. Dosen dan rekan sekelas dapat membalas pertanyaan secara real time, menciptakan suasana diskusi akademis yang hidup, kolaboratif, dan terdokumentasi rapi.
 
----
+Untuk mengukur pemahaman materi perkuliahan, Anda akan menyelesaikan rangkaian evaluasi berkala yang terbagi menjadi tugas mandiri, kuis berwaktu, hingga ujian semester. Pada bagian tugas mandiri, perhatikan dengan cermat petunjuk penugasan serta rubrik penilaian yang ditetapkan oleh dosen. Anda dapat mengunggah berkas laporan studi langsung ke area unggah dan menyimpannya sebelum batas tenggat berakhir.
 
-[TRACK: VO_02_02]  
-[SCENE: Bab 01 Aktivasi Kelas dengan Kode dan QR]  
-[TIMING: 00:30 - 01:05 / Durasi 35 detik]  
-[TONE: Informatif, memandu langkah demi langkah]  
-[PACING: Sedang, artikulasi instruksi jelas]  
-[EMPHASIS: menu Course, Tambah Gabung Kelas, kode akses unik, QR Code, aktif]  
-[NASKAH BACAAN:]  
-Sistem akan langsung membawa Anda ke halaman utama Dashboard Mahasiswa. [PAUSE: 0.4s] Untuk mulai mengaktifkan perkuliahan semester berjalan, buka menu Course pada bilah navigasi kiri. [PAUSE: 0.6s] 
+Sementara untuk kuis dan ujian terstruktur, pastikan koneksi internet Anda stabil sebelum menekan tombol Mulai Pengerjaan. Sistem akan mengaktifkan penghitung waktu mundur otomatis. Gunakan bilah nomor soal untuk meninjau status pengerjaan setiap pertanyaan, jawab seluruh butir instrumen dengan teliti, dan klik tombol Kumpulkan setelah memastikan seluruh jawaban terisi lengkap.
 
-Di sudut kanan atas daftar mata kuliah, klik tombol Tambah Gabung Kelas. [PAUSE: 0.3s] Ketikkan kode akses unik yang dibagikan oleh dosen pengampu Anda ke dalam kolom yang tersedia, kemudian tekan tombol Gabung Kelas. [PAUSE: 0.6s] 
+Bagi mahasiswa bidang teknologi dan komputasi, SALE menyediakan lingkungan praktikum pemrograman modern yang terintegrasi langsung di dalam peramban web. Anda tidak perlu melakukan instalasi compiler rumit di komputer lokal. Cukup tuliskan kode solusi Anda pada editor interaktif yang tersedia, lalu klik Jalankan Kode untuk menguji algoritma Anda terhadap contoh kasus uji publik secara otomatis.
 
-Jika Anda berada langsung di ruang kuliah fisik [PAUSE: 0.3s], Anda juga dapat memindai QR Code yang ditampilkan dosen pada proyektor kelas. Tautan akan otomatis membuka jendela konfirmasi, dan cukup dengan satu kali klik konfirmasi [PAUSE: 0.3s], ruang perkuliahan Anda seketika aktif dan siap digunakan.
+Jika Anda menghadapi kendala atau eror pada logika program, manfaatkan Asisten AI cerdas kami. Asisten AI dirancang secara pedagogis untuk memberikan petunjuk analisis kesalahan dan analogi perbaikan konsep, tanpa langsung memberikan contekan jawaban. Hal ini mendorong Anda membangun daya pemecahan masalah secara mandiri hingga seluruh kasus uji rahasia terpenuhi secara sempurna.
 
----
+Transparansi proses akademik adalah prioritas utama di SALE. Melalui menu Nilai, Anda tidak hanya melihat skor mentah berbentuk angka seratus, tetapi juga dapat memantau grafik radar pencapaian kompetensi CPMK Anda secara terperinci. Anda dapat mengetahui secara objektif bidang keahlian mana yang telah Anda kuasai dengan sangat baik, dan aspek mana yang memerlukan pendalaman lebih lanjut berdasarkan umpan balik dosen.
 
-[TRACK: VO_02_03]  
-[SCENE: Bab 02 Navigasi Ruang Kelas Materi dan Forum]  
-[TIMING: 01:05 - 01:50 / Durasi 45 detik]  
-[TONE: Antusias, terstruktur, mengajak berdiskusi]  
-[PACING: Sedang, ekspresif]  
-[EMPHASIS: silabus mingguan, video materi, Forum Diskusi, real time]  
-[NASKAH BACAAN:]  
-Setelah bergabung ke dalam kelas, seluruh aktivitas akademik Anda tersaji secara terstruktur dalam satu ruang belajar terpadu. [PAUSE: 0.6s] 
-
-Di halaman utama kelas, Anda dapat memeriksa rincian silabus mingguan, menonton video instruksional langsung dari pemutar yang terintegrasi, serta mengunduh modul perkuliahan format PDF atau dokumen presentasi. [PAUSE: 0.7s] 
-
-Apabila terdapat konsep materi yang membutuhkan penjelasan lebih mendalam, gunakan panel Forum Diskusi di sebelah kanan layar. [PAUSE: 0.4s] Ketikkan pertanyaan Anda dan kirimkan langsung ke ruang kelas. Dosen dan rekan sekelas dapat membalas pertanyaan secara real time [PAUSE: 0.3s], menciptakan suasana diskusi akademis yang hidup, kolaboratif, dan terdokumentasi rapi.
-
----
-
-[TRACK: VO_02_04]  
-[SCENE: Bab 03 Pengerjaan Tugas Mandiri dan Kuis Berwaktu]  
-[TIMING: 01:50 - 02:40 / Durasi 50 detik]  
-[TONE: Memberikan perhatian, fokus, mengingatkan aturan]  
-[PACING: Sedang teratur, tenang]  
-[EMPHASIS: rubrik penilaian, batas tenggat, penghitung waktu mundur, Kumpulkan]  
-[NASKAH BACAAN:]  
-Untuk mengukur pemahaman materi perkuliahan, Anda akan menyelesaikan rangkaian evaluasi berkala yang terbagi menjadi tugas mandiri, kuis berwaktu, hingga ujian semester. [PAUSE: 0.6s] 
-
-Pada bagian tugas mandiri, perhatikan dengan cermat petunjuk penugasan serta rubrik penilaian yang ditetapkan oleh dosen. Anda dapat mengunggah berkas laporan studi langsung ke area unggah dan menyimpannya sebelum batas tenggat berakhir. [PAUSE: 0.7s] 
-
-Sementara untuk kuis dan ujian terstruktur, pastikan koneksi internet Anda stabil sebelum menekan tombol Mulai Pengerjaan. [PAUSE: 0.5s] Sistem akan mengaktifkan penghitung waktu mundur otomatis. [PAUSE: 0.4s] Gunakan bilah nomor soal untuk meninjau status pengerjaan setiap pertanyaan, jawab seluruh butir instrumen dengan teliti [PAUSE: 0.3s], dan klik tombol Kumpulkan setelah memastikan seluruh jawaban terisi lengkap.
-
----
-
-[TRACK: VO_02_05]  
-[SCENE: Bab 04 Praktikum Coding dan Asisten AI]  
-[TIMING: 02:40 - 03:35 / Durasi 55 detik]  
-[TONE: Tech-forward, memotivasi, mendorong pemecahan masalah]  
-[PACING: Sedang, bersemangat]  
-[EMPHASIS: in-browser, Jalankan Kode, Asisten AI cerdas, logika mandiri]  
-[NASKAH BACAAN:]  
-Bagi mahasiswa bidang teknologi dan komputasi, SALE menyediakan lingkungan praktikum pemrograman modern yang terintegrasi langsung di dalam peramban web. [PAUSE: 0.5s] 
-
-Anda tidak perlu melakukan instalasi compiler rumit di komputer lokal. Cukup tuliskan kode solusi Anda pada editor interaktif yang tersedia [PAUSE: 0.3s], lalu klik Jalankan Kode untuk menguji algoritma Anda terhadap contoh kasus uji publik secara otomatis. [PAUSE: 0.7s] 
-
-Jika Anda menghadapi kendala atau eror pada logika program, manfaatkan Asisten AI cerdas kami. [PAUSE: 0.5s] Asisten AI dirancang secara pedagogis untuk memberikan petunjuk analisis kesalahan dan analogi perbaikan konsep, tanpa langsung memberikan contekan jawaban. Hal ini mendorong Anda membangun daya pemecahan masalah secara mandiri [PAUSE: 0.3s] hingga seluruh kasus uji rahasia terpenuhi secara sempurna.
-
----
-
-[TRACK: VO_02_06]  
-[SCENE: Bab 05 Radar Capaian CPMK dan Profil Mahasiswa]  
-[TIMING: 03:35 - 04:30 / Durasi 55 detik]  
-[TONE: Reflektif, suportif, membimbing ke depan]  
-[PACING: Sedang melambat menuju penutup]  
-[EMPHASIS: grafik radar kompetensi CPMK, objektif, lonceng notifikasi, Profil]  
-[NASKAH BACAAN:]  
-Transparansi proses akademik adalah prioritas utama di SALE. [PAUSE: 0.5s] 
-
-Melalui menu Nilai, Anda tidak hanya melihat skor mentah berbentuk angka seratus, tetapi juga dapat memantau grafik radar pencapaian kompetensi CPMK Anda secara terperinci. [PAUSE: 0.5s] Anda dapat mengetahui secara objektif bidang keahlian mana yang telah Anda kuasai dengan sangat baik, dan aspek mana yang memerlukan pendalaman lebih lanjut berdasarkan umpan balik dosen. [PAUSE: 0.7s] 
-
-Periksa pula panel lonceng notifikasi secara berkala agar Anda selalu mendapatkan kabar terkini seputar nilai yang baru dirilis maupun pengumuman penting perkuliahan. [PAUSE: 0.6s] 
-
-Terakhir, pastikan informasi kontak pada menu Profil Anda selalu diperbarui demi kelancaran komunikasi akademik selama menempuh masa studi di kampus tercinta. Selamat belajar dan meraih prestasi terbaik bersama SALE!
+Periksa pula panel lonceng notifikasi secara berkala agar Anda selalu mendapatkan kabar terkini seputar nilai yang baru dirilis maupun pengumuman penting perkuliahan. Terakhir, pastikan informasi kontak pada menu Profil Anda selalu diperbarui demi kelancaran komunikasi akademik selama menempuh masa studi di kampus tercinta. Selamat belajar dan meraih prestasi terbaik bersama SALE.
