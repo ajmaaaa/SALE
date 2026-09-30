@@ -1,4 +1,8 @@
-Sebagai mahasiswa, langkah awal perkuliahan Anda dimulai dari halaman login portal akademik SALE. Gunakan Nomor Induk Mahasiswa Anda sebagai identitas dan ketikkan kata sandi resmi yang telah diberikan oleh pihak kampus. Setelah data terisi dengan benar, klik tombol Masuk.
+Selamat datang di panduan resmi SALE, Smart Academic Learning Environment. Platform pembelajaran cerdas berstandar Outcome Based Education yang dirancang untuk mendukung seluruh aktivitas akademik Anda secara terpadu dan terukur.
+
+Dalam panduan ini, Anda akan mempelajari alur lengkap pembelajaran bagi mahasiswa, mulai dari autentikasi akun, bergabung ke kelas perkuliahan, interaksi di ruang belajar, penyelesaian tugas dan ujian, praktikum pemrograman dengan asisten kecerdasan buatan, hingga pemantauan capaian kompetensi pribadi.
+
+Sebagai langkah awal perkuliahan, akses halaman login portal akademik SALE. Gunakan Nomor Induk Mahasiswa Anda sebagai identitas dan ketikkan kata sandi resmi yang telah diberikan oleh pihak kampus. Setelah data terisi dengan benar, klik tombol Masuk.
 
 Sistem akan langsung membawa Anda ke halaman utama Dashboard Mahasiswa. Untuk mulai mengaktifkan perkuliahan semester berjalan, buka menu Course pada bilah navigasi kiri. Di sudut kanan atas daftar mata kuliah, klik tombol Tambah Gabung Kelas. Ketikkan kode akses unik yang dibagikan oleh dosen pengampu Anda ke dalam kolom yang tersedia, kemudian tekan tombol Gabung Kelas.
 

@@ -1,4 +1,8 @@
-Bagi Bapak dan Ibu Dosen, platform SALE hadir sebagai asisten digital yang memudahkan seluruh tata kelola perkuliahan berbasis kompetensi. Langkah pertama mengajar dimulai dari pengelolaan ruang course. Pada menu Course, Anda dapat meninjau seluruh kelas yang diamanahkan pada semester ini. Buka salah satu kelas untuk mengatur silabus pertemuan, tujuan instruksional, serta periode pembelajaran.
+Selamat datang di panduan resmi SALE, Smart Academic Learning Environment. Platform pembelajaran cerdas berstandar Outcome Based Education yang dirancang untuk mendukung seluruh aktivitas akademik Anda secara terpadu dan terukur.
+
+Dalam panduan ini, Bapak dan Ibu Dosen akan mempelajari alur lengkap tata kelola perkuliahan, mulai dari pengelolaan kelas, distribusi akses materi dan video pembelajaran, penyusunan asesmen berbasis target CPMK, pemeriksaan berkas secara in browser, penerapan rubrik analitik, hingga ekspor portofolio mata kuliah.
+
+Langkah pertama mengajar dimulai dari pengelolaan ruang course. Pada menu Course, Anda dapat meninjau seluruh kelas yang diamanahkan pada semester ini. Buka salah satu kelas untuk mengatur silabus pertemuan, tujuan instruksional, serta periode pembelajaran.
 
 Untuk mempermudah mahasiswa bergabung, sistem menyediakan dua metode praktis: kode akses alfanumerik delapan karakter yang dapat dibagikan melalui grup komunikasi, serta QR Code yang dapat langsung Anda tampilkan di proyektor ruang kuliah saat pertemuan perdana. Anda dapat mengawasi pertambahan daftar mahasiswa yang telah terdaftar secara instan dan akurat.
 
