@@ -52,7 +52,7 @@ export const Scene5CourseActiveScreencast: React.FC = () => {
       <InstructionOverlay
         step="04"
         actionText="Kelas Perkuliahan Resmi Aktif"
-        detailText="Selamat belajar! Seluruh silabus mata kuliah, materi video, kuis OBE, dan forum diskusi sudah siap Anda akses."
+        detailText="Selamat belajar! Seluruh silabus mata kuliah, materi video, kuis OBE, dan forum diskusi sudah siap Anda akses"
       />
 
       {/* Sleek next episode indicator in bottom right */}

@@ -80,13 +80,13 @@ export const Scene4JoinConfirmScreencast: React.FC = () => {
         <InstructionOverlay
           step="03"
           actionText="Konfirmasi Pendaftaran Kelas"
-          detailText="Periksa informasi mata kuliah dan dosen pengampu pada layar konfirmasi, lalu klik Buka Course Saya."
+          detailText="Periksa informasi mata kuliah dan dosen pengampu pada layar konfirmasi, lalu klik Buka Course Saya"
         />
       ) : (
         <InstructionOverlay
           step="03"
           actionText="Kelas Berhasil Dibuka"
-          detailText="Sistem langsung mengarahkan Anda ke ruang perkuliahan utama yang berisi materi dan forum diskusi."
+          detailText="Sistem langsung mengarahkan Anda ke ruang perkuliahan utama yang berisi materi dan forum diskusi"
         />
       )}
     </div>

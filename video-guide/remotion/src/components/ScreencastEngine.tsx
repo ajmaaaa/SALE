@@ -115,9 +115,8 @@ export const InstructionOverlay: React.FC<{
       className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-14 bg-gradient-to-t from-slate-950/95 via-slate-950/80 to-transparent z-40 pointer-events-none select-none"
     >
       <div className="max-w-5xl">
-        {/* Step Badge (No dot separator) */}
-        <div className="inline-flex items-center gap-2.5 px-3.5 py-1 rounded bg-blue-600 text-white text-xs font-black tracking-widest uppercase shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-cyan-300" />
+        {/* Step Indicator: Pure Bold Text (NO card, NO badge, NO dot separator) */}
+        <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
           LANGKAH {step}
         </div>
 

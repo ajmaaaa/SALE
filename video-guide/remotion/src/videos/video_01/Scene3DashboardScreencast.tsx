@@ -168,19 +168,19 @@ export const Scene3DashboardScreencast: React.FC = () => {
         <InstructionOverlay
           step="02"
           actionText="Buka Menu Course"
-          detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses daftar seluruh kelas perkuliahan Anda."
+          detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses daftar seluruh kelas perkuliahan Anda"
         />
       ) : frame < LOAD_MODAL_FRAME ? (
         <InstructionOverlay
           step="02"
           actionText="Pilih Tambah Gabung Kelas"
-          detailText="Klik tombol + Gabung Kelas di sudut kanan atas halaman untuk membuka formulir pendaftaran kelas."
+          detailText="Klik tombol + Gabung Kelas di sudut kanan atas halaman untuk membuka formulir pendaftaran kelas"
         />
       ) : (
         <InstructionOverlay
           step="02"
           actionText="Masukkan Kode Akses Perkuliahan"
-          detailText="Ketikkan kode kelas 8 karakter yang diberikan oleh dosen pengampu, lalu tekan tombol Gabung Kelas."
+          detailText="Ketikkan kode kelas 8 karakter yang diberikan oleh dosen pengampu, lalu tekan tombol Gabung Kelas"
         />
       )}
     </div>

@@ -93,10 +93,10 @@ export const FloatingBackground: React.FC<{
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Subtle Grid */}
+      {/* Subtle Technical Grid (Pure CSS, no blur orbs) */}
       <div
         className={`absolute inset-0 ${
-          dark ? "opacity-[0.04]" : "opacity-[0.03]"
+          dark ? "opacity-[0.035]" : "opacity-[0.03]"
         }`}
         style={{
           backgroundImage: dark
@@ -104,24 +104,6 @@ export const FloatingBackground: React.FC<{
             : "radial-gradient(#102f50 1px, transparent 1px)",
           backgroundSize: "36px 36px",
         }}
-      />
-
-      {/* Ambient Orbs */}
-      <div
-        style={{
-          transform: `translate(${float1X}px, ${float1Y}px)`,
-        }}
-        className={`absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full blur-3xl ${
-          dark ? "bg-cyan-500/10" : "bg-blue-300/20"
-        }`}
-      />
-      <div
-        style={{
-          transform: `translate(${-float1X}px, ${float2Y}px)`,
-        }}
-        className={`absolute -bottom-32 -left-32 h-[550px] w-[550px] rounded-full blur-3xl ${
-          dark ? "bg-blue-600/15" : "bg-slate-300/30"
-        }`}
       />
     </div>
   );

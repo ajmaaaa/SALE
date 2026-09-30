@@ -184,13 +184,13 @@ export const Scene2LoginScreencast: React.FC = () => {
         <InstructionOverlay
           step="01"
           actionText="Masuk ke Sistem SALE"
-          detailText="Ketikkan NIM pada kolom identitas dan masukkan kata sandi Anda, lalu klik tombol Masuk."
+          detailText="Ketikkan NIM pada kolom identitas dan masukkan kata sandi Anda, lalu klik tombol Masuk"
         />
       ) : (
         <InstructionOverlay
           step="01"
           actionText="Berhasil Masuk ke Portal Mahasiswa"
-          detailText="Autentikasi akun berhasil diverifikasi, sistem langsung memuat halaman utama dashboard akademik."
+          detailText="Autentikasi akun berhasil diverifikasi, sistem langsung memuat halaman utama dashboard akademik"
         />
       )}
     </div>
