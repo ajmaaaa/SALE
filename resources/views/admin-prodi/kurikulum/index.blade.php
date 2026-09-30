@@ -28,7 +28,7 @@
                 @endif
             </nav>
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
-            <p class="page-description">Tetapkan butir CPL prodi dan CPMK per mata kuliah secara terpusat. Dosen pengampu nantinya tinggal memilih CPMK yang telah disiapkan saat menyusun asesmen kelas.</p>
+            <p class="page-description">Tetapkan butir CPL dan CPMK program studi secara terpusat. Penetapan CPMK ke mata kuliah dilakukan pada menu Mata Kuliah, dan dosen pengampu nantinya dapat mengaitkan CPMK pada asesmen kelas.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
         </div>
@@ -54,7 +54,7 @@
         </a>
         <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" 
            class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpmk' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
-            2. Butir CPMK per Mata Kuliah ({{ $allCpmks->count() }})
+            2. Butir CPMK ({{ $allCpmks->count() }})
         </a>
     </div>
 
@@ -135,8 +135,8 @@
     <div class="surface p-5 space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-line">
             <div class="min-w-0">
-                <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Mata Kuliah (CPMK)</h2>
-                <p class="text-xs text-muted mt-0.5">Kelola butir CPMK per mata kuliah beserta standar kelulusan dan pemetaan CPL terkait.</p>
+                <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Mata Kuliah (CPMK): {{ $activeProdi?->name }}</h2>
+                <p class="text-xs text-muted mt-0.5">Daftar butir CPMK kurikulum program studi beserta standar kelulusan dan pemetaan CPL yang didukung. Penetapan CPMK ke mata kuliah dilakukan pada menu Mata Kuliah.</p>
             </div>
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 shrink-0 w-full sm:w-auto">
                 <div class="relative w-full sm:w-64 max-w-full">
@@ -145,129 +145,93 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
                         </svg>
                     </div>
-                    <input type="text" id="cpmk-search" onkeyup="filterCpmkCards()" placeholder="Cari mata kuliah atau CPMK..." class="field text-xs py-1.5 h-8 w-full" style="padding-left: 2.25rem !important;">
+                    <input type="text" id="cpmk-search" onkeyup="filterCpmkRows()" placeholder="Cari kode atau deskripsi CPMK..." class="field text-xs py-1.5 h-8 w-full" style="padding-left: 2.25rem !important;">
                 </div>
                 <button type="button" onclick="openCreateCpmkModal()" class="button-primary text-xs h-8 px-3 whitespace-nowrap shrink-0 w-full sm:w-auto justify-center">
-                    + Tetapkan CPMK Baru
+                    + Tambah Butir CPMK
                 </button>
             </div>
         </div>
 
-        <div class="space-y-3 pt-1">
-            @forelse($mataKuliahs as $mk)
-            <div data-mk-card class="rounded-xl border border-line bg-white shadow-2xs overflow-hidden">
-                {{-- Header MK --}}
-                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-canvas/40 hover:bg-canvas/60 transition-colors border-b border-line">
-                    <div onclick="toggleMk({{ $mk->id }})" class="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white shrink-0">
-                            {{ $mk->code }}
-                        </span>
-                        <span class="font-bold text-sm text-ink truncate">{{ $mk->name }}</span>
-                        <span class="text-xs text-muted shrink-0">{{ $mk->sks }} SKS</span>
-                        @if($mk->cpmks->count() > 0)
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-white border border-line text-ink shadow-2xs shrink-0">
-                                {{ $mk->cpmks->count() }} CPMK
+        <div class="overflow-x-auto">
+            <table class="admin-table w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-line bg-canvas/60 text-muted">
+                        <th class="px-4 py-3.5 w-28 !align-middle">Kode CPMK</th>
+                        <th class="px-4 py-3.5 !align-middle">Deskripsi Capaian Pembelajaran</th>
+                        <th class="px-4 py-3.5 text-center w-32 !align-middle">Standar Kelulusan</th>
+                        <th class="px-4 py-3.5 w-44 !align-middle">CPL Terkait</th>
+                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Digunakan di MK</th>
+                        <th class="px-4 py-3.5 text-right w-36 !align-middle">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line/60">
+                    @forelse($allCpmks as $cpmk)
+                    <tr data-cpmk-row class="hover:bg-canvas/30 transition-colors">
+                        <td class="px-4 py-3.5 !align-middle whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide">
+                                {{ $cpmk->code }}
                             </span>
-                        @else
-                            <span class="text-xs text-muted italic shrink-0">0 CPMK</span>
-                        @endif
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button type="button"
-                            onclick="openAssignCpmkModal({{ $mk->id }}, '{{ addslashes($mk->name) }}', '{{ addslashes($mk->code) }}', {{ json_encode($mk->cpmks->pluck('id')) }})"
-                            class="button-secondary text-[11px] py-1 px-2.5">
-                            Pilih CPMK
-                        </button>
-                        <button type="button"
-                            onclick="toggleMk({{ $mk->id }})"
-                            class="flex h-7 w-7 items-center justify-center rounded-lg border border-line/60 bg-white text-muted hover:text-ink hover:bg-canvas transition cursor-pointer shadow-2xs shrink-0"
-                            title="Buka / Tutup">
-                            <svg id="chevron-{{ $mk->id }}" class="h-4 w-4 transition-transform duration-200 {{ $mk->cpmks->isNotEmpty() ? 'rotate-180' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                {{-- Body MK: Terbuka default jika ada CPMK, atau tertutup jika kosong --}}
-                <div id="mk-body-{{ $mk->id }}" class="{{ $mk->cpmks->isEmpty() ? 'hidden' : '' }}">
-                    @if($mk->cpmks->isEmpty())
-                        <div class="py-6 px-5 text-center text-xs text-muted">
-                            <p>Belum ada butir CPMK yang ditetapkan untuk mata kuliah ini.</p>
-                            <button type="button"
-                                onclick="openAssignCpmkModal({{ $mk->id }}, '{{ addslashes($mk->name) }}', '{{ addslashes($mk->code) }}', {{ json_encode($mk->cpmks->pluck('id')) }})"
-                                class="button-secondary text-xs mt-2">
-                                + Pilih CPMK untuk {{ $mk->code }}
-                            </button>
-                        </div>
-                    @else
-                        <div class="overflow-x-auto">
-                            <table class="admin-table w-full text-left text-xs">
-                                <thead>
-                                    <tr class="border-b border-line bg-canvas/30 text-muted">
-                                        <th class="px-4 py-3 w-32 !align-middle">Kode</th>
-                                        <th class="px-4 py-3 !align-middle">Deskripsi CPMK</th>
-                                        <th class="px-4 py-3 text-center w-36 !align-middle">Standar Kelulusan</th>
-                                        <th class="px-4 py-3 w-40 !align-middle">CPL Terkait</th>
-                                        <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-line/60">
-                                    @foreach($mk->cpmks as $cpmk)
-                                    <tr class="hover:bg-canvas/30 transition-colors">
-                                        <td class="px-4 py-3 !align-middle whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpmk->description }}">
-                                                {{ $cpmk->code }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 font-medium text-ink leading-relaxed !align-middle">
-                                            {{ $cpmk->description }}
-                                        </td>
-                                        <td class="px-4 py-3 text-center font-semibold text-ink !align-middle whitespace-nowrap">
-                                            {{ (float)$cpmk->threshold }}%
-                                        </td>
-                                        <td class="px-4 py-3 !align-middle">
-                                            @if($cpmk->cpls->isEmpty())
-                                                <span class="text-muted text-[11px]">Belum dipetakan</span>
-                                            @else
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    @foreach($cpmk->cpls as $cpl)
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-brand text-white tracking-wide" title="{{ $cpl->description }}">
-                                                            {{ $cpl->code }}
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3 text-right !align-middle whitespace-nowrap">
-                                            <div class="inline-flex items-center justify-end gap-1.5">
-                                                <button type="button"
-                                                        onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }})"
-                                                        class="button-secondary text-[11px] py-1 px-2.5">
-                                                    Ubah
-                                                </button>
-                                                <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus CPMK {{ $cpmk->code }}?');" class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
-                                                        Hapus
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
+                        </td>
+                        <td class="px-4 py-3.5 font-medium text-ink leading-relaxed !align-middle">
+                            <div>{{ $cpmk->description }}</div>
+                        </td>
+                        <td class="px-4 py-3.5 text-center font-semibold text-ink !align-middle whitespace-nowrap">
+                            {{ (float)$cpmk->threshold }}%
+                        </td>
+                        <td class="px-4 py-3.5 !align-middle">
+                            @if($cpmk->cpls->isEmpty())
+                                <span class="text-muted text-[11px] italic">Belum dipetakan</span>
+                            @else
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach($cpmk->cpls as $cpl)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-brand text-white tracking-wide" title="{{ $cpl->description }}">
+                                            {{ $cpl->code }}
+                                        </span>
                                     @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </div>
-            </div>
-            @empty
-            <div class="py-12 text-center text-muted text-sm">
-                Belum ada mata kuliah yang terdaftar pada program studi ini. Tambahkan mata kuliah di menu Mata Kuliah terlebih dahulu.
-            </div>
-            @endforelse
+                                </div>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
+                            @if($cpmk->mataKuliahs->count() > 0)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20" title="{{ $cpmk->mataKuliahs->pluck('name')->join(', ') }}">
+                                    {{ $cpmk->mataKuliahs->count() }} Mata Kuliah
+                                </span>
+                            @else
+                                <span class="text-muted text-[11px] italic">0 Mata Kuliah</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
+                            <div class="inline-flex items-center justify-end gap-1.5">
+                                <button type="button" 
+                                        onclick="openEditCpmkModal({{ $cpmk->id }}, '{{ addslashes($cpmk->code) }}', '{{ addslashes($cpmk->description) }}', {{ $cpmk->threshold }}, {{ json_encode($cpmk->cpls->pluck('id')) }})" 
+                                        class="button-secondary text-[11px] py-1 px-2.5">
+                                    Ubah
+                                </button>
+                                <form action="{{ route('admin-prodi.kurikulum.cpmk.destroy', $cpmk->id) }}" method="POST" onsubmit="return confirm('Hapus butir CPMK {{ $cpmk->code }}?');" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="button-secondary text-[11px] py-1 px-2.5 text-danger hover:bg-danger/10 hover:border-danger/30">
+                                        Hapus
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-muted !align-middle">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p class="text-xs">Belum ada butir CPMK untuk prodi ini. Silakan klik tombol "+ Tambah Butir CPMK" untuk menambahkan.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -399,86 +363,67 @@
     </div>
 </div>
 
-<!-- Modal Pilih CPMK untuk Mata Kuliah -->
-<div id="assignCpmkModal" onclick="if(event.target === this) closeAssignCpmkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+<!-- Modal Edit CPMK -->
+<div id="editCpmkModal" onclick="if(event.target === this) closeEditCpmkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
     <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <div>
-                <h2 class="text-base font-bold text-ink" id="assign_cpmk_title">Pilih CPMK untuk Mata Kuliah</h2>
-                <p id="assign_cpmk_subtitle" class="text-xs text-muted mt-0.5">Pilih butir CPMK yang diampu oleh mata kuliah ini.</p>
+                <h2 class="text-base font-bold text-ink">Ubah Butir CPMK</h2>
+                <p class="text-xs text-muted mt-0.5">Perbarui kode, standar kelulusan, deskripsi, dan CPL terkait.</p>
             </div>
-            <button type="button" onclick="closeAssignCpmkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <form id="assignCpmkForm" method="POST" class="space-y-4">
-            @csrf
-            <div>
-                <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-semibold text-ink">
-                        Daftar Butir CPMK Program Studi (Multiple Choice)
-                    </label>
-                    <span class="text-[11px] text-muted">Bisa memilih lebih dari satu</span>
-                </div>
-                @if(isset($allCpmks) && $allCpmks->isNotEmpty())
-                    <div class="space-y-1.5 max-h-60 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
-                        @foreach($allCpmks as $item)
-                        <label class="flex items-start gap-2.5 p-2 rounded-md border border-line/70 bg-white hover:bg-canvas/50 transition cursor-pointer text-xs">
-                            <input type="checkbox" name="cpmk_ids[]" value="{{ $item->id }}" class="assign-cpmk-checkbox mt-0.5 rounded text-brand focus:ring-brand">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-brand text-white">{{ $item->code }}</span>
-                                    <span class="text-[11px] text-muted font-medium">Standar: {{ (float)$item->threshold }}%</span>
-                                    @foreach($item->cpls as $cplBadge)
-                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-canvas border border-line text-ink">{{ $cplBadge->code }}</span>
-                                    @endforeach
-                                </div>
-                                <p class="text-ink text-[11px] mt-1 leading-snug line-clamp-2">{{ $item->description }}</p>
-                            </div>
-                        </label>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="p-3 text-center rounded-lg border border-dashed border-line bg-canvas/30 text-xs text-muted">
-                        Belum ada butir CPMK yang dibuat pada prodi ini. Silakan buat CPMK terlebih dahulu dengan tombol "+ Tetapkan CPMK Baru".
-                    </div>
-                @endif
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t border-line">
-                <button type="button" onclick="closeAssignCpmkModal()" class="button-secondary text-xs">Batal</button>
-                <button type="submit" class="button-primary text-xs">Simpan Pilihan CPMK</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Edit CPMK -->
-<div id="editCpmkModal" onclick="if(event.target === this) closeEditCpmkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
-        <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
-            <h2 class="text-base font-bold text-ink">Ubah Butir CPMK</h2>
             <button type="button" onclick="closeEditCpmkModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-        <form id="editCpmkForm" method="POST" class="space-y-4">
+        <form id="editCpmkForm" method="POST" onsubmit="return validateEditCpmkForm(event)" class="space-y-4">
             @csrf
             @method('PUT')
+
+            {{-- Dropdown Select Multiple CPL --}}
+            <div>
+                <label class="block text-xs font-semibold text-ink mb-1">
+                    Pilih CPL yang Didukung <span class="text-danger">*</span>
+                </label>
+                <div id="cplEditDropdownContainer" class="relative">
+                    <button type="button" onclick="toggleEditCplDropdown(event)" class="field text-xs font-medium flex items-center justify-between w-full text-left cursor-pointer">
+                        <span id="cplEditDropdownSummary" class="truncate text-muted">Pilih satu atau beberapa CPL...</span>
+                        <svg class="h-4 w-4 text-muted shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="cplEditDropdownMenu" class="hidden absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-line bg-white p-2 shadow-lg space-y-1">
+                        @forelse($cpls as $cpl)
+                        <label class="flex items-start gap-2 p-1.5 rounded hover:bg-canvas/60 transition cursor-pointer text-xs">
+                            <input type="checkbox" name="cpl_ids[]" value="{{ $cpl->id }}" data-cpl-code="{{ $cpl->code }}" onchange="updateEditCplSelectedSummary()" class="edit-cpl-checkbox mt-0.5 rounded text-brand focus:ring-brand">
+                            <div class="min-w-0 flex-1">
+                                <span class="font-bold text-ink">{{ $cpl->code }}</span>
+                                <span class="text-muted truncate text-[11px] block">- {{ $cpl->description }}</span>
+                            </div>
+                        </label>
+                        @empty
+                        <p class="text-xs text-muted p-2 text-center">Belum ada CPL untuk program studi ini.</p>
+                        @endforelse
+                    </div>
+                </div>
+                <p class="text-[11px] text-muted mt-1">Pilih CPL kurikulum prodi yang diturunkan menjadi CPMK ini.</p>
+            </div>
+
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label for="cpmk_edit_code" class="block text-xs font-semibold text-ink mb-1">Kode CPMK</label>
+                    <label for="cpmk_edit_code" class="block text-xs font-semibold text-ink mb-1">Kode CPMK <span class="text-danger">*</span></label>
                     <input type="text" name="code" id="cpmk_edit_code" required maxlength="20" class="field text-xs font-semibold uppercase">
                 </div>
                 <div>
-                    <label for="cpmk_edit_threshold" class="block text-xs font-semibold text-ink mb-1">Threshold (%)</label>
+                    <label for="cpmk_edit_threshold" class="block text-xs font-semibold text-ink mb-1">Ambang Batas Kelulusan (%) <span class="text-danger">*</span></label>
                     <input type="number" name="threshold" id="cpmk_edit_threshold" required min="0" max="100" class="field text-xs font-semibold">
                 </div>
             </div>
             <div>
-                <label for="cpmk_edit_desc" class="block text-xs font-semibold text-ink mb-1">Deskripsi CPMK</label>
-                <textarea name="description" id="cpmk_edit_desc" required rows="4" class="field text-xs"></textarea>
+                <label for="cpmk_edit_desc" class="block text-xs font-semibold text-ink mb-1">Deskripsi CPMK <span class="text-danger">*</span></label>
+                <textarea name="description" id="cpmk_edit_desc" required rows="3" class="field text-xs"></textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
+                <button type="button" onclick="closeEditCpmkModal()" class="button-secondary text-xs">Batal</button>
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
             </div>
         </form>
@@ -570,12 +515,18 @@
         return true;
     }
 
-    // Close CPL dropdown when clicking outside
+    // Close CPL dropdowns when clicking outside
     document.addEventListener('click', function(e) {
         const container = document.getElementById('cplDropdownContainer');
         const menu = document.getElementById('cplDropdownMenu');
         if (container && menu && !container.contains(e.target)) {
             menu.classList.add('hidden');
+        }
+
+        const editContainer = document.getElementById('cplEditDropdownContainer');
+        const editMenu = document.getElementById('cplEditDropdownMenu');
+        if (editContainer && editMenu && !editContainer.contains(e.target)) {
+            editMenu.classList.add('hidden');
         }
     });
 
@@ -592,56 +543,80 @@
         document.getElementById('createCpmkModal').classList.remove('flex');
     }
 
-    function openAssignCpmkModal(mkId, mkName, mkCode, selectedCpmkIds) {
-        const form = document.getElementById('assignCpmkForm');
-        form.action = `/admin-prodi/kurikulum/matakuliah/${mkId}/cpmk`;
-        document.getElementById('assign_cpmk_title').textContent = `Pilih CPMK: ${mkCode} - ${mkName}`;
-        const assignedIds = Array.isArray(selectedCpmkIds) ? selectedCpmkIds.map(Number) : [];
-        document.querySelectorAll('.assign-cpmk-checkbox').forEach(cb => {
-            cb.checked = assignedIds.includes(parseInt(cb.value));
-        });
-        document.getElementById('assignCpmkModal').classList.remove('hidden');
-        document.getElementById('assignCpmkModal').classList.add('flex');
+    function toggleEditCplDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('cplEditDropdownMenu');
+        if (menu) menu.classList.toggle('hidden');
     }
 
-    function closeAssignCpmkModal() {
-        document.getElementById('assignCpmkModal').classList.add('hidden');
-        document.getElementById('assignCpmkModal').classList.remove('flex');
+    function updateEditCplSelectedSummary() {
+        const checked = Array.from(document.querySelectorAll('.edit-cpl-checkbox:checked'));
+        const summary = document.getElementById('cplEditDropdownSummary');
+        if (!summary) return;
+        if (checked.length === 0) {
+            summary.textContent = 'Pilih satu atau beberapa CPL...';
+            summary.classList.add('text-muted');
+            summary.classList.remove('text-ink', 'font-semibold');
+        } else {
+            const codes = checked.map(cb => cb.getAttribute('data-cpl-code') || cb.value);
+            summary.textContent = codes.join(', ') + ` (${checked.length} CPL terpilih)`;
+            summary.classList.remove('text-muted');
+            summary.classList.add('text-ink', 'font-semibold');
+        }
     }
 
-    function openEditCpmkModal(id, code, desc, threshold) {
+    function validateEditCpmkForm(e) {
+        const checkedCpls = document.querySelectorAll('.edit-cpl-checkbox:checked');
+        if (checkedCpls.length === 0) {
+            e.preventDefault();
+            alert('Silakan pilih minimal satu CPL yang didukung melalui dropdown CPL.');
+            const menu = document.getElementById('cplEditDropdownMenu');
+            if (menu) menu.classList.remove('hidden');
+            return false;
+        }
+
+        const code = document.getElementById('cpmk_edit_code')?.value.trim();
+        const desc = document.getElementById('cpmk_edit_desc')?.value.trim();
+
+        if (!code || !desc) {
+            e.preventDefault();
+            alert('Kode CPMK dan Deskripsi CPMK wajib diisi.');
+            return false;
+        }
+
+        return true;
+    }
+
+    function openEditCpmkModal(id, code, desc, threshold, cplIds = []) {
         const form = document.getElementById('editCpmkForm');
         form.action = `/admin-prodi/kurikulum/cpmk/${id}`;
         document.getElementById('cpmk_edit_code').value = code;
         document.getElementById('cpmk_edit_desc').value = desc;
         document.getElementById('cpmk_edit_threshold').value = threshold;
+
+        const assignedIds = Array.isArray(cplIds) ? cplIds.map(Number) : [];
+        document.querySelectorAll('.edit-cpl-checkbox').forEach(cb => {
+            cb.checked = assignedIds.includes(parseInt(cb.value));
+        });
+        updateEditCplSelectedSummary();
+
+        const editMenu = document.getElementById('cplEditDropdownMenu');
+        if (editMenu) editMenu.classList.add('hidden');
+
         document.getElementById('editCpmkModal').classList.remove('hidden');
         document.getElementById('editCpmkModal').classList.add('flex');
     }
+
     function closeEditCpmkModal() {
         document.getElementById('editCpmkModal').classList.add('hidden');
         document.getElementById('editCpmkModal').classList.remove('flex');
     }
 
-    function toggleMk(mkId) {
-        const body = document.getElementById(`mk-body-${mkId}`);
-        const chevron = document.getElementById(`chevron-${mkId}`);
-        if (!body) return;
-        const isHidden = body.classList.contains('hidden');
-        if (isHidden) {
-            body.classList.remove('hidden');
-            chevron?.classList.add('rotate-180');
-        } else {
-            body.classList.add('hidden');
-            chevron?.classList.remove('rotate-180');
-        }
-    }
-
-    function filterCpmkCards() {
+    function filterCpmkRows() {
         const query = document.getElementById('cpmk-search')?.value.toLowerCase().trim() || '';
-        document.querySelectorAll('[data-mk-card]').forEach(card => {
-            const text = card.textContent.toLowerCase();
-            card.style.display = text.includes(query) ? '' : 'none';
+        document.querySelectorAll('[data-cpmk-row]').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
         });
     }
 </script>

@@ -320,7 +320,11 @@ class AdminProdiManagementTest extends TestCase
         $viewResponse->assertOk()
             ->assertSee('Pilih CPL yang Didukung')
             ->assertDontSee('Mata Kuliah Sasaran')
-            ->assertSee('cpl_ids[]');
+            ->assertSee('cpl_ids[]')
+            ->assertSee('2. Butir CPMK')
+            ->assertSee('Digunakan di MK')
+            ->assertSee('CPMK-01')
+            ->assertSee('CPMK-02');
 
         // 8. Tampilan halaman mata kuliah menampilkan multiple choice CPMK
         $mkViewResponse = $this->get(route('admin-prodi.akademik.matakuliah', [
@@ -1009,6 +1013,6 @@ class AdminProdiManagementTest extends TestCase
         $dashResp = $this->get(route('admin-prodi.dashboard'));
         $dashResp->assertOk();
         $dashResp->assertSee($this->prodi->name);
-        $dashResp->assertSee('Profil Capaian Akademik Program Studi');
+        $dashResp->assertSee('Kelas Perkuliahan Aktif Terbaru');
     }
 }
