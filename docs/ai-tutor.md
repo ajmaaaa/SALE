@@ -1,6 +1,6 @@
 # Tutor Gemini untuk uji coba SALE
 
-Panel Lumina AI kini memanggil Gemini melalui Laravel, bukan respons simulasi di JavaScript. Implementasi tidak membutuhkan RAG: soal resmi menjadi konteks dan model boleh menggunakan pengetahuan pemrograman umum. Materi dosen tidak wajib.
+Panel AI Asisten kini memanggil Gemini melalui Laravel, bukan respons simulasi di JavaScript. Implementasi tidak membutuhkan RAG: soal resmi menjadi konteks dan model boleh menggunakan pengetahuan pemrograman umum. Materi dosen tidak wajib.
 
 ## Aktivasi
 
@@ -30,7 +30,7 @@ composer run dev
 
 Perintah grant meminta password minimal 12 karakter secara tersembunyi saat membuat akun baru. Akun disimpan di tabel `users` dengan password hash, terpisah dari identitas persona pratinjau. Untuk akun database yang sudah ada, password tidak diganti. Tidak tersedia pendaftaran mandiri atau akses melalui persona.
 
-4. Buka `/mahasiswa/assignment/1/code`, lalu masuk melalui formulir akun AI pada panel Lumina. Soal 1 otomatis didaftarkan sebagai latihan BST saat grant pertama. API tidak dipanggil sampai mahasiswa mengirim pertanyaan.
+4. Buka `/mahasiswa/assignment/1/code`, lalu masuk melalui formulir akun AI pada panel AI Asisten. Soal 1 otomatis didaftarkan sebagai latihan BST saat grant pertama. API tidak dipanggil sampai mahasiswa mengirim pertanyaan.
 
 Untuk tugas coding lain yang sudah ada di room, siapkan berkas JSON lokal dengan `title` dan `body` (maksimum 8.000 karakter; hanya instruksi tugas, tanpa kunci jawaban), lalu:
 
