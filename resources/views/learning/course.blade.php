@@ -227,7 +227,7 @@
                                             <div class="min-w-0 flex-1">
                                                 <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition leading-snug">{{ $item['title'] }}</h4>
                                                 <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
-                                                    <span>{{ $isCodingMaterial ? 'Tutorial coding & Lumina AI' : 'Materi belajar' }}</span>
+                                                    <span>{{ $isCodingMaterial ? 'Tutorial coding & AI Asisten' : 'Materi belajar' }}</span>
                                                     @if(!empty($item['published_at_formatted']))
                                                         <span class="h-2.5 w-px bg-line"></span>
                                                         <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
