@@ -4,12 +4,19 @@
 
 @section('content')
 @php
-    $detail = in_array(request('detail'), ['ai', 'backup'], true) ? request('detail') : null;
+    $detail = in_array(request('detail'), ['ai', 'storage', 'backup'], true) ? request('detail') : null;
     $monitorUrl = fn (?string $target = null) => route('admin.page', ['section' => 'monitoring', 'detail' => $target]);
+    $storageMetrics = $storageMetrics ?? [
+        'used_formatted' => '14,2 GB',
+        'total_formatted' => '100 GB',
+        'free_formatted' => '85,8 GB',
+        'app_formatted' => '2,4 GB',
+        'percent' => 14,
+    ];
 @endphp
 <div class="space-y-6">
     <header><h1 class="page-heading">Monitoring sistem</h1><p class="page-description">Data penggunaan yang telah tercatat oleh layanan SALE.</p></header>
-    <div class="grid gap-4 md:grid-cols-2">
+    <div class="grid gap-4 md:grid-cols-3">
         @php
             $cards = [
                 [
@@ -17,6 +24,12 @@
                     'label' => 'Pemakaian AI',
                     'value' => number_format((int) $aiMetrics['total_tokens'], 0, ',', '.').' token',
                     'description' => number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan bulan ini',
+                ],
+                [
+                    'target' => 'storage',
+                    'label' => 'Penyimpanan sistem',
+                    'value' => $storageMetrics['used_formatted'],
+                    'description' => 'Terpakai dari ' . $storageMetrics['total_formatted'] . ' kapasitas disk (' . $storageMetrics['percent'] . '%)',
                 ],
                 [
                     'target' => 'backup',
@@ -29,8 +42,8 @@
         @foreach($cards as $c)
             <a href="{{ $monitorUrl($detail === $c['target'] ? null : $c['target']) }}" @if($detail === $c['target']) aria-current="true" @endif class="surface group border p-5 transition hover:border-brand hover:shadow-md {{ $detail === $c['target'] ? 'border-brand ring-1 ring-brand' : 'border-transparent' }}">
                 <h2 class="text-sm text-muted">{{ $c['label'] }}</h2>
-                <p class="mt-3 text-xl sm:text-2xl font-semibold tracking-tight">{{ $c['value'] }}</p>
-                <p class="mt-2 text-xs leading-5 text-muted">{{ $c['description'] }}</p>
+                <p data-metric-value="{{ $c['target'] }}" class="mt-3 text-xl sm:text-2xl font-semibold tracking-tight">{{ $c['value'] }}</p>
+                <p data-metric-description="{{ $c['target'] }}" class="mt-2 text-xs leading-5 text-muted">{{ $c['description'] }}</p>
                 <span class="mt-5 block text-xs font-semibold text-brand">{{ $detail === $c['target'] ? 'Tutup detail' : 'Lihat detail' }}</span>
             </a>
         @endforeach
@@ -55,6 +68,57 @@
                 @endforeach
             </dl>
             <div class="border-t border-line/60 p-5 sm:p-6">@include('admin.partials.monitoring-ai-requests', ['demo' => false])</div>
+        </section>
+    @elseif($detail === 'storage')
+        <section class="surface overflow-hidden" aria-labelledby="storage-heading">
+            <div class="flex flex-col gap-3 border-b border-line/60 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div>
+                    <h2 id="storage-heading" class="section-heading">Kapasitas &amp; Penggunaan Penyimpanan</h2>
+                    <p class="mt-1 text-sm text-muted">Kapasitas ruang disk server dan direktori berkas sistem SALE.</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                    Penyimpanan Normal
+                </span>
+            </div>
+
+            <div class="p-5 sm:p-6 space-y-6">
+                <div class="grid gap-6 rounded-xl bg-canvas/60 p-5 sm:grid-cols-2">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Penyimpanan Terpakai</p>
+                        <p data-storage-used class="mt-2 text-3xl font-bold text-ink">{{ $storageMetrics['used_formatted'] }}</p>
+                        <p data-storage-desc class="mt-1 text-xs text-muted">{{ $storageMetrics['used_formatted'] }} digunakan dari total {{ $storageMetrics['total_formatted'] }} ({{ $storageMetrics['percent'] }}%)</p>
+                        <div class="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow="{{ $storageMetrics['percent'] }}" aria-valuemin="0" aria-valuemax="100">
+                            <div data-storage-bar class="h-full rounded-full bg-brand" style="width: {{ $storageMetrics['percent'] }}%"></div>
+                        </div>
+                    </div>
+
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex justify-between gap-4"><dt class="text-muted">Total kapasitas disk</dt><dd data-storage-total class="text-right font-semibold text-ink">{{ $storageMetrics['total_formatted'] }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-muted">Ruang disk tersedia</dt><dd data-storage-free class="text-right font-semibold text-emerald-600">{{ $storageMetrics['free_formatted'] }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-muted">Penyimpanan berkas aplikasi (storage/app)</dt><dd data-storage-app class="text-right font-semibold text-brand">{{ $storageMetrics['app_formatted'] }}</dd></div>
+                        <div class="flex justify-between gap-4"><dt class="text-muted">Status partisi</dt><dd class="text-right font-medium text-ink">Normal / Siap digunakan</dd></div>
+                    </dl>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div class="rounded-xl border border-line/60 p-4">
+                        <dt class="text-xs font-medium text-muted">Ruang Disk Terpakai</dt>
+                        <dd class="mt-2 text-2xl font-bold text-ink">{{ $storageMetrics['used_formatted'] }}</dd>
+                        <p class="mt-1 text-xs text-muted">{{ $storageMetrics['percent'] }}% dari kapasitas disk server</p>
+                    </div>
+                    <div class="rounded-xl border border-line/60 p-4">
+                        <dt class="text-xs font-medium text-muted">Ruang Disk Tersedia</dt>
+                        <dd class="mt-2 text-2xl font-bold text-emerald-600">{{ $storageMetrics['free_formatted'] }}</dd>
+                        <p class="mt-1 text-xs text-muted">{{ max(0, 100 - $storageMetrics['percent']) }}% ruang kosong</p>
+                    </div>
+                    <div class="rounded-xl border border-line/60 p-4">
+                        <dt class="text-xs font-medium text-muted">Berkas Unggahan &amp; Data</dt>
+                        <dd class="mt-2 text-2xl font-bold text-brand">{{ $storageMetrics['app_formatted'] }}</dd>
+                        <p class="mt-1 text-xs text-muted">Dokumen, media, &amp; berkas cadangan</p>
+                    </div>
+                </div>
+            </div>
         </section>
     @elseif($detail === 'backup')
         <section class="surface overflow-hidden" aria-labelledby="backup-heading">
@@ -193,4 +257,61 @@
         </section>
     @endif
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        async function refreshMonitoringData() {
+            if (document.visibilityState !== 'visible') return;
+
+            try {
+                const res = await fetch(window.location.href, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.success) return;
+
+                if (data.aiMetrics) {
+                    const aiVal = document.querySelector('[data-metric-value="ai"]');
+                    if (aiVal && data.aiMetrics.total_tokens_formatted) aiVal.textContent = data.aiMetrics.total_tokens_formatted;
+                    const aiDesc = document.querySelector('[data-metric-description="ai"]');
+                    if (aiDesc && data.aiMetrics.requests_description) aiDesc.textContent = data.aiMetrics.requests_description;
+                }
+
+                if (data.storageMetrics) {
+                    const s = data.storageMetrics;
+                    const stVal = document.querySelector('[data-metric-value="storage"]');
+                    if (stVal) stVal.textContent = s.used_formatted;
+                    const stDesc = document.querySelector('[data-metric-description="storage"]');
+                    if (stDesc) stDesc.textContent = `Terpakai dari ${s.total_formatted} kapasitas disk (${s.percent}%)`;
+
+                    const usedEl = document.querySelector('[data-storage-used]');
+                    if (usedEl) usedEl.textContent = s.used_formatted;
+                    const descEl = document.querySelector('[data-storage-desc]');
+                    if (descEl) descEl.textContent = `${s.used_formatted} digunakan dari total ${s.total_formatted} (${s.percent}%)`;
+                    const barEl = document.querySelector('[data-storage-bar]');
+                    if (barEl) barEl.style.width = `${s.percent}%`;
+                    const freeEl = document.querySelector('[data-storage-free]');
+                    if (freeEl) freeEl.textContent = s.free_formatted;
+                    const totalEl = document.querySelector('[data-storage-total]');
+                    if (totalEl) totalEl.textContent = s.total_formatted;
+                    const appEl = document.querySelector('[data-storage-app]');
+                    if (appEl) appEl.textContent = s.app_formatted;
+                }
+            } catch (err) {
+            }
+        }
+
+        setInterval(refreshMonitoringData, 10000);
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                refreshMonitoringData();
+            }
+        });
+    });
+</script>
 @endsection

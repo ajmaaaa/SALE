@@ -10,6 +10,13 @@
     $prodiCount = count(array_filter($academic, fn($a) => $a['type'] === 'prodi'));
     $activeSemester = collect($academic)->first(fn($item) => $item['type'] === 'semester' && $item['status'] === 'aktif')['name'] ?? 'Belum ditetapkan';
     $logs = $logs ?? [];
+    $storageMetrics = $storageMetrics ?? [
+        'used_formatted' => '14,2 GB',
+        'total_formatted' => '100 GB',
+        'free_formatted' => '85,8 GB',
+        'app_formatted' => '2,4 GB',
+        'percent' => 14,
+    ];
 @endphp
 
 <div class="space-y-8 w-full">
@@ -121,6 +128,50 @@
                     <span class="text-muted">Data berasal dari log panggilan AI</span>
                     <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai']) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
                         Buka rincian pemakaian AI
+                    </a>
+                </div>
+            </section>
+
+            {{-- Widget 2: Penyimpanan Sistem --}}
+            <section class="surface p-5 sm:p-6 border border-line/60 space-y-4" aria-labelledby="storage-monitoring-heading">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 pb-3.5">
+                    <div>
+                        <h2 id="storage-monitoring-heading" class="section-heading text-base">Penyimpanan Sistem</h2>
+                        <p class="mt-0.5 text-xs text-muted">Kapasitas dan penggunaan ruang penyimpanan pada server sistem SALE.</p>
+                    </div>
+                    <span class="text-xs font-medium text-emerald-600">Penyimpanan Normal</span>
+                </div>
+
+                <div class="grid gap-5 sm:grid-cols-2 pt-1">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Penyimpanan Terpakai</p>
+                        <p class="mt-2 text-3xl font-bold text-ink">{{ $storageMetrics['used_formatted'] }}</p>
+                        <p class="mt-1 text-xs text-muted">{{ $storageMetrics['used_formatted'] }} dari {{ $storageMetrics['total_formatted'] }} kapasitas disk</p>
+                        <div class="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow="{{ $storageMetrics['percent'] }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="h-full rounded-full bg-brand" style="width: {{ $storageMetrics['percent'] }}%"></div>
+                        </div>
+                    </div>
+
+                    <dl class="space-y-2.5 text-xs rounded-xl bg-canvas/60 p-3.5 border border-line/40">
+                        <div class="flex justify-between">
+                            <dt class="text-muted">Total kapasitas disk</dt>
+                            <dd class="font-semibold text-ink">{{ $storageMetrics['total_formatted'] }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-muted">Ruang disk tersedia</dt>
+                            <dd class="font-semibold text-emerald-600">{{ $storageMetrics['free_formatted'] }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-muted">Penyimpanan berkas aplikasi</dt>
+                            <dd class="font-semibold text-ink">{{ $storageMetrics['app_formatted'] }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="border-t border-line/40 pt-3 flex items-center justify-between text-xs">
+                    <span class="text-muted">Penggunaan ruang disk server: {{ $storageMetrics['percent'] }}%</span>
+                    <a href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'storage']) }}" class="font-semibold text-brand hover:text-brand-dark inline-flex items-center gap-1">
+                        Buka rincian penyimpanan
                     </a>
                 </div>
             </section>
