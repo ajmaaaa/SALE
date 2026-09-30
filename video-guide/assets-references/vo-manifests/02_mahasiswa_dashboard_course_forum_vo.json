@@ -1,0 +1,50 @@
+{
+  "id": "02_mahasiswa_dashboard_course_forum",
+  "title": "Navigasi Dashboard, Course, dan Forum Diskusi",
+  "role": "Mahasiswa",
+  "totalScenes": 6,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 9,
+      "voiceoverText": "Antarmuka yang teratur adalah kunci belajar yang fokus. Di SALE, dashboard utama dirancang untuk menampilkan prioritas belajarmu dalam sekejap mata.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_academic_summary",
+      "estimatedDurationSec": 16,
+      "voiceoverText": "Di bagian atas, kamu langsung melihat ringkasan akademik: berapa kelas yang aktif dan tugas yang menanti. Di bawahnya, daftar pesan diskusi yang belum sempat kamu buka tersusun rapi agar kamu tidak melewatkan obrolan penting dari kelas.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_two_column_course",
+      "estimatedDurationSec": 15,
+      "voiceoverText": "Masuk ke dalam course, kamu disambut oleh tata letak dua kolom yang efisien. Kolom kiri menampilkan seluruh modul belajar—mulai dari video pengantar yang disematkan dosen, file materi presentasi, hingga instruksi tugas per pertemuan.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_reading_material",
+      "estimatedDurationSec": 12,
+      "voiceoverText": "Setiap materi memiliki ruangnya sendiri yang bebas distraksi. Kamu bisa langsung mengunduh file lampiran materi pendukung, membaca penjelasan dosen, dan berdiskusi secara spesifik pada topik tersebut.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_live_chat_forum",
+      "estimatedDurationSec": 19,
+      "voiceoverText": "Di kolom kanan, forum diskusi kelas berjalan secara realtime. Kamu bisa langsung berinteraksi dengan dosen dan teman sekelas tanpa berpindah aplikasi. Gunakan simbol at (@) untuk menyebut rekan kuliah atau dosen, dan perhatikan pesan yang disematkan di bagian atas untuk pengumuman prioritas.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 6,
+      "id": "scene_6_outro",
+      "estimatedDurationSec": 7,
+      "voiceoverText": "Semua materi dalam genggaman, komunikasi mengalir lancar. Pengalaman belajar digitalmu kini jauh lebih menyenangkan.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

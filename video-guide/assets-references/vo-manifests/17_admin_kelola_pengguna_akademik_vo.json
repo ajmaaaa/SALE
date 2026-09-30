@@ -1,0 +1,50 @@
+{
+  "id": "17_admin_kelola_pengguna_akademik",
+  "title": "Mengelola Pengguna, Semester, dan Data Akademik Global",
+  "role": "Admin Sistem",
+  "totalScenes": 6,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 12,
+      "voiceoverText": "Sebagai Admin Sistem, Anda memegang kendali atas pondasi operasional seluruh kampus. Mengelola ratusan akun dan menetapkan periode akademik kini dapat dilakukan secara terpusat tanpa hambatan teknis.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_global_user_management",
+      "estimatedDurationSec": 15,
+      "voiceoverText": "Masuki menu Pengguna dan Hak Akses. Di sini Anda dapat menambahkan akun baru untuk peran apa pun—mulai dari Dosen, Mahasiswa, Admin Program Studi, hingga sesama Administrator Sistem. Tetapkan identitas dan hak aksesnya dengan aman.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_bulk_import_university",
+      "estimatedDurationSec": 15,
+      "voiceoverText": "Untuk penerimaan mahasiswa baru tingkat universitas, gunakan fitur Impor Massal. Unduh template resmi kami, masukkan data mahasiswa seluruh fakultas, dan unggah kembali. Sistem akan memproses dan membuat akun secara instan dengan verifikasi pencegahan duplikasi.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_semester_active_toggle",
+      "estimatedDurationSec": 17,
+      "voiceoverText": "Selanjutnya, buka menu Data Akademik untuk mengatur periode perkuliahan global. Anda dapat menambahkan semester baru dan menetapkan semester mana yang sedang berjalan aktif. Penetapan ini akan otomatis menjadi acuan bagi seluruh kelas dan kurikulum di semua program studi.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_master_prodi",
+      "estimatedDurationSec": 13,
+      "voiceoverText": "Pada tab Program Studi, Admin Sistem dapat mendaftarkan jurusan atau prodi baru beserta kode resminya. Setiap prodi yang ditambahkan langsung memiliki ruang tata kelola kurikulum dan data akademiknya sendiri.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 6,
+      "id": "scene_6_outro",
+      "estimatedDurationSec": 8,
+      "voiceoverText": "Pengguna terorganisir, semester terkelola dengan presisi. Tata kelola sistem kampus Anda kini berjalan dengan standar keandalan tertinggi.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

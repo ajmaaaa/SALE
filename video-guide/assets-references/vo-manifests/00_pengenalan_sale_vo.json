@@ -1,0 +1,43 @@
+{
+  "id": "00_pengenalan_sale",
+  "title": "Pengenalan SALE: Sistem untuk Siapa & Apa yang Bisa Dilakukan",
+  "role": "All Roles (Overview)",
+  "totalScenes": 5,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 12,
+      "voiceoverText": "Bayangkan sebuah ekosistem akademik di mana setiap proses belajar tidak hanya menghasilkan nilai berupa angka, tapi benar-benar mengukur kemampuan nyata. Inilah SALE, Smart Academic Learning Environment.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_four_roles",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Sistem ini dibangun untuk semua penggerak akademik. Admin Sistem yang mengelola infrastruktur, Admin Prodi yang merancang kurikulum, Dosen yang menjadi fasilitator, dan tentu saja... Mahasiswa sebagai pusat dari setiap proses pembelajaran.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_obe_framework",
+      "estimatedDurationSec": 16,
+      "voiceoverText": "SALE bukan sekadar LMS biasa. Kami mengadopsi standar Outcome-Based Education atau OBE. Artinya, setiap kuis, setiap tugas pemrograman, hingga diskusi di forum, semuanya dipetakan langsung ke Capaian Pembelajaran. Mahasiswa tahu persis skill apa yang sedang mereka bangun.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_modern_features",
+      "estimatedDurationSec": 13,
+      "voiceoverText": "Mulai dari diskusi kelas real-time layaknya aplikasi chatting modern, ujian dengan sistem timer pintar, hingga asisten AI yang siap membimbing logika tugas coding mahasiswa. Semua terintegrasi dalam satu platform.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_outro",
+      "estimatedDurationSec": 8,
+      "voiceoverText": "Siap untuk mengubah cara kamu mengajar dan belajar? Mari kita jelajahi SALE lebih dalam di seri panduan berikutnya.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

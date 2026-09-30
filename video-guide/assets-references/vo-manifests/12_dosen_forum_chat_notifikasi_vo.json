@@ -1,0 +1,43 @@
+{
+  "id": "12_dosen_forum_chat_notifikasi",
+  "title": "Forum Diskusi Kelas, Chat Real-time, dan Notifikasi Dosen",
+  "role": "Dosen",
+  "totalScenes": 5,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 10,
+      "voiceoverText": "Komunikasi yang responsif antara dosen dan mahasiswa menciptakan suasana belajar yang hidup. Di SALE, ruang interaksi kelas hadir berdampingan langsung dengan materi perkuliahan.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_live_chat_and_mention",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Di panel Live Chat, obrolan berjalan secara realtime. Anda dapat langsung menjawab pertanyaan mahasiswa, berdiskusi santai, atau menggunakan simbol at (@) untuk memanggil mahasiswa tertentu secara langsung di dalam ruang kelas virtual.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_pin_important_messages",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Memiliki informasi penting seperti perubahan jadwal atau link referensi utama? Cukup klik opsi pesan dan pilih 'Pin Pesan'. Pesan tersebut akan terkunci di posisi teratas sehingga selalu terbaca oleh seluruh anggota kelas.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_realtime_dosen_notifications",
+      "estimatedDurationSec": 15,
+      "voiceoverText": "Untuk memantau aktivitas dari seluruh kelas yang Anda ampu, buka menu Notifikasi. Setiap ada mahasiswa yang mengumpulkan tugas atau bertanya di forum, sistem akan memberitahu Anda secara instan tanpa perlu memuat ulang halaman.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_outro",
+      "estimatedDurationSec": 7,
+      "voiceoverText": "Tetap terhubung dengan mahasiswa Anda kapan saja dan di mana saja melalui ekosistem komunikasi terpadu SALE.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

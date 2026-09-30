@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melihat Rekap CPMK, CPL, dan Ekspor Laporan - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Melihat Rekap CPMK, CPL, dan Ekspor Laporan</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Dosen</strong> &bull; Durasi Est.: <strong>4–5 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: 11_dosen_rekap_cpmk_cpl_export</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KOMPUTASI OBE OTOMATIS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Ketercapaian Lulusan Tanpa Rumus Manual
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Sistem SALE menghitung ketercapaian kompetensi mahasiswa secara otomatis.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-1"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            TAB REKAP CPMK
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Matriks Nilai Asesmen dan Sub-Kolom CPMK
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tinjau sebaran skor mahasiswa dan persentase penguasaan tiap indikator kompetensi.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            TAB REKAP CPL
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Akumulasi Capaian Lulusan Program Studi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Konversi otomatis dari skor CPMK ke target CPL prodi dengan garis threshold.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-split-card " 
+                     id="scene-3"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            MENU EXPORT DATA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Empat Pilihan Rekapitulasi Resmi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Unduh laporan berformat Excel (.xlsx) resmi dengan kop surat universitas.
+                        </p>
+                        
+                            <div style="margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Rekap Nilai & CPMK: Nilai akhir, grade, dan predikat
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Rekap Capaian CPMK: Kop surat & warna visual
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Rekap Capaian CPL: Evaluasi ketercapaian prodi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Rekap Nilai Asesmen: Rincian per instrumen
+                                    </div>
+                                
+                            </div>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-4"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            DOKUMEN RESMI SIAP CETAK
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Standar Akreditasi Internasional
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Format rapi dan elegan yang menghemat waktu administrasi di akhir semester.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-5"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SALE OBE ANALYTICS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Laporan Selesai. Kualitas Terjaga
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kemudahan menyeluruh bagi dosen dalam menuntaskan tugas akhir semester.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Menilai ujian adalah satu hal, tetapi memastikan mahasiswa benar-benar mencapai Capaian Pembelajaran Lulusan adalah tantangan yang jauh lebih besar. Di sinilah SALE melakukan komputasi berat untuk Anda.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 6</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"KOMPUTASI OBE OTOMATIS","title":"Ketercapaian Lulusan Tanpa Rumus Manual","description":"Sistem SALE menghitung ketercapaian kompetensi mahasiswa secara otomatis.","voiceover":"Menilai ujian adalah satu hal, tetapi memastikan mahasiswa benar-benar mencapai Capaian Pembelajaran Lulusan adalah tantangan yang jauh lebih besar. Di sinilah SALE melakukan komputasi berat untuk Anda.","floating":true},{"id":"scene_2_rekap_cpmk_matrix","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"TAB REKAP CPMK","title":"Matriks Nilai Asesmen dan Sub-Kolom CPMK","description":"Tinjau sebaran skor mahasiswa dan persentase penguasaan tiap indikator kompetensi.","screenRec":{"target":"Halaman Rekap Capaian per CPMK","zoom":{"scale":1.1,"area":"Header ganda asesmen & sub-kolom CPMK"},"cursor":[{"action":"scroll_horizontal_cpmk_table"},{"action":"hover_cpmk_percentages"}]},"voiceover":"Masuki tab Rekap CPMK. Sistem menyajikan tabel komprehensif yang memetakan nilai mahasiswa ke butir-butir CPMK yang diukur pada setiap tugas, kuis, maupun ujian. Anda dapat melihat secara transparan sejauh mana setiap mahasiswa menguasai kompetensi yang ditargetkan.","floating":false},{"id":"scene_3_rekap_cpl_threshold","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"TAB REKAP CPL","title":"Akumulasi Capaian Lulusan Program Studi","description":"Konversi otomatis dari skor CPMK ke target CPL prodi dengan garis threshold.","screenRec":{"target":"Halaman Rekap CPL Mata Kuliah","zoom":{"scale":1.15,"area":"Tabel nilai CPL & batas kelulusan"},"cursor":[{"action":"view_cpl_summary"}]},"voiceover":"Selanjutnya, buka tab Rekap CPL. Di sini, nilai-nilai CPMK dikonversi secara otomatis menjadi capaian CPL program studi berdasarkan bobot kurikulum yang telah ditetapkan oleh Admin Prodi. Dosen dapat langsung mengevaluasi efektivitas pengajarannya terhadap standar prodi.","floating":false},{"id":"scene_4_export_options","layout":"split-card","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"MENU EXPORT DATA","title":"Empat Pilihan Rekapitulasi Resmi","description":"Unduh laporan berformat Excel (.xlsx) resmi dengan kop surat universitas.","details":["Rekap Nilai & CPMK: Nilai akhir, grade, dan predikat","Rekap Capaian CPMK: Kop surat & warna visual","Rekap Capaian CPL: Evaluasi ketercapaian prodi","Rekap Nilai Asesmen: Rincian per instrumen"],"screenRec":{"target":"Halaman Export Data Penilaian","zoom":{"scale":1.2,"area":"Kartu opsi ekspor & tombol unduh Excel"},"cursor":[{"action":"click_export_excel_keseluruhan"}]},"voiceover":"Untuk keperluan pelaporan atau arsip akreditasi, buka menu Export. SALE menyediakan format Excel resmi lengkap dengan kop surat institusi, identitas mata kuliah, serta penataan warna yang rapi dan siap diserahkan ke program studi tanpa perlu diedit ulang.","floating":false},{"id":"scene_5_excel_preview","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"DOKUMEN RESMI SIAP CETAK","title":"Standar Akreditasi Internasional","description":"Format rapi dan elegan yang menghemat waktu administrasi di akhir semester.","screenRec":{"target":"Pratinjau Berkas Excel Rekapitulasi Resmi","zoom":{"scale":1.15,"area":"Kop surat resmi & tabel rapi"},"cursor":[{"action":"scroll_excel_preview"}]},"voiceover":"Laporan selesai dalam hitungan detik. Transparan, terstandarisasi, dan sepenuhnya selaras dengan kurikulum OBE kampus Anda.","floating":false},{"id":"scene_6_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SALE OBE ANALYTICS","title":"Laporan Selesai. Kualitas Terjaga","description":"Kemudahan menyeluruh bagi dosen dalam menuntaskan tugas akhir semester.","voiceover":"Dengan SALE, penjaminan mutu perkuliahan berjalan lancar dari awal hingga akhir semester.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>

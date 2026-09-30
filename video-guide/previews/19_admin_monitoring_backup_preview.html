@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Sistem, Storage, dan Backup Database - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Monitoring Sistem, Storage, dan Backup Database</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Admin Sistem</strong> &bull; Durasi Est.: <strong>3–4 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: 19_admin_monitoring_backup</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KEANDALAN INFRASTRUKTUR
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Pengawasan Proaktif dan Keamanan Data
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pantau beban server, kapasitas penyimpanan berkas, dan cadangan database secara terpadu.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-1"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KAPASITAS PENYIMPANAN REALTIME
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Beban Hard Disk dan Berkas Lampiran
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pantau Disk Used, Disk Free, dan akumulasi berkas app/ yang diperbarui tiap 10 detik.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            METRIK KONSUMSI TOKEN AI
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Grafik Penggunaan Asisten Pemrograman
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Evaluasi penggunaan kuota token, jumlah permintaan, dan latensi respon kecerdasan buatan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-3"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            CADANGAN DATABASE (BACKUP & RESTORE)
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Pencadangan SQL Satu Klik
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Buat file backup database .sql, unduh ke penyimpanan offline, atau lakukan restore darurat.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-4"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            LOG AKTIVITAS SISTEM
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Jejak Audit Seluruh Aksi Pengguna
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Catatan transparan perubahan data, alamat IP, dan waktu eksekusi untuk auditabilitas.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-5"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SISTEM TANGGUH & AMAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Sistem Tangguh. Data Terlindungi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Menjaga kontinuitas proses pembelajaran kampus dengan proteksi maksimal.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Menjaga sistem tetap beroperasi tanpa henti memerlukan pengawasan proaktif. Melalui menu Monitoring Sistem di SALE, kesehatan server, beban penyimpanan, dan integritas data terpantau secara realtime.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 6</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"KEANDALAN INFRASTRUKTUR","title":"Pengawasan Proaktif dan Keamanan Data","description":"Pantau beban server, kapasitas penyimpanan berkas, dan cadangan database secara terpadu.","voiceover":"Menjaga sistem tetap beroperasi tanpa henti memerlukan pengawasan proaktif. Melalui menu Monitoring Sistem di SALE, kesehatan server, beban penyimpanan, dan integritas data terpantau secara realtime.","floating":true},{"id":"scene_2_storage_realtime_widget","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"KAPASITAS PENYIMPANAN REALTIME","title":"Beban Hard Disk dan Berkas Lampiran","description":"Pantau Disk Used, Disk Free, dan akumulasi berkas app/ yang diperbarui tiap 10 detik.","screenRec":{"target":"Halaman Monitoring: Widget Storage Capacity","zoom":{"scale":1.25,"area":"Progress bar storage & rincian memori"},"cursor":[{"action":"hover_storage_progress_bar"}]},"voiceover":"Di bagian penyimpanan, Anda dapat memantau kapasitas hard disk server secara langsung. Sistem memperlihatkan persentase memori penyimpanan yang terpakai serta akumulasi berkas lampiran materi dan tugas mahasiswa. Pembaruan data berjalan otomatis tanpa perlu refresh berkala.","floating":false},{"id":"scene_3_ai_token_metrics","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"METRIK KONSUMSI TOKEN AI","title":"Grafik Penggunaan Asisten Pemrograman","description":"Evaluasi penggunaan kuota token, jumlah permintaan, dan latensi respon kecerdasan buatan.","screenRec":{"target":"Monitoring: Section Metrik AI","zoom":{"scale":1.2,"area":"Grafik token AI & statistik request"},"cursor":[{"action":"hover_token_chart"}]},"voiceover":"Ingin mengetahui seberapa sering mahasiswa berkonsultasi dengan asisten coding? Panel metrik AI menampilkan total token yang telah digunakan beserta riwayat request per hari, memudahkan Anda dalam merencanakan alokasi kuota token kampus.","floating":false},{"id":"scene_4_database_backup_restore","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"CADANGAN DATABASE (BACKUP & RESTORE)","title":"Pencadangan SQL Satu Klik","description":"Buat file backup database .sql, unduh ke penyimpanan offline, atau lakukan restore darurat.","screenRec":{"target":"Section Backup & Restore Database","zoom":{"scale":1.25,"area":"Tombol Buat Backup Baru & daftar file SQL"},"cursor":[{"action":"click_create_backup_btn"},{"action":"hover_download_restore_action"}]},"voiceover":"Keamanan data adalah prioritas utama. Di bagian Backup Database, Anda dapat membuat cadangan pangkalan data SQL kapan saja hanya dengan satu klik. Unduh file cadangan tersebut ke penyimpanan dingin Anda, atau gunakan fitur pulihkan (restore) jika suatu saat dibutuhkan pemulihan darurat.","floating":false},{"id":"scene_5_activity_log","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"LOG AKTIVITAS SISTEM","title":"Jejak Audit Seluruh Aksi Pengguna","description":"Catatan transparan perubahan data, alamat IP, dan waktu eksekusi untuk auditabilitas.","screenRec":{"target":"Tabel Activity Log Sistem","zoom":{"scale":1.15,"area":"Tabel log aktivitas & alamat IP"},"cursor":[{"action":"scroll_activity_logs"}]},"voiceover":"Seluruh aksi penting tercatat secara transparan di Log Aktivitas. Anda selalu mengetahui siapa yang melakukan pembaruan nilai, perubahan kurikulum, maupun pembuatan kelas baru demi menjaga auditabilitas sistem.","floating":false},{"id":"scene_6_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SISTEM TANGGUH & AMAN","title":"Sistem Tangguh. Data Terlindungi","description":"Menjaga kontinuitas proses pembelajaran kampus dengan proteksi maksimal.","voiceover":"Dengan pemantauan cerdas dan proteksi berlapis, SALE siap mendukung operasional akademik kampus Anda secara andal sepanjang waktu.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>

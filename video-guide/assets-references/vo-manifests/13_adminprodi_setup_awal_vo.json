@@ -1,0 +1,50 @@
+{
+  "id": "13_adminprodi_setup_awal",
+  "title": "Setup Awal: Mata Kuliah, Kelas, dan Dosen Pengampu",
+  "role": "Admin Prodi",
+  "totalScenes": 6,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 13,
+      "voiceoverText": "Fondasi dari seluruh sistem e-learning ada di tangan Anda, Admin Prodi. Jika setup awal ini presisi, jalannya perkuliahan selama satu semester akan mulus tanpa hambatan. Mari kita mulai menyusunnya.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_tambah_mata_kuliah",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Langkah pertama, mendefinisikan mata kuliah. Masukkan kode resmi, nama mata kuliah, bobot SKS, dan letakkan pada semester paket yang sesuai dengan kurikulum. Data ini akan menjadi cetak biru bagi kelas-kelas yang dibuka.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_buka_kelas_baru",
+      "estimatedDurationSec": 10,
+      "voiceoverText": "Setelah mata kuliah tersedia, kita pecah menjadi kelas-kelas operasional. Pilih mata kuliahnya, tentukan semester berjalan, dan yang krusial: tetapkan tim teaching.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_teaching_team",
+      "estimatedDurationSec": 11,
+      "voiceoverText": "Tetapkan siapa Dosen Ketua yang memiliki akses penuh, dan Dosen Wakil yang akan membantu. Sistem otomatis mendistribusikan hak akses spesifik ke dashboard mereka masing-masing.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_qr_and_regenerate",
+      "estimatedDurationSec": 13,
+      "voiceoverText": "Untuk mempermudah mahasiswa bergabung, sistem men-generate QR code dan kode unik kelas. Butuh me-reset akses karena kode bocor? Cukup klik regenerate. Keamanan kelas tetap terjaga di tangan Anda.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 6,
+      "id": "scene_6_outro",
+      "estimatedDurationSec": 7,
+      "voiceoverText": "Setup awal tuntas dengan sempurna. Ruang kelas siap menyambut dosen dan mahasiswa untuk semester baru.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

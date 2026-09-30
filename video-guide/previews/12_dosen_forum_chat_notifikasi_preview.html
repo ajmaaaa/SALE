@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forum Diskusi Kelas, Chat Real-time, dan Notifikasi Dosen - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Forum Diskusi Kelas, Chat Real-time, dan Notifikasi Dosen</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Dosen</strong> &bull; Durasi Est.: <strong>2–3 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: 12_dosen_forum_chat_notifikasi</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            INTERAKSI KELAS DINAMIS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Komunikasi Kelas yang Responsif
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tingkatkan keterlibatan mahasiswa melalui obrolan kelas langsung dan notifikasi instan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-1"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            LIVE CHAT PERKULIAHAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Obrolan Realtime dan Mention Mahasiswa
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Gunakan simbol @ untuk berinteraksi langsung dengan mahasiswa spesifik.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PIN PENGUMUMAN PENTING
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Pesan Tersemat di Posisi Teratas
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kunci pesan utama agar tidak tergeser oleh obrolan kelas yang aktif.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-3"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            NOTIFIKASI AKTIVITAS KELAS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Pantau Tugas Masuk Tanpa Reload
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pemberitahuan realtime saat mahasiswa mengumpulkan tugas atau bertanya di forum.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-4"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SALE INTERACTION HUB
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Komunikasi Aktif. Perkuliahan Interaktif
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Jaga kehangatan dan keaktifan ruang kelas digital Anda setiap hari.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Komunikasi yang responsif antara dosen dan mahasiswa menciptakan suasana belajar yang hidup. Di SALE, ruang interaksi kelas hadir berdampingan langsung dengan materi perkuliahan.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 5</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"INTERAKSI KELAS DINAMIS","title":"Komunikasi Kelas yang Responsif","description":"Tingkatkan keterlibatan mahasiswa melalui obrolan kelas langsung dan notifikasi instan.","voiceover":"Komunikasi yang responsif antara dosen dan mahasiswa menciptakan suasana belajar yang hidup. Di SALE, ruang interaksi kelas hadir berdampingan langsung dengan materi perkuliahan.","floating":true},{"id":"scene_2_live_chat_and_mention","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"LIVE CHAT PERKULIAHAN","title":"Obrolan Realtime dan Mention Mahasiswa","description":"Gunakan simbol @ untuk berinteraksi langsung dengan mahasiswa spesifik.","screenRec":{"target":"Panel Kanan Course: Live Chat","zoom":{"scale":1.25,"area":"Form kirim pesan & autocomplete mention"},"cursor":[{"action":"type_message"},{"action":"mention_student"},{"action":"send_chat"}]},"voiceover":"Di panel Live Chat, obrolan berjalan secara realtime. Anda dapat langsung menjawab pertanyaan mahasiswa, berdiskusi santai, atau menggunakan simbol at (@) untuk memanggil mahasiswa tertentu secara langsung di dalam ruang kelas virtual.","floating":false},{"id":"scene_3_pin_important_messages","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"PIN PENGUMUMAN PENTING","title":"Pesan Tersemat di Posisi Teratas","description":"Kunci pesan utama agar tidak tergeser oleh obrolan kelas yang aktif.","screenRec":{"target":"Menu Dropup Titik Tiga Pesan Chat","zoom":{"scale":1.25,"area":"Menu aksi pesan & tombol Pin Pesan"},"cursor":[{"action":"click_message_menu"},{"action":"select_pin_message"}]},"voiceover":"Memiliki informasi penting seperti perubahan jadwal atau link referensi utama? Cukup klik opsi pesan dan pilih 'Pin Pesan'. Pesan tersebut akan terkunci di posisi teratas sehingga selalu terbaca oleh seluruh anggota kelas.","floating":false},{"id":"scene_4_realtime_dosen_notifications","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"NOTIFIKASI AKTIVITAS KELAS","title":"Pantau Tugas Masuk Tanpa Reload","description":"Pemberitahuan realtime saat mahasiswa mengumpulkan tugas atau bertanya di forum.","screenRec":{"target":"Halaman Notifikasi Dosen","zoom":{"scale":1.2,"area":"Filter kategori & tombol Tandai Semua Dibaca"},"cursor":[{"action":"filter_task_submissions"},{"action":"mark_all_read"}]},"voiceover":"Untuk memantau aktivitas dari seluruh kelas yang Anda ampu, buka menu Notifikasi. Setiap ada mahasiswa yang mengumpulkan tugas atau bertanya di forum, sistem akan memberitahu Anda secara instan tanpa perlu memuat ulang halaman.","floating":false},{"id":"scene_5_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SALE INTERACTION HUB","title":"Komunikasi Aktif. Perkuliahan Interaktif","description":"Jaga kehangatan dan keaktifan ruang kelas digital Anda setiap hari.","voiceover":"Tetap terhubung dengan mahasiswa Anda kapan saja dan di mana saja melalui ekosistem komunikasi terpadu SALE.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>

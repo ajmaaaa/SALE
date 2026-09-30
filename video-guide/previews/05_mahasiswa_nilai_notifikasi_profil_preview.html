@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melihat Nilai, Notifikasi, dan Profil Akun - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Melihat Nilai, Notifikasi, dan Profil Akun</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Mahasiswa</strong> &bull; Durasi Est.: <strong>2–3 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: 05_mahasiswa_nilai_notifikasi_profil</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            HASIL STUDI & AKUN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Transparansi Nilai dan Kendali Akun
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Akses transkrip evaluasi, notifikasi kegiatan, dan data diri secara mandiri.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-1"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KARTU HASIL STUDI (KHS)
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Filter Semester & Rincian Komponen Nilai
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Klik baris mata kuliah mana pun untuk membuka rincian nilai tugas, kuis, dan ujian.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            NOTIFIKASI REALTIME
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kategori Pembelajaran & Notifikasi Live
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pembaruan otomatis dari tugas, diskusi forum, dan pengumuman sistem.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-split-card " 
+                     id="scene-3"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PROFIL & KEAMANAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Foto Profil, Narahubung, dan Password
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kelola identitas, cek email narahubung bantuan, dan amankan akun.
+                        </p>
+                        
+                            <div style="margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Informasi Profil: Foto avatar & bantuan resmi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Keamanan Akun: Form pembaruan kata sandi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Notifikasi: Pengaturan preferensi pesan
+                                    </div>
+                                
+                            </div>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-4"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SALE STUDENT PORTAL
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Transparan. Terintegrasi. Aman
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Seluruh kebutuhan akademik mahasiswa dalam satu ekosistem terpercaya.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Memantau perkembangan akademik seharusnya bisa dilakukan kapan saja, tanpa harus menunggu akhir semester. Mari kita lihat halaman Transkrip Nilaimu.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 5</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"HASIL STUDI & AKUN","title":"Transparansi Nilai dan Kendali Akun","description":"Akses transkrip evaluasi, notifikasi kegiatan, dan data diri secara mandiri.","voiceover":"Memantau perkembangan akademik seharusnya bisa dilakukan kapan saja, tanpa harus menunggu akhir semester. Mari kita lihat halaman Transkrip Nilaimu.","floating":true},{"id":"scene_2_khs_accordion","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"KARTU HASIL STUDI (KHS)","title":"Filter Semester & Rincian Komponen Nilai","description":"Klik baris mata kuliah mana pun untuk membuka rincian nilai tugas, kuis, dan ujian.","screenRec":{"target":"Halaman Transkrip Nilai & Hasil Studi","zoom":{"scale":1.15,"area":"Dropdown semester & baris tabel KHS"},"cursor":[{"action":"change_semester_filter"},{"action":"click_table_row_expand"}]},"voiceover":"Di halaman Transkrip Nilai, kamu bisa memilih tahun dan semester untuk melihat hasil evaluasi belajarmu. Cukup klik pada baris mata kuliah mana pun untuk membuka rincian komponen nilainya secara transparan, mulai dari tugas, kuis, hingga ujian akhir.","floating":false},{"id":"scene_3_realtime_notifications","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"NOTIFIKASI REALTIME","title":"Kategori Pembelajaran & Notifikasi Live","description":"Pembaruan otomatis dari tugas, diskusi forum, dan pengumuman sistem.","screenRec":{"target":"Halaman Notifikasi Pembelajaran","zoom":{"scale":1.2,"area":"Filter kategori notifikasi & tombol aksi"},"cursor":[{"action":"filter_category"},{"action":"mark_all_read"}]},"voiceover":"Tetap ikuti setiap perkembangan lewat menu Notifikasi. Pembaruan tugas, balasan forum, hingga pengumuman dosen tersaji secara realtime dan terkelompok berdasarkan kategori. Kamu bisa langsung menandai semua telah dibaca atau menghapus notifikasi lama dengan satu klik.","floating":false},{"id":"scene_4_profile_and_security","layout":"split-card","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"PROFIL & KEAMANAN","title":"Foto Profil, Narahubung, dan Password","description":"Kelola identitas, cek email narahubung bantuan, dan amankan akun.","details":["Tab Informasi Profil: Foto avatar & bantuan resmi","Tab Keamanan Akun: Form pembaruan kata sandi","Tab Notifikasi: Pengaturan preferensi pesan"],"screenRec":{"target":"Halaman Profil & Pengaturan","zoom":{"scale":1.15,"area":"Tab profil, email narahubung & keamanan"},"cursor":[{"action":"open_tab_security"}]},"voiceover":"Pada menu Profil dan Pengaturan, kamu bisa mengganti foto profil, mengecek informasi narahubung resmi kampus jika butuh bantuan, serta memperbarui kata sandi secara berkala di tab Keamanan Akun agar akun belajarmu selalu terlindungi.","floating":false},{"id":"scene_5_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SALE STUDENT PORTAL","title":"Transparan. Terintegrasi. Aman","description":"Seluruh kebutuhan akademik mahasiswa dalam satu ekosistem terpercaya.","voiceover":"Pantau nilai dengan jelas, dapatkan update tepat waktu, dan kendalikan akunmu dengan mudah di SALE.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>

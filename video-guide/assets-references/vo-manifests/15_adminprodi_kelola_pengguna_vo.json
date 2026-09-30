@@ -1,0 +1,50 @@
+{
+  "id": "15_adminprodi_kelola_pengguna",
+  "title": "Mengelola Data Dosen dan Mahasiswa (Import & Manual)",
+  "role": "Admin Prodi",
+  "totalScenes": 6,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Menyiapkan ratusan akun civitas akademika di awal semester tidak harus melelahkan. Admin Prodi di SALE memiliki kendali penuh untuk mengelola data dosen dan mahasiswa, baik satu per satu maupun secara massal.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_tambah_dosen_manual",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Untuk menambah akun pengampu secara perorangan, klik Tambah Dosen Manual. Cukup masukkan nama, NIDN, email, serta password awal. Dosen akan langsung dapat login dan diarahkan untuk memperbarui kata sandinya secara aman.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_unduh_template_excel",
+      "estimatedDurationSec": 12,
+      "voiceoverText": "Bagaimana dengan ratusan mahasiswa baru? Manfaatkan fitur impor massal. Pertama, unduh template resmi Excel yang sudah disediakan. Format kolomnya sudah disesuaikan agar tidak terjadi kesalahan pemetaan data.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_import_excel_validation",
+      "estimatedDurationSec": 16,
+      "voiceoverText": "Unggah kembali file Excel yang telah Anda lengkapi. Sistem SALE secara cerdas akan memvalidasi NIM dan email untuk mencegah terjadinya duplikasi data akun. Dalam hitungan detik, seluruh mahasiswa berhasil terdaftar ke dalam pangkalan data program studi.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_export_user_data",
+      "estimatedDurationSec": 11,
+      "voiceoverText": "Seluruh akun kini aktif dan siap didistribusikan ke kelas perkuliahan. Anda juga dapat mengekspor kembali data pengguna kapan saja untuk sinkronisasi dengan pangkalan data universitas.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 6,
+      "id": "scene_6_outro",
+      "estimatedDurationSec": 6,
+      "voiceoverText": "Manajemen pengguna yang mudah dan akurat menghemat waktu berharga Anda sebagai pengelola akademik.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

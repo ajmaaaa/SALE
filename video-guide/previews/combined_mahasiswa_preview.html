@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kompilasi Video Panduan SALE: MAHASISWA - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Kompilasi Video Panduan SALE: MAHASISWA</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Gabungan / Kompilasi</strong> &bull; Durasi Est.: <strong>~15–20 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: combined_mahasiswa</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            BAGIAN PANDUAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Cara Masuk & Bergabung ke Kelas Pertama Kalimu
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #cbd5e1; max-width: 720px;">
+                            Panduan untuk Mahasiswa
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-1"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PANDUAN MAHASISWA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Memulai Semester Tanpa Hambatan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Akses seluruh materi perkuliahan dalam satu platform terpusat.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            AUTENTIKASI AKUN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Masuk dengan Nomor Induk Mahasiswa
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Gunakan NIM dan kata sandi resmi yang telah diberikan oleh kampus.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-3"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            NAVIGASI UTAMA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Menuju Menu Course
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tempat berkumpulnya seluruh mata kuliah dan kelas yang kamu ikuti.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-4"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            METODE KODE KELAS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Input Kode 8 Karakter
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Klik tombol "+ Gabung Kelas" dan masukkan kode acak dari dosen.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-5"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            METODE SCAN QR CODE
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Pindai QR dan Konfirmasi Seketika
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Scan langsung dari proyektor kelas untuk membuka halaman konfirmasi.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-6"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KELAS BERHASIL DIAKSES
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Selamat Belajar di SALE
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Seluruh materi, tugas, dan ruang diskusi telah siap kamu gunakan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-7"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            BAGIAN PANDUAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Navigasi Dashboard, Course, dan Forum Diskusi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #cbd5e1; max-width: 720px;">
+                            Panduan untuk Mahasiswa
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-8"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PRODUKTIVITAS MAHASISWA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Navigasi Cepat dan Terarah
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Ketahui prioritas akademik harian tanpa harus mencari-cari dokumen secara terpisah.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-split-card " 
+                     id="scene-9"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            RINGKASAN AKADEMIK
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Status Kelas dan Pesan Masuk
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pantau jumlah kelas aktif, tugas mendatang, serta pesan obrolan kelas yang belum terbaca.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-10"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            TATA LETAK DUA KOLOM
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Ruang Perkuliahan Modern
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kolom kiri untuk materi dan modul; kolom kanan untuk live chat dan komunikasi kelas.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-11"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            MODUL & LAMPIRAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Belajar Fokus Tanpa Distraksi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Unduh lampiran dokumen resmi dan diskusikan materi secara spesifik.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-12"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            REALTIME CHAT KELAS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Diskusi Interaktif dan Pesan Tersemat
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Balas pesan, mention teman atau dosen, dan pantau pengumuman yang dipin.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-13"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SALE LEARNING EXPERIENCE
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Belajar Terarah. Diskusi Lebih Hidup
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Dapatkan pengalaman perkuliahan digital terbaik bersama SALE.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-14"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            BAGIAN PANDUAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Mengerjakan Tugas, Kuis, dan Ujian di SALE
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #cbd5e1; max-width: 720px;">
+                            Panduan untuk Mahasiswa
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-15"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            EVALUASI TERPADU
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kendali Penuh Atas Seluruh Evaluasi
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Lihat seluruh penugasan, batas waktu, dan capaian nilai dari satu tempat.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-16"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PENGELOMPOKAN EVALUASI
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Filter Mata Kuliah dan Jenis Pekerjaan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tab Semua Pekerjaan & Nilai dengan filter jenis: Tugas, Tugas coding, dan Kuis.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-17"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PENGUMPULAN TUGAS REGULER
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Unggah Berkas dan Serahkan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Panel instruksi di kiri dan panel pengunggahan dokumen di kanan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-18"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            INFORMASI UJIAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kuis & Ujian Terstruktur
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Periksa durasi pengerjaan, jumlah butir soal, total poin, dan tenggat waktu.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-19"
+                     style="background-color: #0f172a; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            RUANG UJIAN FOKUS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Timer Mundur dan Ragam Butir Soal
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #94a3b8; max-width: 720px;">
+                            Pilihan ganda, benar/salah, menjodohkan, hingga esai dengan navigasi nomor yang responsif.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-20"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            EVALUASI PURNA-KUIS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Hasil Instan dan Evaluasi Objektif
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Lihat perolehan skor langsung dan ulas pemahaman materi secara transparan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-21"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            BAGIAN PANDUAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Mengerjakan Tugas Pemrograman dengan AI Asisten
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #cbd5e1; max-width: 720px;">
+                            Panduan untuk Mahasiswa
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-22"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PRAKTIKUM CODING CERDAS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Lingkungan Pemrograman Interaktif
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Uji logika kode langsung di browser dengan pendampingan konsep dari AI Asisten.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-split-card " 
+                     id="scene-23"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            TATA LETAK 3 PANEL
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Ruang Kerja Pemrograman Lengkap
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Instruksi di kiri, editor kode & terminal di tengah, AI Asisten di kanan.
+                        </p>
+                        
+                            <div style="margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Panel Kiri: Soal, stimulus & instruksi bertahap
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Panel Tengah: Editor Monaco & Terminal Linux terintegrasi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Panel Kanan: AI Asisten pendamping konsep
+                                    </div>
+                                
+                            </div>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-24"
+                     style="background-color: #0d1117; color: #c9d1d9;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            TERMINAL LINUX
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kompilasi & Eksekusi Instan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #8b949e; max-width: 720px;">
+                            Jalankan program dan pantau hasil keluaran langsung di tab Konsol atau Pratinjau.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-25"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            AI ASISTEN PEMROGRAMAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Bimbingan Konsep & Fitur Mention Kode
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kirim baris kode terpilih ke AI untuk memahami akar masalah secara edukatif.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-26"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PENGUMPULAN AKHIR
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Perbaiki dan Kumpulkan Pekerjaan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Uji ulang hingga output sesuai, lalu serahkan tugas kepada dosen pengampu.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-27"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SMART CODING JOURNEY
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Coding Lebih Pintar, Bukan Lebih Keras
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pendamping belajar pemrograman pribadi selalu siap di sampingmu.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-28"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            BAGIAN PANDUAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Melihat Nilai, Notifikasi, dan Profil Akun
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #cbd5e1; max-width: 720px;">
+                            Panduan untuk Mahasiswa
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-29"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            HASIL STUDI & AKUN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Transparansi Nilai dan Kendali Akun
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Akses transkrip evaluasi, notifikasi kegiatan, dan data diri secara mandiri.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-30"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KARTU HASIL STUDI (KHS)
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Filter Semester & Rincian Komponen Nilai
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Klik baris mata kuliah mana pun untuk membuka rincian nilai tugas, kuis, dan ujian.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-31"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            NOTIFIKASI REALTIME
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kategori Pembelajaran & Notifikasi Live
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pembaruan otomatis dari tugas, diskusi forum, dan pengumuman sistem.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-split-card " 
+                     id="scene-32"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PROFIL & KEAMANAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Foto Profil, Narahubung, dan Password
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Kelola identitas, cek email narahubung bantuan, dan amankan akun.
+                        </p>
+                        
+                            <div style="margin-top: 24px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Informasi Profil: Foto avatar & bantuan resmi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Keamanan Akun: Form pembaruan kata sandi
+                                    </div>
+                                
+                                    <div style="background: rgba(16, 47, 80, 0.06); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                                        Tab Notifikasi: Pengaturan preferensi pesan
+                                    </div>
+                                
+                            </div>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-33"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            SALE STUDENT PORTAL
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Transparan. Terintegrasi. Aman
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Seluruh kebutuhan akademik mahasiswa dalam satu ekosistem terpercaya.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Kita masuk ke bagian: Cara Masuk & Bergabung ke Kelas Pertama Kalimu.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 34</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"01_mahasiswa_login_join_kelas_bumper","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","mutedColor":"#cbd5e1","badge":"BAGIAN PANDUAN","title":"Cara Masuk & Bergabung ke Kelas Pertama Kalimu","description":"Panduan untuk Mahasiswa","voiceover":"Kita masuk ke bagian: Cara Masuk & Bergabung ke Kelas Pertama Kalimu.","floating":true},{"id":"scene_1_hook","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"PANDUAN MAHASISWA","title":"Memulai Semester Tanpa Hambatan","description":"Akses seluruh materi perkuliahan dalam satu platform terpusat.","voiceover":"Langkah pertama untuk memulai perkuliahan di kampus tidak perlu repot mencari ruangan secara manual. Seluruh akses pembelajaran sudah terpusat dalam satu platform cerdas.","floating":true},{"id":"scene_2_login","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"AUTENTIKASI AKUN","title":"Masuk dengan Nomor Induk Mahasiswa","description":"Gunakan NIM dan kata sandi resmi yang telah diberikan oleh kampus.","screenRec":{"target":"Halaman Login SALE","zoom":{"scale":1.15,"area":"Form login input"},"cursor":[{"action":"type_nim"},{"action":"type_password"},{"action":"click_login"}]},"voiceover":"Akses halaman login SALE. Gunakan NIM sebagai username dan masukkan password yang sudah diberikan oleh kampus. Pastikan data yang dimasukkan tepat, lalu klik Masuk.","floating":false},{"id":"scene_3_dashboard_course_nav","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"NAVIGASI UTAMA","title":"Menuju Menu Course","description":"Tempat berkumpulnya seluruh mata kuliah dan kelas yang kamu ikuti.","screenRec":{"target":"Dashboard Mahasiswa ke Menu Course","zoom":{"scale":1.2,"area":"Sidebar Navigasi Course"},"cursor":[{"action":"click_sidebar_course"}]},"voiceover":"Inilah akun barumu. Untuk memulai perkuliahan, masuk ke menu Course. Di sini seluruh kelas yang kamu ikuti akan terkumpul rapi. Jika belum ada kelas yang terdaftar, kamu bisa langsung bergabung menggunakan kode dari dosen.","floating":false},{"id":"scene_4_join_dialog","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"METODE KODE KELAS","title":"Input Kode 8 Karakter","description":"Klik tombol \"+ Gabung Kelas\" dan masukkan kode acak dari dosen.","screenRec":{"target":"Modal Gabung Kelas Perkuliahan","zoom":{"scale":1.25,"area":"Input modal kode kelas"},"cursor":[{"action":"click_join_btn"},{"action":"type_code","value":"A7K9M2QX"},{"action":"submit_join"}]},"voiceover":"Cara pertama, klik tombol Gabung Kelas di bagian atas. Masukkan kode unik 8 karakter yang dibagikan oleh dosen pengampumu, lalu klik Gabung Kelas. Seketika kelasmu akan aktif.","floating":false},{"id":"scene_5_qr_scan","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"METODE SCAN QR CODE","title":"Pindai QR dan Konfirmasi Seketika","description":"Scan langsung dari proyektor kelas untuk membuka halaman konfirmasi.","screenRec":{"target":"Halaman Konfirmasi Bergabung Kelas","zoom":{"scale":1.2,"area":"Tombol Konfirmasi & Masuk Kelas"},"cursor":[{"action":"click_confirm_join"}]},"voiceover":"Or cara kedua yang lebih cepat di ruang kuliah: cukup pindai QR Code yang ditampilkan dosen di layar kelas. Browser akan otomatis membuka halaman konfirmasi. Periksa detail mata kuliah dan dosennya, lalu klik Konfirmasi & Masuk Kelas.","floating":false},{"id":"scene_6_course_ready","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"KELAS BERHASIL DIAKSES","title":"Selamat Belajar di SALE","description":"Seluruh materi, tugas, dan ruang diskusi telah siap kamu gunakan.","voiceover":"Selesai. Kamu resmi tergabung ke dalam kelas. Semua materi, forum diskusi, dan tugas perkuliahan sudah siap kamu akses kapan saja.","floating":true},{"id":"02_mahasiswa_dashboard_course_forum_bumper","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","mutedColor":"#cbd5e1","badge":"BAGIAN PANDUAN","title":"Navigasi Dashboard, Course, dan Forum Diskusi","description":"Panduan untuk Mahasiswa","voiceover":"Kita masuk ke bagian: Navigasi Dashboard, Course, dan Forum Diskusi.","floating":true},{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"PRODUKTIVITAS MAHASISWA","title":"Navigasi Cepat dan Terarah","description":"Ketahui prioritas akademik harian tanpa harus mencari-cari dokumen secara terpisah.","voiceover":"Antarmuka yang teratur adalah kunci belajar yang fokus. Di SALE, dashboard utama dirancang untuk menampilkan prioritas belajarmu dalam sekejap mata.","floating":true},{"id":"scene_2_academic_summary","layout":"split-card","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"RINGKASAN AKADEMIK","title":"Status Kelas dan Pesan Masuk","description":"Pantau jumlah kelas aktif, tugas mendatang, serta pesan obrolan kelas yang belum terbaca.","screenRec":{"target":"Dashboard Mahasiswa (Ringkasan Akademik)","zoom":{"scale":1.15,"area":"Kartu ringkasan akademik & daftar pesan"},"cursor":[{"action":"hover_summary_cards"},{"action":"hover_unread_messages"}]},"voiceover":"Di bagian atas, kamu langsung melihat ringkasan akademik: berapa kelas yang aktif dan tugas yang menanti. Di bawahnya, daftar pesan diskusi yang belum sempat kamu buka tersusun rapi agar kamu tidak melewatkan obrolan penting dari kelas.","floating":false},{"id":"scene_3_two_column_course","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"TATA LETAK DUA KOLOM","title":"Ruang Perkuliahan Modern","description":"Kolom kiri untuk materi dan modul; kolom kanan untuk live chat dan komunikasi kelas.","screenRec":{"target":"Halaman Course Perkuliahan","zoom":{"scale":1.1,"area":"Tampilan dua kolom course"},"cursor":[{"action":"scroll_left_modules"}]},"voiceover":"Masuk ke dalam course, kamu disambut oleh tata letak dua kolom yang efisien. Kolom kiri menampilkan seluruh modul belajar—mulai dari video pengantar yang disematkan dosen, file materi presentasi, hingga instruksi tugas per pertemuan.","floating":false},{"id":"scene_4_reading_material","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"MODUL & LAMPIRAN","title":"Belajar Fokus Tanpa Distraksi","description":"Unduh lampiran dokumen resmi dan diskusikan materi secara spesifik.","screenRec":{"target":"Halaman Item Materi Pembelajaran","zoom":{"scale":1.2,"area":"Bagian lampiran berkas dan diskusi"},"cursor":[{"action":"hover_attachment"}]},"voiceover":"Setiap materi memiliki ruangnya sendiri yang bebas distraksi. Kamu bisa langsung mengunduh file lampiran materi pendukung, membaca penjelasan dosen, dan berdiskusi secara spesifik pada topik tersebut.","floating":false},{"id":"scene_5_live_chat_forum","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"REALTIME CHAT KELAS","title":"Diskusi Interaktif dan Pesan Tersemat","description":"Balas pesan, mention teman atau dosen, dan pantau pengumuman yang dipin.","screenRec":{"target":"Kolom Kanan: Forum Diskusi Kelas","zoom":{"scale":1.25,"area":"Live chat & pinned message"},"cursor":[{"action":"type_mention"},{"action":"send_chat"}]},"voiceover":"Di kolom kanan, forum diskusi kelas berjalan secara realtime. Kamu bisa langsung berinteraksi dengan dosen dan teman sekelas tanpa berpindah aplikasi. Gunakan simbol at (@) untuk menyebut rekan kuliah atau dosen, dan perhatikan pesan yang disematkan di bagian atas untuk pengumuman prioritas.","floating":false},{"id":"scene_6_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SALE LEARNING EXPERIENCE","title":"Belajar Terarah. Diskusi Lebih Hidup","description":"Dapatkan pengalaman perkuliahan digital terbaik bersama SALE.","voiceover":"Semua materi dalam genggaman, komunikasi mengalir lancar. Pengalaman belajar digitalmu kini jauh lebih menyenangkan.","floating":true},{"id":"03_mahasiswa_tugas_kuis_ujian_bumper","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","mutedColor":"#cbd5e1","badge":"BAGIAN PANDUAN","title":"Mengerjakan Tugas, Kuis, dan Ujian di SALE","description":"Panduan untuk Mahasiswa","voiceover":"Kita masuk ke bagian: Mengerjakan Tugas, Kuis, dan Ujian di SALE.","floating":true},{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"EVALUASI TERPADU","title":"Kendali Penuh Atas Seluruh Evaluasi","description":"Lihat seluruh penugasan, batas waktu, dan capaian nilai dari satu tempat.","voiceover":"Memantau berbagai tugas dan jadwal ujian dari banyak mata kuliah bisa terasa membebani. Di SALE, seluruh evaluasi pembelajaran dikumpulkan dalam satu daftar terpadu dengan status yang transparan.","floating":true},{"id":"scene_2_filter_list","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"PENGELOMPOKAN EVALUASI","title":"Filter Mata Kuliah dan Jenis Pekerjaan","description":"Tab Semua Pekerjaan & Nilai dengan filter jenis: Tugas, Tugas coding, dan Kuis.","screenRec":{"target":"Halaman Tugas & Kuis Mahasiswa","zoom":{"scale":1.15,"area":"Filter navigasi & daftar tugas"},"cursor":[{"action":"select_filter_type","value":"tugas"},{"action":"click_assignment_row"}]},"voiceover":"Kamu bisa memfilter tugas berdasarkan mata kuliah atau jenisnya. Di sini, status pengerjaan dan batas waktu terlihat jelas, mencegahmu melewatkan tenggat penting. Mari buka salah satu tugas.","floating":false},{"id":"scene_3_submit_task","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"PENGUMPULAN TUGAS REGULER","title":"Unggah Berkas dan Serahkan","description":"Panel instruksi di kiri dan panel pengunggahan dokumen di kanan.","screenRec":{"target":"Halaman Detail Tugas Reguler","zoom":{"scale":1.2,"area":"Panel unggah berkas & tombol serahkan"},"cursor":[{"action":"upload_document_pdf"},{"action":"click_submit_btn"}]},"voiceover":"Pada halaman tugas reguler, baca instruksi pengerjaan dengan cermat. Di panel samping, cukup unggah berkas tugasmu, lalu klik \"Serahkan Tugas\". Status pengumpulan akan langsung tercatat otomatis ke akun dosenmu.","floating":false},{"id":"scene_4_quiz_info","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"INFORMASI UJIAN","title":"Kuis & Ujian Terstruktur","description":"Periksa durasi pengerjaan, jumlah butir soal, total poin, dan tenggat waktu.","screenRec":{"target":"Halaman Detail Kuis / UTS / UAS","zoom":{"scale":1.25,"area":"Kartu Informasi Ujian & Tombol Mulai"},"cursor":[{"action":"click_start_quiz_btn"}]},"voiceover":"Untuk kuis dan ujian terstruktur, kamu akan melihat rincian durasi waktu, jumlah butir soal, serta tanggal tenggat. Pastikan koneksi internetmu stabil, lalu klik \"Mulai Kerjakan Kuis\" untuk memasuki ruang ujian.","floating":false},{"id":"scene_5_quiz_room","layout":"full-left","bgColor":"#0f172a","textColor":"#ffffff","mutedColor":"#94a3b8","badge":"RUANG UJIAN FOKUS","title":"Timer Mundur dan Ragam Butir Soal","description":"Pilihan ganda, benar/salah, menjodohkan, hingga esai dengan navigasi nomor yang responsif.","screenRec":{"target":"Ruang Ujian Layar Penuh (Quiz Room)","zoom":{"scale":1.15,"area":"Header timer hitung mundur & navigasi soal"},"cursor":[{"action":"answer_choice_a"},{"action":"jump_next_question"},{"action":"type_essay"}]},"voiceover":"Ruang ujian SALE dirancang bersih dan fokus. Perhatikan timer hitung mundur di bagian atas. Kamu bisa melompat antar soal menggunakan panel navigasi nomor. Sistem mendukung berbagai tipe soal, mulai dari pilihan ganda, benar-salah, menjodohkan, hingga uraian esai.","floating":false},{"id":"scene_6_evaluation","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"EVALUASI PURNA-KUIS","title":"Hasil Instan dan Evaluasi Objektif","description":"Lihat perolehan skor langsung dan ulas pemahaman materi secara transparan.","voiceover":"Setelah semua terjawab, klik \"Selesai & Kumpulkan\". Untuk soal pilihan ganda, hasil evaluasi dapat langsung diketahui seketika, sementara soal esai akan diperiksa lebih lanjut oleh dosenmu.","floating":true},{"id":"04_mahasiswa_tugas_coding_ai_bumper","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","mutedColor":"#cbd5e1","badge":"BAGIAN PANDUAN","title":"Mengerjakan Tugas Pemrograman dengan AI Asisten","description":"Panduan untuk Mahasiswa","voiceover":"Kita masuk ke bagian: Mengerjakan Tugas Pemrograman dengan AI Asisten.","floating":true},{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"PRAKTIKUM CODING CERDAS","title":"Lingkungan Pemrograman Interaktif","description":"Uji logika kode langsung di browser dengan pendampingan konsep dari AI Asisten.","voiceover":"Belajar coding seringkali penuh dengan pesan error yang membingungkan. Terjebak berjam-jam karena satu titik koma? Tidak perlu lagi. SALE dilengkapi dengan lingkungan pemrograman interaktif beserta Asisten AI.","floating":true},{"id":"scene_2_three_panel_workbench","layout":"split-card","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"TATA LETAK 3 PANEL","title":"Ruang Kerja Pemrograman Lengkap","description":"Instruksi di kiri, editor kode & terminal di tengah, AI Asisten di kanan.","details":["Panel Kiri: Soal, stimulus & instruksi bertahap","Panel Tengah: Editor Monaco & Terminal Linux terintegrasi","Panel Kanan: AI Asisten pendamping konsep"],"screenRec":{"target":"Workbench Editor Kode Layar Penuh","zoom":{"scale":1.1,"area":"Tiga panel workbench"},"cursor":[{"action":"hover_instructions"},{"action":"focus_monaco_editor"}]},"voiceover":"Saat kamu membuka tugas coding, kamu langsung masuk ke ruang kerja tiga panel. Instruksi soal ada di kiri, editor kode di tengah, dan AI Asisten siap di kanan. Semuanya tanpa perlu buka aplikasi lain.","floating":false},{"id":"scene_3_run_code_terminal","layout":"full-left","bgColor":"#0d1117","textColor":"#c9d1d9","mutedColor":"#8b949e","badge":"TERMINAL LINUX","title":"Kompilasi & Eksekusi Instan","description":"Jalankan program dan pantau hasil keluaran langsung di tab Konsol atau Pratinjau.","screenRec":{"target":"Toolbar Editor & Terminal Bawah","zoom":{"scale":1.25,"area":"Tombol Run Code dan panel terminal"},"cursor":[{"action":"type_sample_code"},{"action":"click_run_btn"}]},"voiceover":"Coba tulis kodemu dan jalankan secara langsung. Terjadi error? Outputnya langsung muncul di terminal bawah. Jangan panik, itu adalah bagian dari proses belajar.","floating":false},{"id":"scene_4_ai_assistant_dialog","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"AI ASISTEN PEMROGRAMAN","title":"Bimbingan Konsep & Fitur Mention Kode","description":"Kirim baris kode terpilih ke AI untuk memahami akar masalah secara edukatif.","screenRec":{"target":"Panel Kanan: AI Asisten Chat","zoom":{"scale":1.25,"area":"Chat AI Asisten & Tombol Mention Kode"},"cursor":[{"action":"select_code_line"},{"action":"click_mention_btn"},{"action":"send_ai_prompt"}]},"voiceover":"Di sinilah AI Asisten bekerja. Kamu bisa langsung mengetik pertanyaanmu, atau pilih baris kode tertentu lalu klik \"Mention kode\" agar AI langsung tahu konteksnya. Ingat, AI ini bukan mesin contek — ia menuntunmu memahami konsep yang salah agar kamu benar-benar bisa coding sendiri.","floating":false},{"id":"scene_5_fix_and_submit","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"PENGUMPULAN AKHIR","title":"Perbaiki dan Kumpulkan Pekerjaan","description":"Uji ulang hingga output sesuai, lalu serahkan tugas kepada dosen pengampu.","screenRec":{"target":"Tombol Selesai & Form Pengumpulan","zoom":{"scale":1.2,"area":"Tombol Kumpulkan Tugas"},"cursor":[{"action":"click_run_pass"},{"action":"click_complete_submission"}]},"voiceover":"Setelah paham letak kesalahannya, perbaiki kodemu. Jalankan kembali hingga hasilnya benar. Setelah selesai, kumpulkan tugasmu melalui tombol yang tersedia — dan selesai.","floating":false},{"id":"scene_6_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SMART CODING JOURNEY","title":"Coding Lebih Pintar, Bukan Lebih Keras","description":"Pendamping belajar pemrograman pribadi selalu siap di sampingmu.","voiceover":"Dengan SALE, belajar pemrograman terasa seperti selalu didampingi oleh asisten dosen pribadi kapan pun kamu butuhkan.","floating":true},{"id":"05_mahasiswa_nilai_notifikasi_profil_bumper","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","mutedColor":"#cbd5e1","badge":"BAGIAN PANDUAN","title":"Melihat Nilai, Notifikasi, dan Profil Akun","description":"Panduan untuk Mahasiswa","voiceover":"Kita masuk ke bagian: Melihat Nilai, Notifikasi, dan Profil Akun.","floating":true},{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"HASIL STUDI & AKUN","title":"Transparansi Nilai dan Kendali Akun","description":"Akses transkrip evaluasi, notifikasi kegiatan, dan data diri secara mandiri.","voiceover":"Memantau perkembangan akademik seharusnya bisa dilakukan kapan saja, tanpa harus menunggu akhir semester. Mari kita lihat halaman Transkrip Nilaimu.","floating":true},{"id":"scene_2_khs_accordion","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"KARTU HASIL STUDI (KHS)","title":"Filter Semester & Rincian Komponen Nilai","description":"Klik baris mata kuliah mana pun untuk membuka rincian nilai tugas, kuis, dan ujian.","screenRec":{"target":"Halaman Transkrip Nilai & Hasil Studi","zoom":{"scale":1.15,"area":"Dropdown semester & baris tabel KHS"},"cursor":[{"action":"change_semester_filter"},{"action":"click_table_row_expand"}]},"voiceover":"Di halaman Transkrip Nilai, kamu bisa memilih tahun dan semester untuk melihat hasil evaluasi belajarmu. Cukup klik pada baris mata kuliah mana pun untuk membuka rincian komponen nilainya secara transparan, mulai dari tugas, kuis, hingga ujian akhir.","floating":false},{"id":"scene_3_realtime_notifications","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"NOTIFIKASI REALTIME","title":"Kategori Pembelajaran & Notifikasi Live","description":"Pembaruan otomatis dari tugas, diskusi forum, dan pengumuman sistem.","screenRec":{"target":"Halaman Notifikasi Pembelajaran","zoom":{"scale":1.2,"area":"Filter kategori notifikasi & tombol aksi"},"cursor":[{"action":"filter_category"},{"action":"mark_all_read"}]},"voiceover":"Tetap ikuti setiap perkembangan lewat menu Notifikasi. Pembaruan tugas, balasan forum, hingga pengumuman dosen tersaji secara realtime dan terkelompok berdasarkan kategori. Kamu bisa langsung menandai semua telah dibaca atau menghapus notifikasi lama dengan satu klik.","floating":false},{"id":"scene_4_profile_and_security","layout":"split-card","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"PROFIL & KEAMANAN","title":"Foto Profil, Narahubung, dan Password","description":"Kelola identitas, cek email narahubung bantuan, dan amankan akun.","details":["Tab Informasi Profil: Foto avatar & bantuan resmi","Tab Keamanan Akun: Form pembaruan kata sandi","Tab Notifikasi: Pengaturan preferensi pesan"],"screenRec":{"target":"Halaman Profil & Pengaturan","zoom":{"scale":1.15,"area":"Tab profil, email narahubung & keamanan"},"cursor":[{"action":"open_tab_security"}]},"voiceover":"Pada menu Profil dan Pengaturan, kamu bisa mengganti foto profil, mengecek informasi narahubung resmi kampus jika butuh bantuan, serta memperbarui kata sandi secara berkala di tab Keamanan Akun agar akun belajarmu selalu terlindungi.","floating":false},{"id":"scene_5_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"SALE STUDENT PORTAL","title":"Transparan. Terintegrasi. Aman","description":"Seluruh kebutuhan akademik mahasiswa dalam satu ekosistem terpercaya.","voiceover":"Pantau nilai dengan jelas, dapatkan update tepat waktu, dan kendalikan akunmu dengan mudah di SALE.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>

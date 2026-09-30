@@ -1,0 +1,50 @@
+{
+  "id": "14_adminprodi_cpl_cpmk_kurikulum",
+  "title": "Menetapkan CPL dan CPMK Kurikulum OBE Prodi",
+  "role": "Admin Prodi",
+  "totalScenes": 6,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "id": "scene_1_intro",
+      "estimatedDurationSec": 14,
+      "voiceoverText": "Kurikulum berbasis Outcome-Based Education bukan sekadar dokumen administratif. Ini adalah peta kompetensi yang menghubungkan setiap aktivitas di kelas dengan standar lulusan program studi. Di SALE, pemetaan ini terintegrasi langsung ke dalam sistem.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 2,
+      "id": "scene_2_cpl_tab",
+      "estimatedDurationSec": 16,
+      "voiceoverText": "Masuki menu Kurikulum OBE. Pada tab pertama, daftarkan seluruh butir Capaian Pembelajaran Lulusan yang ditargetkan prodi Anda. Masukkan kode CPL, deskripsi kompetensi, serta standar kelulusan minimal. Butir CPL ini yang menjadi tolok ukur utama ketercapaian akademik prodi.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 3,
+      "id": "scene_3_cpmk_tab",
+      "estimatedDurationSec": 16,
+      "voiceoverText": "Di tab kedua, susun master butir Capaian Pembelajaran Mata Kuliah. Tambahkan butir CPMK baru dan langsung kaitkan dengan butir CPL yang relevan. Sistem menjaga konsistensi relasi ini agar perhitungan ketercapaian lulusan nantinya dapat ditarik secara otomatis.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 4,
+      "id": "scene_4_mapping_matrix_tab",
+      "estimatedDurationSec": 13,
+      "voiceoverText": "Pada tab Matriks Pemetaan, Anda dapat meninjau peta keterkaitan antara CPL dan seluruh CPMK secara komprehensif. Pastikan seluruh CPMK mendukung CPL yang ditargetkan dan tidak ada capaian penting yang terlewat.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 5,
+      "id": "scene_5_mk_cpmk_assignment",
+      "estimatedDurationSec": 19,
+      "voiceoverText": "Terakhir, masuk ke menu Mata Kuliah untuk menetapkan CPMK apa saja yang dibebankan pada masing-masing mata kuliah. Cukup pilih butir-butir CPMK yang sesuai dari daftar master. Kini, saat dosen mengajar dan membuat asesmen, sistem otomatis menyajikan CPMK resmi prodi sebagai acuan penilaian.",
+      "tone": "Natural, professional, engaging"
+    },
+    {
+      "sceneIndex": 6,
+      "id": "scene_6_outro",
+      "estimatedDurationSec": 8,
+      "voiceoverText": "Setup kurikulum selesai. Struktur pembelajaran prodi Anda kini kokoh, objektif, dan siap mendukung proses akreditasi secara transparan.",
+      "tone": "Natural, professional, engaging"
+    }
+  ]
+}

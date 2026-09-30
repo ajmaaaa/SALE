@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membuat Konten: Materi, Pengumuman, dan Video - Preview Player | SALE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-navy: #102f50;
+            --brand-navy-dark: #0a1d32;
+            --brand-canvas: #f4f5f7;
+            --brand-ink: #0f172a;
+            --brand-muted: #64748b;
+            --brand-accent: #e8f1f8;
+            --brand-success: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .video-viewport {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--brand-canvas);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        .scene {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 60px 80px;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .scene.active {
+            display: flex;
+            opacity: 1;
+        }
+        /* Layout Variant: Full Left */
+        .layout-full-left {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        /* Layout Variant: Center Bold */
+        .layout-center-bold {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 24px;
+        }
+        /* Layout Variant: Split Card */
+        .layout-split-card {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 32px;
+        }
+        /* Floating object animation */
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: floating 4s ease-in-out infinite;
+        }
+        /* Cursor representation */
+        .simulated-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 100;
+        }
+        .click-ripple {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--brand-navy);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.8;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e2e8f0; }
+        .vo-caption-box {
+            background: #1e293b;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-left: 4px solid #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <header style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div>
+                <h1 style="font-size: 20px; font-weight: 800;">Membuat Konten: Materi, Pengumuman, dan Video</h1>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 2px;">Role: <strong>Dosen</strong> &bull; Durasi Est.: <strong>3–4 menit</strong></p>
+            </div>
+            <span style="font-size: 13px; color: #64748b; font-family: monospace;">ID: 07_dosen_buat_konten_materi</span>
+        </header>
+
+        <div class="video-viewport" id="viewport">
+            
+                <div class="scene layout-center-bold active" 
+                     id="scene-0"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KONTEN PERKULIAHAN KAYA MEDIA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Materi Interaktif dan Terstruktur
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Padukan berkas dokumen, modul teks, dan video pengantar ke dalam setiap topik pertemuan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-1"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PILIHAN JENIS KONTEN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Materi Reguler vs Praktikum Coding
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Pilih jenis konten sesuai tujuan capaian pembelajaran tiap sesi tatap muka.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-2"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            UNGGAH BERKAS LAMPIRAN
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Modul PDF, Slide Presentasi, dan Dokumen
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tuliskan petunjuk pembelajaran dan lampirkan multi-file dengan proses unggah yang cepat.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-3"
+                     style="background-color: #f4f5f7; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            VIDEO YOUTUBE & PIN BERANDA
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Sematkan Video ke Posisi Teratas Course
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Tempel link video YouTube dan centang "Pin Video" agar mahasiswa langsung menonton.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-full-left " 
+                     id="scene-4"
+                     style="background-color: #ffffff; color: #0f172a;">
+                    <div style="flex: 1; max-width: 900px;" class="">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            PENGUMUMAN KELAS
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Kirim Pengumuman dengan Notifikasi Instan
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Sampaikan kabar penting perkuliahan langsung ke lonceng notifikasi seluruh peserta.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+                <div class="scene layout-center-bold " 
+                     id="scene-5"
+                     style="background-color: #102f50; color: #ffffff;">
+                    <div style="flex: 1; max-width: 900px;" class="animate-float">
+                        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 12px;">
+                            KELAS BERMUTU TINGGI
+                        </div>
+                        <h2 style="font-size: 44px; font-weight: 800; line-height: 1.2; margin-bottom: 16px;">
+                            Materi Tertata. Mahasiswa Siap Belajar
+                        </h2>
+                        <p style="font-size: 20px; line-height: 1.5; color: #475569; max-width: 720px;">
+                            Berikan pengalaman belajar daring terbaik di setiap pertemuan.
+                        </p>
+                        
+                    </div>
+                </div>
+            
+        </div>
+
+        <div class="vo-caption-box">
+            <strong style="color: #38bdf8;">Voiceover [VO]:</strong> 
+            <span id="vo-text">Menyajikan materi perkuliahan yang interaktif dan kaya referensi akan meningkatkan fokus belajar mahasiswa. Di SALE, Anda dapat menyusun materi dokumen, video tersemat, hingga pengumuman kelas dalam satu form yang terpadu.</span>
+        </div>
+
+        <div class="control-bar">
+            <button class="btn" onclick="prevScene()">← Scene Sebelumnya</button>
+            <span id="scene-indicator" style="font-weight: 600; font-size: 14px;">Scene 1 dari 6</span>
+            <button class="btn" onclick="nextScene()">Scene Berikutnya →</button>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [{"id":"scene_1_intro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"KONTEN PERKULIAHAN KAYA MEDIA","title":"Materi Interaktif dan Terstruktur","description":"Padukan berkas dokumen, modul teks, dan video pengantar ke dalam setiap topik pertemuan.","voiceover":"Menyajikan materi perkuliahan yang interaktif dan kaya referensi akan meningkatkan fokus belajar mahasiswa. Di SALE, Anda dapat menyusun materi dokumen, video tersemat, hingga pengumuman kelas dalam satu form yang terpadu.","floating":true},{"id":"scene_2_add_item_type","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"PILIHAN JENIS KONTEN","title":"Materi Reguler vs Praktikum Coding","description":"Pilih jenis konten sesuai tujuan capaian pembelajaran tiap sesi tatap muka.","screenRec":{"target":"Halaman Form Tambah Konten","zoom":{"scale":1.2,"area":"Dropdown tipe konten & radio mode materi"},"cursor":[{"action":"select_content_type_materi"},{"action":"choose_mode_regular"}]},"voiceover":"Klik Tambah Konten dari halaman course. Pilih tipe \"Materi\". Untuk perkuliahan teori dan modul standar, pilih jenis materi reguler. Sistem juga mendukung materi berbasis praktikum pemrograman interaktif jika diperlukan.","floating":false},{"id":"scene_3_title_and_attachments","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"UNGGAH BERKAS LAMPIRAN","title":"Modul PDF, Slide Presentasi, dan Dokumen","description":"Tuliskan petunjuk pembelajaran dan lampirkan multi-file dengan proses unggah yang cepat.","screenRec":{"target":"Form Input Judul & Upload Lampiran","zoom":{"scale":1.15,"area":"Textarea instruksi & kotak unggah file"},"cursor":[{"action":"type_title_description"},{"action":"drag_drop_attachments"}]},"voiceover":"Tuliskan judul dan petunjuk belajar Anda. Anda dapat mengunggah berbagai format file pendukung sekaligus—seperti PDF, presentasi PPT, hingga dokumen dokumen pendukung lainnya—yang dapat langsung diunduh atau dipratinjau oleh mahasiswa.","floating":false},{"id":"scene_4_video_url_and_pin","layout":"full-left","bgColor":"#f4f5f7","textColor":"#0f172a","badge":"VIDEO YOUTUBE & PIN BERANDA","title":"Sematkan Video ke Posisi Teratas Course","description":"Tempel link video YouTube dan centang \"Pin Video\" agar mahasiswa langsung menonton.","screenRec":{"target":"Input Tautan Video & Checkbox Pin Video","zoom":{"scale":1.25,"area":"Checkbox Pin Video & tombol Simpan"},"cursor":[{"action":"paste_youtube_link"},{"action":"check_pin_video"},{"action":"submit_item"}]},"voiceover":"Jika memiliki rekaman kuliah atau video penjelas di YouTube, cukup tempel tautannya. Anda bahkan bisa mencentang opsi \"Pin Video\" agar player video tersebut disematkan langsung di bagian atas beranda course, memastikan mahasiswa menyimaknya sebelum membaca modul.","floating":false},{"id":"scene_5_announcement_push","layout":"full-left","bgColor":"#ffffff","textColor":"#0f172a","badge":"PENGUMUMAN KELAS","title":"Kirim Pengumuman dengan Notifikasi Instan","description":"Sampaikan kabar penting perkuliahan langsung ke lonceng notifikasi seluruh peserta.","screenRec":{"target":"Form Konten: Tipe Pengumuman","zoom":{"scale":1.2,"area":"Form pengumuman & badge notifikasi"},"cursor":[{"action":"type_announcement"},{"action":"publish_announcement"}]},"voiceover":"Untuk informasi yang membutuhkan perhatian segera, gunakan tipe Pengumuman. Setiap pengumuman yang Anda terbitkan akan memicu notifikasi realtime ke seluruh mahasiswa di kelas Anda.","floating":false},{"id":"scene_6_outro","layout":"center-bold","bgColor":"#102f50","textColor":"#ffffff","badge":"KELAS BERMUTU TINGGI","title":"Materi Tertata. Mahasiswa Siap Belajar","description":"Berikan pengalaman belajar daring terbaik di setiap pertemuan.","voiceover":"Dengan modul yang terstruktur dan media yang kaya, kelas daring Anda kini siap memberikan pengalaman belajar yang optimal.","floating":true}];
+        let currentScene = 0;
+
+        function updateScene(idx) {
+            document.querySelectorAll('.scene').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+            document.getElementById('scene-indicator').innerText = 'Scene ' + (idx + 1) + ' dari ' + scenes.length;
+            document.getElementById('vo-text').innerText = scenes[idx].voiceover || '';
+            currentScene = idx;
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                updateScene(currentScene + 1);
+            }
+        }
+
+        function prevScene() {
+            if (currentScene > 0) {
+                updateScene(currentScene - 1);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextScene();
+            if (e.key === 'ArrowLeft') prevScene();
+        });
+    </script>
+</body>
+</html>
