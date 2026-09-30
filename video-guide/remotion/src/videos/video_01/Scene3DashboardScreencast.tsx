@@ -8,55 +8,151 @@ import {
 export const Scene3DashboardScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Natural cursor motion to Course Nav (x: 124, y: 194)
-  let cursorX = 820;
-  let cursorY = 460;
+  // Timing milestones
+  const CLICK_COURSE_NAV_FRAME = 44;
+  const LOAD_COURSE_PAGE_FRAME = 52; // Action-reaction 1: Screen cuts to Course page
+  const CLICK_JOIN_BTN_FRAME = 94;
+  const LOAD_MODAL_FRAME = 102; // Action-reaction 2: Screen cuts to Modal dialog
+  const CLICK_CODE_INPUT_FRAME = 126;
+  const CLICK_MODAL_SUBMIT_FRAME = 174;
+
+  let cursorX = 600;
+  let cursorY = 400;
   let isClicking = false;
   let clickFrame = -1;
 
-  if (frame < 52) {
-    cursorX = interpolate(frame, [10, 48], [820, 124], {
+  if (frame < CLICK_COURSE_NAV_FRAME) {
+    // 1. Moving from dashboard center (where Scene 2 ended) to sidebar Course (124, 194)
+    cursorX = interpolate(frame, [8, CLICK_COURSE_NAV_FRAME - 2], [600, 124], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [10, 48], [460, 194], {
+    cursorY = interpolate(frame, [8, CLICK_COURSE_NAV_FRAME - 2], [400, 194], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  } else if (frame >= CLICK_COURSE_NAV_FRAME && frame < LOAD_COURSE_PAGE_FRAME + 4) {
+    cursorX = 124;
+    cursorY = 194;
+    if (frame >= CLICK_COURSE_NAV_FRAME && frame <= CLICK_COURSE_NAV_FRAME + 4) {
+      isClicking = true;
+      clickFrame = CLICK_COURSE_NAV_FRAME;
+    }
+  } else if (frame >= LOAD_COURSE_PAGE_FRAME + 4 && frame < CLICK_JOIN_BTN_FRAME) {
+    // 2. On Course page: Moving to "+ Gabung Kelas" button at top right (1802, 127)
+    cursorX = interpolate(frame, [LOAD_COURSE_PAGE_FRAME + 4, CLICK_JOIN_BTN_FRAME - 2], [124, 1802], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [LOAD_COURSE_PAGE_FRAME + 4, CLICK_JOIN_BTN_FRAME - 2], [194, 127], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  } else if (frame >= CLICK_JOIN_BTN_FRAME && frame < LOAD_MODAL_FRAME + 4) {
+    cursorX = 1802;
+    cursorY = 127;
+    if (frame >= CLICK_JOIN_BTN_FRAME && frame <= CLICK_JOIN_BTN_FRAME + 4) {
+      isClicking = true;
+      clickFrame = CLICK_JOIN_BTN_FRAME;
+    }
+  } else if (frame >= LOAD_MODAL_FRAME + 4 && frame < CLICK_CODE_INPUT_FRAME) {
+    // 3. Modal open: Moving to code input (952, 531)
+    cursorX = interpolate(frame, [LOAD_MODAL_FRAME + 4, CLICK_CODE_INPUT_FRAME - 2], [1802, 952], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [LOAD_MODAL_FRAME + 4, CLICK_CODE_INPUT_FRAME - 2], [127, 531], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  } else if (frame >= CLICK_CODE_INPUT_FRAME && frame < 156) {
+    cursorX = 952;
+    cursorY = 531;
+    if (frame >= CLICK_CODE_INPUT_FRAME && frame <= CLICK_CODE_INPUT_FRAME + 4) {
+      isClicking = true;
+      clickFrame = CLICK_CODE_INPUT_FRAME;
+    }
+  } else if (frame >= 156 && frame < CLICK_MODAL_SUBMIT_FRAME) {
+    // 4. Moving to modal submit button "Gabung Kelas" (1099, 641)
+    cursorX = interpolate(frame, [156, CLICK_MODAL_SUBMIT_FRAME - 2], [952, 1099], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [156, CLICK_MODAL_SUBMIT_FRAME - 2], [531, 641], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
   } else {
-    cursorX = 124;
-    cursorY = 194;
-    if (frame >= 52 && frame <= 58) {
+    cursorX = 1099;
+    cursorY = 641;
+    if (frame >= CLICK_MODAL_SUBMIT_FRAME && frame <= CLICK_MODAL_SUBMIT_FRAME + 5) {
       isClicking = true;
-      clickFrame = 52;
+      clickFrame = CLICK_MODAL_SUBMIT_FRAME;
     }
   }
 
+  // Code typing simulation in modal
+  const codeStr = "IF204-A";
+  const charsTyped = Math.floor(
+    interpolate(frame, [130, 152], [0, codeStr.length], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    })
+  );
+  const currentCode = codeStr.slice(0, charsTyped);
+
   return (
     <div className="relative w-[1920px] h-[1080px] bg-[#f8fafc] overflow-hidden select-none">
-      {/* Full 1920x1080 Dashboard (No cropped edges) */}
-      <Img
-        src={staticFile("screens/03_mahasiswa_dashboard.png")}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
-
-      {/* Subtle Hover Highlight on Course Nav Item */}
-      {frame >= 42 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            top: 174,
-            width: 224,
-            height: 40,
-            backgroundColor: "rgba(16, 47, 80, 0.08)",
-            boxShadow: isClicking
-              ? "0 0 0 2px rgba(16, 47, 80, 0.3)"
-              : "0 0 12px rgba(56, 189, 248, 0.2)",
-            borderRadius: 8,
-            pointerEvents: "none",
-          }}
+      {/* 
+        AUTHENTIC ACTION-REACTION SCREEN FLOW:
+        1. frames < 52: Mahasiswa Dashboard
+        2. frames 52 to 102: Mahasiswa Course List
+        3. frames 102+: Real Modal "Gabung Kelas Perkuliahan"
+      */}
+      {frame < LOAD_COURSE_PAGE_FRAME ? (
+        <Img
+          src={staticFile("screens/03_mahasiswa_dashboard.png")}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
+      ) : frame < LOAD_MODAL_FRAME ? (
+        <Img
+          src={staticFile("screens/04_mahasiswa_course.png")}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <>
+          <Img
+            src={staticFile("screens/14_modal_gabung_kelas.png")}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          {/* Typed Code inside real modal input without artificial borders */}
+          {frame >= 130 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 752,
+                top: 513,
+                width: 400,
+                height: 36,
+                backgroundColor: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: 10,
+                borderRadius: 4,
+                fontFamily: "monospace",
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#0f172a",
+                letterSpacing: 2,
+              }}
+            >
+              <span>{currentCode}</span>
+              {frame < 156 && Math.floor(frame / 10) % 2 === 0 && (
+                <span style={{ color: "#2563eb", marginLeft: 2 }}>|</span>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Animated Cursor */}
@@ -67,13 +163,26 @@ export const Scene3DashboardScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Clean text instruction (light background) */}
-      <InstructionOverlay
-        step="02"
-        actionText="Navigasi ke Menu Course"
-        detailText="Pilih menu Course pada bilah navigasi kiri untuk mengakses seluruh kelas aktif Anda."
-        darkScreen={false}
-      />
+      {/* Interactive, Bold Instruction Overlay */}
+      {frame < LOAD_COURSE_PAGE_FRAME ? (
+        <InstructionOverlay
+          step="02"
+          actionText="Buka Menu Course"
+          detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses daftar seluruh kelas perkuliahan Anda."
+        />
+      ) : frame < LOAD_MODAL_FRAME ? (
+        <InstructionOverlay
+          step="02"
+          actionText="Pilih Tambah Gabung Kelas"
+          detailText="Klik tombol + Gabung Kelas di sudut kanan atas halaman untuk membuka formulir pendaftaran kelas."
+        />
+      ) : (
+        <InstructionOverlay
+          step="02"
+          actionText="Masukkan Kode Akses Perkuliahan"
+          detailText="Ketikkan kode kelas 8 karakter yang diberikan oleh dosen pengampu, lalu tekan tombol Gabung Kelas."
+        />
+      )}
     </div>
   );
 };

@@ -19,16 +19,16 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
   const framesSinceClick = frame - clickFrame;
   const showRipple = framesSinceClick >= 0 && framesSinceClick < 16;
 
-  const rippleScale = interpolate(framesSinceClick, [0, 14], [0.5, 2.0], {
+  const rippleScale = interpolate(framesSinceClick, [0, 15], [0.3, 2.2], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const rippleOpacity = interpolate(framesSinceClick, [0, 14], [0.7, 0], {
+  const rippleOpacity = interpolate(framesSinceClick, [0, 15], [0.85, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const cursorScale = isClicking ? 0.84 : 1;
+  const cursorScale = isClicking ? 0.82 : 1;
 
   return (
     <div
@@ -48,34 +48,34 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
             position: "absolute",
             left: 0,
             top: 0,
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             borderRadius: "50%",
             transform: `translate(-50%, -50%) scale(${rippleScale})`,
             opacity: rippleOpacity,
-            backgroundColor: "rgba(56, 189, 248, 0.3)",
-            border: "2px solid rgba(14, 165, 233, 0.8)",
+            backgroundColor: "rgba(56, 189, 248, 0.35)",
+            border: "2.5px solid rgba(14, 165, 233, 0.95)",
           }}
         />
       )}
 
-      {/* SVG Pointer Cursor */}
+      {/* High-Resolution SVG Pointer Cursor */}
       <svg
-        width="26"
-        height="26"
+        width="30"
+        height="30"
         viewBox="0 0 24 24"
         fill="none"
         style={{
           transform: `scale(${cursorScale})`,
           transformOrigin: "top left",
-          filter: "drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45))",
+          filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55))",
         }}
       >
         <path
           d="M3 3L10.07 20.97L13.58 13.58L20.97 10.07L3 3Z"
           fill="#0f172a"
           stroke="#ffffff"
-          strokeWidth="1.8"
+          strokeWidth="2"
           strokeLinejoin="round"
         />
       </svg>
@@ -83,55 +83,25 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
   );
 };
 
-export const CameraViewport: React.FC<{
-  zoom?: number;
-  focusX?: number;
-  focusY?: number;
-  children: React.ReactNode;
-}> = ({ zoom = 1, focusX = 960, focusY = 540, children }) => {
-  const translateX = -(focusX - 960) * (zoom - 1);
-  const translateY = -(focusY - 540) * (zoom - 1);
-
-  return (
-    <div
-      style={{
-        width: 1920,
-        height: 1080,
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <div
-        style={{
-          width: 1920,
-          height: 1080,
-          transform: `scale(${zoom}) translate(${translateX / zoom}px, ${translateY / zoom}px)`,
-          transformOrigin: "center center",
-          willChange: "transform",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
-
 /**
- * Clean typography-only instruction overlay (NO bulky cards, NO neon slop)
+ * Text instruction overlay:
+ * - Large, bold, interactive typography (anti-slop)
+ * - Strict rule: NO dot (.) separator
+ * - Crystal clear readability with bottom gradient backdrop
  */
 export const InstructionOverlay: React.FC<{
   step: string;
   actionText: string;
   detailText?: string;
   darkScreen?: boolean;
-}> = ({ step, actionText, detailText, darkScreen = false }) => {
+}> = ({ step, actionText, detailText }) => {
   const frame = useCurrentFrame();
 
-  const opacity = interpolate(frame, [0, 10], [0, 1], {
+  const opacity = interpolate(frame, [0, 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const translateY = interpolate(frame, [0, 10], [8, 0], {
+  const translateY = interpolate(frame, [0, 8], [10, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -142,43 +112,27 @@ export const InstructionOverlay: React.FC<{
         transform: `translateY(${translateY}px)`,
         opacity,
       }}
-      className="absolute bottom-10 left-12 z-50 pointer-events-none select-none max-w-2xl"
+      className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-14 bg-gradient-to-t from-slate-950/95 via-slate-950/80 to-transparent z-40 pointer-events-none select-none"
     >
-      <div className="flex items-center gap-2.5">
-        <span
-          className={`text-xs font-black tracking-widest uppercase ${
-            darkScreen ? "text-cyan-300" : "text-blue-600"
-          }`}
-        >
+      <div className="max-w-5xl">
+        {/* Step Badge (No dot separator) */}
+        <div className="inline-flex items-center gap-2.5 px-3.5 py-1 rounded bg-blue-600 text-white text-xs font-black tracking-widest uppercase shadow-sm">
+          <span className="h-2 w-2 rounded-full bg-cyan-300" />
           LANGKAH {step}
-        </span>
-        <span
-          className={`h-1 w-1 rounded-full ${
-            darkScreen ? "bg-slate-400" : "bg-slate-400"
-          }`}
-        />
-        <span
-          className={`text-base font-extrabold tracking-tight ${
-            darkScreen
-              ? "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-              : "text-[#0f172a] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]"
-          }`}
-        >
-          {actionText}
-        </span>
-      </div>
+        </div>
 
-      {detailText && (
-        <p
-          className={`mt-1 text-xs font-medium leading-relaxed max-w-xl ${
-            darkScreen
-              ? "text-slate-300 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
-              : "text-slate-600"
-          }`}
-        >
-          {detailText}
-        </p>
-      )}
+        {/* Action Title (Large bold font) */}
+        <div className="mt-2 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+          {actionText}
+        </div>
+
+        {/* Detailed Description (Clear, large, high-contrast bold font) */}
+        {detailText && (
+          <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-4xl">
+            {detailText}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

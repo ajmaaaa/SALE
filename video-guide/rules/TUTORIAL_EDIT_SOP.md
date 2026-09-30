@@ -4,56 +4,62 @@
 
 ---
 
-## 1. PRINSIP UTAMA: REKAMAN ASLI SEBAGAI KONTEN UTAMA
+## 1. PRINSIP UTAMA: REKAMAN ASLI & ALUR AKSI-REAKSI NYATA
 
-1. **Sistem Asli 100%**:
+1. **Aksi Tombol Wajib Diikuti Reaksi Sistem (Action-Reaction)**:
+   - Jika kursor menekan tombol (misal tombol "Masuk", menu navigasi, atau tombol konfirmasi), tampilan antarmuka **wajib langsung berganti ke halaman berikutnya** sebagai respon alami sistem web dalam tempo 6–10 frame setelah klik.
+   - **DILARANG KERAS** menekan tombol tetapi layar tetap diam membeku di halaman yang sama lalu berganti secara paksa melalui transisi terpisah.
+2. **Sistem Asli 100% (No Fake UI)**:
    - Seluruh konten demonstrasi **wajib menggunakan rekaman layar / antarmuka asli sistem SALE**.
-   - **DILARANG** membuat pop-up tiruan, modal palsu, atau elemen UI buatan di luar sistem (contoh yang dilarang: membuat kartu "Pendaftaran Berhasil" buatan sendiri yang menutupi layar). Biarkan sistem berbicara sesuai alur aslinya.
-2. **Peran Teks & Elemen Tambahan**:
-   - Rekaman layar adalah menu utama. Teks penjelasan hanya berfungsi sebagai **petunjuk pendukung minimalis**.
-   - Teks instruksi disajikan **hanya teks (clean typography)** dengan kontras tajam atau bayangan halus.
-   - **DILARANG KERAS** membungkus teks ke dalam card tebal, badge warna-warni bertumpuk, atau label neon ala infografis murah.
+   - **DILARANG** membuat pop-up tiruan, modal palsu, atau elemen UI buatan di luar sistem (contoh yang dilarang: membuat kartu "Pendaftaran Berhasil" buatan sendiri yang menutupi layar). Seluruh modal dan halaman yang ditampilkan adalah halaman sistem nyata (misal: modal pendaftaran kode kelas, halaman konfirmasi pendaftaran, dashboard).
+3. **Dilarang Menambahkan Garis/Box Overlay Buatan yang Menimpa UI**:
+   - Jangan menambahkan border/garis/glow buatan di atas tombol, form, atau card jika posisinya menimpa atau tidak presisi.
+   - Cukup gunakan efek klik kursor alami (*click ripple*) dan respon visual bawaan web.
 
 ---
 
-## 2. ATURAN ZOOM & KAMERA (CAMERA DYNAMICS)
+## 2. ATURAN TRANSISI (ANTI SALING TIMPA / GHOSTING)
 
-1. **Kapan Boleh Zoom?**:
-   - **HANYA** lakukan zoom jika fokus berada pada satu area interaksi spesifik dalam durasi yang cukup lama (contoh: mengetik pesan chat panjang di forum dan menunggu balasan dosen, atau mengisi baris rubrik penilaian yang padat).
-   - Jika hanya navigasi menu cepat, klik tombol biasa, atau pindah halaman: **TETAP GUNAKAN TAMPILAN PENUH (FULL VIEW 1920x1080)**.
-2. **Kerapian Framing**:
-   - Layar sistem tidak boleh terpotong sembarangan (sidebar atau header tidak boleh terpotong canggung di tengah-tengah teks).
-   - Jika melakukan zoom-in (maksimal 115%–125%), kamera harus melakukan **zoom-out kembali secara mulus (*ease-in-out*)** sebelum berpindah ke halaman atau menu lainnya.
-3. **Kecepatan Transisi Kamera**:
-   - Zoom in dan zoom out wajib menggunakan interpolasi halus (*spring easing* atau *cubic bezier*), durasi minimal 0.5–0.8 detik. Dilarang ada zoom mendadak yang membuat pusing penonton.
+1. **Gunakan Cut Alami Saat Aksi Web**:
+   - Perpindahan antar halaman web setelah klik tombol harus terjadi secara **cut instan (seamless hard cut)**, persis seperti perilaku peramban web saat memuat halaman baru.
+   - **DILARANG KERAS** menggunakan crossfade bertumpuk (`presentation={fade()}`) antar halaman screencast yang membuat dua halaman web transparan dan saling timpa (*ghosting*).
+   - Transisi fade hanya diizinkan untuk cut cepat (≤ 6 frame) antara Cover Intro pembuka dan Screencast layar pertama.
+2. **Kamera Stabil & Utuh (Full View 1920×1080)**:
+   - Tampilkan layar secara utuh tanpa pemotongan canggung (*no awkward crop*).
+   - Jangan melakukan zoom acak atau terpotong. Zoom hanya jika fokus membaca teks/kolom input sempit dalam durasi panjang, dan harus kembali zoom-out penuh sebelum berganti halaman.
 
 ---
 
-## 3. ATURAN KURSOR & AKURASI INTERAKSI
+## 3. ATURAN TIPOGRAFI & TEKS INSTRUKSI (ANTI-SLOP)
+
+1. **Larangan Keras Simbol Titik (.) Sebagai Pemisah**:
+   - **DILARANG** menggunakan simbol titik `.` atau bullet `•` sebagai pemisah judul langkah atau nomor bab.
+   - Contoh SALAH:
+     - ❌ `LANGKAH 01 . Masuk ke Sistem SALE`
+     - ❌ `Langkah 1 . Masuk.`
+     - ❌ `PANDUAN MAHASISWA • EPS. 01`
+   - Gunakan format baku terstruktur atau em-dash murni:
+     - ✅ Badge: `LANGKAH 01` lalu judul: `Masuk ke Sistem SALE`
+     - ✅ `PANDUAN MAHASISWA — EPISODE 01`
+2. **Ukuran Teks Deskripsi Jelas, Besar & Tebal (Interactive Typography)**:
+   - Judul aksi instruksi wajib besar dan sangat tegas: **32–36px font-black / extra-bold text-white**.
+   - Deskripsi langkah minimal **20–22px font-bold text-slate-100**, kontras tinggi dan mudah dibaca pada resolusi 1080p tanpa perlu card/box tebal yang menutupi layar.
+   - Gunakan latar gradient gelap halus di bagian bawah (`bg-gradient-to-t from-slate-950/95 via-slate-950/80 to-transparent`) untuk keterbacaan sempurna.
+3. **Desain Cover / Intro Bebas AI-Slop**:
+   - Dilarang keras menggunakan *ambient blur orbs* neon (lingkaran blur ungu/cyan besar khas generator AI).
+   - Gunakan latar solid berwibawa (`#0b1626` / `#0f1f38`), tipografi tegas percaya diri (Inter / Plus Jakarta Sans), dan sematkan **mockup jendela peramban asli** yang memperlihatkan antarmuka sistem SALE nyata.
+
+---
+
+## 4. ATURAN KURSOR & AKURASI INTERAKSI
 
 1. **Akurasi Posisi (Pixel-Perfect Click)**:
    - Kursor wajib mendarat tepat di titik tengah (*center*) tombol, input field, atau tab navigasi yang dimaksud (`x + width/2`, `y + height/2`).
    - Tidak boleh ada kursor yang meleset, mendarat di luar tombol, atau mengklik area kosong.
 2. **Gerakan Kursor yang Natural**:
    - Gerakan kursor menggunakan kurva kecepatan realistis: mulai perlahan, bergerak cepat di tengah lintasan, dan melambat saat mendekati target (*ease-out*).
-   - Jangan biarkan kursor melompat secara instan (*teleport*).
 3. **Umpan Balik Visual Klik**:
-   - Saat tombol ditekan, kursor mengecil sejenak (*scale down* ke ~0.85) disertai riak lingkaran klik transparan (*click ripple*).
-   - Tombol target menampilkan efek hover/active sesuai antarmuka aslinya.
-
----
-
-## 4. ELEMEN PENDUKUNG & ESTETIKA (ANTI-MONOTON & ANTI-SLOP)
-
-1. **Ciri AI-Slop yang Wajib Dihindari**:
-   - Label/chip warna-warni neon (merah, ungu, hijau menyala saling tabrak).
-   - Kotak card mengambang dengan border tebal yang menutupi layar rekaman.
-   - Ikon-ikon dekoratif yang tidak fungsional.
-2. **Komponen Pendukung yang Dianjurkan**:
-   - **Spotlight Halus**: Area sekitar target sedikit meredup (*subtle vignette/dim*) saat fokus instruksi tertentu agar mata penonton langsung tertuju ke aksi penting.
-   - **Typing Simulation**: Input teks (NIM, password, pencarian) tampil huruf demi huruf secara dinamis dengan kursor kedip (*caret*), tidak langsung muncul dalam satu blok.
-   - **Progress Bar Bawah**: Garis progres tipis (tinggi 3–4px) di dasar layar dengan warna aksen brand SALE (`#102f50` / `cyan-400`).
-   - **Typography**: Inter / Plus Jakarta Sans, kontras tinggi, penempatan di area negatif yang tidak menutupi informasi penting aplikasi.
+   - Saat tombol ditekan, kursor mengecil sejenak (*scale down* ke ~0.82) disertai riak lingkaran klik transparan (*click ripple*).
 
 ---
 
@@ -61,7 +67,7 @@
 
 | Bagian | Durasi | Keterangan |
 |---|---|---|
-| **Intro** | 3–4 detik | Judul episode, nama peran (Mahasiswa/Dosen/Admin), logo SALE minimalis & elegan |
-| **Screencast Inti** | 80–90% video | Alur rekaman layar sistem asli dengan gerakan kursor presisi dan teks petunjuk clean |
-| **Konfirmasi / Status** | 3–5 detik | Menampilkan layar hasil akhir di sistem (status sukses, data terisi, halaman course aktif) |
-| **Outro** | 3–4 detik | Teks penutup singkat & arahan menuju episode panduan berikutnya |
+| **Cover / Intro** | 4 detik (120f) | Judul episode, nama peran (Mahasiswa/Dosen/Admin), preview jendela SALE nyata tanpa neon slop |
+| **Screencast Inti** | 15–20 detik | Alur rekaman layar sistem asli dengan aksi-reaksi klik instan dan kursor presisi |
+| **Konfirmasi / Status** | 3–5 detik | Menampilkan layar hasil akhir di sistem (status sukses, kelas aktif, data tersimpan) |
+| **Outro / Next Eps** | 3–4 detik | Teks penutup singkat & arahan menuju episode panduan berikutnya |

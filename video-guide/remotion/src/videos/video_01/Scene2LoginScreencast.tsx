@@ -8,63 +8,76 @@ import {
 export const Scene2LoginScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Cursor Coordinates (X, Y)
+  // Timing benchmarks
+  const CLICK_NIM_FRAME = 36;
+  const CLICK_PASS_FRAME = 98;
+  const CLICK_SUBMIT_FRAME = 154;
+  const LOAD_DASHBOARD_FRAME = 162; // Immediate system reaction 8 frames after clicking Masuk
+
+  // Natural Cursor Trajectory
   let cursorX = 1350;
   let cursorY = 380;
   let isClicking = false;
   let clickFrame = -1;
 
-  if (frame < 36) {
-    // Moving smoothly to NIM field (960, 577)
-    cursorX = interpolate(frame, [8, 34], [1350, 960], {
+  if (frame < CLICK_NIM_FRAME) {
+    cursorX = interpolate(frame, [8, CLICK_NIM_FRAME - 2], [1350, 960], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [8, 34], [380, 577], {
+    cursorY = interpolate(frame, [8, CLICK_NIM_FRAME - 2], [380, 577], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-  } else if (frame >= 36 && frame < 85) {
+  } else if (frame >= CLICK_NIM_FRAME && frame < 78) {
     cursorX = 960;
     cursorY = 577;
-    if (frame >= 36 && frame <= 40) {
+    if (frame >= CLICK_NIM_FRAME && frame <= CLICK_NIM_FRAME + 4) {
       isClicking = true;
-      clickFrame = 36;
+      clickFrame = CLICK_NIM_FRAME;
     }
-  } else if (frame >= 85 && frame < 112) {
-    // Moving smoothly to Password field (960, 666)
+  } else if (frame >= 78 && frame < CLICK_PASS_FRAME) {
     cursorX = 960;
-    cursorY = interpolate(frame, [85, 110], [577, 666], {
+    cursorY = interpolate(frame, [78, CLICK_PASS_FRAME - 2], [577, 666], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-  } else if (frame >= 112 && frame < 145) {
+  } else if (frame >= CLICK_PASS_FRAME && frame < 132) {
     cursorX = 960;
     cursorY = 666;
-    if (frame >= 112 && frame <= 116) {
+    if (frame >= CLICK_PASS_FRAME && frame <= CLICK_PASS_FRAME + 4) {
       isClicking = true;
-      clickFrame = 112;
+      clickFrame = CLICK_PASS_FRAME;
     }
-  } else if (frame >= 145 && frame < 172) {
-    // Moving to button Masuk (960, 730)
+  } else if (frame >= 132 && frame < CLICK_SUBMIT_FRAME) {
     cursorX = 960;
-    cursorY = interpolate(frame, [145, 170], [666, 730], {
+    cursorY = interpolate(frame, [132, CLICK_SUBMIT_FRAME - 2], [666, 730], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-  } else {
+  } else if (frame >= CLICK_SUBMIT_FRAME && frame < LOAD_DASHBOARD_FRAME + 10) {
     cursorX = 960;
     cursorY = 730;
-    if (frame >= 172 && frame <= 178) {
+    if (frame >= CLICK_SUBMIT_FRAME && frame <= CLICK_SUBMIT_FRAME + 5) {
       isClicking = true;
-      clickFrame = 172;
+      clickFrame = CLICK_SUBMIT_FRAME;
     }
+  } else {
+    // On the loaded dashboard, cursor rests naturally towards the center
+    cursorX = interpolate(frame, [LOAD_DASHBOARD_FRAME + 10, LOAD_DASHBOARD_FRAME + 35], [960, 600], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [LOAD_DASHBOARD_FRAME + 10, LOAD_DASHBOARD_FRAME + 35], [730, 400], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
   }
 
-  // Typing Simulation
+  // Simulated Text Typing
   const fullNim = "231011401234";
   const nimCharsTyped = Math.floor(
-    interpolate(frame, [42, 80], [0, fullNim.length], {
+    interpolate(frame, [40, 74], [0, fullNim.length], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
@@ -73,98 +86,88 @@ export const Scene2LoginScreencast: React.FC = () => {
 
   const fullPass = "••••••••";
   const passCharsTyped = Math.floor(
-    interpolate(frame, [118, 142], [0, fullPass.length], {
+    interpolate(frame, [102, 126], [0, fullPass.length], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
   );
   const currentPass = fullPass.slice(0, passCharsTyped);
 
-  const isBlinking = Math.floor(frame / 12) % 2 === 0;
+  const isBlinking = Math.floor(frame / 10) % 2 === 0;
+  const isDashboardLoaded = frame >= LOAD_DASHBOARD_FRAME;
 
   return (
     <div className="relative w-[1920px] h-[1080px] bg-[#0e2740] overflow-hidden select-none">
-      {/* Authentic Background Screenshot (Full 1920x1080 without awkward crop) */}
-      <Img
-        src={staticFile("screens/01_login_blank.png")}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
+      {/* 
+        AUTHENTIC ACTION-REACTION SCREEN SWAP:
+        Before frame 162: Login Screen
+        After frame 162: Mahasiswa Dashboard Screen
+      */}
+      {!isDashboardLoaded ? (
+        <>
+          <Img
+            src={staticFile("screens/01_login_blank.png")}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
 
-      {/* Dynamic Typed NIM Overlay */}
-      {frame >= 38 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 771,
-            top: 558,
-            width: 378,
-            height: 38,
-            backgroundColor: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            paddingLeft: 12,
-            borderRadius: 6,
-            fontFamily: "monospace",
-            fontSize: 14,
-            color: "#0f172a",
-            fontWeight: 600,
-            border: frame < 85 ? "2px solid #2563eb" : "1px solid #cbd5e1",
-          }}
-        >
-          <span>{currentNim}</span>
-          {frame < 85 && isBlinking && (
-            <span style={{ color: "#2563eb", fontWeight: 700 }}>|</span>
+          {/* Clean Typed NIM inside original input without artificial border */}
+          {frame >= 38 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 772,
+                top: 559,
+                width: 376,
+                height: 36,
+                backgroundColor: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: 10,
+                borderRadius: 4,
+                fontFamily: "monospace",
+                fontSize: 14,
+                color: "#0f172a",
+                fontWeight: 600,
+              }}
+            >
+              <span>{currentNim}</span>
+              {frame < 78 && isBlinking && (
+                <span style={{ color: "#2563eb", fontWeight: 700, marginLeft: 2 }}>|</span>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Dynamic Typed Password Overlay */}
-      {frame >= 114 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 771,
-            top: 647,
-            width: 378,
-            height: 38,
-            backgroundColor: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            paddingLeft: 12,
-            borderRadius: 6,
-            fontSize: 18,
-            letterSpacing: 2,
-            color: "#0f172a",
-            border: frame < 145 ? "2px solid #2563eb" : "1px solid #cbd5e1",
-          }}
-        >
-          <span>{currentPass}</span>
-          {frame >= 114 && frame < 145 && isBlinking && (
-            <span style={{ color: "#2563eb", fontSize: 14, marginLeft: 2 }}>
-              |
-            </span>
+          {/* Clean Typed Password inside original input */}
+          {frame >= 100 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 772,
+                top: 648,
+                width: 376,
+                height: 36,
+                backgroundColor: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: 10,
+                borderRadius: 4,
+                fontSize: 18,
+                letterSpacing: 3,
+                color: "#0f172a",
+              }}
+            >
+              <span>{currentPass}</span>
+              {frame < 132 && isBlinking && (
+                <span style={{ color: "#2563eb", fontSize: 14, letterSpacing: 0, marginLeft: 2 }}>|</span>
+              )}
+            </div>
           )}
-        </div>
-      )}
-
-      {/* Button Hover Glow & Click Active State */}
-      {frame >= 165 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 769,
-            top: 710,
-            width: 382,
-            height: 40,
-            borderRadius: 8,
-            boxShadow: isClicking
-              ? "0 0 0 3px rgba(37, 99, 235, 0.4)"
-              : "0 0 16px rgba(56, 189, 248, 0.35)",
-            backgroundColor: isClicking
-              ? "rgba(16, 47, 80, 0.25)"
-              : "transparent",
-            pointerEvents: "none",
-          }}
+        </>
+      ) : (
+        /* Instant Action-Reaction: Real Dashboard Loaded */
+        <Img
+          src={staticFile("screens/03_mahasiswa_dashboard.png")}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       )}
 
@@ -176,13 +179,20 @@ export const Scene2LoginScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Clean text instruction (NO bulky card, dark screen mode) */}
-      <InstructionOverlay
-        step="01"
-        actionText="Masuk ke Sistem SALE"
-        detailText="Ketikkan NIM pada kolom identitas dan masukkan kata sandi Anda, lalu klik tombol Masuk."
-        darkScreen={true}
-      />
+      {/* Interactive, Bold Instruction Overlay */}
+      {!isDashboardLoaded ? (
+        <InstructionOverlay
+          step="01"
+          actionText="Masuk ke Sistem SALE"
+          detailText="Ketikkan NIM pada kolom identitas dan masukkan kata sandi Anda, lalu klik tombol Masuk."
+        />
+      ) : (
+        <InstructionOverlay
+          step="01"
+          actionText="Berhasil Masuk ke Portal Mahasiswa"
+          detailText="Autentikasi akun berhasil diverifikasi, sistem langsung memuat halaman utama dashboard akademik."
+        />
+      )}
     </div>
   );
 };

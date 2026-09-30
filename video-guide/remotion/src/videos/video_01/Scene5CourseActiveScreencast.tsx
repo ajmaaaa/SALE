@@ -8,53 +8,37 @@ import {
 export const Scene5CourseActiveScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Cursor moves naturally towards the active course card
-  let cursorX = 960;
-  let cursorY = 558;
-  if (frame < 45) {
-    cursorX = interpolate(frame, [5, 40], [960, 280], {
+  // Natural cursor motion inspecting the active course page (from header to video to forum)
+  let cursorX = 520;
+  let cursorY = 155;
+
+  if (frame < 50) {
+    cursorX = interpolate(frame, [5, 45], [520, 450], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [5, 40], [558, 440], {
+    cursorY = interpolate(frame, [5, 45], [155, 520], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
   } else {
-    cursorX = 280;
-    cursorY = 440;
+    cursorX = interpolate(frame, [50, 90], [450, 850], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [50, 90], [520, 600], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
   }
-
-  // Active focus glow on the enrolled course card (IF204-A Struktur Data)
-  const cardHighlightOpacity = interpolate(frame, [30, 45], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
 
   return (
     <div className="relative w-[1920px] h-[1080px] bg-[#f8fafc] overflow-hidden select-none">
-      {/* Real Screen: Dashboard with Active Courses */}
+      {/* Authentic Screen: Full Real Course Learning Page with Videos, Forums, and Modules */}
       <Img
-        src={staticFile("screens/03_mahasiswa_dashboard.png")}
+        src={staticFile("screens/15_mahasiswa_course_detail.png")}
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
-
-      {/* Subtle Focus Ring highlighting the newly joined course card */}
-      {frame >= 30 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 150,
-            top: 350,
-            width: 260,
-            height: 290,
-            borderRadius: 16,
-            boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.6), 0 10px 30px rgba(37, 99, 235, 0.15)",
-            opacity: cardHighlightOpacity,
-            pointerEvents: "none",
-          }}
-        />
-      )}
 
       {/* Animated Cursor */}
       <AnimatedCursor
@@ -64,19 +48,18 @@ export const Scene5CourseActiveScreencast: React.FC = () => {
         clickFrame={-1}
       />
 
-      {/* Clean text instruction (NO popup card) */}
+      {/* Interactive, Bold Instruction Overlay */}
       <InstructionOverlay
         step="04"
-        actionText="Kelas Resmi Aktif & Siap Diakses"
-        detailText="Selamat belajar. Seluruh materi perkuliahan, kuis berbasis OBE, dan forum diskusi kelas sudah aktif."
-        darkScreen={false}
+        actionText="Kelas Perkuliahan Resmi Aktif"
+        detailText="Selamat belajar! Seluruh silabus mata kuliah, materi video, kuis OBE, dan forum diskusi sudah siap Anda akses."
       />
 
       {/* Sleek next episode indicator in bottom right */}
-      <div className="absolute bottom-10 right-12 flex items-center gap-3 text-xs font-bold text-slate-500 select-none">
-        <span>SALE Guide Series</span>
-        <span className="h-1 w-1 rounded-full bg-slate-400" />
-        <span className="text-blue-700">Lanjut ke Episode 02 →</span>
+      <div className="absolute bottom-10 right-14 flex items-center gap-3 text-xs font-black text-slate-100 select-none z-50 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+        <span className="uppercase tracking-wider">SALE GUIDE SERIES</span>
+        <span className="text-slate-400 font-bold">—</span>
+        <span className="text-blue-300 uppercase tracking-wider font-extrabold">LANJUT KE EPISODE 02 — EKSPLORASI MATERI & FORUM →</span>
       </div>
     </div>
   );

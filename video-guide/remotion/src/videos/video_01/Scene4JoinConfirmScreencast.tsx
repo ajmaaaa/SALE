@@ -8,62 +8,66 @@ import {
 export const Scene4JoinConfirmScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
+  const CLICK_CONFIRM_BTN_FRAME = 46;
+  const LOAD_COURSE_DETAIL_FRAME = 54; // Instant Action-Reaction: Screen cuts directly into the opened course
+
   // Exact button coordinates measured from live DOM:
-  // x: 1003.8, y: 543.6, width: 145.3, height: 40
-  // Target center: x = 1076, y = 564
-  let cursorX = 960;
-  let cursorY = 240;
+  // Button "Buka Course Saya": target center (1076, 564)
+  let cursorX = 1099;
+  let cursorY = 641;
   let isClicking = false;
   let clickFrame = -1;
 
-  if (frame < 52) {
-    cursorX = interpolate(frame, [10, 48], [960, 1076], {
+  if (frame < CLICK_CONFIRM_BTN_FRAME) {
+    cursorX = interpolate(frame, [8, CLICK_CONFIRM_BTN_FRAME - 2], [1099, 1076], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [10, 48], [240, 564], {
+    cursorY = interpolate(frame, [8, CLICK_CONFIRM_BTN_FRAME - 2], [641, 564], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-  } else {
+  } else if (frame >= CLICK_CONFIRM_BTN_FRAME && frame < LOAD_COURSE_DETAIL_FRAME + 4) {
     cursorX = 1076;
     cursorY = 564;
-    if (frame >= 52 && frame <= 58) {
+    if (frame >= CLICK_CONFIRM_BTN_FRAME && frame <= CLICK_CONFIRM_BTN_FRAME + 4) {
       isClicking = true;
-      clickFrame = 52;
+      clickFrame = CLICK_CONFIRM_BTN_FRAME;
     }
+  } else {
+    // Inside the opened course, cursor moves naturally towards the course title and forum
+    cursorX = interpolate(frame, [LOAD_COURSE_DETAIL_FRAME + 4, LOAD_COURSE_DETAIL_FRAME + 30], [1076, 520], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [LOAD_COURSE_DETAIL_FRAME + 4, LOAD_COURSE_DETAIL_FRAME + 30], [564, 155], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
   }
+
+  const isCourseLoaded = frame >= LOAD_COURSE_DETAIL_FRAME;
 
   return (
     <div className="relative w-[1920px] h-[1080px] bg-[#f8fafc] overflow-hidden select-none">
-      {/* Full 1920x1080 Join Confirmation Screen */}
-      <Img
-        src={staticFile("screens/13_mahasiswa_join_confirm.png")}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
-
-      {/* Button Hover Glow & Click Active State directly over the exact button */}
-      {frame >= 42 && (
-        <div
-          style={{
-            position: "absolute",
-            left: 1004,
-            top: 544,
-            width: 145,
-            height: 40,
-            borderRadius: 8,
-            boxShadow: isClicking
-              ? "0 0 0 3px rgba(37, 99, 235, 0.5)"
-              : "0 0 16px rgba(56, 189, 248, 0.4)",
-            backgroundColor: isClicking
-              ? "rgba(16, 47, 80, 0.2)"
-              : "transparent",
-            pointerEvents: "none",
-          }}
+      {/* 
+        AUTHENTIC ACTION-REACTION SCREEN SWAP:
+        Before frame 54: Join Confirmation Screen
+        After frame 54: Real Course Detail Screen (IF204-A Struktur Data)
+      */}
+      {!isCourseLoaded ? (
+        <Img
+          src={staticFile("screens/13_mahasiswa_join_confirm.png")}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <Img
+          src={staticFile("screens/15_mahasiswa_course_detail.png")}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       )}
 
-      {/* Animated Cursor hitting exact center (1076, 564) */}
+      {/* Animated Cursor */}
       <AnimatedCursor
         x={cursorX}
         y={cursorY}
@@ -71,13 +75,20 @@ export const Scene4JoinConfirmScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Clean text instruction */}
-      <InstructionOverlay
-        step="03"
-        actionText="Konfirmasi Pendaftaran Kelas"
-        detailText="Periksa informasi mata kuliah, semester, dan dosen pengampu, lalu klik tombol untuk membuka kelas."
-        darkScreen={false}
-      />
+      {/* Interactive, Bold Instruction Overlay */}
+      {!isCourseLoaded ? (
+        <InstructionOverlay
+          step="03"
+          actionText="Konfirmasi Pendaftaran Kelas"
+          detailText="Periksa informasi mata kuliah dan dosen pengampu pada layar konfirmasi, lalu klik Buka Course Saya."
+        />
+      ) : (
+        <InstructionOverlay
+          step="03"
+          actionText="Kelas Berhasil Dibuka"
+          detailText="Sistem langsung mengarahkan Anda ke ruang perkuliahan utama yang berisi materi dan forum diskusi."
+        />
+      )}
     </div>
   );
 };
