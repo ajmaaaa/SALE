@@ -11,6 +11,7 @@
     $hasMultiQuestions = !empty($item['questions']);
     $isDedicatedQuiz = in_array($item['type'], ['kuis', 'uts', 'uas'], true);
     $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
+    $isCodingTask = in_array($item['type'], ['coding'], true) || ($item['task_mode'] ?? null) === 'coding' || ($item['question_type'] ?? null) === 'coding';
     $submission = null;
     $studentId = auth()->id();
     if (empty($submission) && auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('submissions')) {
@@ -110,13 +111,13 @@
         @endif
             {{-- Main Column: Instructions, Multi-Question Cards, Stimulus, Attachments, Discussions --}}
             <div class="min-w-0 space-y-6 flex flex-col">
-                {{-- Interactive Coding Workbench & Lumina AI Assistant Banner --}}
-                @if(!$isDedicatedQuiz && ($item['type'] === 'coding' || $isCodingMaterial))
+                {{-- Interactive Coding Workbench & AI Asisten Banner --}}
+                @if(!$isDedicatedQuiz && ($isCodingTask || $isCodingMaterial))
                     <div class="rounded-xl border border-line bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="space-y-1">
                             <div class="flex items-center gap-2">
                                 <span class="inline-flex items-center gap-1 rounded bg-brand px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                                    <span>✦</span> Lumina AI
+                                    <span>✦</span> AI Asisten
                                 </span>
                                 <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                     Editor Monaco &amp; Terminal Linux
@@ -124,7 +125,7 @@
                             </div>
                             <h3 class="text-sm font-bold text-ink">Ruang Praktikum Coding &amp; Asisten AI Tersedia</h3>
                             <p class="text-xs text-muted leading-relaxed">
-                                Anda dapat menguji algoritma Binary Search Tree langsung di editor kode interaktif dengan panduan konsep cerdas dari Lumina AI.
+                                Anda dapat menguji algoritma Binary Search Tree langsung di editor kode interaktif dengan panduan konsep cerdas dari AI Asisten.
                             </p>
                         </div>
                         <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-4 font-bold inline-flex items-center gap-1.5 shrink-0 shadow-xs self-start sm:self-center">
@@ -752,9 +753,19 @@
 
                         {{-- Saved answer preview if exists --}}
                         @if(!empty($submission['answer']) && empty($item['questions']))
-                            <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40">
-                                <span class="text-muted block text-[11px] font-semibold mb-1">Catatan / Jawaban:</span>
-                                <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
+                            @php
+                                $isJsonCode = str_starts_with(trim($submission['answer']), '[') || str_starts_with(trim($submission['answer']), '{');
+                            @endphp
+                            <div class="text-xs p-2.5 rounded-lg bg-canvas border border-line/40 space-y-1">
+                                <span class="text-muted block text-[11px] font-semibold">Catatan / Jawaban:</span>
+                                @if($isJsonCode)
+                                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                                        <span class="text-ink font-medium">Kode program telah diserahkan.</span>
+                                        <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="text-brand hover:underline font-semibold shrink-0">Buka di Editor Kode ↗</a>
+                                    </div>
+                                @else
+                                    <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>
+                                @endif
                             </div>
                         @endif
 
