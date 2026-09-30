@@ -150,7 +150,35 @@
     $totalSteps = count($materialSteps);
     $finishUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
 
-    if ($language === 'web') {
+    $submission = $submission ?? null;
+    $savedStepFiles = [];
+    $hasSavedSubmission = false;
+    if (!empty($submission?->answer)) {
+        try {
+            $parsedAnswer = json_decode($submission->answer, true);
+            if (is_array($parsedAnswer) && !empty($parsedAnswer)) {
+                $hasSavedSubmission = true;
+                foreach ($parsedAnswer as $pf) {
+                    $stepIdx = isset($pf['step']) ? ((int)$pf['step'] - 1) : 0;
+                    if (!isset($pf['step']) && preg_match('/_soal_(\d+)\./', $pf['name'] ?? '', $m)) {
+                        $stepIdx = ((int)$m[1]) - 1;
+                    }
+                    if ($stepIdx < 0 || $stepIdx >= $totalSteps) {
+                        $stepIdx = 0;
+                    }
+                    $cleanName = preg_replace('/_soal_\d+(\.[^.]+)$/', '$1', $pf['name'] ?? '');
+                    $savedStepFiles[$stepIdx][] = [
+                        'name' => $cleanName ?: ($language === 'web' ? 'index.html' : 'main.py'),
+                        'code' => $pf['code'] ?? '',
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (!empty($savedStepFiles[0])) {
+        $defaultFiles = $savedStepFiles[0];
+    } elseif ($language === 'web') {
         $defaultFiles = [[
             'name' => 'index.html',
             'code' => $materialSteps[0]['code'] ?? '<!DOCTYPE html><html><body><h1>Halo SALE</h1></body></html>',
@@ -164,6 +192,14 @@
         $defaultFiles = [['name' => 'main.py', 'code' => '# Tulis jawaban Python kamu di sini']];
     }
 @endphp
+    @if($hasSavedSubmission)
+        <script>
+            try {
+                const draftKey = `sale.code.assignment.{{ $item['id'] }}.{{ $language }}`;
+                localStorage.setItem(draftKey, JSON.stringify(@json($defaultFiles)));
+            } catch(e) {}
+        </script>
+    @endif
     <header class="sticky top-0 z-30 bg-white shadow-[0_1px_3px_rgba(29,39,48,0.06)] border-b border-line/60">
         <div class="flex min-h-14 w-full flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6">
             <div class="flex min-w-0 items-center gap-2.5">
@@ -175,6 +211,18 @@
                     <h1 class="truncate text-sm font-bold text-ink leading-tight">{{ $item['title'] }}</h1>
                     <p class="truncate text-xs text-muted">{{ $course['code'] }} · {{ $item['module'] }}</p>
                 </div>
+                @if($submission)
+                    <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold" title="Terkoneksi ke Database: Diserahkan pada {{ $submission->submitted_at?->translatedFormat('d M Y, H:i') ?? 'Sistem' }}">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Tersimpan di Database</span>
+                    </div>
+                @endif
+                @if($isLecturer && !$isMaterial)
+                    <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 text-brand hover:bg-brand/20 border border-brand/30 text-xs font-bold transition shadow-2xs" title="Buka Halaman Penilaian Dosen">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        <span>Halaman Penilaian Dosen</span>
+                    </a>
+                @endif
             </div>
 
             {{-- Center: Tombol Daftar Bagian (Grid Popover Trigger) --}}
@@ -192,22 +240,22 @@
                     <span>Sebelumnya</span>
                 </button>
 
-                <button type="button" id="btn-step-next" class="button-primary text-xs py-1.5 px-3.5 font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-xs {{ $totalSteps <= 1 ? 'hidden' : '' }}" title="Bagian Selanjutnya">
+                <button type="button" id="btn-step-next" class="button-primary text-xs py-1.5 px-3.5 font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-xs {{ $totalSteps <= 1 ? '!hidden' : '' }}" style="{{ $totalSteps <= 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Bagian Selanjutnya">
                     <span>Selanjutnya</span>
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
 
                 @if($isMaterial || $isLecturer)
-                    <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? 'hidden' : '' }}" title="Selesaikan Course">
+                    <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Selesaikan Course">
                         <span>Selesaikan Course</span>
                         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                     </a>
                 @else
-                    <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? 'hidden' : '' }}">
+                    <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-block;' }}">
                         @csrf
                         <input type="hidden" name="answer" data-code-answer>
-                        <button type="submit" id="btn-submit-code" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="Serahkan Tugas">
-                            <span>Serahkan</span>
+                        <button type="submit" id="btn-submit-code" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="{{ $submission ? 'Perbarui Tugas ke Database' : 'Serahkan Tugas ke Database' }}">
+                            <span>{{ $submission ? 'Perbarui Tugas' : 'Serahkan' }}</span>
                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                         </button>
                     </form>
@@ -217,7 +265,7 @@
     </header>
 
     <main class="w-full p-4 sm:p-5">
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             <div role="alert" class="mb-4 rounded-lg border border-danger bg-white p-3 text-xs text-danger">{{ $errors->first() }}</div>
         @endif
 
@@ -523,7 +571,7 @@
                     </div>
                 </div>
 
-                @if ($errors->has('ai'))
+                @if (isset($errors) && $errors->has('ai'))
                     <p class="p-3 text-xs text-red-700">{{ $errors->first('ai') }}</p>
                 @endif
                 @guest
@@ -643,9 +691,37 @@
             const btnOpenMaterialModal = document.getElementById('btn-open-material-modal');
             const modalMaterialClose = document.getElementById('modal-material-close');
             const gridStepBtns = document.querySelectorAll('[data-grid-material-step]');
+            const defaultFileName = '{{ $language === "web" ? "index.html" : "main.py" }}';
+            const isMaterialItem = {{ ($isMaterial || (int)($item['id'] ?? 0) === 1) ? 'true' : 'false' }};
+            const stepFilesMap = {};
+
+            // Inisialisasi awal step 0 dengan defaultFiles yang dirender server
+            stepFilesMap[0] = @json($defaultFiles);
+
+            const savedStepFiles = @json($savedStepFiles ?? []);
+            if (savedStepFiles && typeof savedStepFiles === 'object') {
+                Object.keys(savedStepFiles).forEach(sIdx => {
+                    if (savedStepFiles[sIdx] && savedStepFiles[sIdx].length > 0) {
+                        stepFilesMap[Number(sIdx)] = savedStepFiles[sIdx];
+                    }
+                });
+            }
 
             const setMaterialStep = (idx) => {
                 if (idx < 0 || idx >= totalSteps) return;
+
+                // 1. Simpan kode/berkas dari step aktif saat ini sebelum berpindah
+                if (typeof window.getWorkbenchFiles === 'function') {
+                    stepFilesMap[currentStep] = window.getWorkbenchFiles();
+                } else if (typeof window.getWorkbenchCode === 'function') {
+                    const currentCode = window.getWorkbenchCode();
+                    if (!stepFilesMap[currentStep] || !stepFilesMap[currentStep].length) {
+                        stepFilesMap[currentStep] = [{ name: defaultFileName, code: currentCode }];
+                    } else {
+                        stepFilesMap[currentStep][0].code = currentCode;
+                    }
+                }
+
                 currentStep = idx;
 
                 // Update cards visibility
@@ -663,17 +739,40 @@
                     panelStepCounterBottom.textContent = `Bagian ${currentStep + 1} dari ${totalSteps}`;
                 }
 
-                // Update stepper buttons
+                // Update stepper button "Sebelumnya"
                 if (btnStepPrev) btnStepPrev.disabled = currentStep === 0;
 
-                if (currentStep === totalSteps - 1) {
-                    btnStepNext?.classList.add('hidden');
-                    btnStepFinish?.classList.remove('hidden');
-                    formCodeSubmit?.classList.remove('hidden');
-                } else {
-                    btnStepNext?.classList.remove('hidden');
-                    btnStepFinish?.classList.add('hidden');
-                    formCodeSubmit?.classList.add('hidden');
+                // Tombol "Selesaikan Course" / "Serahkan" HANYA MUNCUL DI SOAL TERAKHIR
+                const isLast = (currentStep === totalSteps - 1);
+                if (btnStepNext) {
+                    if (isLast) {
+                        btnStepNext.style.setProperty('display', 'none', 'important');
+                        btnStepNext.classList.add('!hidden');
+                    } else {
+                        btnStepNext.style.removeProperty('display');
+                        btnStepNext.style.display = 'inline-flex';
+                        btnStepNext.classList.remove('!hidden', 'hidden');
+                    }
+                }
+                if (btnStepFinish) {
+                    if (isLast) {
+                        btnStepFinish.style.removeProperty('display');
+                        btnStepFinish.style.display = 'inline-flex';
+                        btnStepFinish.classList.remove('!hidden', 'hidden');
+                    } else {
+                        btnStepFinish.style.setProperty('display', 'none', 'important');
+                        btnStepFinish.classList.add('!hidden');
+                    }
+                }
+                if (formCodeSubmit) {
+                    if (isLast) {
+                        formCodeSubmit.style.removeProperty('display');
+                        formCodeSubmit.style.display = 'inline-block';
+                        formCodeSubmit.classList.remove('!hidden', 'hidden');
+                    } else {
+                        formCodeSubmit.style.setProperty('display', 'none', 'important');
+                        formCodeSubmit.classList.add('!hidden');
+                    }
                 }
 
                 // Update grid buttons style
@@ -686,11 +785,70 @@
                     }
                 });
 
-                // Update editor code if available
-                if (materialSteps[currentStep] && materialSteps[currentStep].code && typeof window.setWorkbenchCode === 'function') {
-                    window.setWorkbenchCode(materialSteps[currentStep].code);
+                // Perbarui kode editor: jika beralih ke soal 2 dst yang belum pernah dikerjakan,
+                // berikan paper baru dan berkas kosong (bukan mewarisi atau menampilkan kode html/css/python soal sebelumnya)
+                let targetFiles = stepFilesMap[currentStep];
+                if (!targetFiles) {
+                    const stepDefinedCode = (materialSteps[currentStep] && typeof materialSteps[currentStep].code === 'string')
+                        ? materialSteps[currentStep].code
+                        : '';
+                    const initialCode = (isMaterialItem && stepDefinedCode.trim() !== '') ? stepDefinedCode : (currentStep === 0 ? stepDefinedCode : '');
+                    targetFiles = [{ name: defaultFileName, code: initialCode }];
+                    stepFilesMap[currentStep] = targetFiles;
+                }
+
+                if (typeof window.setWorkbenchFiles === 'function') {
+                    window.setWorkbenchFiles(targetFiles);
+                } else if (typeof window.setWorkbenchCode === 'function') {
+                    window.setWorkbenchCode(targetFiles[0]?.code ?? '');
                 }
             };
+
+            // Kolektor berkas seluruh soal/bagian untuk dikirim ke database
+            window.getAllWorkbenchFiles = () => {
+                if (typeof window.getWorkbenchFiles === 'function') {
+                    stepFilesMap[currentStep] = window.getWorkbenchFiles();
+                } else if (typeof window.getWorkbenchCode === 'function') {
+                    const curCode = window.getWorkbenchCode();
+                    if (stepFilesMap[currentStep] && stepFilesMap[currentStep].length) {
+                        stepFilesMap[currentStep][0].code = curCode;
+                    }
+                }
+                const allFiles = [];
+                const usedNames = new Set();
+                Object.keys(stepFilesMap).sort((a, b) => Number(a) - Number(b)).forEach(sIdx => {
+                    const fList = stepFilesMap[sIdx] || [];
+                    const stepNum = Number(sIdx) + 1;
+                    const stepTitle = (materialSteps[sIdx] && materialSteps[sIdx].title) ? materialSteps[sIdx].title : `Soal ${stepNum}`;
+                    const stepCpmk = (materialSteps[sIdx] && materialSteps[sIdx].cpmk) ? materialSteps[sIdx].cpmk : '';
+                    fList.forEach(f => {
+                        let fname = f.name;
+                        if (totalSteps > 1) {
+                            const parts = fname.split('.');
+                            const ext = parts.pop();
+                            fname = `${parts.join('.')}_soal_${stepNum}.${ext}`;
+                        }
+                        usedNames.add(fname);
+                        allFiles.push({
+                            name: fname,
+                            code: f.code ?? '',
+                            step: stepNum,
+                            step_title: stepTitle,
+                            cpmk: stepCpmk,
+                        });
+                    });
+                });
+                return allFiles;
+            };
+
+            // Saat kumpulkan tugas, kumpulkan berkas dari seluruh soal yang telah dikerjakan
+            formCodeSubmit?.addEventListener('submit', () => {
+                const allFiles = window.getAllWorkbenchFiles();
+                const ansInput = document.querySelector('[data-code-answer]');
+                if (ansInput && allFiles.length > 0) {
+                    ansInput.value = JSON.stringify(allFiles);
+                }
+            });
 
             btnStepPrev?.addEventListener('click', () => setMaterialStep(currentStep - 1));
             btnStepNext?.addEventListener('click', () => setMaterialStep(currentStep + 1));
