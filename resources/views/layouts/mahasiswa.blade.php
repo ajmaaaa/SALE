@@ -116,7 +116,7 @@
                     <span id="sidebar-dosen-grading-badge" data-badge="dosen-grading" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingGradingCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 99 ? '99+' : $pendingGradingCount }}</span>
                 </a>
 
-                <a href="{{ $currentSectionId ? route('dosen.penilaian.rekap', $currentSectionId) : route('dosen.rekap.index') }}" 
+                <a href="{{ route('dosen.rekap.index') }}" 
                    @if($isRekapActive) aria-current="page" @endif 
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isRekapActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>

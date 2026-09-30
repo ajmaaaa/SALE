@@ -164,17 +164,16 @@
                                         $hasSub = ! empty($essayInfo['has_submission']);
                                     @endphp
                                     @if($hasSub)
-                                        <div class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                        <div class="inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap">
                                             <button type="button"
                                                     onclick="openAnswerModal({{ $student->id }}, '{{ addslashes($student->name) }}')"
-                                                    class="inline-flex items-center justify-center h-5 w-5 rounded text-slate-500 hover:text-brand hover:bg-slate-100 transition cursor-pointer"
-                                                    title="Lihat Jawaban {{ $student->name }}"
-                                                    aria-label="Lihat Jawaban {{ $student->name }}">
+                                                    class="button-secondary min-h-0 text-xs py-1 px-2.5 inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:text-brand"
+                                                    title="Lihat Jawaban {{ $student->name }}">
                                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
                                                     <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
-                                                <span class="sr-only">Lihat Jawaban</span>
+                                                <span>Jawaban</span>
                                             </button>
                                             @if(!empty($essayInfo['is_late']))
                                                 <span class="text-[11px] font-semibold text-amber-800">
