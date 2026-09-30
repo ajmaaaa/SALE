@@ -109,7 +109,7 @@
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
                     <input type="radio" name="material_mode" value="coding" data-material-mode @checked(old('material_mode', $item['material_mode'] ?? '') === 'coding')>
                     <span class="ml-1 font-semibold text-ink">Tutorial pemrograman</span>
-                    <span class="mt-1 block pl-5 text-muted">Editor praktik dengan pendamping Lumina AI.</span>
+                    <span class="mt-1 block pl-5 text-muted">Editor praktik dengan pendamping AI Asisten.</span>
                 </label>
             </div>
         </fieldset>
@@ -244,8 +244,8 @@
             <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4" @if(!$isCodingSelected) hidden @endif>
                 <label class="flex cursor-pointer items-center justify-between gap-4">
                     <span>
-                        <span class="block text-sm font-bold text-ink">Bantuan Asisten AI (Lumina AI)</span>
-                        <span class="mt-0.5 block text-xs text-muted">Aktifkan asisten cerdas Lumina AI untuk membimbing konsep pemrograman mahasiswa selama pengerjaan tugas.</span>
+                        <span class="block text-sm font-bold text-ink">Bantuan AI Asisten</span>
+                        <span class="mt-0.5 block text-xs text-muted">Aktifkan AI Asisten untuk membimbing konsep pemrograman mahasiswa selama pengerjaan tugas.</span>
                     </span>
                     <input type="hidden" name="ai_enabled" value="0">
                     <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal)>

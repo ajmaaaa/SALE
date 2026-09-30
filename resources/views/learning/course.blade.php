@@ -474,7 +474,7 @@
                     </span>
                 </div>
 
-                <div id="chat-messages" class="my-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
+                <div id="chat-messages" class="mt-2 mb-1 pb-4 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col">
                     @forelse($initialMessages as $msg)
                         @php
                             $isMe = $msg['is_me'];
@@ -523,7 +523,7 @@
                                                 <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
                                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                                                 </summary>
-                                                <div class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
+                                                <div class="chat-action-menu absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg">
                                                     <button type="button" onclick="this.closest('details').removeAttribute('open'); setReplyTarget({{ $msg['id'] }}, @js($msg['author']), @js(Str::limit($msg['content'], 50)))" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">Balas</button>
                                                     @if($isDosenUser)
                                                         <button type="button" onclick="this.closest('details').removeAttribute('open'); togglePinMessage({{ $msg['id'] }})" class="block w-full px-3 py-2 text-left text-ink hover:bg-canvas">{{ $isPinned ? 'Lepas sematan' : 'Sematkan' }}</button>
@@ -636,8 +636,39 @@
         let mentionStartIndex = -1;
         let selectedMentionUserIds = [];
 
+        function scrollChatToBottom(smooth = false) {
+            if (!chatMessages) return;
+            const target = chatMessages.scrollHeight;
+            if (smooth) {
+                chatMessages.scrollTo({ top: target, behavior: 'smooth' });
+            } else {
+                chatMessages.scrollTop = target;
+            }
+        }
+
         if (chatMessages) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            scrollChatToBottom();
+            requestAnimationFrame(() => scrollChatToBottom());
+            setTimeout(() => scrollChatToBottom(), 50);
+            setTimeout(() => scrollChatToBottom(), 150);
+            setTimeout(() => scrollChatToBottom(), 400);
+
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => scrollChatToBottom());
+            }
+
+            window.addEventListener('load', () => scrollChatToBottom());
+
+            if (window.ResizeObserver) {
+                let resizeScrollCount = 0;
+                const ro = new ResizeObserver(() => {
+                    if (resizeScrollCount < 5) {
+                        scrollChatToBottom();
+                        resizeScrollCount++;
+                    }
+                });
+                ro.observe(chatMessages);
+            }
         }
 
         // WhatsApp-style Pinned Messages State & Navigation
@@ -957,7 +988,7 @@
             actionSummary.setAttribute('aria-label', 'Aksi pesan');
             actionSummary.appendChild(chatActionsIcon());
             actions.appendChild(actionSummary);
-            const actionMenu = chatElement('div', 'absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg');
+            const actionMenu = chatElement('div', 'chat-action-menu absolute right-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-line bg-white py-1 text-xs shadow-lg');
             const replyButton = chatElement('button', 'block w-full px-3 py-2 text-left text-ink hover:bg-canvas', 'Balas');
             replyButton.type = 'button';
             replyButton.addEventListener('click', () => {
@@ -1111,7 +1142,8 @@
 
 
                         if (scrollToBottom || wasAtBottom) {
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                            scrollChatToBottom();
+                            requestAnimationFrame(() => scrollChatToBottom());
                         }
                     }
                 }
@@ -1119,19 +1151,54 @@
             }
         }
 
+        function updateChatMenuPosition(details) {
+            if (!details || !chatMessages) return;
+            const menu = details.querySelector('.chat-action-menu');
+            if (!menu) return;
+
+            const detailsRect = details.getBoundingClientRect();
+            const containerRect = chatMessages.getBoundingClientRect();
+            const spaceBelow = containerRect.bottom - detailsRect.bottom;
+
+            if (spaceBelow < 140) {
+                menu.classList.remove('top-full', 'mt-1');
+                menu.classList.add('bottom-full', 'mb-1');
+            } else {
+                menu.classList.remove('bottom-full', 'mb-1');
+                menu.classList.add('top-full', 'mt-1');
+            }
+        }
+
+        document.addEventListener('pointerdown', function(e) {
+            const details = e.target.closest('.chat-action-details');
+            if (details) {
+                updateChatMenuPosition(details);
+            }
+        });
+
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.chat-action-details')) {
+            const details = e.target.closest('.chat-action-details');
+            if (details) {
+                updateChatMenuPosition(details);
+            } else {
                 document.querySelectorAll('.chat-action-details[open]').forEach(el => el.removeAttribute('open'));
             }
         });
 
         document.addEventListener('toggle', function(e) {
             if (e.target.matches && e.target.matches('.chat-action-details[open]')) {
+                updateChatMenuPosition(e.target);
                 document.querySelectorAll('.chat-action-details[open]').forEach(el => {
                     if (el !== e.target) el.removeAttribute('open');
                 });
             }
         }, true);
+
+        if (chatMessages) {
+            chatMessages.addEventListener('scroll', function() {
+                document.querySelectorAll('.chat-action-details[open]').forEach(el => el.removeAttribute('open'));
+            }, { passive: true });
+        }
 
         let pollTimer = setInterval(() => {
             if (document.visibilityState === 'visible') {

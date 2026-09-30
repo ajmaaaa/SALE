@@ -1039,7 +1039,7 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
 
     const render = () => {
         const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); input.files = transfer.files;
-        input.setCustomValidity(files.length > 5 || files.some(file => file.size > 5*1024*1024) ? 'Maksimal 5 berkas, masing-masing 5 MB.' : '');
+        input.setCustomValidity(files.length > 5 ? 'Maksimal 5 berkas lampiran.' : (files.some(file => file.size > 5*1024*1024) ? 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.' : ''));
         urls.forEach(url=>URL.revokeObjectURL(url)); urls=[];
         if (!list) return;
         list.replaceChildren();
@@ -1064,22 +1064,6 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
             const name=document.createElement('span');name.className='min-w-0 flex-1 break-all text-xs';name.textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;
             row.append(name);
 
-            if (isImage || isVideo) {
-                const pinBtn = document.createElement('button');
-                pinBtn.type = 'button';
-                pinBtn.className = 'px-2 py-1 text-[11px] font-semibold text-brand hover:bg-brand/10 rounded border border-line/60 transition shrink-0';
-                pinBtn.textContent = '📌 Jadikan Pin';
-                pinBtn.title = 'Jadikan berkas ini sebagai media utama di header kelas';
-                pinBtn.addEventListener('click', () => {
-                    const pinToggle = document.querySelector('[data-pin-toggle]');
-                    if (pinToggle) pinToggle.checked = true;
-                    syncPinMedia();
-                    const targetSelect = document.querySelector('[data-pin-target-select]');
-                    if (targetSelect) targetSelect.value = file.name;
-                });
-                row.append(pinBtn);
-            }
-
             const remove=document.createElement('button');remove.type='button';remove.className='p-2 text-sm text-muted shrink-0';remove.textContent='×';remove.setAttribute('aria-label',`Hapus ${file.name}`);remove.addEventListener('click',()=>{files.splice(index,1);render();});
             row.append(remove);
             list.append(row);
@@ -1091,11 +1075,10 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
         const oversized = [...input.files].filter(f => f.size > maxAttachmentSize);
         if (oversized.length > 0) {
             input.value = '';
-            const names = oversized.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-            const message = `Ukuran berkas yang diunggah melebihi batasan maksimal upload (maksimal 5 MB per berkas):\n\n${names}\n\nBerkas ditolak. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja.`;
+            const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
             if (typeof window.saleNotice === 'function') {
                 window.saleNotice({
-                    title: 'Ukuran Berkas Terlalu Besar (Maks. 5 MB)',
+                    title: 'Ukuran File Terlalu Besar',
                     message: message,
                     confirmLabel: 'Mengerti'
                 });
@@ -1124,8 +1107,21 @@ if (coverInput) {
         const file = coverInput.files[0];
         coverInput.setCustomValidity('');
         if (!file) return;
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-            coverInput.setCustomValidity('Gunakan JPG, PNG, atau WebP maksimal 5 MB.');
+        if (file.size > 5 * 1024 * 1024) {
+            const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
+            if (typeof window.saleNotice === 'function') {
+                window.saleNotice({
+                    title: 'Ukuran File Terlalu Besar',
+                    message: message,
+                    confirmLabel: 'Mengerti'
+                });
+            } else {
+                alert(message);
+            }
+            return;
+        }
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            coverInput.setCustomValidity('Gunakan format JPG, PNG, atau WebP.');
             coverInput.reportValidity();
             return;
         }
@@ -2257,7 +2253,23 @@ if (codingStepBuilder) {
 
         fileInput?.addEventListener('change', () => {
             if (fileInput.files && fileInput.files[0]) {
-                renderFilePreview(fileInput.files[0]);
+                const file = fileInput.files[0];
+                if (file.size > 5 * 1024 * 1024) {
+                    fileInput.value = '';
+                    filePreview?.replaceChildren();
+                    const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
+                    if (typeof window.saleNotice === 'function') {
+                        window.saleNotice({
+                            title: 'Ukuran File Terlalu Besar',
+                            message: message,
+                            confirmLabel: 'Mengerti'
+                        });
+                    } else {
+                        alert(message);
+                    }
+                    return;
+                }
+                renderFilePreview(file);
             } else {
                 filePreview?.replaceChildren();
             }
@@ -2449,8 +2461,22 @@ if (questionImage) {
         clear();
         const file = questionImage.files[0];
         if (!file) return;
-        if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5*1024*1024) {
-            questionImage.setCustomValidity('Gambar harus JPG, PNG, atau WebP maksimal 5 MB.'); questionImage.reportValidity(); return;
+        if (file.size > 5 * 1024 * 1024) {
+            questionImage.value = '';
+            const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
+            if (typeof window.saleNotice === 'function') {
+                window.saleNotice({
+                    title: 'Ukuran File Terlalu Besar',
+                    message: message,
+                    confirmLabel: 'Mengerti'
+                });
+            } else {
+                alert(message);
+            }
+            return;
+        }
+        if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+            questionImage.setCustomValidity('Gambar harus JPG, PNG, atau WebP.'); questionImage.reportValidity(); return;
         }
         url = URL.createObjectURL(file); preview.src = url; preview.hidden = false; remove.hidden = false;
     });
@@ -3531,12 +3557,11 @@ if (addWorkDropdown) {
 
         if (oversized.length > 0) {
             fileInput.value = '';
-            const names = oversized.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-            const message = `Ukuran berkas yang diunggah melebihi batasan maksimal upload (maksimal 5 MB per berkas):\n\n${names}\n\nBerkas ditolak. Disarankan untuk mengunggah berkas ke Google Drive dan melampirkan tautan/link Drive saja agar pengumpulan berjalan lancar.`;
+            const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
 
             if (typeof window.saleNotice === 'function') {
                 window.saleNotice({
-                    title: 'Ukuran Berkas Terlalu Besar (Maks. 5 MB)',
+                    title: 'Ukuran File Terlalu Besar',
                     message: message,
                     confirmLabel: 'Mengerti'
                 });
@@ -3597,13 +3622,19 @@ if (!window.saleConfirm || !window.saleNotice) {
         dialog.className = 'm-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-950/40';
         dialog.innerHTML = `
             <div class="p-5 sm:p-6">
-                <div class="flex items-start gap-4">
-                    <span data-sale-dialog-icon class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M9 6V4h6v2M8 10v7M12 10v7M16 10v7M5 6l1 15h12l1-15"/></svg>
-                    </span>
-                    <div class="min-w-0 flex-1"><h2 data-sale-dialog-title class="text-base font-bold text-ink"></h2><p data-sale-dialog-message class="mt-1.5 whitespace-pre-line text-sm leading-6 text-muted"></p></div>
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span data-sale-dialog-icon class="shrink-0 text-slate-500">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M9 6V4h6v2M8 10v7M12 10v7M16 10v7M5 6l1 15h12l1-15"/></svg>
+                        </span>
+                        <h2 data-sale-dialog-title class="text-base font-bold text-ink truncate"></h2>
+                    </div>
+                    <button type="button" data-sale-dialog-close class="shrink-0 rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Tutup">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
-                <div class="mt-6 flex justify-end gap-2"><button type="button" data-sale-dialog-cancel class="button-secondary px-4 py-2 text-sm">Batal</button><button type="button" data-sale-dialog-confirm class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-800">Ya, lanjutkan</button></div>
+                <p data-sale-dialog-message class="whitespace-pre-line text-sm leading-relaxed text-muted mb-5"></p>
+                <div class="flex justify-end gap-2"><button type="button" data-sale-dialog-cancel class="button-secondary px-4 py-2 text-sm">Batal</button><button type="button" data-sale-dialog-confirm class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-800">Ya, lanjutkan</button></div>
             </div>`;
         document.body.appendChild(dialog);
 
@@ -3614,6 +3645,7 @@ if (!window.saleConfirm || !window.saleNotice) {
             dialog.close();
             resolve(value);
         };
+        dialog.querySelector('[data-sale-dialog-close]')?.addEventListener('click', () => complete(false));
         dialog.querySelector('[data-sale-dialog-cancel]').addEventListener('click', () => complete(false));
         dialog.querySelector('[data-sale-dialog-confirm]').addEventListener('click', () => complete(true));
         dialog.addEventListener('cancel', event => { event.preventDefault(); complete(false); });
@@ -3632,8 +3664,8 @@ if (!window.saleConfirm || !window.saleNotice) {
         cancel.hidden = notice;
         confirm.textContent = config.confirmLabel || (notice ? 'Mengerti' : 'Ya, lanjutkan');
         icon.className = notice
-            ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e8f1f8] text-[#102f50]'
-            : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700';
+            ? 'shrink-0 text-[#102f50]'
+            : 'shrink-0 text-rose-600';
         confirm.className = notice
             ? 'button-primary px-4 py-2 text-sm font-semibold'
             : 'rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-800';
