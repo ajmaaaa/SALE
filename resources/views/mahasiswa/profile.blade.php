@@ -34,9 +34,7 @@
                     <p role="status" class="mt-4 text-sm font-semibold text-emerald-700">Foto profil telah dihapus dan kembali ke avatar default.</p>
                 @endif
                 @error('photo')<p role="alert" class="mt-4 text-sm text-danger">{{ $message }}</p>@enderror
-                @if($settingsWritable)
-                    <div class="mt-5 rounded-lg bg-[#f3f6f9] px-4 py-3 text-sm leading-6 text-ink"><span class="font-semibold text-brand">Perhatian:</span> gunakan pas foto resmi dengan almamater (JPG, PNG, atau WebP, maks. 2MB). Klik foto profil untuk mengubah.</div>
-                @endif
+
                 <div class="mt-6 flex items-center gap-4 pb-6">
                     @if($settingsWritable)
                     <form id="avatar-form" action="{{ route('mahasiswa.profile.photo') }}" method="POST" enctype="multipart/form-data" class="hidden">
@@ -112,6 +110,24 @@
                     <div><dt class="text-sm text-muted">Kelas terdaftar</dt><dd class="mt-1 font-semibold text-ink">{{ $totalClasses ?? ($user ? $user->classSectionsEnrolled()->count() : 0) }} Kelas</dd></div>
                     <div><dt class="text-sm text-muted">Status akademik</dt><dd class="mt-1 font-semibold text-ink">{{ $settingsWritable ? 'Aktif' : 'Mode pratinjau' }}</dd></div>
                 </dl>
+
+                @if($supportEmail = \App\Models\SystemSetting::valueFor('support'))
+                <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-2.5">
+                        <svg class="h-4.5 w-4.5 text-muted shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        <div class="text-sm">
+                            <span class="text-muted">Bantuan &amp; Narahubung:</span>
+                            <a href="mailto:{{ $supportEmail }}" class="ml-1 font-semibold text-brand hover:underline">{{ $supportEmail }}</a>
+                        </div>
+                    </div>
+                    <a href="mailto:{{ $supportEmail }}" class="button-secondary min-h-0 px-3.5 py-1.5 text-xs font-semibold">
+                        Hubungi Admin
+                    </a>
+                </div>
+                @endif
             </section>
 
             <section data-settings-panel id="keamanan" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-keamanan" tabindex="0">
