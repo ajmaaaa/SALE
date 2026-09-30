@@ -451,20 +451,36 @@ class LearningController extends Controller
                         ->when(! $isDosen, fn ($query) => $query->where('status', 'published'))
                         ->get();
                     foreach ($assessments as $asm) {
-                        if (($asm->learning_payload['type'] ?? '') === 'materi') {
+                        $payload = $asm->learning_payload ?? [];
+                        if (($payload['type'] ?? '') === 'materi') {
                             continue;
                         }
-                        $items[$asm->id] = [
+                        $asmData = Learning::databaseAssessment($asm);
+                        $isCoding = ($asm->type === 'coding')
+                            || (($payload['task_mode'] ?? null) === 'coding')
+                            || (($payload['type'] ?? null) === 'coding')
+                            || (($payload['question_type'] ?? null) === 'coding')
+                            || ! empty($payload['coding_steps']);
+
+                        $itemType = $isCoding ? 'coding' : (in_array($asm->type, ['tugas', 'kuis', 'uts', 'uas', 'pbl', 'case']) ? ($asm->type === 'pbl' ? 'tugas' : $asm->type) : ($asmData['type'] ?? 'tugas'));
+
+                        $publishedAt = $asm->published_at ?? $asm->created_at;
+                        $publishedAtFormatted = $asmData['published_at_formatted'] ?? ($publishedAt ? Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null);
+
+                        $items[$asm->id] = array_merge($asmData, [
                             'id' => $asm->id,
                             'course' => $sec->id,
                             'title' => $asm->name,
                             'module' => $asm->code,
-                            'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case']) ? ($asm->type === 'pbl' ? 'tugas' : $asm->type) : 'tugas',
+                            'type' => $itemType,
+                            'is_coding' => $isCoding,
                             'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
-                            'points' => 100,
+                            'points' => $asmData['points'] ?? 100,
+                            'published_at' => $publishedAt,
+                            'published_at_formatted' => $publishedAtFormatted,
                             'updated_at' => $asm->updated_at,
                             'created_at' => $asm->created_at,
-                        ];
+                        ]);
                     }
                 }
 
@@ -476,9 +492,23 @@ class LearningController extends Controller
         }
 
         $filteredItems = array_filter($items, function ($item) use ($request, $studentScores) {
+            $isCoding = ! empty($item['is_coding']) || ($item['type'] ?? '') === 'coding';
+            $typeMatch = true;
+            if ($request->filled('type')) {
+                $reqType = $request->query('type');
+                if ($reqType === 'tugas') {
+                    // Karena filter tugas coding dihapus & digabung ke tugas, filter "Tugas" mencakup tugas coding
+                    $typeMatch = $isCoding || in_array($item['type'] ?? '', ['tugas', 'coding', 'uts', 'uas', 'pbl', 'case'], true);
+                } elseif ($reqType === 'kuis') {
+                    $typeMatch = ($item['type'] ?? '') === 'kuis';
+                } else {
+                    $typeMatch = ($item['type'] ?? '') === $reqType;
+                }
+            }
+
             $matches = in_array($item['type'] ?? '', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case'])
                 && (! $request->filled('course') || (string) ($item['course'] ?? '') === (string) $request->query('course'))
-                && (! $request->filled('type') || ($item['type'] ?? '') === $request->query('type'))
+                && $typeMatch
                 && str_contains(mb_strtolower($item['title'] ?? ''), mb_strtolower((string) $request->query('q', '')));
 
             if (! $matches) {
@@ -1599,7 +1629,7 @@ class LearningController extends Controller
             'question_answers.*.choices.*' => 'string|max:1000',
             'question_answers.*.boolean_choice' => 'nullable|string|in:Benar,Salah',
             'question_answers.*.matching' => 'nullable|array',
-            'answer' => 'nullable|string|max:30000', 'link' => 'nullable|url:http,https|max:2000',
+            'answer' => 'nullable|string|max:65000', 'link' => 'nullable|url:http,https|max:2000',
             'files' => 'nullable|array|max:5', 'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,zip,jpg,jpeg,png,webp|max:5120',
             'keep_files' => 'nullable|array|max:5', 'keep_files.*' => 'uuid',
             'choices' => 'nullable|array|max:20', 'choices.*' => 'string|max:1000',
@@ -1766,7 +1796,7 @@ class LearningController extends Controller
                         $gradeForSession = $result['score'];
                     }
                 }
-            } elseif (in_array($resource['type'], ['tugas', 'coding'], true)) {
+            } elseif (in_array($resource['type'], ['tugas', 'coding'], true) || ($resource['task_mode'] ?? null) === 'coding') {
                 // Pengumpulan Tugas -> status MENUNGGU penilaian dosen (score = null)
                 if ($user && Schema::hasTable('student_assessment_scores')) {
                     $assessmentModel = Assessment::find($item);
