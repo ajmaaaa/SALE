@@ -1,20 +1,85 @@
 import "./index.css";
 import React from "react";
 import { Composition, Folder } from "remotion";
-import { Scene1Intro } from "./videos/video_00/Scene1Intro";
-import { Scene2FourRoles } from "./videos/video_00/Scene2FourRoles";
-import { Scene3ObeFramework } from "./videos/video_00/Scene3ObeFramework";
-import { Scene4ModernFeatures } from "./videos/video_00/Scene4ModernFeatures";
-import { Scene5Outro } from "./videos/video_00/Scene5Outro";
+import { Scene1Intro as V00Scene1 } from "./videos/video_00/Scene1Intro";
+import { Scene2FourRoles as V00Scene2 } from "./videos/video_00/Scene2FourRoles";
+import { Scene3ObeFramework as V00Scene3 } from "./videos/video_00/Scene3ObeFramework";
+import { Scene4ModernFeatures as V00Scene4 } from "./videos/video_00/Scene4ModernFeatures";
+import { Scene5Outro as V00Scene5 } from "./videos/video_00/Scene5Outro";
 import {
-  SCENE_DURATIONS,
+  SCENE_DURATIONS as V00_SCENE_DURATIONS,
   TOTAL_VIDEO_00_FRAMES,
   Video00,
 } from "./videos/video_00/Video00";
 
+import { Scene1Intro as V01Scene1 } from "./videos/video_01/Scene1Intro";
+import { Scene2LoginScreencast as V01Scene2 } from "./videos/video_01/Scene2LoginScreencast";
+import { Scene3DashboardScreencast as V01Scene3 } from "./videos/video_01/Scene3DashboardScreencast";
+import { Scene4JoinConfirmScreencast as V01Scene4 } from "./videos/video_01/Scene4JoinConfirmScreencast";
+import { Scene5CourseActiveScreencast as V01Scene5 } from "./videos/video_01/Scene5CourseActiveScreencast";
+import {
+  TOTAL_V01_FRAMES,
+  V01_DURATIONS,
+  Video01MahasiswaJoin,
+} from "./videos/video_01/Video01MahasiswaJoin";
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      {/* Video 01: Mahasiswa Join Kelas (Screen Recording + Dynamic Cursor + Zoom) */}
+      <Composition
+        id="Video-01-Mahasiswa-Join-Kelas"
+        component={Video01MahasiswaJoin}
+        durationInFrames={TOTAL_V01_FRAMES}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+
+      <Folder name="Video-01-Scenes">
+        <Composition
+          id="Video-01-Scene-1-Intro"
+          component={V01Scene1}
+          durationInFrames={V01_DURATIONS.scene1}
+          fps={30}
+          width={1920}
+          height={1080}
+        />
+        <Composition
+          id="Video-01-Scene-2-Login-Screencast"
+          component={V01Scene2}
+          durationInFrames={V01_DURATIONS.scene2}
+          fps={30}
+          width={1920}
+          height={1080}
+        />
+        <Composition
+          id="Video-01-Scene-3-Dashboard-Screencast"
+          component={V01Scene3}
+          durationInFrames={V01_DURATIONS.scene3}
+          fps={30}
+          width={1920}
+          height={1080}
+        />
+        <Composition
+          id="Video-01-Scene-4-Join-Confirm-Screencast"
+          component={V01Scene4}
+          durationInFrames={V01_DURATIONS.scene4}
+          fps={30}
+          width={1920}
+          height={1080}
+        />
+        <Composition
+          id="Video-01-Scene-5-Course-Active"
+          component={V01Scene5}
+          durationInFrames={V01_DURATIONS.scene5}
+          fps={30}
+          width={1920}
+          height={1080}
+        />
+      </Folder>
+
+      {/* Video 00: Overview & Pengenalan */}
       <Composition
         id="Video-00-Pengenalan-SALE"
         component={Video00}
@@ -27,40 +92,40 @@ export const RemotionRoot: React.FC = () => {
       <Folder name="Video-00-Scenes">
         <Composition
           id="Video-00-Scene-1-Intro"
-          component={Scene1Intro}
-          durationInFrames={SCENE_DURATIONS.scene1}
+          component={V00Scene1}
+          durationInFrames={V00_SCENE_DURATIONS.scene1}
           fps={30}
           width={1920}
           height={1080}
         />
         <Composition
           id="Video-00-Scene-2-Roles"
-          component={Scene2FourRoles}
-          durationInFrames={SCENE_DURATIONS.scene2}
+          component={V00Scene2}
+          durationInFrames={V00_SCENE_DURATIONS.scene2}
           fps={30}
           width={1920}
           height={1080}
         />
         <Composition
           id="Video-00-Scene-3-OBE"
-          component={Scene3ObeFramework}
-          durationInFrames={SCENE_DURATIONS.scene3}
+          component={V00Scene3}
+          durationInFrames={V00_SCENE_DURATIONS.scene3}
           fps={30}
           width={1920}
           height={1080}
         />
         <Composition
           id="Video-00-Scene-4-Features"
-          component={Scene4ModernFeatures}
-          durationInFrames={SCENE_DURATIONS.scene4}
+          component={V00Scene4}
+          durationInFrames={V00_SCENE_DURATIONS.scene4}
           fps={30}
           width={1920}
           height={1080}
         />
         <Composition
           id="Video-00-Scene-5-Outro"
-          component={Scene5Outro}
-          durationInFrames={SCENE_DURATIONS.scene5}
+          component={V00Scene5}
+          durationInFrames={V00_SCENE_DURATIONS.scene5}
           fps={30}
           width={1920}
           height={1080}
