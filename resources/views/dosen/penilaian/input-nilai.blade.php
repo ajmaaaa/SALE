@@ -409,18 +409,26 @@
                         html += `
                             <div class="space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-muted">Berkas Kode Mahasiswa (${codeFiles.length}):</p>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-muted">Berkas Kode Mahasiswa (${codeFiles.length} berkas):</p>
+                                    <a href="/course/${@json($section->id)}/item/${@json($assessment->id)}/code" target="_blank" class="text-[11px] font-semibold text-brand hover:underline inline-flex items-center gap-1" title="Lihat soal di editor coding">
+                                        <span>Buka Soal di Editor</span>
+                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </a>
                                 </div>
                         `;
                         codeFiles.forEach((file, fIdx) => {
                             const fileName = escapeHtml(file.name || `berkas_${fIdx + 1}`);
                             const fileCode = escapeHtml(file.code || '');
                             const lineCount = (file.code || '').split('\n').length;
+                            const stepLabel = file.step_title ? escapeHtml(file.step_title) : (file.step ? `Soal ${file.step}` : '');
+                            const cpmkLabel = file.cpmk ? escapeHtml(file.cpmk) : '';
                             html += `
                                 <div class="rounded-xl border border-slate-700/80 bg-slate-950 overflow-hidden shadow-sm">
-                                    <div class="flex items-center justify-between px-3.5 py-2 bg-slate-900 border-b border-slate-800 text-xs">
-                                        <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-slate-900 border-b border-slate-800 text-xs">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <span class="inline-flex items-center justify-center h-5 px-1.5 rounded bg-slate-800 font-mono text-[10px] text-brand font-bold border border-slate-700">KODE</span>
+                                            ${stepLabel ? `<span class="inline-flex items-center justify-center h-5 px-2 rounded bg-indigo-950 text-indigo-300 font-semibold text-[10px] border border-indigo-800/80">${stepLabel}</span>` : ''}
+                                            ${cpmkLabel ? `<span class="inline-flex items-center justify-center h-5 px-1.5 rounded bg-emerald-950 text-emerald-300 font-mono font-bold text-[10px] border border-emerald-800/80">${cpmkLabel}</span>` : ''}
                                             <span class="font-mono font-semibold text-slate-200">${fileName}</span>
                                             <span class="text-[11px] text-slate-400 font-mono">(${lineCount} baris)</span>
                                         </div>
