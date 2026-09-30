@@ -262,6 +262,47 @@ updateCounter();
         });
         updateCounter();
 
+        window.getWorkbenchCode = () => {
+            flush();
+            return files && files[active] ? files[active].code : '';
+        };
+
+        window.getWorkbenchFiles = () => {
+            flush();
+            return JSON.parse(JSON.stringify(files));
+        };
+
+        window.setWorkbenchFiles = (newFiles) => {
+            if (!Array.isArray(newFiles) || newFiles.length === 0) {
+                newFiles = [{ name: isWeb ? 'index.html' : 'main.py', code: '' }];
+            }
+            flush();
+            files = newFiles.map(f => ({
+                name: String(f.name || (isWeb ? 'index.html' : 'main.py')),
+                code: String(f.code ?? '')
+            }));
+            active = 0;
+            if (editor && files[0]) {
+                editor.dispatch({
+                    changes: { from: 0, to: editor.state.doc.length, insert: files[0].code },
+                    effects: compartment.reconfigure(modeFor(files[0].name)),
+                });
+                if (fileNameEl) fileNameEl.textContent = files[0].name;
+                refreshLanguageBadge();
+                renderTabs();
+                updateCounter();
+                persist();
+            }
+            const previewEl = document.querySelector('[data-preview-frame]');
+            if (previewEl && (!files[0].code || files[0].code.trim() === '')) {
+                previewEl.srcdoc = '';
+            }
+            const termOutput = document.querySelector('[data-terminal-output]');
+            if (termOutput && (!files[0].code || files[0].code.trim() === '')) {
+                termOutput.replaceChildren();
+            }
+        };
+
         window.setWorkbenchCode = (newCode) => {
             if (editor && files && files[active]) {
                 editor.dispatch({
@@ -388,16 +429,24 @@ updateCounter();
             const tab = fileTabs?.children[index];
             const core = tab?.querySelector('[data-file-select]');
             if (!core) return;
+            const currentFullName = String(files[index].name);
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = String(files[index].name).replace(/\.\w+$/, '');
+            input.value = currentFullName;
             input.spellcheck = false;
             input.setAttribute('aria-label', 'Nama berkas baru');
-            input.className = 'w-28 rounded border border-brand/50 bg-white px-1.5 py-0.5 text-[11px] font-mono text-ink outline-none';
+            input.className = 'w-32 rounded border border-brand/50 bg-white px-1.5 py-0.5 text-[11px] font-mono text-ink outline-none';
             core.replaceWith(input);
             renameInput = input;
             input.focus();
-            input.select();
+            
+            const dotIdx = currentFullName.lastIndexOf('.');
+            if (dotIdx > 0) {
+                input.setSelectionRange(0, dotIdx);
+            } else {
+                input.select();
+            }
+
             let settled = false;
             const finish = (commit) => {
                 if (settled) return;
@@ -420,13 +469,20 @@ updateCounter();
         function commitRename(index, candidate) {
             if (!candidate) return setStatus('Nama berkas tidak boleh kosong.', true);
             if (candidate.includes('/') || candidate.includes('\\')) return setStatus('Nama berkas tidak boleh memuat jalur folder.', true);
+            
+            const currentExt = String(files[index].name).split('.').pop().toLowerCase();
             const lastDot = candidate.lastIndexOf('.');
-            let defaultForCandidate = DEFAULT_EXT;
-            const lower = candidate.toLowerCase();
-            if (lower.startsWith('style') || lower === 'css') defaultForCandidate = 'css';
-            else if (lower.startsWith('script') || lower === 'js' || lower === 'app') defaultForCandidate = 'js';
-            else if (lower.startsWith('index') || lower === 'html' || lower === 'page') defaultForCandidate = 'html';
-            const ext = lastDot >= 0 ? candidate.slice(lastDot + 1).toLowerCase() : defaultForCandidate;
+            let ext = '';
+            if (lastDot >= 0 && lastDot < candidate.length - 1) {
+                ext = candidate.slice(lastDot + 1).toLowerCase();
+            } else {
+                const lower = candidate.toLowerCase();
+                if (lower.startsWith('style') || lower === 'css') ext = 'css';
+                else if (lower.startsWith('script') || lower === 'js' || lower === 'app') ext = 'js';
+                else if (lower.startsWith('index') || lower === 'html' || lower === 'page') ext = 'html';
+                else ext = (currentExt && ALLOWED.includes(currentExt)) ? currentExt : DEFAULT_EXT;
+            }
+
             const name = lastDot >= 0 ? candidate : `${candidate}.${ext}`;
             if (!ALLOWED.includes(ext)) return setStatus(`Ekstensi .${ext} tidak diizinkan. Gunakan .html, .css, .js, atau .py.`, true);
             if (files.some((file, i) => i !== index && file.name.toLowerCase() === name.toLowerCase())) return setStatus(`Berkas "${name}" sudah ada.`, true);
@@ -504,7 +560,19 @@ updateCounter();
                 setStatus(problem, true);
                 return;
             }
-            document.querySelector('[data-code-answer]').value = JSON.stringify(files);
+            const answerInput = document.querySelector('[data-code-answer]');
+            if (answerInput) {
+                if (typeof window.getAllWorkbenchFiles === 'function') {
+                    const multiFiles = window.getAllWorkbenchFiles();
+                    if (Array.isArray(multiFiles) && multiFiles.length > 0) {
+                        answerInput.value = JSON.stringify(multiFiles);
+                        return;
+                    }
+                }
+                if (!answerInput.value) {
+                    answerInput.value = JSON.stringify(files);
+                }
+            }
         });
 
         const runBtn = document.querySelector('[data-run-code]');
@@ -940,7 +1008,14 @@ updateCounter();
             }
             busy = true;
             aiForm.querySelector('button[type="submit"]').disabled = true;
-            bubble('Anda', question + (context ? `\n${context.label}\n${code}` : ''), true);
+            const sentContext = context;
+            input.value = '';
+            context = null;
+            const codeContextEl = document.querySelector('[data-code-context]');
+            if (codeContextEl) codeContextEl.hidden = true;
+            updateAssistantSubmitVisibility();
+
+            bubble('Anda', question + (sentContext ? `\n${sentContext.label}\n${code}` : ''), true);
             showThinking();
             status.textContent = 'Memeriksa pertanyaan dan menyiapkan bantuan…';
             try {
@@ -952,12 +1027,6 @@ updateCounter();
                 const data = await response.json();
                 removeThinking();
                 bubble('AI Asisten', response.ok ? data.answer : (data.message || 'Permintaan tidak dapat diproses.'), false);
-                if (response.ok) {
-                    input.value = '';
-                    context = null;
-                    document.querySelector('[data-code-context]').hidden = true;
-                    updateAssistantSubmitVisibility();
-                }
             } catch {
                 removeThinking();
                 bubble('AI Asisten', 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
