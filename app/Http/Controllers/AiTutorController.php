@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\Role;
 use App\Services\Ai\GeminiTutor;
+use App\Support\LearningPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -58,11 +59,34 @@ class AiTutorController extends Controller
 
         $content = $this->codingContent($assignment);
         abort_unless($content, 404, 'Konten coding tidak ditemukan pada database.');
-        $this->authorizeAssessment($content['assessment'], $request->user());
+        if (! empty($content['assessment'])) {
+            $this->authorizeAssessment($content['assessment'], $request->user());
+        }
 
-        abort_unless(DB::table('ai_access')->where('user_id', $request->user()->id)->where('task_id', $assignment)->exists(), 403, 'Akun ini belum mendapat akses AI untuk tugas ini.');
-        $task = DB::table('ai_tasks')->where('id', $assignment)->where('enabled', true)->first();
-        abort_unless($task, 403, 'AI untuk tugas ini tidak aktif.');
+        // Pastikan tugas coding terdaftar di ai_tasks dan berstatus aktif
+        $task = DB::table('ai_tasks')->where('id', $assignment)->first();
+        if (! $task) {
+            DB::table('ai_tasks')->insert([
+                'id' => $assignment,
+                'title' => $content['title'] ?? 'Praktikum Coding',
+                'body' => $content['body'] ?? 'Selesaikan tugas coding.',
+                'enabled' => true,
+            ]);
+            $task = DB::table('ai_tasks')->where('id', $assignment)->first();
+        } elseif (! $task->enabled) {
+            DB::table('ai_tasks')->where('id', $assignment)->update(['enabled' => true]);
+            $task->enabled = true;
+        }
+
+        // Integrasikan akses akun AI: seluruh akun mahasiswa (dan dosen) otomatis diberikan izin akses AI asisten belajar
+        if (Schema::hasTable('ai_access') && ! DB::table('ai_access')->where('user_id', $request->user()->id)->where('task_id', $assignment)->exists()) {
+            DB::table('ai_access')->insertOrIgnore([
+                'user_id' => $request->user()->id,
+                'task_id' => $assignment,
+            ]);
+        }
+
+        abort_unless($task && $task->enabled, 403, 'AI untuk tugas ini tidak aktif.');
 
         return $task;
     }
@@ -70,22 +94,37 @@ class AiTutorController extends Controller
     private function codingContent(int $assignment): ?array
     {
         $assessment = Assessment::with('classSection')->find($assignment);
-        if (! $assessment) {
-            return null;
+        if ($assessment) {
+            $item = $assessment->learning_payload ?? [];
+            $type = $item['type'] ?? $assessment->type;
+            $eligible = $type === 'coding'
+                || ($type === 'materi' && ($item['material_mode'] ?? null) === 'coding')
+                || (($item['task_mode'] ?? null) === 'coding')
+                || (($item['question_type'] ?? null) === 'coding')
+                || ! empty($item['coding_steps']);
+
+            if ($eligible) {
+                return array_merge($item, [
+                    'id' => $assessment->id,
+                    'course' => $assessment->class_section_id,
+                    'title' => $assessment->name,
+                    'body' => $assessment->description ?? ($item['body'] ?? $assessment->name),
+                    'assessment' => $assessment,
+                ]);
+            }
         }
 
-        $item = $assessment->learning_payload ?? [];
-        $type = $item['type'] ?? $assessment->type;
-        $eligible = $type === 'coding'
-            || ($type === 'materi' && ($item['material_mode'] ?? null) === 'coding');
+        $previewItem = LearningPreview::items()[$assignment] ?? null;
+        if ($previewItem) {
+            $type = $previewItem['type'] ?? null;
+            $eligible = $type === 'coding'
+                || ($type === 'materi' && ($previewItem['material_mode'] ?? null) === 'coding')
+                || (($previewItem['task_mode'] ?? null) === 'coding');
 
-        return $eligible ? array_merge($item, [
-            'id' => $assessment->id,
-            'course' => $assessment->class_section_id,
-            'title' => $assessment->name,
-            'body' => $assessment->description,
-            'assessment' => $assessment,
-        ]) : null;
+            return $eligible ? $previewItem : null;
+        }
+
+        return null;
     }
 
     private function authorizeAssessment(Assessment $assessment, $user): void
