@@ -884,17 +884,47 @@ updateCounter();
             }
         });
 
-        // Copy code block via event delegation
+        // Copy code block via event delegation with mobile HTTP fallback
         messages?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-copy-code]');
             if (!btn) return;
             const pre = btn.closest('.ai-code-wrap')?.querySelector('pre');
             if (!pre) return;
-            navigator.clipboard.writeText(pre.textContent.trimEnd()).then(() => {
+            const textToCopy = pre.textContent.trimEnd();
+
+            const onSuccess = () => {
                 btn.textContent = 'Tersalin';
                 btn.classList.add('ai-copy-btn--done');
                 setTimeout(() => { btn.textContent = 'Salin'; btn.classList.remove('ai-copy-btn--done'); }, 2000);
-            }).catch(() => { btn.textContent = 'Gagal'; setTimeout(() => { btn.textContent = 'Salin'; }, 1500); });
+            };
+            const onFail = () => {
+                btn.textContent = 'Gagal';
+                setTimeout(() => { btn.textContent = 'Salin'; }, 1500);
+            };
+
+            const tryExecFallback = () => {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = textToCopy;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    ta.setSelectionRange(0, 999999);
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    if (ok) onSuccess(); else onFail();
+                } catch (err) {
+                    onFail();
+                }
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(onSuccess).catch(tryExecFallback);
+            } else {
+                tryExecFallback();
+            }
         });
 
         aiForm?.addEventListener('submit', async (event) => {

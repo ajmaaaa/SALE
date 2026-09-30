@@ -157,7 +157,7 @@
 
 <!-- Modal Buka Kelas Baru -->
 <div id="createKelasModal" onclick="if(event.target === this) closeCreateKelasModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Buka Kelas Perkuliahan Baru</h2>
             <button type="button" onclick="closeCreateKelasModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
@@ -238,7 +238,7 @@
 
 <!-- Modal Ubah Kelas -->
 <div id="editKelasModal" onclick="if(event.target === this) closeEditKelasModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line">
+    <div class="surface w-full max-w-lg p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 class="text-base font-bold text-ink">Ubah Data Kelas</h2>
             <button type="button" onclick="closeEditKelasModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
@@ -290,7 +290,7 @@
 
 <!-- Modal Tampilkan QR Code Kelas -->
 <div id="barcodeModal" onclick="if(event.target === this) closeBarcodeModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line">
+    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line max-h-[90vh] overflow-y-auto">
 
         {{-- Header --}}
         <div class="flex items-start justify-between px-6 pt-6 pb-4">

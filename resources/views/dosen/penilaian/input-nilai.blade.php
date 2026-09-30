@@ -425,7 +425,7 @@
                                             <span class="font-mono font-semibold text-slate-200">${fileName}</span>
                                             <span class="text-[11px] text-slate-400 font-mono">(${lineCount} baris)</span>
                                         </div>
-                                        <button type="button" onclick="navigator.clipboard.writeText(this.dataset.code); this.textContent='Tersalin!'; setTimeout(()=>this.textContent='Salin Kode', 2000)" data-code="${escapeHtml(file.code || '')}" class="text-[11px] font-medium text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800 transition cursor-pointer">
+                                        <button type="button" onclick="copySnippetCode(this)" data-code="${escapeHtml(file.code || '')}" class="text-[11px] font-medium text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800 transition cursor-pointer">
                                             Salin Kode
                                         </button>
                                     </div>
@@ -588,6 +588,37 @@
     function closeAnswerModal() {
         document.getElementById('answer-modal-overlay').classList.add('hidden');
         document.body.style.overflow = '';
+    }
+
+    async function copySnippetCode(btn) {
+        const code = btn.dataset.code || '';
+        const originalText = btn.textContent;
+        let success = false;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(code);
+                success = true;
+            } catch(e) {}
+        }
+
+        if (!success) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = code;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                ta.setSelectionRange(0, 999999);
+                success = document.execCommand('copy');
+                document.body.removeChild(ta);
+            } catch(e) {}
+        }
+
+        btn.textContent = success ? 'Tersalin!' : 'Gagal';
+        setTimeout(() => { btn.textContent = originalText; }, 2000);
     }
 
     // Tutup dengan Escape key

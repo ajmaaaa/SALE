@@ -247,7 +247,7 @@
 
 <!-- Modal Tambah Pengguna Manual -->
 <div id="createUserModal" onclick="if(event.target === this) closeCreateUserModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="create_user_modal_title" class="text-base font-bold text-ink">Tambah Data Pengguna</h2>
             <button type="button" onclick="closeCreateUserModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
@@ -295,7 +295,7 @@
 
 <!-- Modal Ubah Pengguna -->
 <div id="editUserModal" onclick="if(event.target === this) closeEditUserModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="edit_user_modal_title" class="text-base font-bold text-ink">Ubah Data Pengguna</h2>
             <button type="button" onclick="closeEditUserModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
@@ -342,7 +342,7 @@
 
 <!-- Modal Impor Excel -->
 <div id="importUserModal" onclick="if(event.target === this) closeImportModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line">
+    <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-line mb-4">
             <h2 id="import_modal_title" class="text-base font-bold text-ink">Impor Data via Excel</h2>
             <button type="button" onclick="closeImportModal()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">

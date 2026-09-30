@@ -189,7 +189,7 @@
 
 {{-- Modal QR Code Kelas (Dashboard) --}}
 <div id="dashboardQrModal" onclick="if(event.target === this) closeDashboardQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line">
+    <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line max-h-[90vh] overflow-y-auto">
         <div class="flex items-start justify-between px-6 pt-6 pb-4">
             <div>
                 <h2 class="text-base font-bold text-ink">QR Code &amp; Akses Kelas</h2>

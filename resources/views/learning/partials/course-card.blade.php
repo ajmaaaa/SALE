@@ -205,7 +205,7 @@
 @once
 <!-- Modal QR Presensi & Akses Kelas untuk Dosen -->
 <div id="dosenQrModal" onclick="if(event.target === this) closeQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
-    <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden border border-line" onclick="event.stopPropagation()">
+    <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden border border-line max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
 
         {{-- Header --}}
         <div class="flex items-start justify-between px-5 pt-5 pb-4 border-b border-line/60 bg-canvas/30">
