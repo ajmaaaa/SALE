@@ -1,98 +1,69 @@
-# DAFTAR MASTER VIDEO PANDUAN SALE
+# DAFTAR MASTER 5 VIDEO PANDUAN SALE
 
-Sistem SALE memiliki 4 role pengguna: **Admin Sistem**, **Admin Prodi**, **Dosen**, dan **Mahasiswa**.
-Berikut adalah daftar semua video panduan yang perlu diproduksi, dikelompokkan berdasarkan kategori.
-
----
-
-## GRUP 0 — PENGENALAN SISTEM (1 video)
-| No | Judul Video | Durasi Est. | File Script |
-|----|-------------|-------------|-------------|
-| 00 | Pengenalan SALE: Sistem untuk Siapa & Apa yang Bisa Dilakukan | 2–3 menit | `00_pengenalan_sale.md` |
+Sistem SALE (Smart Academic Learning Environment) memiliki 4 pilar peran pengguna: **Admin Sistem**, **Admin Prodi**, **Dosen**, dan **Mahasiswa**.
+Sesuai arahan produksi terbaru, seluruh materi panduan dikonsolidasikan menjadi **5 Master Video Terpadu** yang komprehensif, terstruktur per kategori, dan bebas dari ciri AI Slop.
 
 ---
 
-## GRUP 1 — MAHASISWA (5 video)
-| No | Judul Video | Durasi Est. | File Script |
-|----|-------------|-------------|-------------|
-| 01 | Cara Masuk & Bergabung ke Kelas Pertama Kalimu | 2–3 menit | `01_mahasiswa_login_join_kelas.md` |
-| 02 | Navigasi Dashboard, Course, dan Forum Diskusi | 3–4 menit | `02_mahasiswa_dashboard_course_forum.md` |
-| 03 | Mengerjakan Tugas, Kuis, dan Ujian di SALE | 4–5 menit | `03_mahasiswa_tugas_kuis_ujian.md` |
-| 04 | Mengerjakan Tugas Pemrograman dengan AI Asisten | 3–4 menit | `04_mahasiswa_tugas_coding_ai.md` |
-| 05 | Melihat Nilai, Notifikasi, dan Profil Akun | 2–3 menit | `05_mahasiswa_nilai_notifikasi_profil.md` |
+## IKHTISAR 5 MASTER VIDEO PANDUAN
+
+| No | Kategori / Judul Master Video | Target Audiens | Cakupan Materi Asal | Durasi Est. | File Naskah Master |
+|---|---|---|---|---|---|
+| **01** | **Pengenalan & Arsitektur Ekosistem SALE** | Seluruh Civitas Akademika | Modul 00 (Overview, 4 Peran, Filosofi OBE) | 3–4 menit | [`master_01_pengenalan_sale.md`](scripts/master_01_pengenalan_sale.md) |
+| **02** | **Panduan Lengkap Mahasiswa** | Mahasiswa Baru & Aktif | Modul 01–05 (Login, Kelas, Dashboard, Forum, Tugas/Ujian, Coding AI, Nilai & Profil) | 12–15 menit | [`master_02_panduan_mahasiswa.md`](scripts/master_02_panduan_mahasiswa.md) |
+| **03** | **Panduan Lengkap Dosen** | Dosen Pengampu & Tim Pengajar | Modul 06–12 (Kelola Kelas, Materi, Asesmen CPMK, Penilaian, Rubrik OBE, Rekap & Forum) | 15–18 menit | [`master_03_panduan_dosen.md`](scripts/master_03_panduan_dosen.md) |
+| **04** | **Panduan Lengkap Admin Program Studi** | Kaprodi & Tim Mutu Jurusan | Modul 13–16 (Setup MK & Dosen, CPL-CPMK Kurikulum OBE, Import Pengguna, Laporan Semester) | 12–15 menit | [`master_04_panduan_admin_prodi.md`](scripts/master_04_panduan_admin_prodi.md) |
+| **05** | **Panduan Lengkap Admin Sistem** | Superadmin & Tim IT Kampus | Modul 17–19 (Pengguna Global, Semester Institusi, Parameter Sistem & AI, Monitoring & Backup) | 10–12 menit | [`master_05_panduan_admin_sistem.md`](scripts/master_05_panduan_admin_sistem.md) |
 
 ---
 
-## GRUP 2 — DOSEN (7 video)
-| No | Judul Video | Durasi Est. | File Script |
-|----|-------------|-------------|-------------|
-| 06 | Mengelola Course: Buat, Atur, dan Bagikan ke Mahasiswa | 3–4 menit | `06_dosen_kelola_course.md` |
-| 07 | Membuat Konten: Materi, Pengumuman, dan Video | 3–4 menit | `07_dosen_buat_konten_materi.md` |
-| 08 | Membuat Tugas, Kuis, dan Ujian Berbasis CPMK | 5–6 menit | `08_dosen_buat_tugas_kuis_ujian.md` |
-| 09 | Sistem Asesmen dan Input Nilai Mahasiswa | 4–5 menit | `09_dosen_asesmen_input_nilai.md` |
-| 10 | Membuat Rubrik Penilaian dan Penilaian Berbasis Rubrik | 3–4 menit | `10_dosen_rubrik_penilaian.md` |
-| 11 | Melihat Rekap CPMK, CPL, dan Ekspor Laporan | 4–5 menit | `11_dosen_rekap_cpmk_cpl_export.md` |
-| 12 | Forum Diskusi Kelas, Chat Real-time, dan Notifikasi Dosen | 2–3 menit | `12_dosen_forum_chat_notifikasi.md` |
+## RINCIAN STRUKTUR BAB SETIAP MASTER VIDEO
+
+### MASTER VIDEO 01 / PENGENALAN DAN ARSITEKTUR EKOSISTEM SALE
+- **Bab 01**: Hook & Identitas Ekosistem (Visi pembelajaran berbasis kompetensi terukur)
+- **Bab 02**: Arsitektur 4 Peran Pengguna (Admin Sistem, Admin Prodi, Dosen, Mahasiswa)
+- **Bab 03**: Kerangka Outcome-Based Education / OBE (Alur CPL, CPMK, Sub-CPMK, Portofolio)
+- **Bab 04**: Fitur Cerdas & Kolaborasi Real-Time (AI asistif, live chat, timer ujian, ekspor)
+- **Bab 05**: Penutup & Ajakan Eksplorasi
+
+### MASTER VIDEO 02 / PANDUAN LENGKAP MAHASISWA
+- **Bab 01**: Autentikasi Akun & Bergabung ke Kelas Perkuliahan (Kode Unik 8 Karakter & Scan QR Code)
+- **Bab 02**: Navigasi Dashboard, Ruang Kelas, & Forum Diskusi Real-Time
+- **Bab 03**: Pengerjaan Tugas Mandiri, Kuis Berwaktu, & Ujian Semester
+- **Bab 04**: Praktikum Pemrograman dengan Asisten Coding Cerdas In-Browser
+- **Bab 05**: Pemantauan Capaian Nilai, Radar CPMK Pribadi, Notifikasi, & Pengaturan Akun
+
+### MASTER VIDEO 03 / PANDUAN LENGKAP DOSEN
+- **Bab 01**: Pengelolaan Course, Silabus, & Distribusi Akses Kelas (Kode Kelas & Proyeksi QR)
+- **Bab 02**: Penyusunan Materi Kuliah, Video Pembelajaran In-Browser, & Pengumuman
+- **Bab 03**: Pembuatan Tugas, Kuis Interaktif, & Ujian Berbasis Pemetaan CPMK
+- **Bab 04**: Sistem Asesmen, Koreksi Berkas In-Browser, & Input Nilai Komprehensif
+- **Bab 05**: Penerapan Matriks Rubrik Penilaian Berstandar OBE
+- **Bab 06**: Pemantauan Rekapitulasi CPMK/CPL Kelas & Ekspor Laporan Portofolio
+- **Bab 07**: Manajemen Forum Diskusi Kelas, Chat Real-Time Bimbingan, & Notifikasi
+
+### MASTER VIDEO 04 / PANDUAN LENGKAP ADMIN PROGRAM STUDI
+- **Bab 01**: Setup Awal Mata Kuliah, Kelas Paralel, & Penetapan Dosen Pengampu / Team Teaching
+- **Bab 02**: Penetapan CPL & Pemetaan CPMK Kurikulum OBE Program Studi
+- **Bab 03**: Pengelolaan Data Dosen & Mahasiswa (Fitur Import Massal Spreadsheet Excel)
+- **Bab 04**: Analisis Dasbor Ketercapaian CPL & Pelaporan Mutu Akademik Semester
+
+### MASTER VIDEO 05 / PANDUAN LENGKAP ADMIN SISTEM
+- **Bab 01**: Pengelolaan Pengguna Global, Hak Akses Multi-Peran, & Kalender Semester Institusi
+- **Bab 02**: Pengaturan Parameter Sistem, Integrasi Kuota Token AI, & Keamanan Sesi
+- **Bab 03**: Monitoring Diagnostik Server, Kapasitas Storage, & Pencadangan Basis Data SQL
 
 ---
 
-## GRUP 3 — ADMIN PRODI (4 video)
-| No | Judul Video | Durasi Est. | File Script |
-|----|-------------|-------------|-------------|
-| 13 | Setup Awal: Mata Kuliah, Kelas, dan Dosen Pengampu | 4–5 menit | `13_adminprodi_setup_awal.md` |
-| 14 | Menetapkan CPL dan CPMK Kurikulum OBE Prodi | 4–5 menit | `14_adminprodi_cpl_cpmk_kurikulum.md` |
-| 15 | Mengelola Data Dosen dan Mahasiswa (Import & Manual) | 3–4 menit | `15_adminprodi_kelola_pengguna.md` |
-| 16 | Melihat Laporan Akademik Semester Prodi | 2–3 menit | `16_adminprodi_laporan_semester.md` |
+## STANDAR TEKNIS PRODUKSI & ATURAN DESAIN (SOP)
+
+Seluruh 5 video wajib mengikuti standar yang telah ditetapkan di [`rules/DESIGN_RULES.md`](rules/DESIGN_RULES.md) dan [`rules/TUTORIAL_EDIT_SOP.md`](rules/TUTORIAL_EDIT_SOP.md):
+1. **100% Antarmuka Asli**: Menggunakan rekaman layar asli sistem SALE tanpa komponen antarmuka palsu (*no fake UI*).
+2. **Aksi-Reaksi Instan**: Klik tombol selalu direspon pergantian halaman secara *seamless hard cut* dalam tempo 6–10 frame (bebas efek *ghosting* crossfade).
+3. **Tanpa Elemen Card / Badge Buatan**: Teks instruksi menggunakan tipografi murni dengan efek bayangan tepi lembut (*edge-flushed feathered shadow*) yang rapat ke tepi layar dan tidak monoton di tengah.
+4. **Typography Tegas & Kontras**: Menggunakan font gelap solid pada latar terang screencast, dan font putih sinematik pada bilah bawah.
+5. **Anti-Slop Syntax**: Dilarang menggunakan titik (`.`), bullet (`•`), atau em-dash (`—`) sebagai pemisah nomor bab atau judul langkah.
 
 ---
 
-## GRUP 4 — ADMIN SISTEM (3 video)
-| No | Judul Video | Durasi Est. | File Script |
-|----|-------------|-------------|-------------|
-| 17 | Mengelola Pengguna, Semester, dan Data Akademik Global | 4–5 menit | `17_admin_kelola_pengguna_akademik.md` |
-| 18 | Pengaturan Sistem: AI, Email Narahubung, dan Sesi | 3–4 menit | `18_admin_pengaturan_sistem.md` |
-| 19 | Monitoring Sistem, Storage, dan Backup Database | 3–4 menit | `19_admin_monitoring_backup.md` |
-
----
-
-**Total: 20 video** | **Total estimasi durasi: ~65–80 menit konten**
-
----
-
-## Urutan Produksi yang Disarankan
-
-Produksi bisa dilakukan paralel per grup, tapi urutan yang disarankan:
-1. Video 00 (Pengenalan) → dikerjakan pertama karena menjadi anchor konten
-2. Grup 1 (Mahasiswa) → audiens terbesar, prioritas tinggi
-3. Grup 2 (Dosen) → fitur paling kompleks, butuh screen recording terbanyak
-4. Grup 3 (Admin Prodi) → mid-complexity
-5. Grup 4 (Admin Sistem) → paling teknis, dikerjakan terakhir
-
----
-
-## Aset yang Perlu Disiapkan
-
-### Ilustrasi & Ikon
-- Heroicons (open-source, MIT): https://heroicons.com
-- Tabler Icons (open-source): https://tabler.io/icons  
-- unDraw Illustrations: https://undraw.co/illustrations
-- Storyset Animations: https://storyset.com
-
-### Font
-- Plus Jakarta Sans: https://fonts.google.com/specimen/Plus+Jakarta+Sans
-- Inter: https://fonts.google.com/specimen/Inter
-
-### Lottie Animations (gratis)
-- https://lottiefiles.com/featured
-- Pilih animasi bertema: education, data, checklist, laptop/computer
-
-### Mockup Browser
-- https://www.mockupworld.co/all-mockups/ (browser mockup)
-- Atau buat sederhana dengan CSS shadow + address bar
-
-### Larangan Penggunaan Gambar AI
-> **PENTING:** Dilarang keras menggunakan gambar atau ilustrasi hasil generate AI. Gunakan aset vektor open-source human-crafted, SVG/Lottie, atau screenshot asli sistem SALE sesuai aturan di `rules/DESIGN_RULES.md`.
-
----
-
-*File ini adalah indeks utama. Setiap video memiliki script lengkap di folder `/scripts/`.*
+*File ini adalah indeks resmi produksi 5 Master Video SALE. Naskah lengkap per video tersedia di folder `/scripts/master_*.md`.*
