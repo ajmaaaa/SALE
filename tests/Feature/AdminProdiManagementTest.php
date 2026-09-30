@@ -322,7 +322,7 @@ class AdminProdiManagementTest extends TestCase
             ->assertDontSee('Mata Kuliah Sasaran')
             ->assertSee('cpl_ids[]')
             ->assertSee('2. Butir CPMK')
-            ->assertSee('Digunakan di MK')
+            ->assertDontSee('Digunakan di MK')
             ->assertSee('CPMK-01')
             ->assertSee('CPMK-02');
 
