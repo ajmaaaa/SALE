@@ -48,18 +48,18 @@ export const Scene5CourseActiveScreencast: React.FC = () => {
         clickFrame={-1}
       />
 
-      {/* Interactive, Bold Instruction Overlay */}
+      {/* Cinematic Wide Layout (Left: Step & Title, Right: Description & Next Episode) */}
       <InstructionOverlay
         step="04"
         actionText="Kelas Perkuliahan Resmi Aktif"
-        detailText="Selamat belajar! Seluruh silabus mata kuliah, materi video, kuis OBE, dan forum diskusi sudah siap Anda akses"
+        detailText="Selamat belajar! Silabus perkuliahan, video materi, dan forum diskusi kelas sudah siap digunakan"
+        position="split-cinematic"
       />
 
-      {/* Sleek next episode indicator in bottom right */}
-      <div className="absolute bottom-10 right-14 flex items-center gap-3 text-xs font-black text-slate-100 select-none z-50 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-        <span className="uppercase tracking-wider">SALE GUIDE SERIES</span>
-        <span className="text-slate-400 font-bold">—</span>
-        <span className="text-blue-300 uppercase tracking-wider font-extrabold">LANJUT KE EPISODE 02 — EKSPLORASI MATERI & FORUM →</span>
+      {/* Sleek Next Episode Cue without em-dash */}
+      <div className="absolute top-8 right-14 flex items-center gap-2 text-sm font-black text-slate-200 select-none z-50 bg-[#102f50]/90 px-4 py-2 rounded-lg border border-white/10 shadow-lg">
+        <span className="text-slate-400 uppercase text-xs">BERIKUTNYA</span>
+        <span className="text-white">Episode 02: Eksplorasi Materi dan Forum &rarr;</span>
       </div>
     </div>
   );

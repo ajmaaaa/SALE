@@ -12,12 +12,18 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
   x,
   y,
   isClicking = false,
-  clickFrame = 0,
+  clickFrame = -1,
 }) => {
   const frame = useCurrentFrame();
 
-  const framesSinceClick = frame - clickFrame;
-  const showRipple = framesSinceClick >= 0 && framesSinceClick < 16;
+  // Strict ripple condition: Only trigger if clickFrame is valid (>= 0) and current frame is within ripple window
+  const showRipple =
+    clickFrame >= 0 &&
+    frame >= clickFrame &&
+    frame - clickFrame >= 0 &&
+    frame - clickFrame < 16;
+
+  const framesSinceClick = showRipple ? frame - clickFrame : 0;
 
   const rippleScale = interpolate(framesSinceClick, [0, 15], [0.3, 2.2], {
     extrapolateLeft: "clamp",
@@ -83,18 +89,26 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
   );
 };
 
+export type OverlayPosition =
+  | "bottom-left"
+  | "bottom-right"
+  | "bottom-center"
+  | "split-cinematic"
+  | "top-right";
+
 /**
  * Text instruction overlay:
+ * - Dynamic positioning (breaks monotony, balances screencast focus)
  * - Large, bold, interactive typography (anti-slop)
- * - Strict rule: NO dot (.) separator
- * - Crystal clear readability with bottom gradient backdrop
+ * - Strict rule: NO dot (.) separator, NO em-dash (—) ornament
+ * - Pure typography without artificial badges or cards
  */
 export const InstructionOverlay: React.FC<{
   step: string;
   actionText: string;
   detailText?: string;
-  darkScreen?: boolean;
-}> = ({ step, actionText, detailText }) => {
+  position?: OverlayPosition;
+}> = ({ step, actionText, detailText, position = "bottom-left" }) => {
   const frame = useCurrentFrame();
 
   const opacity = interpolate(frame, [0, 8], [0, 1], {
@@ -106,28 +120,92 @@ export const InstructionOverlay: React.FC<{
     extrapolateRight: "clamp",
   });
 
+  if (position === "bottom-right") {
+    return (
+      <div
+        style={{ transform: `translateY(${translateY}px)`, opacity }}
+        className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none flex justify-end"
+      >
+        <div className="max-w-4xl text-right">
+          <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
+            LANGKAH {step}
+          </div>
+          <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            {actionText}
+          </div>
+          {detailText && (
+            <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 max-w-3xl drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] ml-auto">
+              {detailText}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (position === "bottom-center") {
+    return (
+      <div
+        style={{ transform: `translateY(${translateY}px)`, opacity }}
+        className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none flex justify-center"
+      >
+        <div className="max-w-4xl text-center">
+          <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
+            LANGKAH {step}
+          </div>
+          <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            {actionText}
+          </div>
+          {detailText && (
+            <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 max-w-3xl drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] mx-auto">
+              {detailText}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (position === "split-cinematic") {
+    return (
+      <div
+        style={{ transform: `translateY(${translateY}px)`, opacity }}
+        className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none"
+      >
+        <div className="flex items-end justify-between gap-12 max-w-7xl mx-auto">
+          <div>
+            <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
+              LANGKAH {step}
+            </div>
+            <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {actionText}
+            </div>
+          </div>
+          {detailText && (
+            <p className="text-xl font-bold leading-snug text-slate-100 max-w-2xl text-right drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+              {detailText}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Default: "bottom-left"
   return (
     <div
-      style={{
-        transform: `translateY(${translateY}px)`,
-        opacity,
-      }}
-      className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-14 bg-gradient-to-t from-slate-950/95 via-slate-950/80 to-transparent z-40 pointer-events-none select-none"
+      style={{ transform: `translateY(${translateY}px)`, opacity }}
+      className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none"
     >
-      <div className="max-w-5xl">
-        {/* Step Indicator: Pure Bold Text (NO card, NO badge, NO dot separator) */}
+      <div className="max-w-4xl text-left">
         <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
           LANGKAH {step}
         </div>
-
-        {/* Action Title (Large bold font) */}
-        <div className="mt-2 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+        <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
           {actionText}
         </div>
-
-        {/* Detailed Description (Clear, large, high-contrast bold font) */}
         {detailText && (
-          <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-4xl">
+          <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] max-w-3xl">
             {detailText}
           </p>
         )}

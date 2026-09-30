@@ -163,24 +163,27 @@ export const Scene3DashboardScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Interactive, Bold Instruction Overlay */}
+      {/* Interactive, Varied Instruction Overlay (Breaks layout monotony) */}
       {frame < LOAD_COURSE_PAGE_FRAME ? (
         <InstructionOverlay
           step="02"
           actionText="Buka Menu Course"
           detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses daftar seluruh kelas perkuliahan Anda"
+          position="bottom-right"
         />
       ) : frame < LOAD_MODAL_FRAME ? (
         <InstructionOverlay
           step="02"
           actionText="Pilih Tambah Gabung Kelas"
           detailText="Klik tombol + Gabung Kelas di sudut kanan atas halaman untuk membuka formulir pendaftaran kelas"
+          position="bottom-left"
         />
       ) : (
         <InstructionOverlay
           step="02"
           actionText="Masukkan Kode Akses Perkuliahan"
           detailText="Ketikkan kode kelas 8 karakter yang diberikan oleh dosen pengampu, lalu tekan tombol Gabung Kelas"
+          position="bottom-center"
         />
       )}
     </div>

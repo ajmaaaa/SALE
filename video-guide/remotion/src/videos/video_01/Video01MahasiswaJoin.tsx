@@ -49,7 +49,12 @@ const ProgressBar: React.FC = () => {
 export const Video01MahasiswaJoin: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-[#0b1626]">
-      <TransitionSeries>
+      <TransitionSeries
+        style={{
+          translate: "-9.9px -96.3px",
+          scale: 0.75
+        }}
+      >
         {/* Scene 1: Professional Intro Cover */}
         <TransitionSeries.Sequence
           name="01 - Pembuka Panduan"

@@ -75,18 +75,20 @@ export const Scene4JoinConfirmScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Interactive, Bold Instruction Overlay */}
+      {/* Interactive, Varied Instruction Overlay */}
       {!isCourseLoaded ? (
         <InstructionOverlay
           step="03"
           actionText="Konfirmasi Pendaftaran Kelas"
           detailText="Periksa informasi mata kuliah dan dosen pengampu pada layar konfirmasi, lalu klik Buka Course Saya"
+          position="bottom-center"
         />
       ) : (
         <InstructionOverlay
           step="03"
           actionText="Kelas Berhasil Dibuka"
           detailText="Sistem langsung mengarahkan Anda ke ruang perkuliahan utama yang berisi materi dan forum diskusi"
+          position="bottom-left"
         />
       )}
     </div>
