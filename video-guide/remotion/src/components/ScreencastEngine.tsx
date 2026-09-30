@@ -109,8 +109,7 @@ export const InstructionOverlay: React.FC<{
   actionText: string;
   detailText?: string;
   position?: OverlayPosition;
-  theme?: "dark" | "light";
-}> = ({ step, actionText, detailText, position = "center-left", theme = "dark" }) => {
+}> = ({ step, actionText, detailText, position = "center-left" }) => {
   const frame = useCurrentFrame();
 
   const opacity = interpolate(frame, [0, 8], [0, 1], {
@@ -122,10 +121,6 @@ export const InstructionOverlay: React.FC<{
     extrapolateRight: "clamp",
   });
 
-  const isLight = theme === "light";
-  const stepColor = isLight ? "text-blue-700 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]" : "text-[#e8f1f8] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]";
-  const actionColor = isLight ? "text-slate-950 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]" : "text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.9)]";
-  const detailColor = isLight ? "text-slate-800 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]" : "text-slate-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]";
 
   // 1. SIDE - LEFT (Flushed to left edge, soft feathered shadow, dark font)
   if (position === "center-left") {

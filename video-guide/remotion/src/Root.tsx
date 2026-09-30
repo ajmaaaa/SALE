@@ -79,7 +79,23 @@ export const RemotionRoot: React.FC = () => {
         />
       </Folder>
 
-      {/* Video 00: Overview & Pengenalan */}
+      {/* Master Video 01: Pengenalan & Arsitektur Ekosistem SALE */}
+      <Composition
+        id="Master-01-Pengenalan-SALE"
+        component={Video00}
+        durationInFrames={TOTAL_VIDEO_00_FRAMES}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Video-01-Pengenalan-SALE"
+        component={Video00}
+        durationInFrames={TOTAL_VIDEO_00_FRAMES}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
       <Composition
         id="Video-00-Pengenalan-SALE"
         component={Video00}

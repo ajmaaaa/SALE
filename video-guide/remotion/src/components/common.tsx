@@ -89,7 +89,6 @@ export const FloatingBackground: React.FC<{
 
   const float1Y = Math.sin(frame / 45) * 15;
   const float1X = Math.cos(frame / 60) * 15;
-  const float2Y = Math.cos(frame / 50) * 20;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -103,6 +102,7 @@ export const FloatingBackground: React.FC<{
             ? "radial-gradient(#ffffff 1px, transparent 1px)"
             : "radial-gradient(#102f50 1px, transparent 1px)",
           backgroundSize: "36px 36px",
+          backgroundPosition: `${float1X}px ${float1Y}px`,
         }}
       />
     </div>

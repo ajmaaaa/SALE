@@ -13,36 +13,40 @@ const roles = [
     subtitle: "Infrastruktur & Keamanan",
     color: "#0f172a",
     iconBg: "bg-slate-900 text-white",
-    desc: "Mengelola server, pemantauan performa, alokasi token AI, pencadangan basis data, dan konfigurasi global sistem.",
+    desc: "Menjaga keandalan server institusi, parameter sistem global, alokasi kuota token AI, serta integritas pencadangan basis data.",
     badge: "GLOBAL ADMIN",
-    tags: ["Server Monitoring", "AI Token", "Database Backup"],
+    tags: ["Server Monitoring", "AI Token Quota", "Database Backup"],
+    highlightFrame: [205, 385],
   },
   {
     role: "Admin Prodi",
     subtitle: "Penyusun Kurikulum OBE",
     color: "#1e3a8a",
     iconBg: "bg-blue-900 text-white",
-    desc: "Menetapkan butir Capaian CPL, CPMK mata kuliah, struktur semester, pembagian kelas, serta data akademik dosen & mahasiswa.",
+    desc: "Merancang struktur kurikulum, merumuskan butir CPL, memetakan matriks CPMK mata kuliah, serta distribusi kelas paralel dan dosen.",
     badge: "OBE DESIGNER",
-    tags: ["Standar CPL/CPMK", "Plotting Kelas", "Laporan Akreditasi"],
+    tags: ["Standar CPL/CPMK", "Plotting Kelas", "Laporan Mutu"],
+    highlightFrame: [385, 565],
   },
   {
     role: "Dosen Pengampu",
     subtitle: "Fasilitator Pembelajaran",
     color: "#047857",
     iconBg: "bg-emerald-800 text-white",
-    desc: "Mendesain materi, merancang kuis & tugas terpetakan CPMK, membimbing diskusi, dan menilai mahasiswa dengan rubrik objektif.",
+    desc: "Memfasilitasi ruang belajar, menyusun asesmen bermutu berbasis CPMK, mengoreksi tugas in-browser, dan mengawal progres kelas.",
     badge: "EDUCATOR",
     tags: ["Manajemen Course", "Rubrik Penilaian", "Rekap CPMK"],
+    highlightFrame: [565, 775],
   },
   {
     role: "Mahasiswa",
     subtitle: "Pusat Pembelajaran",
     color: "#4338ca",
     iconBg: "bg-indigo-700 text-white",
-    desc: "Mengakses ruang belajar, mengerjakan tugas & ujian terstandar, berdiskusi realtime, serta berkonsultasi dengan asisten AI.",
+    desc: "Mengakses materi berkualitas, mengerjakan tugas & kuis interaktif, praktikum coding dengan asisten AI, dan memantau capaian diri.",
     badge: "LEARNER",
-    tags: ["Ruang Ujian Pintar", "AI Tutor", "Portofolio Capaian"],
+    tags: ["Ruang Ujian Pintar", "AI Tutor Coding", "Portofolio Radar"],
+    highlightFrame: [775, 1050],
   },
 ];
 
@@ -50,7 +54,7 @@ export const Scene2FourRoles: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const headerOpacity = interpolate(frame, [0, 15], [0, 1], {
+  const headerOpacity = interpolate(frame, [0, 20], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -59,6 +63,9 @@ export const Scene2FourRoles: React.FC = () => {
     [0, 1],
     [30, 0]
   );
+
+  // Check if any role is currently in focused speech
+  const isAnyRoleFocused = frame >= 205 && frame < 1050;
 
   return (
     <div
@@ -93,36 +100,50 @@ export const Scene2FourRoles: React.FC = () => {
           Empat Peran dalam Satu Ekosistem
         </h2>
         <p className="mt-2 text-lg text-slate-600">
-          Sistem terpadu yang menyatukan seluruh aktor akademik dengan hak akses
-          dan alur kerja yang dirancang khusus.
+          SALE menghubungkan seluruh pemangku kepentingan akademik dalam satu
+          kesatuan alur kerja yang harmonis dan terstruktur.
         </p>
       </div>
 
       {/* 4 Cards Grid */}
       <div className="relative z-10 grid grid-cols-4 gap-6 my-auto">
         {roles.map((item, idx) => {
-          const delay = 12 + idx * 8;
+          const entryDelay = 12 + idx * 8;
           const cardSpring = spring({
-            frame: frame - delay,
+            frame: frame - entryDelay,
             fps,
             config: { damping: 14, stiffness: 100 },
           });
           const cardY = interpolate(cardSpring, [0, 1], [60, 0]);
-          const cardOpacity = interpolate(frame - delay, [0, 15], [0, 1], {
+          const baseOpacity = interpolate(frame - entryDelay, [0, 15], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
 
-          const floatY = Math.sin((frame + idx * 20) / 40) * 5;
+          // Dynamic focus highlight based on voiceover timestamp
+          const isFocused =
+            frame >= item.highlightFrame[0] && frame < item.highlightFrame[1];
+          const targetOpacity = isAnyRoleFocused
+            ? isFocused
+              ? 1
+              : 0.45
+            : 1;
+
+          const cardScale = isFocused ? 1.035 : 1;
+          const floatY = Math.sin((frame + idx * 20) / 45) * 4;
 
           return (
             <div
               key={idx}
               style={{
-                transform: `translateY(${cardY + floatY}px)`,
-                opacity: cardOpacity,
+                transform: `translateY(${cardY + floatY}px) scale(${cardScale})`,
+                opacity: baseOpacity * targetOpacity,
               }}
-              className="flex flex-col justify-between rounded-2xl bg-white p-6 shadow-xl shadow-slate-200/50 border border-slate-200/80 transition-shadow"
+              className={`flex flex-col justify-between rounded-2xl bg-white p-6 shadow-xl shadow-slate-200/50 border ${
+                isFocused
+                  ? "border-blue-600 ring-4 ring-blue-500/20 shadow-blue-200/80"
+                  : "border-slate-200/80"
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -131,8 +152,12 @@ export const Scene2FourRoles: React.FC = () => {
                   >
                     {item.badge}
                   </span>
-                  <span className="text-xs font-semibold text-slate-400">
-                    Role 0{idx + 1}
+                  <span
+                    className={`text-xs font-semibold ${
+                      isFocused ? "text-blue-700 font-bold" : "text-slate-400"
+                    }`}
+                  >
+                    Peran 0{idx + 1}
                   </span>
                 </div>
 
@@ -152,7 +177,11 @@ export const Scene2FourRoles: React.FC = () => {
                 {item.tags.map((tag, tIdx) => (
                   <span
                     key={tIdx}
-                    className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700"
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
+                      isFocused
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
                   >
                     {tag}
                   </span>
@@ -165,8 +194,8 @@ export const Scene2FourRoles: React.FC = () => {
 
       {/* Footer Info */}
       <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 font-medium">
-        <span>Setiap peran memiliki dashboard & izin akses khusus</span>
-        <span>Halaman 02 • Arsitektur Pengguna</span>
+        <span>Setiap peran memiliki hak akses terdedikasi sesuai tupoksi akademik</span>
+        <span>Master Video 01 • Bagian 02: Arsitektur 4 Peran</span>
       </div>
     </div>
   );
