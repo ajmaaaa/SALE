@@ -55,7 +55,7 @@ Artisan::command('ai:grant {email} {assignment=1} {--task-file= : JSON file cont
         $user = User::create(['name' => $email, 'email' => $email, 'password' => $password]);
     }
     DB::table('ai_access')->insertOrIgnore(['user_id' => $user->id, 'task_id' => $id]);
-    $this->info('Akses AI diberikan. Masuk melalui panel Lumina AI di room tugas.');
+    $this->info('Akses AI diberikan. Masuk melalui panel AI Asisten di room tugas.');
 })->purpose('Create a password-protected AI account and grant access to an authoritative task');
 
 Artisan::command('ai:revoke {email} {assignment}', function () {
