@@ -90,25 +90,27 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
 };
 
 export type OverlayPosition =
+  | "center-left"
+  | "center-right"
   | "bottom-left"
   | "bottom-right"
   | "bottom-center"
-  | "split-cinematic"
-  | "top-right";
+  | "split-cinematic";
 
 /**
  * Text instruction overlay:
- * - Dynamic positioning (breaks monotony, balances screencast focus)
- * - Large, bold, interactive typography (anti-slop)
+ * - Supports vertical-center placement ("center-left", "center-right") to avoid monotony
+ * - Positioned safely away from action targets so it NEVER covers buttons or inputs
+ * - PURE TYPOGRAPHY (no cards, no badges, no border boxes)
  * - Strict rule: NO dot (.) separator, NO em-dash (—) ornament
- * - Pure typography without artificial badges or cards
  */
 export const InstructionOverlay: React.FC<{
   step: string;
   actionText: string;
   detailText?: string;
   position?: OverlayPosition;
-}> = ({ step, actionText, detailText, position = "bottom-left" }) => {
+  theme?: "dark" | "light";
+}> = ({ step, actionText, detailText, position = "center-left", theme = "dark" }) => {
   const frame = useCurrentFrame();
 
   const opacity = interpolate(frame, [0, 8], [0, 1], {
@@ -120,21 +122,44 @@ export const InstructionOverlay: React.FC<{
     extrapolateRight: "clamp",
   });
 
-  if (position === "bottom-right") {
+  const isLight = theme === "light";
+  const stepColor = isLight ? "text-blue-700 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]" : "text-[#e8f1f8] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]";
+  const actionColor = isLight ? "text-slate-950 drop-shadow-[0_2px_4px_rgba(255,255,255,0.9)]" : "text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.9)]";
+  const detailColor = isLight ? "text-slate-800 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]" : "text-slate-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]";
+
+  // 1. SIDE - LEFT (Flushed to left edge, soft feathered shadow, dark font)
+  if (position === "center-left") {
     return (
       <div
-        style={{ transform: `translateY(${translateY}px)`, opacity }}
-        className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none flex justify-end"
+        style={{
+          transform: `translateY(${translateY}px)`,
+          opacity,
+        }}
+        className="absolute left-0 top-[52%] -translate-y-1/2 z-40 max-w-xl pointer-events-none select-none text-left"
       >
-        <div className="max-w-4xl text-right">
-          <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
+        {/* Soft edge shadow: rapat ke sisi paling kiri, segiempat tapi kabur di sisinya, tanpa card */}
+        <div
+          className="absolute inset-0 -right-24 pointer-events-none -z-10"
+          style={{
+            background:
+              "linear-gradient(to right, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.90) 65%, rgba(255, 255, 255, 0) 100%)",
+            backdropFilter: "blur(12px)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%)",
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%)",
+          }}
+        />
+
+        <div className="pl-16 pr-12 py-10">
+          <div className="text-base font-black tracking-widest uppercase text-blue-700">
             LANGKAH {step}
           </div>
-          <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <div className="mt-2 text-4xl font-black tracking-tight leading-tight text-slate-950">
             {actionText}
           </div>
           {detailText && (
-            <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 max-w-3xl drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] ml-auto">
+            <p className="mt-3 text-2xl font-bold leading-snug text-slate-700">
               {detailText}
             </p>
           )}
@@ -143,6 +168,48 @@ export const InstructionOverlay: React.FC<{
     );
   }
 
+  // 2. SIDE - RIGHT (Flushed to right edge, soft feathered shadow, dark font, lower-right placement)
+  if (position === "center-right") {
+    return (
+      <div
+        style={{
+          transform: `translateY(${translateY}px)`,
+          opacity,
+        }}
+        className="absolute right-0 bottom-24 z-40 max-w-lg pointer-events-none select-none text-left"
+      >
+        {/* Soft edge shadow: rapat ke sisi paling kanan, segiempat tapi kabur di sisinya, tanpa card */}
+        <div
+          className="absolute inset-0 -left-16 pointer-events-none -z-10"
+          style={{
+            background:
+              "linear-gradient(to left, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 70%, transparent 100%)",
+            backdropFilter: "blur(8px)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)",
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)",
+          }}
+        />
+
+        <div className="pr-16 pl-10 py-6">
+          <div className="text-base font-black tracking-widest uppercase text-blue-700">
+            LANGKAH {step}
+          </div>
+          <div className="mt-2 text-4xl font-black tracking-tight leading-tight text-slate-950">
+            {actionText}
+          </div>
+          {detailText && (
+            <p className="mt-3 text-xl font-bold leading-snug text-slate-700">
+              {detailText}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 3. BOTTOM - CENTER
   if (position === "bottom-center") {
     return (
       <div
@@ -166,6 +233,7 @@ export const InstructionOverlay: React.FC<{
     );
   }
 
+  // 4. SPLIT CINEMATIC (Wide format)
   if (position === "split-cinematic") {
     return (
       <div
@@ -191,7 +259,31 @@ export const InstructionOverlay: React.FC<{
     );
   }
 
-  // Default: "bottom-left"
+  // 5. BOTTOM - RIGHT
+  if (position === "bottom-right") {
+    return (
+      <div
+        style={{ transform: `translateY(${translateY}px)`, opacity }}
+        className="absolute bottom-0 left-0 right-0 pt-16 pb-8 px-16 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent z-40 pointer-events-none select-none flex justify-end"
+      >
+        <div className="max-w-4xl text-right">
+          <div className="text-base font-black tracking-widest text-[#e8f1f8] uppercase">
+            LANGKAH {step}
+          </div>
+          <div className="mt-1 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            {actionText}
+          </div>
+          {detailText && (
+            <p className="mt-1.5 text-xl font-bold leading-snug text-slate-100 max-w-3xl drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] ml-auto">
+              {detailText}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 6. DEFAULT: BOTTOM - LEFT
   return (
     <div
       style={{ transform: `translateY(${translateY}px)`, opacity }}

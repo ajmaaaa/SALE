@@ -8,25 +8,34 @@ import {
 export const Scene5CourseActiveScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Natural cursor motion inspecting the active course page (from header to video to forum)
-  let cursorX = 520;
-  let cursorY = 155;
+  // Continuous natural cursor motion from modal submit (1099, 641) to course header, video, and forum
+  let cursorX = 1099;
+  let cursorY = 641;
 
-  if (frame < 50) {
-    cursorX = interpolate(frame, [5, 45], [520, 450], {
+  if (frame < 45) {
+    cursorX = interpolate(frame, [6, 42], [1099, 520], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [5, 45], [155, 520], {
+    cursorY = interpolate(frame, [6, 42], [641, 155], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  } else if (frame >= 45 && frame < 90) {
+    cursorX = interpolate(frame, [48, 85], [520, 650], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [48, 85], [155, 520], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
   } else {
-    cursorX = interpolate(frame, [50, 90], [450, 850], {
+    cursorX = interpolate(frame, [90, 125], [650, 1450], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [50, 90], [520, 600], {
+    cursorY = interpolate(frame, [90, 125], [520, 420], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
@@ -48,19 +57,13 @@ export const Scene5CourseActiveScreencast: React.FC = () => {
         clickFrame={-1}
       />
 
-      {/* Cinematic Wide Layout (Left: Step & Title, Right: Description & Next Episode) */}
+      {/* Cinematic Wide Layout with bottom shadow protection */}
       <InstructionOverlay
-        step="04"
+        step="03"
         actionText="Kelas Perkuliahan Resmi Aktif"
-        detailText="Selamat belajar! Silabus perkuliahan, video materi, dan forum diskusi kelas sudah siap digunakan"
+        detailText="Pendaftaran kelas berhasil, silabus perkuliahan, video materi, dan forum diskusi sudah siap digunakan"
         position="split-cinematic"
       />
-
-      {/* Sleek Next Episode Cue without em-dash */}
-      <div className="absolute top-8 right-14 flex items-center gap-2 text-sm font-black text-slate-200 select-none z-50 bg-[#102f50]/90 px-4 py-2 rounded-lg border border-white/10 shadow-lg">
-        <span className="text-slate-400 uppercase text-xs">BERIKUTNYA</span>
-        <span className="text-white">Episode 02: Eksplorasi Materi dan Forum &rarr;</span>
-      </div>
     </div>
   );
 };

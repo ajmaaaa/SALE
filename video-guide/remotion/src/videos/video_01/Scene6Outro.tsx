@@ -2,19 +2,19 @@ import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { fontFamily, SaleLogo } from "../../components/common";
 
-export const Scene1Intro: React.FC = () => {
+export const Scene6Outro: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const titleSpring = spring({ frame: frame - 6, fps, config: { damping: 14 } });
-  const titleY = interpolate(titleSpring, [0, 1], [30, 0]);
+  const titleY = interpolate(titleSpring, [0, 1], [25, 0]);
   const titleOpacity = interpolate(frame - 6, [0, 10], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
   const subSpring = spring({ frame: frame - 14, fps, config: { damping: 14 } });
-  const subY = interpolate(subSpring, [0, 1], [24, 0]);
+  const subY = interpolate(subSpring, [0, 1], [20, 0]);
   const subOpacity = interpolate(frame - 14, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -55,7 +55,7 @@ export const Scene1Intro: React.FC = () => {
       {/* Center Hero: Spacious, Minimal, Modern Tech Editorial */}
       <div className="relative z-10 my-auto flex flex-col items-center text-center max-w-4xl mx-auto py-10">
         <div className="text-sm font-bold tracking-widest text-sky-400 uppercase">
-          PANDUAN MAHASISWA &nbsp;&bull;&nbsp; EPISODE 01
+          PANDUAN MAHASISWA &nbsp;&bull;&nbsp; SELESAI
         </div>
 
         <h1
@@ -65,7 +65,7 @@ export const Scene1Intro: React.FC = () => {
           }}
           className="text-6xl font-bold tracking-tight text-white mt-6 leading-tight"
         >
-          Masuk & Bergabung ke Kelas
+          Pendaftaran Kelas Selesai
         </h1>
 
         <p
@@ -75,7 +75,7 @@ export const Scene1Intro: React.FC = () => {
           }}
           className="mt-6 text-xl lg:text-2xl font-normal leading-relaxed text-slate-300 max-w-2xl"
         >
-          Panduan resmi autentikasi akun mahasiswa dan aktivasi kelas perkuliahan baru pada portal akademik SALE
+          Akun mahasiswa dan ruang perkuliahan Anda telah aktif dan siap digunakan untuk proses belajar
         </p>
 
         <div
@@ -85,11 +85,11 @@ export const Scene1Intro: React.FC = () => {
           }}
           className="mt-8 flex items-center gap-6 text-sm font-medium tracking-wide text-slate-400"
         >
-          <span>Login Akun</span>
+          <span>Materi Kuliah</span>
           <span className="text-slate-600">&bull;</span>
-          <span>Akses Portal</span>
+          <span>Video Pembelajaran</span>
           <span className="text-slate-600">&bull;</span>
-          <span>Aktivasi Perkuliahan</span>
+          <span>Forum Diskusi</span>
         </div>
       </div>
 

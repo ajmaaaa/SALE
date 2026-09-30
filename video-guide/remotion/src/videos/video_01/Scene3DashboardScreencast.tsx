@@ -10,11 +10,11 @@ export const Scene3DashboardScreencast: React.FC = () => {
 
   // Timing milestones
   const CLICK_COURSE_NAV_FRAME = 44;
-  const LOAD_COURSE_PAGE_FRAME = 52; // Action-reaction 1: Screen cuts to Course page
-  const CLICK_JOIN_BTN_FRAME = 94;
-  const LOAD_MODAL_FRAME = 102; // Action-reaction 2: Screen cuts to Modal dialog
-  const CLICK_CODE_INPUT_FRAME = 126;
-  const CLICK_MODAL_SUBMIT_FRAME = 174;
+  const LOAD_COURSE_PAGE_FRAME = 52; // Action-reaction 1: Screen cuts to Course page 8 frames after click
+  const CLICK_JOIN_BTN_FRAME = 92;
+  const LOAD_MODAL_FRAME = 100; // Action-reaction 2: Screen cuts to Modal dialog 8 frames after click
+  const CLICK_CODE_INPUT_FRAME = 122;
+  const CLICK_MODAL_SUBMIT_FRAME = 172;
 
   let cursorX = 600;
   let cursorY = 400;
@@ -22,7 +22,7 @@ export const Scene3DashboardScreencast: React.FC = () => {
   let clickFrame = -1;
 
   if (frame < CLICK_COURSE_NAV_FRAME) {
-    // 1. Moving from dashboard center (where Scene 2 ended) to sidebar Course (124, 194)
+    // 1. Moving from dashboard center to sidebar Course (124, 194)
     cursorX = interpolate(frame, [8, CLICK_COURSE_NAV_FRAME - 2], [600, 124], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
@@ -65,20 +65,20 @@ export const Scene3DashboardScreencast: React.FC = () => {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-  } else if (frame >= CLICK_CODE_INPUT_FRAME && frame < 156) {
+  } else if (frame >= CLICK_CODE_INPUT_FRAME && frame < 150) {
     cursorX = 952;
     cursorY = 531;
     if (frame >= CLICK_CODE_INPUT_FRAME && frame <= CLICK_CODE_INPUT_FRAME + 4) {
       isClicking = true;
       clickFrame = CLICK_CODE_INPUT_FRAME;
     }
-  } else if (frame >= 156 && frame < CLICK_MODAL_SUBMIT_FRAME) {
+  } else if (frame >= 150 && frame < CLICK_MODAL_SUBMIT_FRAME) {
     // 4. Moving to modal submit button "Gabung Kelas" (1099, 641)
-    cursorX = interpolate(frame, [156, CLICK_MODAL_SUBMIT_FRAME - 2], [952, 1099], {
+    cursorX = interpolate(frame, [150, CLICK_MODAL_SUBMIT_FRAME - 2], [952, 1099], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [156, CLICK_MODAL_SUBMIT_FRAME - 2], [531, 641], {
+    cursorY = interpolate(frame, [150, CLICK_MODAL_SUBMIT_FRAME - 2], [531, 641], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
@@ -94,7 +94,7 @@ export const Scene3DashboardScreencast: React.FC = () => {
   // Code typing simulation in modal
   const codeStr = "IF204-A";
   const charsTyped = Math.floor(
-    interpolate(frame, [130, 152], [0, codeStr.length], {
+    interpolate(frame, [126, 148], [0, codeStr.length], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     })
@@ -106,8 +106,8 @@ export const Scene3DashboardScreencast: React.FC = () => {
       {/* 
         AUTHENTIC ACTION-REACTION SCREEN FLOW:
         1. frames < 52: Mahasiswa Dashboard
-        2. frames 52 to 102: Mahasiswa Course List
-        3. frames 102+: Real Modal "Gabung Kelas Perkuliahan"
+        2. frames 52 to 100: Mahasiswa Course List
+        3. frames 100+: Real Modal "Gabung Kelas Perkuliahan"
       */}
       {frame < LOAD_COURSE_PAGE_FRAME ? (
         <Img
@@ -125,8 +125,8 @@ export const Scene3DashboardScreencast: React.FC = () => {
             src={staticFile("screens/14_modal_gabung_kelas.png")}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
-          {/* Typed Code inside real modal input without artificial borders */}
-          {frame >= 130 && (
+          {/* Typed Code inside real modal input */}
+          {frame >= 126 && (
             <div
               style={{
                 position: "absolute",
@@ -147,7 +147,7 @@ export const Scene3DashboardScreencast: React.FC = () => {
               }}
             >
               <span>{currentCode}</span>
-              {frame < 156 && Math.floor(frame / 10) % 2 === 0 && (
+              {frame < 150 && Math.floor(frame / 10) % 2 === 0 && (
                 <span style={{ color: "#2563eb", marginLeft: 2 }}>|</span>
               )}
             </div>
@@ -163,26 +163,26 @@ export const Scene3DashboardScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Interactive, Varied Instruction Overlay (Breaks layout monotony) */}
+      {/* Interactive Instruction Overlay: Varied positioning, edge-flushed shadow, dark font, no cards */}
       {frame < LOAD_COURSE_PAGE_FRAME ? (
         <InstructionOverlay
           step="02"
           actionText="Buka Menu Course"
-          detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses daftar seluruh kelas perkuliahan Anda"
-          position="bottom-right"
+          detailText="Klik menu Course pada bilah navigasi kiri untuk mengakses portal perkuliahan Anda"
+          position="center-right"
         />
       ) : frame < LOAD_MODAL_FRAME ? (
         <InstructionOverlay
           step="02"
           actionText="Pilih Tambah Gabung Kelas"
-          detailText="Klik tombol + Gabung Kelas di sudut kanan atas halaman untuk membuka formulir pendaftaran kelas"
+          detailText="Klik tombol + Gabung Kelas di sudut kanan atas untuk membuka formulir pendaftaran kelas"
           position="bottom-left"
         />
       ) : (
         <InstructionOverlay
           step="02"
           actionText="Masukkan Kode Akses Perkuliahan"
-          detailText="Ketikkan kode kelas 8 karakter yang diberikan oleh dosen pengampu, lalu tekan tombol Gabung Kelas"
+          detailText="Ketikkan kode kelas dari dosen pengampu, lalu tekan tombol Gabung Kelas"
           position="bottom-center"
         />
       )}

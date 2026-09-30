@@ -15,8 +15,8 @@ import {
 import { Scene1Intro as V01Scene1 } from "./videos/video_01/Scene1Intro";
 import { Scene2LoginScreencast as V01Scene2 } from "./videos/video_01/Scene2LoginScreencast";
 import { Scene3DashboardScreencast as V01Scene3 } from "./videos/video_01/Scene3DashboardScreencast";
-import { Scene4JoinConfirmScreencast as V01Scene4 } from "./videos/video_01/Scene4JoinConfirmScreencast";
-import { Scene5CourseActiveScreencast as V01Scene5 } from "./videos/video_01/Scene5CourseActiveScreencast";
+import { Scene5CourseActiveScreencast as V01Scene4 } from "./videos/video_01/Scene5CourseActiveScreencast";
+import { Scene6Outro as V01Scene5 } from "./videos/video_01/Scene6Outro";
 import {
   TOTAL_V01_FRAMES,
   V01_DURATIONS,
@@ -62,7 +62,7 @@ export const RemotionRoot: React.FC = () => {
           height={1080}
         />
         <Composition
-          id="Video-01-Scene-4-Join-Confirm-Screencast"
+          id="Video-01-Scene-4-Course-Active"
           component={V01Scene4}
           durationInFrames={V01_DURATIONS.scene4}
           fps={30}
@@ -70,7 +70,7 @@ export const RemotionRoot: React.FC = () => {
           height={1080}
         />
         <Composition
-          id="Video-01-Scene-5-Course-Active"
+          id="Video-01-Scene-5-Outro"
           component={V01Scene5}
           durationInFrames={V01_DURATIONS.scene5}
           fps={30}

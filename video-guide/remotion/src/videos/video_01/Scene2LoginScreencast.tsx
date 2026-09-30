@@ -179,18 +179,13 @@ export const Scene2LoginScreencast: React.FC = () => {
         clickFrame={clickFrame}
       />
 
-      {/* Interactive, Bold Instruction Overlay */}
-      {!isDashboardLoaded ? (
+      {/* Interactive, Bold Instruction Overlay (Bottom-left cinematic placement) */}
+      {!isDashboardLoaded && (
         <InstructionOverlay
           step="01"
           actionText="Masuk ke Sistem SALE"
           detailText="Ketikkan NIM pada kolom identitas dan masukkan kata sandi Anda, lalu klik tombol Masuk"
-        />
-      ) : (
-        <InstructionOverlay
-          step="01"
-          actionText="Berhasil Masuk ke Portal Mahasiswa"
-          detailText="Autentikasi akun berhasil diverifikasi, sistem langsung memuat halaman utama dashboard akademik"
+          position="bottom-left"
         />
       )}
     </div>
