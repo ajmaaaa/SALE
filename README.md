@@ -192,7 +192,7 @@ Foto banner menggunakan aset foto yang sama dengan desain awal (Pexels photo 798
 
 ## Tutor AI Gemini
 
-Lumina AI pada room coding terhubung melalui backend Gemini dengan akun berpassword, akses tugas eksplisit, kuota token, riwayat persisten, dan pemeriksaan bantuan kumulatif. Fitur dinonaktifkan sampai API key dikonfigurasi. Lihat [panduan aktivasi dan evaluasi AI](docs/ai-tutor.md). Persona aplikasi hanya tersedia di mode demo lokal; endpoint status/kirim AI memerlukan autentikasi database.
+AI Asisten pada room coding terhubung melalui backend Gemini dengan akun berpassword, akses tugas eksplisit, kuota token, riwayat persisten, dan pemeriksaan bantuan kumulatif. Fitur dinonaktifkan sampai API key dikonfigurasi. Lihat [panduan aktivasi dan evaluasi AI](docs/ai-tutor.md). Persona aplikasi hanya tersedia di mode demo lokal; endpoint status/kirim AI memerlukan autentikasi database.
 
 ### Eksekusi kode
 
