@@ -286,15 +286,15 @@ class AdminPreviewController extends Controller
         $sheet->setTitle('Template Import Pengguna');
 
         // Header
-        $headers = ['NIM / NIDN', 'Nama Lengkap', 'Email', 'Peran', 'Status'];
+        $headers = ['NIM / NIDN', 'Nama Lengkap', 'Email', 'Peran', 'Status', 'Password', 'Program Studi'];
         $sheet->fromArray([$headers], null, 'A1');
 
         // Sample Data
         $data = [
-            ['231011401235', 'Siti Rahma', 'siti.rahma@student.test', 'mahasiswa', 'aktif'],
-            ['231011401236', 'Dimas Pratama', 'dimas.pratama@student.test', 'mahasiswa', 'aktif'],
-            ['198502022010121002', 'Dr. Budi Santoso, M.Kom.', 'budi.santoso@kampus.ac.id', 'dosen', 'aktif'],
-            ['ADM002', 'Admin Akademik Pusat', 'admin.pusat@kampus.ac.id', 'admin', 'aktif'],
+            ['231011401235', 'Siti Rahma', 'siti.rahma@student.test', 'mahasiswa', 'aktif', 'Password123', 'Teknik Informatika'],
+            ['231011401236', 'Dimas Pratama', 'dimas.pratama@student.test', 'mahasiswa', 'aktif', '', 'Teknik Elektro'],
+            ['198502022010121002', 'Dr. Budi Santoso, M.Kom.', 'budi.santoso@kampus.ac.id', 'dosen', 'aktif', 'DosenPass2026', 'Teknik Informatika'],
+            ['ADM002', 'Admin Akademik Pusat', 'admin.pusat@kampus.ac.id', 'admin', 'aktif', '', ''],
         ];
         $sheet->fromArray($data, null, 'A2');
 
@@ -310,11 +310,11 @@ class AdminPreviewController extends Controller
                 'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ];
-        $sheet->getStyle('A1:E1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(26);
 
         // Auto size columns
-        foreach (range('A', 'E') as $col) {
+        foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -398,10 +398,49 @@ class AdminPreviewController extends Controller
             }
         }
 
-        // If the first row looks like a header, skip it
+        // Default column mapping if no header is present
+        $colMap = [
+            'id' => 0,
+            'name' => 1,
+            'email' => 2,
+            'role' => 3,
+            'status' => 4,
+            'password' => 5,
+            'prodi' => 6,
+        ];
+
+        // If the first row looks like a header, detect column positions and skip header
         if (! empty($rowsToProcess)) {
             $firstRowStr = strtolower(implode(' ', $rowsToProcess[0]));
             if (str_contains($firstRowStr, 'nim') || str_contains($firstRowStr, 'nidn') || str_contains($firstRowStr, 'email') || str_contains($firstRowStr, 'nama') || str_contains($firstRowStr, 'peran')) {
+                $headerRow = array_map(fn ($v) => strtolower(trim((string) $v)), $rowsToProcess[0]);
+                $detectedPassword = false;
+                $detectedProdi = false;
+                foreach ($headerRow as $idx => $h) {
+                    if (str_contains($h, 'nim') || str_contains($h, 'nidn') || str_contains($h, 'nip')) {
+                        $colMap['id'] = $idx;
+                    } elseif (str_contains($h, 'nama')) {
+                        $colMap['name'] = $idx;
+                    } elseif (str_contains($h, 'email')) {
+                        $colMap['email'] = $idx;
+                    } elseif (str_contains($h, 'peran') || str_contains($h, 'role')) {
+                        $colMap['role'] = $idx;
+                    } elseif (str_contains($h, 'status')) {
+                        $colMap['status'] = $idx;
+                    } elseif (str_contains($h, 'password') || str_contains($h, 'sandi')) {
+                        $colMap['password'] = $idx;
+                        $detectedPassword = true;
+                    } elseif (str_contains($h, 'prodi') || str_contains($h, 'program studi')) {
+                        $colMap['prodi'] = $idx;
+                        $detectedProdi = true;
+                    }
+                }
+                if (! $detectedPassword) {
+                    unset($colMap['password']);
+                }
+                if (! $detectedProdi) {
+                    unset($colMap['prodi']);
+                }
                 array_shift($rowsToProcess);
             }
         }
@@ -413,13 +452,24 @@ class AdminPreviewController extends Controller
         $saved = 0;
         $skipped = 0;
 
-        DB::transaction(function () use ($rowsToProcess, &$saved, &$skipped) {
+        DB::transaction(function () use ($rowsToProcess, $colMap, &$saved, &$skipped) {
             foreach ($rowsToProcess as $cols) {
-                $idNum = $cols[0] ?? '';
-                $name = $cols[1] ?? '';
-                $email = $cols[2] ?? '';
-                $roleRaw = $cols[3] ?? 'mahasiswa';
-                $statusRaw = $cols[4] ?? 'aktif';
+                $idNum = $cols[$colMap['id'] ?? 0] ?? '';
+                $name = $cols[$colMap['name'] ?? 1] ?? '';
+                $email = $cols[$colMap['email'] ?? 2] ?? '';
+                $roleRaw = $cols[$colMap['role'] ?? 3] ?? 'mahasiswa';
+                $statusRaw = $cols[$colMap['status'] ?? 4] ?? 'aktif';
+                $passwordRaw = isset($colMap['password']) ? ($cols[$colMap['password']] ?? '') : '';
+                $prodiRaw = isset($colMap['prodi']) ? ($cols[$colMap['prodi']] ?? '') : '';
+
+                // Handle fallback if 6 columns provided without header and 6th column is a prodi name
+                if (! empty($passwordRaw) && empty($prodiRaw)) {
+                    $cleanCandidate = trim((string) $passwordRaw);
+                    if (Prodi::where('code', $cleanCandidate)->orWhere('name', $cleanCandidate)->orWhere('name', 'like', "%{$cleanCandidate}%")->exists()) {
+                        $prodiRaw = $passwordRaw;
+                        $passwordRaw = '';
+                    }
+                }
 
                 if ($idNum === '' || $name === '' || $email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $skipped++;
@@ -438,6 +488,19 @@ class AdminPreviewController extends Controller
                 }
 
                 $isActive = strtolower($statusRaw) === 'aktif';
+
+                $prodiId = null;
+                if (! empty($prodiRaw)) {
+                    $prodiClean = trim((string) $prodiRaw);
+                    $matchedProdi = Prodi::where('code', $prodiClean)
+                        ->orWhere('name', $prodiClean)
+                        ->orWhere('name', 'like', "%{$prodiClean}%")
+                        ->first();
+                    $prodiId = $matchedProdi?->id;
+                }
+
+                $hasManualPassword = ! empty(trim((string) $passwordRaw));
+                $password = $hasManualPassword ? trim((string) $passwordRaw) : Str::password(16);
 
                 $detectedAngkatan = null;
                 if ($roleName === Role::MAHASISWA) {
@@ -460,6 +523,16 @@ class AdminPreviewController extends Controller
                     if ($roleName === Role::MAHASISWA && ! $existing->angkatan) {
                         $updateData['angkatan'] = $detectedAngkatan;
                     }
+                    if ($prodiId) {
+                        $updateData['prodi_id'] = $prodiId;
+                        if ($roleName === Role::ADMIN_PRODI) {
+                            $updateData['managing_prodi_id'] = $prodiId;
+                        }
+                    }
+                    if ($hasManualPassword) {
+                        $updateData['password'] = Hash::make($password);
+                        $updateData['must_change_password'] = true;
+                    }
                     $existing->update($updateData);
                     $existing->roles()->sync([$roleId]);
                 } else {
@@ -468,7 +541,9 @@ class AdminPreviewController extends Controller
                         'name' => $name,
                         'email' => strtolower($email),
                         'role_id' => $roleId,
-                        'password' => Hash::make(Str::password(16)),
+                        'prodi_id' => $prodiId,
+                        'managing_prodi_id' => $roleName === Role::ADMIN_PRODI ? $prodiId : null,
+                        'password' => Hash::make($password),
                         'must_change_password' => true,
                         'is_active' => $isActive,
                         'email_verified_at' => now(),

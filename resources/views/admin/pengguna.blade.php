@@ -97,7 +97,7 @@
                         <span>Unduh Template Excel (.xlsx)</span>
                     </a>
                 </div>
-                <p class="mt-1.5 text-xs text-muted">Format kolom file: <code class="font-mono font-semibold">NIM/NIDN</code>, <code class="font-mono font-semibold">Nama Lengkap</code>, <code class="font-mono font-semibold">Email</code>, <code class="font-mono font-semibold">Peran (mahasiswa/dosen/admin/admin_prodi)</code>, <code class="font-mono font-semibold">Status (aktif/nonaktif)</code>.</p>
+                <p class="mt-1.5 text-xs text-muted">Format kolom file: <code class="font-mono font-semibold">NIM/NIDN</code>, <code class="font-mono font-semibold">Nama Lengkap</code>, <code class="font-mono font-semibold">Email</code>, <code class="font-mono font-semibold">Peran (mahasiswa/dosen/admin/admin_prodi)</code>, <code class="font-mono font-semibold">Status (aktif/nonaktif)</code>, <code class="font-mono font-semibold">Password (opsional, kosongkan jika acak)</code>, <code class="font-mono font-semibold">Program Studi (opsional, misal: Teknik Informatika, Teknik Elektro)</code>.</p>
             </div>
 
             <div class="relative flex py-1 items-center">
@@ -109,11 +109,11 @@
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <label class="form-label text-xs" for="raw_users">Data Teks Alternatif (Opsional jika mengunggah file)</label>
-                    <button type="button" class="text-xs font-semibold text-brand hover:underline" onclick="document.getElementById('raw_users').value = '231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif\n231011401236, Dimas Pratama, dimas@example.test, mahasiswa, aktif\n231011401237, Maya Lestari, maya@example.test, mahasiswa, aktif\nDSN002, Ratna Prameswari, ratna@example.test, dosen, aktif';">
+                    <button type="button" class="text-xs font-semibold text-brand hover:underline" onclick="document.getElementById('raw_users').value = '231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif, Password123, Teknik Informatika\n231011401236, Dimas Pratama, dimas@example.test, mahasiswa, aktif, , Teknik Elektro\n231011401237, Maya Lestari, maya@example.test, mahasiswa, aktif, , Teknik Informatika\nDSN002, Ratna Prameswari, ratna@example.test, dosen, aktif, DosenPass123, Teknik Informatika';">
                         Muat Contoh Data
                     </button>
                 </div>
-                <textarea id="raw_users" name="raw_users" rows="4" class="field font-mono text-xs" placeholder="NIM/NIDN, Nama Lengkap, Email, Peran (mahasiswa/dosen/admin), Status (aktif/nonaktif)&#10;Contoh:&#10;231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif&#10;DSN002, Ratna Prameswari, ratna@example.test, dosen, aktif"></textarea>
+                <textarea id="raw_users" name="raw_users" rows="4" class="field font-mono text-xs" placeholder="NIM/NIDN, Nama Lengkap, Email, Peran (mahasiswa/dosen/admin), Status (aktif/nonaktif), Password, Program Studi&#10;Contoh:&#10;231011401235, Siti Rahma, rahma@example.test, mahasiswa, aktif, Password123, Teknik Informatika&#10;DSN002, Ratna Prameswari, ratna@example.test, dosen, aktif, DosenPass123, Teknik Informatika"></textarea>
             </div>
 
             <div class="flex items-center gap-3 pt-1">
