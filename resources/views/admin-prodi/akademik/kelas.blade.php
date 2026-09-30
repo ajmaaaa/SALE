@@ -329,19 +329,19 @@
 
         {{-- Tombol Aksi --}}
         <div class="flex gap-2 px-6 pb-6">
-            <button type="button" onclick="copyModalCode()"
-                    class="flex-1 button-secondary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+            <button type="button" onclick="copyModalCode(this)" id="btnCopyCode"
+                    class="flex-1 button-secondary text-xs py-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
-                Salin Kode
+                <span id="btnCopyCodeText">Salin Kode</span>
             </button>
-            <button type="button" onclick="copyModalUrl()" id="btnCopyUrl"
-                    class="flex-1 button-primary text-xs py-2.5 inline-flex items-center justify-center gap-1.5">
+            <button type="button" onclick="copyModalUrl(this)" id="btnCopyUrl"
+                    class="flex-1 button-primary text-xs py-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                 </svg>
-                Salin Link
+                <span id="btnCopyUrlText">Salin Link</span>
             </button>
         </div>
     </div>
@@ -388,19 +388,98 @@
         document.getElementById('barcodeModal').classList.remove('flex');
     }
 
-    async function copyModalCode() {
-        const code = document.getElementById('modal_enroll_code').value;
-        await navigator.clipboard.writeText(code);
-        await window.saleNotice({ title: 'Kode kelas tersalin', message: `Kode ${code} sudah disalin ke clipboard.` });
+    async function copyTextToClipboard(text) {
+        if (!text) return false;
+
+        // Coba modern Clipboard API jika browser mengizinkan & berada di secure context
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                // fall back to execCommand below
+            }
+        }
+
+        // Fallback untuk HTTP non-secure (misal akses dari HP via IP lokal seperti http://10.70.233.217)
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            textarea.style.width = '2em';
+            textarea.style.height = '2em';
+            textarea.style.padding = '0';
+            textarea.style.border = 'none';
+            textarea.style.outline = 'none';
+            textarea.style.boxShadow = 'none';
+            textarea.style.background = 'transparent';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+
+            if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
+                const range = document.createRange();
+                range.selectNodeContents(textarea);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                textarea.setSelectionRange(0, 999999);
+            } else {
+                textarea.focus();
+                textarea.select();
+            }
+
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return successful;
+        } catch (err) {
+            console.error('Fallback copy error:', err);
+            return false;
+        }
     }
 
-    function copyModalUrl() {
+    async function copyModalCode(btn) {
+        const code = document.getElementById('modal_enroll_code').value;
+        const targetBtn = btn || document.getElementById('btnCopyCode');
+        const textSpan = targetBtn ? (targetBtn.querySelector('span') || targetBtn) : null;
+        const originalText = textSpan ? textSpan.textContent : 'Salin Kode';
+
+        const success = await copyTextToClipboard(code);
+        if (success && textSpan) {
+            textSpan.textContent = 'Tersalin!';
+            setTimeout(() => {
+                if (textSpan) textSpan.textContent = originalText;
+            }, 1800);
+        }
+
+        try {
+            if (typeof window.saleNotice === 'function') {
+                await window.saleNotice({ title: 'Kode kelas tersalin', message: `Kode ${code} sudah disalin ke clipboard.` });
+            }
+        } catch (e) {}
+    }
+
+    async function copyModalUrl(btn) {
         const url = document.getElementById('modal_enroll_url').value;
-        navigator.clipboard.writeText(url);
-        const btn = document.getElementById('btnCopyUrl');
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!`;
-        setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        const targetBtn = btn || document.getElementById('btnCopyUrl');
+        const textSpan = targetBtn ? (targetBtn.querySelector('span') || targetBtn) : null;
+        const originalText = textSpan ? textSpan.textContent : 'Salin Link';
+
+        const success = await copyTextToClipboard(url);
+        if (success && textSpan) {
+            textSpan.textContent = 'Tersalin!';
+            setTimeout(() => {
+                if (textSpan) textSpan.textContent = originalText;
+            }, 1800);
+        }
+
+        try {
+            if (typeof window.saleNotice === 'function') {
+                await window.saleNotice({ title: 'Tautan kelas tersalin', message: 'Tautan bergabung kelas sudah disalin ke clipboard.' });
+            }
+        } catch (e) {}
     }
 </script>
 @endsection
