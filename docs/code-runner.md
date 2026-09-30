@@ -6,7 +6,7 @@ Riwayat Antigravity `a4ce7e29-e279-42e0-89db-afbe3ff19cbe` (langkah 508) merekom
 
 ## Pilihan saat ini
 
-- CodeMirror 6 tetap cocok untuk editor Python yang sudah terintegrasi dengan draf, pengumpulan kode, dan Lumina AI.
+- CodeMirror 6 tetap cocok untuk editor Python yang sudah terintegrasi dengan draf, pengumpulan kode, dan AI Asisten.
 - Pyodide menjalankan latihan Python di browser: https://pyodide.org/en/stable/usage/index.html. Tidak ada biaya API per eksekusi; hosting aplikasi dan unduhan runtime tetap memakai sumber daya.
 - Piston self-hosted lebih cocok jika nantinya membutuhkan banyak bahasa dan pengujian server. Judge0 juga merupakan runner server, bukan pengganti editor. Keduanya memerlukan infrastruktur dan pemeliharaan.
 
