@@ -32,10 +32,10 @@ class LearningWorkflowTest extends TestCase
         $this->assertTrue($material['ai_enabled']);
         $this->get("/mahasiswa/assignment/$materialId/code")
             ->assertOk()
-            ->assertSee('Lumina AI');
+            ->assertSee('AI Asisten');
         $this->get('/mahasiswa/course/1')
             ->assertSee('Tutorial Array Interaktif')
-            ->assertSee('Tutorial coding &amp; Lumina AI', false);
+            ->assertSee('Tutorial coding &amp; AI Asisten', false);
 
         $due = now()->addDay()->format('Y-m-d\TH:i');
         $this->post('/dosen/course/1/items', [
@@ -330,7 +330,7 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('data-stop-code', false)
             ->assertSee('data-runtime-url', false)
             ->assertSee('Petunjuk Pengerjaan')
-            ->assertSee('Lumina AI');
+            ->assertSee('AI Asisten');
     }
 
     public function test_quiz_room_cbt_and_duration_settings(): void
@@ -525,10 +525,10 @@ class LearningWorkflowTest extends TestCase
             ->assertSee('id="course-discuss-submit-btn"', false)
             ->assertDontSee('Tekan <kbd', false);
 
-        // 3. Coding room renders Lumina AI assistant and 1-click Demo AI helper
+        // 3. Coding room renders AI Asisten and 1-click Demo AI helper
         $codingRoom = $this->get('/mahasiswa/assignment/1/code');
         $codingRoom->assertOk()
-            ->assertSee('Lumina AI')
+            ->assertSee('AI Asisten')
             ->assertSee('1-Klik Masuk Demo AI')
             ->assertSee('Enter ↵', false);
     }
