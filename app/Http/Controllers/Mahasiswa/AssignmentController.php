@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Role;
+use App\Models\Submission;
 use App\Support\LearningPreview;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -38,9 +40,18 @@ class AssignmentController extends Controller
             || (($resource['task_mode'] ?? null) === 'coding');
         abort_unless($isCodingContent, 404);
 
+        $submission = null;
+        if ($user && Schema::hasTable('submissions')) {
+            $submission = Submission::where('assessment_id', $assessment->id)
+                ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                ->latest()
+                ->first();
+        }
+
         return view('mahasiswa.assignment-code', [
             'item' => $resource,
             'course' => LearningPreview::databaseCourse($section),
+            'submission' => $submission,
         ]);
     }
 }
