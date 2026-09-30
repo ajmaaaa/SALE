@@ -1,67 +1,82 @@
 import React from "react";
-import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
+import {
+  AnimatedCursor,
+  InstructionOverlay,
+} from "../../components/ScreencastEngine";
 
 export const Scene5CourseActiveScreencast: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const cardSpring = spring({
-    frame: frame - 10,
-    fps,
-    config: { damping: 14, stiffness: 100 },
-  });
-  const cardScale = interpolate(cardSpring, [0, 1], [0.85, 1]);
-  const cardOpacity = interpolate(frame - 10, [0, 10], [0, 1], {
+  // Cursor moves naturally towards the active course card
+  let cursorX = 960;
+  let cursorY = 558;
+  if (frame < 45) {
+    cursorX = interpolate(frame, [5, 40], [960, 280], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    cursorY = interpolate(frame, [5, 40], [558, 440], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  } else {
+    cursorX = 280;
+    cursorY = 440;
+  }
+
+  // Active focus glow on the enrolled course card (IF204-A Struktur Data)
+  const cardHighlightOpacity = interpolate(frame, [30, 45], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
   return (
-    <div className="relative h-full w-full bg-[#f8fafc] overflow-hidden select-none">
-      {/* Background Dashboard with Active Courses */}
-      <div className="relative w-[1920px] h-[1080px]">
-        <Img
-          src={staticFile("screens/03_mahasiswa_dashboard.png")}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            filter: "blur(4px) brightness(0.92)",
-          }}
-        />
-      </div>
+    <div className="relative w-[1920px] h-[1080px] bg-[#f8fafc] overflow-hidden select-none">
+      {/* Real Screen: Dashboard with Active Courses */}
+      <Img
+        src={staticFile("screens/03_mahasiswa_dashboard.png")}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
 
-      {/* Floating Success Modal */}
-      <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
+      {/* Subtle Focus Ring highlighting the newly joined course card */}
+      {frame >= 30 && (
         <div
           style={{
-            transform: `scale(${cardScale})`,
-            opacity: cardOpacity,
+            position: "absolute",
+            left: 150,
+            top: 350,
+            width: 260,
+            height: 290,
+            borderRadius: 16,
+            boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.6), 0 10px 30px rgba(37, 99, 235, 0.15)",
+            opacity: cardHighlightOpacity,
+            pointerEvents: "none",
           }}
-          className="flex flex-col items-center text-center max-w-lg rounded-3xl bg-white p-10 shadow-2xl border border-slate-200"
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl text-emerald-600 shadow-inner">
-            ✓
-          </div>
+        />
+      )}
 
-          <div className="mt-5 inline-block rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-700 uppercase tracking-widest">
-            BERHASIL TERDAFTAR
-          </div>
+      {/* Animated Cursor */}
+      <AnimatedCursor
+        x={cursorX}
+        y={cursorY}
+        isClicking={false}
+        clickFrame={-1}
+      />
 
-          <h2 className="mt-3 text-3xl font-black text-[#102f50]">
-            Kelas Anda Telah Aktif!
-          </h2>
+      {/* Clean text instruction (NO popup card) */}
+      <InstructionOverlay
+        step="04"
+        actionText="Kelas Resmi Aktif & Siap Diakses"
+        detailText="Selamat belajar. Seluruh materi perkuliahan, kuis berbasis OBE, dan forum diskusi kelas sudah aktif."
+        darkScreen={false}
+      />
 
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Selamat belajar. Seluruh materi perkuliahan, kuis berbasis OBE, dan
-            forum diskusi kelas sudah dapat Anda akses secara penuh.
-          </p>
-
-          <div className="mt-8 pt-6 border-t border-slate-100 w-full flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>Smart Academic Learning Environment</span>
-            <span className="text-blue-800 font-bold">Lanjut ke Episode 02 →</span>
-          </div>
-        </div>
+      {/* Sleek next episode indicator in bottom right */}
+      <div className="absolute bottom-10 right-12 flex items-center gap-3 text-xs font-bold text-slate-500 select-none">
+        <span>SALE Guide Series</span>
+        <span className="h-1 w-1 rounded-full bg-slate-400" />
+        <span className="text-blue-700">Lanjut ke Episode 02 →</span>
       </div>
     </div>
   );

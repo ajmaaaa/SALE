@@ -1,5 +1,5 @@
 import React from "react";
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { interpolate, useCurrentFrame } from "remotion";
 
 export interface CursorProps {
   x: number;
@@ -15,22 +15,20 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
   clickFrame = 0,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  // Click pulse animation
   const framesSinceClick = frame - clickFrame;
-  const showRipple = framesSinceClick >= 0 && framesSinceClick < 18;
-  
-  const rippleScale = interpolate(framesSinceClick, [0, 16], [0.4, 2.2], {
+  const showRipple = framesSinceClick >= 0 && framesSinceClick < 16;
+
+  const rippleScale = interpolate(framesSinceClick, [0, 14], [0.5, 2.0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const rippleOpacity = interpolate(framesSinceClick, [0, 16], [0.8, 0], {
+  const rippleOpacity = interpolate(framesSinceClick, [0, 14], [0.7, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const cursorScale = isClicking ? 0.82 : 1;
+  const cursorScale = isClicking ? 0.84 : 1;
 
   return (
     <div
@@ -43,34 +41,34 @@ export const AnimatedCursor: React.FC<CursorProps> = ({
         zIndex: 9999,
       }}
     >
-      {/* Click Ripple Effect */}
+      {/* Click Ripple Circle */}
       {showRipple && (
         <div
           style={{
             position: "absolute",
             left: 0,
             top: 0,
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             borderRadius: "50%",
             transform: `translate(-50%, -50%) scale(${rippleScale})`,
             opacity: rippleOpacity,
-            backgroundColor: "rgba(56, 189, 248, 0.4)",
-            border: "2px solid rgba(14, 165, 233, 0.9)",
+            backgroundColor: "rgba(56, 189, 248, 0.3)",
+            border: "2px solid rgba(14, 165, 233, 0.8)",
           }}
         />
       )}
 
-      {/* SVG Modern macOS/Clean Pointer Cursor */}
+      {/* SVG Pointer Cursor */}
       <svg
-        width="28"
-        height="28"
+        width="26"
+        height="26"
         viewBox="0 0 24 24"
         fill="none"
         style={{
           transform: `scale(${cursorScale})`,
           transformOrigin: "top left",
-          filter: "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35))",
+          filter: "drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45))",
         }}
       >
         <path
@@ -91,7 +89,6 @@ export const CameraViewport: React.FC<{
   focusY?: number;
   children: React.ReactNode;
 }> = ({ zoom = 1, focusX = 960, focusY = 540, children }) => {
-  // Center of viewport is (960, 540) for 1920x1080
   const translateX = -(focusX - 960) * (zoom - 1);
   const translateY = -(focusY - 540) * (zoom - 1);
 
@@ -119,51 +116,69 @@ export const CameraViewport: React.FC<{
   );
 };
 
-export const StepCallout: React.FC<{
+/**
+ * Clean typography-only instruction overlay (NO bulky cards, NO neon slop)
+ */
+export const InstructionOverlay: React.FC<{
   step: string;
-  title: string;
-  description: string;
-  position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
-}> = ({ step, title, description, position = "top-right" }) => {
+  actionText: string;
+  detailText?: string;
+  darkScreen?: boolean;
+}> = ({ step, actionText, detailText, darkScreen = false }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const enter = spring({
-    frame,
-    fps,
-    config: { damping: 14, stiffness: 100 },
-  });
   const opacity = interpolate(frame, [0, 10], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-
-  const positionClasses = {
-    "top-left": "top-8 left-8",
-    "top-right": "top-8 right-8",
-    "bottom-left": "bottom-12 left-8",
-    "bottom-right": "bottom-12 right-8",
-  };
+  const translateY = interpolate(frame, [0, 10], [8, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   return (
     <div
       style={{
-        transform: `translateY(${interpolate(enter, [0, 1], [-20, 0])}px)`,
+        transform: `translateY(${translateY}px)`,
         opacity,
       }}
-      className={`absolute ${positionClasses[position]} z-50 flex items-start gap-3.5 max-w-md rounded-2xl bg-[#102f50]/95 p-4 text-white shadow-2xl backdrop-blur-md border border-white/20 select-none`}
+      className="absolute bottom-10 left-12 z-50 pointer-events-none select-none max-w-2xl"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-400 text-xs font-black text-[#102f50]">
-        {step}
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`text-xs font-black tracking-widest uppercase ${
+            darkScreen ? "text-cyan-300" : "text-blue-600"
+          }`}
+        >
+          LANGKAH {step}
+        </span>
+        <span
+          className={`h-1 w-1 rounded-full ${
+            darkScreen ? "bg-slate-400" : "bg-slate-400"
+          }`}
+        />
+        <span
+          className={`text-base font-extrabold tracking-tight ${
+            darkScreen
+              ? "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              : "text-[#0f172a] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]"
+          }`}
+        >
+          {actionText}
+        </span>
       </div>
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-          {title}
-        </div>
-        <div className="mt-0.5 text-xs text-slate-200 leading-snug">
-          {description}
-        </div>
-      </div>
+
+      {detailText && (
+        <p
+          className={`mt-1 text-xs font-medium leading-relaxed max-w-xl ${
+            darkScreen
+              ? "text-slate-300 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
+              : "text-slate-600"
+          }`}
+        >
+          {detailText}
+        </p>
+      )}
     </div>
   );
 };

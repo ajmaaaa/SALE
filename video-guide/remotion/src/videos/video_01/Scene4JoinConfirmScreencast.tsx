@@ -2,81 +2,81 @@ import React from "react";
 import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import {
   AnimatedCursor,
-  CameraViewport,
-  StepCallout,
+  InstructionOverlay,
 } from "../../components/ScreencastEngine";
 
 export const Scene4JoinConfirmScreencast: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Camera smooth zoom into card center
-  const zoom = interpolate(frame, [0, 40], [1.0, 1.2], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // Cursor movement to action button (centered at x: 960, y: 558)
-  let cursorX = 1450;
+  // Exact button coordinates measured from live DOM:
+  // x: 1003.8, y: 543.6, width: 145.3, height: 40
+  // Target center: x = 1076, y = 564
+  let cursorX = 960;
   let cursorY = 240;
   let isClicking = false;
   let clickFrame = -1;
 
-  if (frame < 65) {
-    cursorX = interpolate(frame, [15, 60], [1450, 960], {
+  if (frame < 52) {
+    cursorX = interpolate(frame, [10, 48], [960, 1076], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
-    cursorY = interpolate(frame, [15, 60], [240, 558], {
+    cursorY = interpolate(frame, [10, 48], [240, 564], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     });
   } else {
-    cursorX = 960;
-    cursorY = 558;
-    if (frame >= 65 && frame <= 70) {
+    cursorX = 1076;
+    cursorY = 564;
+    if (frame >= 52 && frame <= 58) {
       isClicking = true;
-      clickFrame = 65;
+      clickFrame = 52;
     }
   }
 
   return (
-    <div className="relative h-full w-full bg-[#f8fafc] overflow-hidden select-none">
-      <CameraViewport zoom={zoom} focusX={960} focusY={450}>
-        <div className="relative w-[1920px] h-[1080px]">
-          <Img
-            src={staticFile("screens/13_mahasiswa_join_confirm.png")}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+    <div className="relative w-[1920px] h-[1080px] bg-[#f8fafc] overflow-hidden select-none">
+      {/* Full 1920x1080 Join Confirmation Screen */}
+      <Img
+        src={staticFile("screens/13_mahasiswa_join_confirm.png")}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
 
-          {/* Button Active Highlight */}
-          {isClicking && (
-            <div
-              style={{
-                position: "absolute",
-                left: 875,
-                top: 538,
-                width: 170,
-                height: 40,
-                backgroundColor: "rgba(16, 47, 80, 0.2)",
-                borderRadius: 8,
-              }}
-            />
-          )}
+      {/* Button Hover Glow & Click Active State directly over the exact button */}
+      {frame >= 42 && (
+        <div
+          style={{
+            position: "absolute",
+            left: 1004,
+            top: 544,
+            width: 145,
+            height: 40,
+            borderRadius: 8,
+            boxShadow: isClicking
+              ? "0 0 0 3px rgba(37, 99, 235, 0.5)"
+              : "0 0 16px rgba(56, 189, 248, 0.4)",
+            backgroundColor: isClicking
+              ? "rgba(16, 47, 80, 0.2)"
+              : "transparent",
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
-          <AnimatedCursor
-            x={cursorX}
-            y={cursorY}
-            isClicking={isClicking}
-            clickFrame={clickFrame}
-          />
-        </div>
-      </CameraViewport>
+      {/* Animated Cursor hitting exact center (1076, 564) */}
+      <AnimatedCursor
+        x={cursorX}
+        y={cursorY}
+        isClicking={isClicking}
+        clickFrame={clickFrame}
+      />
 
-      <StepCallout
+      {/* Clean text instruction */}
+      <InstructionOverlay
         step="03"
-        title="Konfirmasi & Masuk Kelas"
-        description="Periksa informasi mata kuliah, semester, dan dosen pengampu, lalu klik tombol untuk masuk ke kelas."
-        position="bottom-left"
+        actionText="Konfirmasi Pendaftaran Kelas"
+        detailText="Periksa informasi mata kuliah, semester, dan dosen pengampu, lalu klik tombol untuk membuka kelas."
+        darkScreen={false}
       />
     </div>
   );
