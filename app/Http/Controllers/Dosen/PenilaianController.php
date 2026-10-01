@@ -432,7 +432,7 @@ class PenilaianController extends Controller
 
     private function cpmksFor(ClassSection $section)
     {
-        return Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->orderBy('code')->get();
+        return Cpmk::forMataKuliah($section->mata_kuliah_id)->orderBy('code')->get();
     }
 
     private function cplsFor(ClassSection $section)
