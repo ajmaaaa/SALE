@@ -33,7 +33,7 @@
         <label class="sr-only" for="type">Jenis</label>
         <select id="type" name="type" class="field sm:w-44" onchange="this.form.submit()">
             <option value="">Semua jenis</option>
-            @foreach(['tugas'=>'Tugas','kuis'=>'Kuis'] as $value=>$label)
+            @foreach(['tugas'=>'Tugas','kuis'=>'Kuis','uts'=>'UTS','uas'=>'UAS'] as $value=>$label)
                 <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
             @endforeach
         </select>
