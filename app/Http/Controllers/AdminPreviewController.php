@@ -476,9 +476,24 @@ class AdminPreviewController extends Controller
                     continue;
                 }
 
-                $roleName = in_array(strtolower($roleRaw), [Role::MAHASISWA, Role::DOSEN, Role::ADMIN, Role::ADMIN_PRODI], true)
-                    ? strtolower($roleRaw)
-                    : Role::MAHASISWA;
+                $cleanRole = trim((string) $roleRaw);
+                $normalizedRole = str_replace(['-', ' '], '_', strtolower($cleanRole));
+                $roleMap = [
+                    'mahasiswa' => Role::MAHASISWA,
+                    'dosen' => Role::DOSEN,
+                    'admin' => Role::ADMIN,
+                    'administrator' => Role::ADMIN,
+                    'admin_prodi' => Role::ADMIN_PRODI,
+                    'adminprodi' => Role::ADMIN_PRODI,
+                    'kaprodi' => Role::ADMIN_PRODI,
+                ];
+                $roleName = $roleMap[$normalizedRole] ?? ($roleMap[strtolower($cleanRole)] ?? null);
+                if (! $roleName) {
+                    $foundRole = Role::whereRaw('LOWER(name) = ?', [$normalizedRole])
+                        ->orWhereRaw('LOWER(label) = ?', [strtolower($cleanRole)])
+                        ->first();
+                    $roleName = $foundRole?->name ?? Role::MAHASISWA;
+                }
                 $roleId = Role::where('name', $roleName)->value('id');
 
                 $existing = User::where('email', strtolower($email))->orWhere('nim_nidn', $idNum)->first();
