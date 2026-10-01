@@ -33,7 +33,8 @@ class ProfileController extends Controller
         $totalClasses = $user
             ? ClassSection::where(function ($query) use ($user) {
                 $query->where('dosen_id', $user->id)
-                    ->orWhere('dosen_pendamping_id', $user->id);
+                    ->orWhere('dosen_pendamping_id', $user->id)
+                    ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
             })->count()
             : 0;
 

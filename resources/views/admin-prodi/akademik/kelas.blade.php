@@ -28,7 +28,7 @@
                 @endif
             </nav>
             <h1 class="page-heading">Kelas Perkuliahan &amp; Penugasan Dosen</h1>
-            <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Wakil, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
+            <p class="page-description">Bentuk kelas mata kuliah, tetapkan Dosen Ketua &amp; Dosen Anggota, serta bagikan Link / Barcode QR Code untuk pendaftaran mahasiswa.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <button type="button" onclick="{{ $activeProdi ? 'openCreateKelasModal()' : 'window.saleNotice({ title: \'Pilih Program Studi\', message: \'Silakan pilih salah satu program studi terlebih dahulu untuk membuka kelas baru.\' })' }}" class="button-primary text-xs whitespace-nowrap w-full sm:w-auto justify-center">
@@ -76,7 +76,7 @@
                         <th class="px-4 py-3 w-28 !align-middle">Kode Kelas</th>
                         <th class="px-4 py-3 !align-middle">Mata Kuliah &amp; SKS</th>
                         <th class="px-4 py-3 w-48 !align-middle">Dosen Ketua</th>
-                        <th class="px-4 py-3 w-40 !align-middle">Dosen Wakil</th>
+                        <th class="px-4 py-3 w-40 !align-middle">Dosen Anggota</th>
                         <th class="px-4 py-3 text-center w-28 !align-middle">Barcode</th>
                         <th class="px-4 py-3 text-center w-28 !align-middle">Kapasitas</th>
                         <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
@@ -102,10 +102,17 @@
                             <span class="font-medium text-ink block">{{ $cls->dosen?->name ?? 'Belum ditentukan' }}</span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
-                            @if($cls->dosenPendamping)
-                                <span class="font-medium text-ink block">{{ $cls->dosenPendamping->name }}</span>
+                            @php
+                                $anggotaList = $cls->dosenAnggota->isNotEmpty()
+                                    ? $cls->dosenAnggota
+                                    : ($cls->dosenPendamping ? collect([$cls->dosenPendamping]) : collect());
+                            @endphp
+                            @if($anggotaList->isNotEmpty())
+                                @foreach($anggotaList as $anggota)
+                                    <span class="font-medium text-ink block">{{ $anggota->name }}</span>
+                                @endforeach
                             @else
-                                <span class="text-muted text-[11px]"></span>
+                                <span class="text-muted text-[11px]">-</span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
@@ -122,7 +129,7 @@
                         <td class="px-4 py-3.5 text-right !align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
-                                        onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id ?? 'null' }}, {{ $cls->dosen_pendamping_id ?? 'null' }})"
+                                        onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id ?? 'null' }}, {{ json_encode($cls->dosenAnggota->isNotEmpty() ? $cls->dosenAnggota->pluck('id')->values()->all() : ($cls->dosen_pendamping_id ? [(int) $cls->dosen_pendamping_id] : [])) }})"
                                         class="button-secondary text-xs py-1 px-2.5">
                                     Ubah
                                 </button>
@@ -200,32 +207,39 @@
                 <input type="number" name="capacity" id="create_capacity" min="1" max="200" value="40" class="field text-xs font-semibold">
             </div>
 
-            <!-- Dosen Ketua & Wakil -->
+            <!-- Dosen Ketua & Dosen Anggota -->
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
                     <label for="create_dosen_id" class="block text-xs font-bold text-ink mb-1">
-                        Dosen Ketua (Koordinator Mata Kuliah) <span class="text-muted font-normal">(Opsional / Masuk via Kode)</span>
+                        Dosen Ketua (Koordinator Mata Kuliah) 
                     </label>
-                    <select name="dosen_id" id="create_dosen_id" class="field text-xs font-semibold">
+                    <select name="dosen_id" id="create_dosen_id" class="field text-xs font-semibold" onchange="handleLeadDosenChange('create')">
                         <option value="">Belum Ditentukan (Dosen Bergabung via Kode / Tautan)</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }} ({{ $dsn->nim_nidn ?? 'NIDN' }})</option>
                         @endforeach
                     </select>
-                    <p class="text-[11px] text-muted mt-0.5">Dosen penanggung jawab utama. Jika dikosongkan, dosen dapat bergabung secara mandiri menggunakan kode kelas yang dibagikan.</p>
                 </div>
 
-                <div>
-                    <label for="create_dosen_wakil" class="block text-xs font-bold text-ink mb-1">
-                        Dosen Wakil (Pendamping / Team-Teaching) <span class="text-muted font-normal">(Opsional)</span>
-                    </label>
-                    <select name="dosen_pendamping_id" id="create_dosen_wakil" class="field text-xs font-semibold">
-                        <option value="">Tanpa Dosen Wakil</option>
-                        @foreach($dosens as $dsn)
-                            <option value="{{ $dsn->id }}">{{ $dsn->name }} ({{ $dsn->nim_nidn ?? 'NIDN' }})</option>
-                        @endforeach
-                    </select>
-                    <p class="text-[11px] text-muted mt-0.5">Dosen pendamping asistensi atau mitra team-teaching yang turut menilai mahasiswa.</p>
+                <div class="pt-2 border-t border-line/60 space-y-2">
+                    <input type="hidden" name="dosen_anggota_present" value="1">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-ink">
+                                Dosen Anggota (Team-Teaching) <span class="text-muted font-normal">(Opsional)</span>
+                            </label>                        
+                        </div>
+                        <button type="button" onclick="addDosenAnggotaRow('create')" class="button-secondary text-xs py-1.5 px-2.5 shrink-0 inline-flex items-center gap-1 font-semibold text-brand hover:text-brand-dark hover:bg-brand/5 border-brand/30 transition cursor-pointer">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Tambah Dosen Anggota</span>
+                        </button>
+                    </div>
+
+                    <div id="create_dosen_anggota_container" class="space-y-2"></div>
+
+                    <div id="create_dosen_anggota_empty" class="rounded-xl border border-dashed border-line bg-white/40 p-3 text-center text-xs text-muted">
+                        Belum ada Dosen Anggota. Klik <button type="button" onclick="addDosenAnggotaRow('create')" class="text-brand font-semibold hover:underline inline cursor-pointer">+ Tambah Dosen Anggota</button> jika kelas ini memiliki dosen pendamping.
+                    </div>
                 </div>
             </div>
 
@@ -262,7 +276,7 @@
             <div class="rounded-xl border border-line bg-canvas/40 p-3.5 space-y-3">
                 <div>
                     <label for="edit_dosen_id" class="block text-xs font-bold text-ink mb-1">Dosen Ketua (Koordinator) <span class="text-muted font-normal">(Opsional)</span></label>
-                    <select name="dosen_id" id="edit_dosen_id" class="field text-xs font-semibold">
+                    <select name="dosen_id" id="edit_dosen_id" class="field text-xs font-semibold" onchange="handleLeadDosenChange('edit')">
                         <option value="">Belum Ditentukan (Dosen Bergabung via Kode)</option>
                         @foreach($dosens as $dsn)
                             <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
@@ -270,14 +284,26 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="edit_dosen_wakil" class="block text-xs font-bold text-ink mb-1">Dosen Wakil (Pendamping)</label>
-                    <select name="dosen_pendamping_id" id="edit_dosen_wakil" class="field text-xs font-semibold">
-                        <option value="">Tanpa Dosen Wakil</option>
-                        @foreach($dosens as $dsn)
-                            <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
-                        @endforeach
-                    </select>
+                <div class="pt-2 border-t border-line/60 space-y-2">
+                    <input type="hidden" name="dosen_anggota_present" value="1">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-ink">
+                                Dosen Anggota (Team-Teaching) <span class="text-muted font-normal">(Opsional)</span>
+                            </label>
+                            <p class="text-[11px] text-muted mt-0.5">Dosen pendamping asistensi atau mitra team-teaching yang turut menilai mahasiswa.</p>
+                        </div>
+                        <button type="button" onclick="addDosenAnggotaRow('edit')" class="button-secondary text-xs py-1.5 px-2.5 shrink-0 inline-flex items-center gap-1 font-semibold text-brand hover:text-brand-dark hover:bg-brand/5 border-brand/30 transition cursor-pointer">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Tambah Dosen Anggota</span>
+                        </button>
+                    </div>
+
+                    <div id="edit_dosen_anggota_container" class="space-y-2"></div>
+
+                    <div id="edit_dosen_anggota_empty" class="rounded-xl border border-dashed border-line bg-white/40 p-3 text-center text-xs text-muted">
+                        Belum ada Dosen Anggota. Klik <button type="button" onclick="addDosenAnggotaRow('edit')" class="text-brand font-semibold hover:underline inline cursor-pointer">+ Tambah Dosen Anggota</button> jika kelas ini memiliki dosen pendamping.
+                    </div>
                 </div>
             </div>
 
@@ -349,7 +375,155 @@
 
 
 <script>
+    const availableDosens = [
+        @foreach($dosens as $dsn)
+            { id: {{ (int) $dsn->id }}, name: {!! json_encode($dsn->name) !!}, nidn: {!! json_encode($dsn->nim_nidn ?? 'NIDN') !!} },
+        @endforeach
+    ];
+
+    function syncDosenAnggotaOptions(prefix) {
+        const leadSelect = document.getElementById(`${prefix}_dosen_id`);
+        const leadId = leadSelect ? String(leadSelect.value || '') : '';
+        const container = document.getElementById(`${prefix}_dosen_anggota_container`);
+        const emptyState = document.getElementById(`${prefix}_dosen_anggota_empty`);
+        if (!container) return;
+
+        const rows = container.querySelectorAll('.dosen-anggota-row');
+        if (emptyState) {
+            emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+        }
+
+        // Pass 1: Validate selected values, clear duplicates and conflicts with Dosen Ketua
+        const selectedIds = [];
+        rows.forEach(row => {
+            const sel = row.querySelector('.dosen-anggota-select');
+            if (sel && sel.value) {
+                const val = String(sel.value);
+                if (val === leadId) {
+                    sel.value = '';
+                    if (window.saleNotice) {
+                        window.saleNotice({
+                            title: 'Dosen Sudah Dipilih',
+                            message: 'Dosen ini sudah dipilih sebagai Dosen Ketua, tidak dapat dipilih lagi sebagai Dosen Anggota.'
+                        });
+                    }
+                } else if (selectedIds.includes(val)) {
+                    sel.value = '';
+                    if (window.saleNotice) {
+                        window.saleNotice({
+                            title: 'Dosen Sudah Dipilih',
+                            message: 'Dosen ini sudah dipilih pada baris Dosen Anggota lain.'
+                        });
+                    }
+                } else {
+                    selectedIds.push(val);
+                }
+            }
+        });
+
+        // Pass 2: Update options in each select
+        rows.forEach(row => {
+            const sel = row.querySelector('.dosen-anggota-select');
+            if (!sel) return;
+            const currentVal = String(sel.value || '');
+
+            Array.from(sel.options).forEach(opt => {
+                if (!opt.value) return; // Keep "Pilih Dosen Anggota..." enabled
+                const optVal = String(opt.value);
+
+                let baseText = opt.getAttribute('data-base-text');
+                if (!baseText) {
+                    baseText = opt.textContent.replace(/\s*\((Dosen Ketua|Sudah dipilih)\)/g, '').trim();
+                    opt.setAttribute('data-base-text', baseText);
+                }
+
+                const isLead = optVal === leadId;
+                const isChosenElsewhere = selectedIds.includes(optVal) && optVal !== currentVal;
+
+                opt.disabled = isLead || isChosenElsewhere;
+
+                if (isLead) {
+                    opt.textContent = `${baseText} (Dosen Ketua)`;
+                } else if (isChosenElsewhere) {
+                    opt.textContent = `${baseText} (Sudah dipilih)`;
+                } else {
+                    opt.textContent = baseText;
+                }
+            });
+        });
+    }
+
+    function addDosenAnggotaRow(prefix, selectedValue = '') {
+        const leadSelect = document.getElementById(`${prefix}_dosen_id`);
+        const leadId = leadSelect ? String(leadSelect.value || '') : '';
+        const container = document.getElementById(`${prefix}_dosen_anggota_container`);
+        if (!container) return;
+
+        const currentRows = container.querySelectorAll('.dosen-anggota-row');
+        const selectedCount = Array.from(currentRows).filter(r => {
+            const sel = r.querySelector('.dosen-anggota-select');
+            return sel && sel.value;
+        }).length;
+
+        const totalUsed = selectedCount + (leadId ? 1 : 0);
+        if (!selectedValue && totalUsed >= availableDosens.length && availableDosens.length > 0) {
+            if (window.saleNotice) {
+                window.saleNotice({
+                    title: 'Batas Pilihan Dosen',
+                    message: 'Semua dosen yang tersedia sudah dipilih sebagai Dosen Ketua atau Dosen Anggota.'
+                });
+            }
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'dosen-anggota-row flex items-center gap-2';
+
+        let optionsHtml = '<option value="">Pilih Dosen Anggota...</option>';
+        availableDosens.forEach(d => {
+            const label = `${d.name} (${d.nidn})`;
+            optionsHtml += `<option value="${d.id}" data-base-text="${label}">${label}</option>`;
+        });
+
+        row.innerHTML = `
+            <div class="flex-1 min-w-0">
+                <select name="dosen_anggota_ids[]" class="dosen-anggota-select field text-xs font-semibold w-full" onchange="syncDosenAnggotaOptions('${prefix}')">
+                    ${optionsHtml}
+                </select>
+            </div>
+            <button type="button" onclick="removeDosenAnggotaRow(this, '${prefix}')" class="button-secondary text-xs py-2 px-2.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line shrink-0 inline-flex items-center gap-1 cursor-pointer" title="Hapus Dosen Anggota">
+                <span>Hapus</span>
+            </button>
+        `;
+
+        container.appendChild(row);
+
+        if (selectedValue) {
+            const sel = row.querySelector('.dosen-anggota-select');
+            if (sel) sel.value = String(selectedValue);
+        }
+
+        syncDosenAnggotaOptions(prefix);
+    }
+
+    function removeDosenAnggotaRow(btn, prefix) {
+        const row = btn.closest('.dosen-anggota-row');
+        if (row) {
+            row.remove();
+            syncDosenAnggotaOptions(prefix);
+        }
+    }
+
+    function handleLeadDosenChange(prefix) {
+        syncDosenAnggotaOptions(prefix);
+    }
+
     function openCreateKelasModal() {
+        const container = document.getElementById('create_dosen_anggota_container');
+        if (container) container.innerHTML = '';
+        const leadSelect = document.getElementById('create_dosen_id');
+        if (leadSelect) leadSelect.value = '';
+        syncDosenAnggotaOptions('create');
         document.getElementById('createKelasModal').classList.remove('hidden');
         document.getElementById('createKelasModal').classList.add('flex');
     }
@@ -358,13 +532,29 @@
         document.getElementById('createKelasModal').classList.remove('flex');
     }
 
-    function openEditKelasModal(id, sectionCode, capacity, dosenId, dosenWakilId) {
+    function openEditKelasModal(id, sectionCode, capacity, dosenId, dosenAnggotaIds) {
         const form = document.getElementById('editKelasForm');
         form.action = `/admin-prodi/akademik/kelas/${id}`;
         document.getElementById('edit_section_code').value = sectionCode;
         document.getElementById('edit_capacity').value = capacity || '';
         document.getElementById('edit_dosen_id').value = dosenId || '';
-        document.getElementById('edit_dosen_wakil').value = dosenWakilId || '';
+
+        const container = document.getElementById('edit_dosen_anggota_container');
+        if (container) container.innerHTML = '';
+
+        let selectedIds = [];
+        if (Array.isArray(dosenAnggotaIds)) {
+            selectedIds = dosenAnggotaIds.map(Number).filter(n => n > 0);
+        } else if (dosenAnggotaIds) {
+            selectedIds = [Number(dosenAnggotaIds)].filter(n => n > 0);
+        }
+
+        selectedIds.forEach(dsnId => {
+            addDosenAnggotaRow('edit', dsnId);
+        });
+
+        syncDosenAnggotaOptions('edit');
+
         document.getElementById('editKelasModal').classList.remove('hidden');
         document.getElementById('editKelasModal').classList.add('flex');
     }

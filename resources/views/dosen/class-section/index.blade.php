@@ -55,8 +55,15 @@
                 @php
                     $progress = $section->grading_progress;
                     $currentUserId = auth()->id();
-                    $isWakil = $section->dosen_pendamping_id == $currentUserId;
-                    $searchData = mb_strtolower($section->mataKuliah->code . ' ' . $section->section_code . ' ' . $section->mataKuliah->name . ' ' . $section->dosen->name . ' ' . ($section->dosenPendamping?->name ?? ''));
+                    $isAnggota = ($section->dosen_pendamping_id == $currentUserId)
+                        || ($section->relationLoaded('dosenAnggota')
+                            ? $section->dosenAnggota->contains('id', $currentUserId)
+                            : $section->dosenAnggota()->where('users.id', $currentUserId)->exists());
+                    $isWakil = $isAnggota;
+                    $allAnggota = $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty()
+                        ? $section->dosenAnggota
+                        : ($section->dosenPendamping ? collect([$section->dosenPendamping]) : collect());
+                    $searchData = mb_strtolower($section->mataKuliah->code . ' ' . $section->section_code . ' ' . $section->mataKuliah->name . ' ' . $section->dosen->name . ' ' . $allAnggota->pluck('name')->join(' '));
                 @endphp
                 <div class="class-card-item h-full flex flex-col" data-search="{{ $searchData }}">
                 @if($isRekap)
@@ -67,8 +74,8 @@
                             <div class="flex items-center justify-between gap-3 mb-2">
                                 <div class="flex items-center gap-2 min-w-0">
                                     <span class="text-xs font-bold font-mono text-brand shrink-0">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
-                                    @if($isWakil)
-                                        <span class="text-xs text-muted shrink-0">(Dosen Wakil)</span>
+                                    @if($isAnggota)
+                                        <span class="text-xs text-muted shrink-0">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
                                     @endif
                                     <span class="text-slate-300 shrink-0">•</span>
                                     <span class="text-xs text-muted truncate">{{ $section->semester->name }}</span>
@@ -90,7 +97,7 @@
                             </h2>
                             
                             <p class="text-xs text-muted mt-1">
-                                Pengampu: {{ $section->dosen->name }}@if($section->dosenPendamping), {{ $section->dosenPendamping->name }}@endif
+                                Pengampu: {{ $section->dosen->name }}@if($allAnggota->isNotEmpty()), {{ $allAnggota->pluck('name')->join(', ') }}@endif
                             </p>
 
                             {{-- Variasi B: Baris Laporan Ringkas Bersih (Row Data Ledger) --}}
@@ -139,8 +146,8 @@
                                 <div class="space-y-1.5 flex-1 min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="text-xs font-bold font-mono text-brand">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
-                                        @if($isWakil)
-                                            <span class="text-xs text-muted">(Dosen Wakil)</span>
+                                        @if($isAnggota)
+                                            <span class="text-xs text-muted">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
                                         @endif
                                     </div>
                                     <h2 class="text-base font-bold text-ink leading-snug line-clamp-2 min-h-[2.75rem] group-hover:text-brand transition-colors" title="{{ $section->mataKuliah->name }}">
@@ -151,7 +158,7 @@
                                         <span>{{ $section->semester->name }}</span>
                                     </p>
                                     <p class="text-xs text-muted mt-0.5">
-                                        Pengampu: {{ $section->dosen->name }}@if($section->dosenPendamping), {{ $section->dosenPendamping->name }}@endif
+                                        Pengampu: {{ $section->dosen->name }}@if($allAnggota->isNotEmpty()), {{ $allAnggota->pluck('name')->join(', ') }}@endif
                                     </p>
                                 </div>
 

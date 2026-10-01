@@ -103,8 +103,8 @@ class LaporanProdiController extends AdminProdiController
 
         // ── Baris 8–12: Data ringkasan (5 metrik) ───────────────────────────
         $metricsData = [
-            ['Total Dosen Homebase / Pengampu',        $data['metrics']['total_dosen']    . ' Orang'],
-            ['Total Mahasiswa Terdaftar di Prodi',      $data['metrics']['total_mahasiswa'] . ' Orang'],
+            ['Total Dosen Pengampu',                    $data['metrics']['total_dosen']    . ' Orang'],
+            ['Total Mahasiswa Terdaftar (Aktif)',      $data['metrics']['total_mahasiswa'] . ' Orang'],
             ['Mahasiswa Baru Masuk Semester Ini',       $data['metrics']['mahasiswa_baru']  . ' Orang'],
             ['Total Kelas Perkuliahan Aktif',           $data['metrics']['total_kelas']     . ' Kelas'],
             ['Rata-rata Nilai Mahasiswa (Skala 0-100)',
@@ -145,7 +145,7 @@ class LaporanProdiController extends AdminProdiController
         // ── Baris 16: Header tabel kelas ─────────────────────────────────────
         $r = 16;
         $tableHeaderRow = $r;
-        $headers = ['No', 'Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kode Kelas', 'Dosen Ketua', 'Dosen Wakil', 'Jml Mhs', 'Jml Asesmen', 'Rata-rata Nilai'];
+        $headers = ['No', 'Kode MK', 'Nama Mata Kuliah', 'SKS', 'Kode Kelas', 'Dosen Ketua', 'Dosen Anggota', 'Jml Mhs', 'Jml Asesmen', 'Rata-rata Nilai'];
         foreach ($headers as $k => $h) {
             $sheet->setCellValue($colLetters[$k] . $r, $h);
         }
@@ -193,7 +193,7 @@ class LaporanProdiController extends AdminProdiController
         if ($no > 1) {
             $sheet->setCellValue('A' . $r, 'TOTAL');
             $sheet->mergeCells('A' . $r . ':G' . $r);
-            $sheet->setCellValue('H' . $r, array_sum(array_column($data['classReports'], 'students_count')));
+            $sheet->setCellValue('H' . $r, $data['metrics']['total_mahasiswa']);
             $sheet->setCellValue('I' . $r, array_sum(array_column($data['classReports'], 'assessments_count')));
             $sheet->setCellValue('J' . $r, count($data['classReports']) . ' Kelas');
             $sheet->getStyle("A{$r}:J{$r}")->applyFromArray([
@@ -246,21 +246,66 @@ class LaporanProdiController extends AdminProdiController
         $prodiId = $activeProdi?->id;
         $semesterId = $activeSemester?->id;
 
-        // 1. Dosen count: total dosen prodi + dosen pengampu kelas di prodi semester ini
-        $dosenHomebaseCount = User::withRoleName(Role::DOSEN)
-            ->where(fn ($q) => $q->where('prodi_id', $prodiId)->orWhere('managing_prodi_id', $prodiId))
-            ->count();
+        // 1. Kelas-kelas di bawah prodi & semester ini
+        $classes = ClassSection::query()
+            ->when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))
+            ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
+            ->with(['mataKuliah', 'dosen', 'dosenPendamping', 'dosenAnggota', 'assessments', 'students'])
+            ->withCount(['students', 'assessments'])
+            ->get();
 
-        // 2. Mahasiswa count di prodi
-        $mahasiswaTotalCount = User::withRoleName(Role::MAHASISWA)
-            ->where('prodi_id', $prodiId)
-            ->count();
+        $totalClassCount = $classes->count();
 
-        // 3. Mahasiswa Baru Masuk per Semester (intake)
-        // Kita hitung mahasiswa yang terdaftar di prodi yang masuk pada semester ini (atau semester year)
+        // 2. Dosen pengampu unik di prodi semester ini (Ketua, Pendamping, atau Anggota dihitung 1 orang)
+        $dosenIds = collect();
+        foreach ($classes as $section) {
+            if (! empty($section->dosen_id)) {
+                $dosenIds->push((int) $section->dosen_id);
+            }
+            if (! empty($section->dosen_pendamping_id)) {
+                $dosenIds->push((int) $section->dosen_pendamping_id);
+            }
+            if ($section->relationLoaded('dosenAnggota')) {
+                foreach ($section->dosenAnggota as $anggota) {
+                    if (! empty($anggota->id)) {
+                        $dosenIds->push((int) $anggota->id);
+                    }
+                }
+            }
+        }
+        $uniqueDosenCount = $dosenIds->unique()->values()->count();
+
+        // 3. Mahasiswa terdaftar di prodi & semester ini secara unik (tanpa duplikasi antar kelas)
+        $studentIdsFromClasses = $classes->flatMap(function ($section) {
+            return $section->relationLoaded('students')
+                ? $section->students->pluck('id')
+                : collect();
+        });
+
+        $studentIdsFromProdi = User::withRoleName(Role::MAHASISWA)
+            ->when($prodiId, fn ($q) => $q->where('prodi_id', $prodiId))
+            ->when($semesterId, fn ($q) => $q->whereHas('classSectionsEnrolled', fn ($sq) => $sq->where('semester_id', $semesterId)))
+            ->pluck('id');
+
+        $uniqueStudentIds = $studentIdsFromClasses
+            ->concat($studentIdsFromProdi)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $mahasiswaTotalCount = $uniqueStudentIds->count();
+
+        // 4. Mahasiswa Baru Masuk per Semester (intake)
         $targetYear = (int) ($activeSemester?->academic_year_start ?? substr($activeSemester?->code ?? '', 0, 4));
         $mahasiswaBaruCount = User::withRoleName(Role::MAHASISWA)
-            ->where('prodi_id', $prodiId)
+            ->where(function ($q) use ($prodiId, $uniqueStudentIds) {
+                if ($prodiId) {
+                    $q->where('prodi_id', $prodiId);
+                }
+                if ($uniqueStudentIds->isNotEmpty()) {
+                    $prodiId ? $q->orWhereIn('id', $uniqueStudentIds) : $q->whereIn('id', $uniqueStudentIds);
+                }
+            })
             ->where(function ($q) use ($targetYear) {
                 if ($targetYear > 0) {
                     $q->where('angkatan', $targetYear)
@@ -269,16 +314,6 @@ class LaporanProdiController extends AdminProdiController
                 }
             })
             ->count();
-
-        // 4. Kelas-kelas di bawah prodi & semester ini
-        $classes = ClassSection::query()
-            ->when($prodiId, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId)))
-            ->when($semesterId, fn ($q) => $q->where('semester_id', $semesterId))
-            ->with(['mataKuliah', 'dosen', 'dosenPendamping', 'assessments', 'students'])
-            ->withCount(['students', 'assessments'])
-            ->get();
-
-        $totalClassCount = $classes->count();
 
         // 5. Rata-rata Nilai Mahasiswa per Semester
         $classReports = [];
@@ -305,19 +340,24 @@ class LaporanProdiController extends AdminProdiController
 
             $classAvg = ! empty($classScoresList) ? round(array_sum($classScoresList) / count($classScoresList), 2) : null;
 
-            $classReports[] = [
-                'section_id' => $section->id,
-                'mk_code' => $section->mataKuliah->code,
-                'mk_name' => $section->mataKuliah->name,
-                'semester_paket' => $section->mataKuliah->semester_paket,
-                'sks' => $section->mataKuliah->sks,
-                'section_code' => $section->section_code,
-                'dosen_ketua' => $section->dosen?->name ?? '-',
-                'dosen_wakil' => $section->dosenPendamping?->name ?? '-',
-                'students_count' => $section->students_count,
-                'assessments_count' => $section->assessments_count,
-                'class_average' => $classAvg,
-            ];
+                $anggotaNames = $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty()
+                    ? $section->dosenAnggota->pluck('name')->join(', ')
+                    : ($section->dosenPendamping?->name ?? '-');
+
+                $classReports[] = [
+                    'section_id' => $section->id,
+                    'mk_code' => $section->mataKuliah->code,
+                    'mk_name' => $section->mataKuliah->name,
+                    'semester_paket' => $section->mataKuliah->semester_paket,
+                    'sks' => $section->mataKuliah->sks,
+                    'section_code' => $section->section_code,
+                    'dosen_ketua' => $section->dosen?->name ?? '-',
+                    'dosen_wakil' => $anggotaNames,
+                    'dosen_anggota' => $anggotaNames,
+                    'students_count' => $section->students_count,
+                    'assessments_count' => $section->assessments_count,
+                    'class_average' => $classAvg,
+                ];
         }
 
         $overallAverage = ! empty($allStudentClassGrades)
@@ -325,7 +365,7 @@ class LaporanProdiController extends AdminProdiController
             : null;
 
         $metrics = [
-            'total_dosen' => $dosenHomebaseCount,
+            'total_dosen' => $uniqueDosenCount,
             'total_mahasiswa' => $mahasiswaTotalCount,
             'mahasiswa_baru' => $mahasiswaBaruCount,
             'total_kelas' => $totalClassCount,

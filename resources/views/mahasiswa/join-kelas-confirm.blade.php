@@ -59,10 +59,15 @@
                     <span class="text-muted text-[11px] block">Dosen Ketua:</span>
                     <span class="font-bold text-ink">{{ $section->dosen?->name ?? '-' }}</span>
                 </div>
-                @if($section->dosenPendamping)
+                @php
+                    $allAnggota = $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty()
+                        ? $section->dosenAnggota
+                        : ($section->dosenPendamping ? collect([$section->dosenPendamping]) : collect());
+                @endphp
+                @if($allAnggota->isNotEmpty())
                 <div>
-                    <span class="text-muted text-[11px] block">Dosen Wakil:</span>
-                    <span class="font-bold text-ink">{{ $section->dosenPendamping->name }}</span>
+                    <span class="text-muted text-[11px] block">Dosen Anggota:</span>
+                    <span class="font-bold text-ink">{{ $allAnggota->pluck('name')->join(', ') }}</span>
                 </div>
                 @endif
                 @if($section->capacity)

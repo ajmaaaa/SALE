@@ -81,6 +81,7 @@ class EnrollmentController extends Controller
 
                 if (! $section->dosen_pendamping_id) {
                     $section->update(['dosen_pendamping_id' => $user->id]);
+                    $section->dosenAnggota()->syncWithoutDetaching([$user->id]);
 
                     return [$section, 'joined_as_assistant'];
                 }
@@ -101,7 +102,7 @@ class EnrollmentController extends Controller
             return [$section, 'success'];
         }, 3);
 
-        $section->load(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])->loadCount('students');
+        $section->load(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])->loadCount('students');
 
         $message = match ($status) {
             'success' => 'Selamat! Anda berhasil bergabung ke kelas '.$section->display_code.' ('.$section->mataKuliah->name.').',
@@ -163,6 +164,7 @@ class EnrollmentController extends Controller
 
                 if (! $section->dosen_pendamping_id) {
                     $section->update(['dosen_pendamping_id' => $user->id]);
+                    $section->dosenAnggota()->syncWithoutDetaching([$user->id]);
 
                     return [$section, 'joined_as_assistant'];
                 }
@@ -183,7 +185,7 @@ class EnrollmentController extends Controller
             return [$section, 'success'];
         }, 3);
 
-        $section->load(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping']);
+        $section->load(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota']);
 
         if ($status === 'lecturer_slots_full') {
             return back()->with('join_error', 'Kelas ini sudah memiliki Dosen Ketua dan Dosen Pendamping.')->withInput();
@@ -208,7 +210,7 @@ class EnrollmentController extends Controller
     private function section(string $code): ?ClassSection
     {
         return ClassSection::where('enrollment_code', strtoupper(trim($code)))
-            ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])
+            ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])
             ->withCount('students')
             ->first();
     }

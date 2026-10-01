@@ -28,7 +28,7 @@ class AdminProdiDashboardController extends AdminProdiController
             'total_cpmk' => Cpmk::whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId))->count(),
         ];
 
-        $recentClasses = ClassSection::with(['mataKuliah.prodi', 'dosen', 'dosenPendamping', 'semester'])
+        $recentClasses = ClassSection::with(['mataKuliah.prodi', 'dosen', 'dosenPendamping', 'dosenAnggota', 'semester'])
             ->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId))
             ->withCount('students')
             ->latest()

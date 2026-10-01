@@ -7,6 +7,8 @@ use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Room;
+use App\Models\RoomMember;
 use App\Models\Semester;
 use App\Models\User;
 use App\Services\QrCodeService;
@@ -141,7 +143,9 @@ class AkademikProdiController extends AdminProdiController
         $dosens = User::withRoleName(Role::DOSEN)
             ->where('is_active', true)
             ->when($activeProdi && ! $hasCrossProdiCourse, fn ($query) => $query->where(function ($subQuery) use ($activeProdi) {
-                $subQuery->where('prodi_id', $activeProdi->id)->orWhere('managing_prodi_id', $activeProdi->id);
+                $subQuery->where('prodi_id', $activeProdi->id)
+                    ->orWhere('managing_prodi_id', $activeProdi->id)
+                    ->orWhereNull('prodi_id');
             }))
             ->orderBy('name')
             ->get();
@@ -153,7 +157,7 @@ class AkademikProdiController extends AdminProdiController
         $classes = ClassSection::query()
             ->when($activeProdi, fn ($q) => $q->whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $activeProdi->id)))
             ->when($selectedSemesterId, fn ($q) => $q->where('semester_id', $selectedSemesterId))
-            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
+            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])
             ->withCount('students')
             ->orderBy('mata_kuliah_id')
             ->orderBy('section_code')
@@ -211,21 +215,71 @@ class AkademikProdiController extends AdminProdiController
                     }
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
-                        $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        $fail('Pengguna yang dipilih sebagai dosen anggota harus memiliki peran Dosen.');
+                    }
+                },
+            ],
+            'dosen_anggota_ids' => ['nullable', 'array'],
+            'dosen_anggota_ids.*' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+                'different:dosen_id',
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen anggota harus memiliki peran Dosen.');
                     }
                 },
             ],
         ], [
             'section_code.unique' => 'Kelas dengan kode seksi ini sudah ada untuk mata kuliah dan semester yang dipilih.',
-            'dosen_pendamping_id.different' => 'Dosen Wakil (Pendamping) tidak boleh sama dengan Dosen Ketua.',
+            'dosen_pendamping_id.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
+            'dosen_anggota_ids.*.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
         ]);
+
+        $validated['dosen_id'] = ! empty($validated['dosen_id']) ? (int) $validated['dosen_id'] : null;
+
+        $dosenAnggotaIds = [];
+        if ($request->has('dosen_anggota_present') || $request->has('dosen_anggota_ids')) {
+            $rawIds = (array) $request->input('dosen_anggota_ids', []);
+            $dosenAnggotaIds = array_values(array_unique(array_filter(array_map('intval', $rawIds))));
+        } elseif (! empty($validated['dosen_pendamping_id'])) {
+            $dosenAnggotaIds = [(int) $validated['dosen_pendamping_id']];
+        }
+
+        unset($validated['dosen_anggota_ids'], $validated['dosen_anggota_present']);
+        $validated['dosen_pendamping_id'] = $dosenAnggotaIds[0] ?? null;
 
         $validated['enrollment_code'] = ClassSection::generateUniqueEnrollmentCode();
         $this->validateLecturerProdi($mataKuliah, $validated['dosen_id'] ?? null, 'dosen_id');
-        $this->validateLecturerProdi($mataKuliah, $validated['dosen_pendamping_id'] ?? null, 'dosen_pendamping_id');
+
+        $fieldForAnggota = $request->has('dosen_anggota_ids') ? 'dosen_anggota_ids' : 'dosen_pendamping_id';
+        foreach ($dosenAnggotaIds as $anggotaId) {
+            $this->validateLecturerProdi($mataKuliah, $anggotaId, $fieldForAnggota);
+        }
 
         $section = ClassSection::create($validated);
+        $section->dosenAnggota()->sync($dosenAnggotaIds);
         $mk = $section->mataKuliah;
+
+        $allLecturers = array_values(array_unique(array_filter(array_merge(
+            [$section->dosen_id, $section->dosen_pendamping_id],
+            $dosenAnggotaIds
+        ))));
+
+        if (! empty($allLecturers)) {
+            $room = Room::forCourse($section->id, $mk->name);
+            foreach ($allLecturers as $lecturerId) {
+                RoomMember::firstOrCreate(
+                    ['room_id' => $room->id, 'user_id' => $lecturerId],
+                    ['role' => 'dosen', 'joined_at' => now()]
+                );
+            }
+        }
 
         return redirect()->route('admin-prodi.akademik.kelas', [
             'prodi_id' => $mk->prodi_id,
@@ -268,19 +322,70 @@ class AkademikProdiController extends AdminProdiController
                     }
                     $user = User::with('role')->find($value);
                     if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
-                        $fail('Pengguna yang dipilih sebagai dosen pendamping harus memiliki peran Dosen.');
+                        $fail('Pengguna yang dipilih sebagai dosen anggota harus memiliki peran Dosen.');
+                    }
+                },
+            ],
+            'dosen_anggota_ids' => ['nullable', 'array'],
+            'dosen_anggota_ids.*' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+                'different:dosen_id',
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $user = User::with('role')->find($value);
+                    if ($user && ! in_array($user->role?->name, [Role::DOSEN], true)) {
+                        $fail('Pengguna yang dipilih sebagai dosen anggota harus memiliki peran Dosen.');
                     }
                 },
             ],
         ], [
             'section_code.unique' => 'Kode kelas ini sudah ada.',
-            'dosen_pendamping_id.different' => 'Dosen Wakil tidak boleh sama dengan Dosen Ketua.',
+            'dosen_pendamping_id.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
+            'dosen_anggota_ids.*.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
         ]);
+
+        $validated['dosen_id'] = ! empty($validated['dosen_id']) ? (int) $validated['dosen_id'] : null;
+
+        $dosenAnggotaIds = [];
+        if ($request->has('dosen_anggota_present') || $request->has('dosen_anggota_ids')) {
+            $rawIds = (array) $request->input('dosen_anggota_ids', []);
+            $dosenAnggotaIds = array_values(array_unique(array_filter(array_map('intval', $rawIds))));
+        } elseif (! empty($validated['dosen_pendamping_id'])) {
+            $dosenAnggotaIds = [(int) $validated['dosen_pendamping_id']];
+        }
+
+        unset($validated['dosen_anggota_ids'], $validated['dosen_anggota_present']);
+        $validated['dosen_pendamping_id'] = $dosenAnggotaIds[0] ?? null;
 
         $validated['section_code'] = strtoupper(trim($validated['section_code']));
         $this->validateLecturerProdi($section->mataKuliah, $validated['dosen_id'] ?? null, 'dosen_id');
-        $this->validateLecturerProdi($section->mataKuliah, $validated['dosen_pendamping_id'] ?? null, 'dosen_pendamping_id');
+
+        $fieldForAnggota = $request->has('dosen_anggota_ids') ? 'dosen_anggota_ids' : 'dosen_pendamping_id';
+        foreach ($dosenAnggotaIds as $anggotaId) {
+            $this->validateLecturerProdi($section->mataKuliah, $anggotaId, $fieldForAnggota);
+        }
+
         $section->update($validated);
+        $section->dosenAnggota()->sync($dosenAnggotaIds);
+
+        $allLecturers = array_values(array_unique(array_filter(array_merge(
+            [$section->dosen_id, $section->dosen_pendamping_id],
+            $dosenAnggotaIds
+        ))));
+
+        if (! empty($allLecturers)) {
+            $room = Room::forCourse($section->id, $section->mataKuliah->name);
+            foreach ($allLecturers as $lecturerId) {
+                RoomMember::firstOrCreate(
+                    ['room_id' => $room->id, 'user_id' => $lecturerId],
+                    ['role' => 'dosen', 'joined_at' => now()]
+                );
+            }
+        }
 
         return redirect()->route('admin-prodi.akademik.kelas', [
             'prodi_id' => $section->mataKuliah->prodi_id,
@@ -309,19 +414,25 @@ class AkademikProdiController extends AdminProdiController
         ])->with('notice', "Kelas {$name} berhasil dihapus.");
     }
 
-    private function validateLecturerProdi(MataKuliah $mataKuliah, ?int $userId, string $field): void
+    private function validateLecturerProdi(MataKuliah $mataKuliah, mixed $userId, string $field): void
     {
+        $userId = ! empty($userId) ? (int) $userId : null;
         if (! $userId) {
             return;
         }
         $lecturer = User::findOrFail($userId);
-        $belongsToManagedProdi = (int) $lecturer->prodi_id === (int) $mataKuliah->prodi_id
+        $belongsToManagedProdi = is_null($lecturer->prodi_id)
+            || (int) $lecturer->prodi_id === (int) $mataKuliah->prodi_id
             || (int) $lecturer->managing_prodi_id === (int) $mataKuliah->prodi_id;
 
         if (! $belongsToManagedProdi && ! $mataKuliah->is_lintas_prodi) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 $field => 'Dosen dari program studi lain hanya dapat dipilih untuk mata kuliah yang ditandai lintas prodi.',
             ]);
+        }
+
+        if (is_null($lecturer->prodi_id)) {
+            $lecturer->update(['prodi_id' => $mataKuliah->prodi_id]);
         }
     }
 

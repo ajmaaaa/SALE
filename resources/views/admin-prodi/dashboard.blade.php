@@ -18,7 +18,7 @@
                 </span>
             </nav>
             <h1 class="page-heading">Tata Kelola Akademik &amp; Kurikulum Prodi</h1>
-            <p class="page-description">Kelola kurikulum OBE (CPL &amp; CPMK), penugasan Dosen Ketua &amp; Wakil kelas, input mahasiswa, serta laporan semesteran.</p>
+            <p class="page-description">Kelola kurikulum OBE (CPL &amp; CPMK), penugasan Dosen Ketua &amp; Dosen Anggota kelas, input mahasiswa, serta laporan semesteran.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <a href="{{ route('admin-prodi.kurikulum.index') }}" class="button-secondary text-xs flex-1 sm:flex-initial text-center justify-center">Kelola Kurikulum OBE</a>
@@ -123,7 +123,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-base font-bold text-ink">Kelas Perkuliahan Aktif Terbaru</h2>
-                <p class="text-xs text-muted">Daftar seksi kelas dengan penetapan Dosen Ketua &amp; Dosen Wakil</p>
+                <p class="text-xs text-muted">Daftar seksi kelas dengan penetapan Dosen Ketua &amp; Dosen Anggota</p>
             </div>
             <a href="{{ route('admin-prodi.akademik.kelas') }}" class="text-xs font-semibold text-brand hover:underline">Lihat Semua Kelas</a>
         </div>
@@ -135,7 +135,7 @@
                         <th class="px-4 py-3.5 w-32 !align-middle">Kode / Kelas</th>
                         <th class="px-4 py-3.5 !align-middle">Mata Kuliah</th>
                         <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua (Koordinator)</th>
-                        <th class="px-4 py-3.5 w-44 !align-middle">Dosen Wakil (Pendamping)</th>
+                        <th class="px-4 py-3.5 w-44 !align-middle">Dosen Anggota</th>
                         <th class="px-4 py-3.5 text-center w-20 !align-middle">QR</th>
                         <th class="px-4 py-3.5 text-center w-28 !align-middle">Mahasiswa</th>
                         <th class="px-4 py-3.5 text-right w-28 !align-middle">Aksi</th>
@@ -153,8 +153,15 @@
                             <span class="font-medium text-ink block">{{ $rc->dosen?->name ?? 'Belum ditentukan' }}</span>
                         </td>
                         <td class="px-4 py-3.5 !align-middle">
-                            @if($rc->dosenPendamping)
-                                <span class="font-medium text-ink block">{{ $rc->dosenPendamping->name }}</span>
+                            @php
+                                $rcAnggota = $rc->relationLoaded('dosenAnggota') && $rc->dosenAnggota->isNotEmpty()
+                                    ? $rc->dosenAnggota
+                                    : ($rc->dosenPendamping ? collect([$rc->dosenPendamping]) : collect());
+                            @endphp
+                            @if($rcAnggota->isNotEmpty())
+                                @foreach($rcAnggota as $anggota)
+                                    <span class="font-medium text-ink block">{{ $anggota->name }}</span>
+                                @endforeach
                             @else
                                 <span class="text-muted italic text-[11px]">Tidak ada</span>
                             @endif

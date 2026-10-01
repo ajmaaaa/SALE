@@ -300,7 +300,7 @@
                         <th style="width:10%">Kode &amp; Seksi</th>
                         <th style="width:22%">Mata Kuliah (SKS)</th>
                         <th style="width:22%">Dosen Ketua</th>
-                        <th style="width:20%">Dosen Wakil</th>
+                        <th style="width:20%">Dosen Anggota</th>
                         <th style="width:9%">Mahasiswa</th>
                         <th style="width:12%">Rata-rata Nilai</th>
                     </tr>

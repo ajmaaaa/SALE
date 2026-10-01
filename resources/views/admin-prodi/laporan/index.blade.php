@@ -74,13 +74,13 @@
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Jumlah Mahasiswa</p>
             <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['total_mahasiswa'] }} <span class="text-xs font-normal text-muted">Orang</span></p>
-            <p class="mt-1 text-[11px] text-muted">Total mahasiswa di {{ $activeProdi?->code }}</p>
+            <p class="mt-1 text-[11px] text-muted">Mahasiswa aktif terdaftar semester ini</p>
         </div>
 
         <div class="surface p-4">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Jumlah Dosen</p>
             <p class="mt-1.5 text-2xl font-bold text-ink">{{ $metrics['total_dosen'] }} <span class="text-xs font-normal text-muted">Dosen</span></p>
-            <p class="mt-1 text-[11px] text-muted">Dosen homebase &amp; pengampu</p>
+            <p class="mt-1 text-[11px] text-muted">Dosen pengampu kelas semester ini</p>
         </div>
 
         <div class="surface p-4">
@@ -115,7 +115,7 @@
                         <th class="px-4 py-3.5 w-32 !align-middle">Kelas / Seksi</th>
                         <th class="px-4 py-3.5 !align-middle">Mata Kuliah &amp; SKS</th>
                         <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua</th>
-                        <th class="px-4 py-3.5 w-40 !align-middle">Dosen Wakil</th>
+                        <th class="px-4 py-3.5 w-40 !align-middle">Dosen Anggota</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">Mahasiswa Terdaftar</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">Jumlah Asesmen</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">Rata-rata Nilai Kelas</th>

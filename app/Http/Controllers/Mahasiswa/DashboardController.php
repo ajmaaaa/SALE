@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $user = Auth::guard('web')->user();
         $enrolledSections = $user
             ? $user->classSectionsEnrolled()
-                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'assessments'])
+                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota', 'assessments'])
                 ->withCount(['students', 'assessments'])
                 ->get()
             : collect();
@@ -88,7 +88,8 @@ class DashboardController extends Controller
                     'title' => $sec->mataKuliah->name,
                     'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
                     'dosen_ketua' => $sec->dosen?->name ?? 'Dosen Pengampu',
-                    'dosen_wakil' => $sec->dosenPendamping?->name,
+                    'dosen_wakil' => $sec->relationLoaded('dosenAnggota') && $sec->dosenAnggota->isNotEmpty() ? $sec->dosenAnggota->pluck('name')->join(', ') : $sec->dosenPendamping?->name,
+                    'dosen_anggota' => $sec->relationLoaded('dosenAnggota') && $sec->dosenAnggota->isNotEmpty() ? $sec->dosenAnggota->pluck('name')->join(', ') : $sec->dosenPendamping?->name,
                     'cover' => null,
                     'type' => 'Kelas Aktif',
                     'work' => 'Perkuliahan semester '.($sec->semester->name ?? 'aktif'),

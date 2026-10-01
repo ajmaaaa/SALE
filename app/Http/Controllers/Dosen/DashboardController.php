@@ -28,9 +28,10 @@ class DashboardController extends Controller
         $courses = ClassSection::query()
             ->where(function ($query) use ($dosen) {
                 $query->where('dosen_id', $dosen->id)
-                    ->orWhere('dosen_pendamping_id', $dosen->id);
+                    ->orWhere('dosen_pendamping_id', $dosen->id)
+                    ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $dosen->id));
             })
-            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'assessments'])
+            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota', 'assessments'])
             ->withCount(['students', 'assessments'])
             ->orderByDesc('semester_id')
             ->orderBy('mata_kuliah_id')
@@ -68,6 +69,10 @@ class DashboardController extends Controller
                     $sortKey = -1 * $section->id;
                 }
 
+                $anggotaNames = $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty()
+                    ? $section->dosenAnggota->pluck('name')->join(', ')
+                    : $section->dosenPendamping?->name;
+
                 return [
                     'id' => $section->id,
                     'code' => $section->display_code,
@@ -75,7 +80,8 @@ class DashboardController extends Controller
                     'title' => $section->mataKuliah->name,
                     'lecturer' => $section->dosen?->name ?? 'Belum ditetapkan',
                     'dosen_ketua' => $section->dosen?->name ?? 'Belum ditetapkan',
-                    'dosen_wakil' => $section->dosenPendamping?->name,
+                    'dosen_wakil' => $anggotaNames,
+                    'dosen_anggota' => $anggotaNames,
                     'cover' => null,
                     'type' => 'Kelas Aktif',
                     'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),

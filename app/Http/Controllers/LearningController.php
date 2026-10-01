@@ -54,12 +54,13 @@ class LearningController extends Controller
             $query = $isDosen
                 ? ClassSection::query()->where(function ($builder) use ($user) {
                     $builder->where('dosen_id', $user->id)
-                        ->orWhere('dosen_pendamping_id', $user->id);
+                        ->orWhere('dosen_pendamping_id', $user->id)
+                        ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
                 })
                 : $user->classSectionsEnrolled();
 
             $sections = $query
-                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'assessments'])
+                ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota', 'assessments'])
                 ->withCount(['students', 'assessments'])
                 ->when($q !== '', function ($query) use ($q) {
                     $query->whereHas('mataKuliah', function ($mataKuliah) use ($q) {
@@ -149,7 +150,8 @@ class LearningController extends Controller
                     'title' => $section->mataKuliah->name,
                     'lecturer' => $section->dosen?->name ?? 'Belum ditetapkan',
                     'dosen_ketua' => $section->dosen?->name ?? 'Belum ditetapkan',
-                    'dosen_wakil' => $section->dosenPendamping?->name,
+                    'dosen_wakil' => $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty() ? $section->dosenAnggota->pluck('name')->join(', ') : $section->dosenPendamping?->name,
+                    'dosen_anggota' => $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty() ? $section->dosenAnggota->pluck('name')->join(', ') : $section->dosenPendamping?->name,
                     'cover' => $payload['cover'] ?? null,
                     'type' => 'Kelas Aktif',
                     'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),
@@ -434,7 +436,11 @@ class LearningController extends Controller
         if ($user && Schema::hasTable('class_sections')) {
             $isDosen = $user->hasRole(Role::DOSEN);
             $sections = $isDosen
-                ? ClassSection::where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->with(['mataKuliah', 'dosen'])->get()
+                ? ClassSection::where(function ($q) use ($user) {
+                    $q->where('dosen_id', $user->id)
+                        ->orWhere('dosen_pendamping_id', $user->id)
+                        ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
+                })->with(['mataKuliah', 'dosen'])->get()
                 : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
 
             foreach ($sections as $sec) {
@@ -568,7 +574,11 @@ class LearningController extends Controller
         if ($user && Schema::hasTable('class_sections')) {
             $isDosen = $user->hasRole(Role::DOSEN);
             $sections = $isDosen
-                ? ClassSection::where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->with(['mataKuliah', 'dosen'])->get()
+                ? ClassSection::where(function ($q) use ($user) {
+                    $q->where('dosen_id', $user->id)
+                        ->orWhere('dosen_pendamping_id', $user->id)
+                        ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
+                })->with(['mataKuliah', 'dosen'])->get()
                 : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
 
             foreach ($sections as $sec) {
@@ -2166,7 +2176,9 @@ class LearningController extends Controller
             if ($submission && ($submission->mahasiswa_id || $submission->user_id)) {
                 $studentId = $submission->mahasiswa_id ?: $submission->user_id;
                 $isStudentInDosenCourse = ClassSection::where(function ($q) use ($user) {
-                    $q->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id);
+                    $q->where('dosen_id', $user->id)
+                        ->orWhere('dosen_pendamping_id', $user->id)
+                        ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
                 })->whereHas('students', function ($q) use ($studentId) {
                     $q->where('users.id', $studentId);
                 })->exists();
@@ -2178,7 +2190,7 @@ class LearningController extends Controller
 
             if ($assessmentId && Schema::hasTable('assessments')) {
                 $ass = Assessment::find($assessmentId);
-                if ($ass && ($ass->user_id == $user->id || ($ass->class_section_id && ClassSection::where('id', $ass->class_section_id)->where(fn ($q) => $q->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id))->exists()))) {
+                if ($ass && ($ass->user_id == $user->id || ($ass->class_section_id && ClassSection::where('id', $ass->class_section_id)->where(fn ($q) => $q->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id)))->exists()))) {
                     return;
                 }
             }

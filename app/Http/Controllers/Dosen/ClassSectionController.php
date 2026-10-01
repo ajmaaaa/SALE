@@ -48,9 +48,10 @@ class ClassSectionController extends Controller
         $sections = ClassSection::query()
             ->where(function ($query) use ($dosen) {
                 $query->where('dosen_id', $dosen->id)
-                    ->orWhere('dosen_pendamping_id', $dosen->id);
+                    ->orWhere('dosen_pendamping_id', $dosen->id)
+                    ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $dosen->id));
             })
-            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])
+            ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])
             ->withCount('students')
             ->withCount(['assessments' => fn ($query) => $query->whereNotIn('type', ['materi', 'pengumuman'])])
             ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {

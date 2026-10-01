@@ -66,6 +66,12 @@ class ClassSection extends Model
         return $this->belongsTo(User::class, 'dosen_pendamping_id');
     }
 
+    public function dosenAnggota(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'class_section_dosen_anggota', 'class_section_id', 'dosen_id')
+            ->withTimestamps();
+    }
+
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'class_section_student', 'class_section_id', 'mahasiswa_id')

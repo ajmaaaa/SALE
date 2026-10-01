@@ -79,8 +79,13 @@
                     <span class="font-bold text-ink">{{ $section->dosen?->name ?? '-' }}</span>
                 </div>
                 <div>
-                    <span class="text-muted text-[11px] block">Dosen Wakil (Pendamping):</span>
-                    <span class="font-bold text-ink">{{ $section->dosenPendamping?->name ?? 'Tidak ada' }}</span>
+                    @php
+                        $allAnggota = $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty()
+                            ? $section->dosenAnggota
+                            : ($section->dosenPendamping ? collect([$section->dosenPendamping]) : collect());
+                    @endphp
+                    <span class="text-muted text-[11px] block">Dosen Anggota:</span>
+                    <span class="font-bold text-ink">{{ $allAnggota->isNotEmpty() ? $allAnggota->pluck('name')->join(', ') : 'Tidak ada' }}</span>
                 </div>
             </div>
         </div>

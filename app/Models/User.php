@@ -156,11 +156,18 @@ class User extends Authenticatable
         return $this->hasMany(ClassSection::class, 'dosen_pendamping_id');
     }
 
+    public function classSectionsAnggota(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassSection::class, 'class_section_dosen_anggota', 'dosen_id', 'class_section_id')
+            ->withTimestamps();
+    }
+
     public function totalClassSectionsTeachingCount(): int
     {
         return ClassSection::where(function ($q) {
             $q->where('dosen_id', $this->id)
-                ->orWhere('dosen_pendamping_id', $this->id);
+                ->orWhere('dosen_pendamping_id', $this->id)
+                ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $this->id));
         })->count();
     }
 
