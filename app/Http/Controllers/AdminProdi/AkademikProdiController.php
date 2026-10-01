@@ -235,6 +235,7 @@ class AkademikProdiController extends AdminProdiController
                     }
                 },
             ],
+            
         ], [
             'section_code.unique' => 'Kelas dengan kode seksi ini sudah ada untuk mata kuliah dan semester yang dipilih.',
             'dosen_pendamping_id.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
