@@ -62,10 +62,14 @@
                             @foreach($columns as $col)
                                 <th class="py-2.5 px-3 text-center font-semibold text-ink border-b border-l border-line/50 bg-[#f8fafc]"
                                     colspan="{{ count($col['cpmk_cols']) + 1 }}">
-                                    <div class="truncate font-semibold" style="max-width: {{ (count($col['cpmk_cols']) + 1) * 90 }}px" title="{{ $col['assessment']->name }}">
-                                        {{ $col['assessment']->name }}
+                                    <div class="flex flex-col items-center justify-center text-center w-full px-1">
+                                        <div class="font-semibold text-ink text-center truncate max-w-full" title="{{ $col['assessment']->name }}">
+                                            {{ $col['assessment']->name }}
+                                        </div>
+                                        <div class="text-[10px] text-muted font-normal capitalize mt-0.5 text-center">
+                                            {{ $col['assessment']->type }}
+                                        </div>
                                     </div>
-                                    <div class="text-[10px] text-muted font-normal capitalize mt-0.5">{{ $col['assessment']->type }}</div>
                                 </th>
                             @endforeach
                         </tr>
