@@ -48,8 +48,6 @@
                     <tr class="border-b border-line/60 bg-white text-xs font-bold text-muted">
                         <th class="py-3 px-4">Kode &amp; Mata Kuliah</th>
                         <th class="py-3 px-4 text-center w-20 whitespace-nowrap">SKS</th>
-                        <th class="py-3 px-4 text-center w-28 whitespace-nowrap">Nilai Angka</th>
-                        <th class="py-3 px-4 text-center w-20 whitespace-nowrap">Huruf</th>
                         <th class="py-3 px-4 text-center w-16" aria-label="Status detail"></th>
                     </tr>
                 </thead>
@@ -72,16 +70,6 @@
                             <td class="py-3.5 px-4 text-center text-ink font-medium whitespace-nowrap">
                                 {{ $course['sks'] ?? 3 }}
                             </td>
-                            <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                <span class="font-semibold text-ink">
-                                    {{ $course['final_score'] !== null ? number_format($course['final_score'], 1, ',', '.') : '' }}
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                <span class="font-bold text-ink">
-                                    {{ $course['letter'] ?? '' }}
-                                </span>
-                            </td>
                             <td class="py-3.5 px-4 text-center">
                                 <svg id="arrow-{{ $course['id'] }}" class="h-4 w-4 text-muted transition-transform duration-200 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -91,7 +79,7 @@
 
                         {{-- Expanded Details: Rincian Komponen Nilai --}}
                         <tr id="detail-{{ $course['id'] }}" hidden class="bg-slate-50/50">
-                            <td colspan="5" class="px-6 py-4 border-b border-line/50">
+                            <td colspan="3" class="px-6 py-4 border-b border-line/50">
                                 <div class="space-y-3 w-full">
                                     <p class="text-xs font-semibold text-ink mb-2">Rincian Komponen Nilai:</p>
 
@@ -117,7 +105,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-xs text-muted">
+                            <td colspan="3" class="py-8 text-center text-xs text-muted">
                                 Belum ada mata kuliah yang terdaftar pada semester ini.
                             </td>
                         </tr>
