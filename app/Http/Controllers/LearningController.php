@@ -504,9 +504,13 @@ class LearningController extends Controller
                 $reqType = $request->query('type');
                 if ($reqType === 'tugas') {
                     // Karena filter tugas coding dihapus & digabung ke tugas, filter "Tugas" mencakup tugas coding
-                    $typeMatch = $isCoding || in_array($item['type'] ?? '', ['tugas', 'coding', 'uts', 'uas', 'pbl', 'case'], true);
+                    $typeMatch = $isCoding || in_array($item['type'] ?? '', ['tugas', 'coding', 'pbl', 'case'], true);
                 } elseif ($reqType === 'kuis') {
                     $typeMatch = ($item['type'] ?? '') === 'kuis';
+                } elseif ($reqType === 'uts') {
+                    $typeMatch = ($item['type'] ?? '') === 'uts';
+                } elseif ($reqType === 'uas') {
+                    $typeMatch = ($item['type'] ?? '') === 'uas';
                 } else {
                     $typeMatch = ($item['type'] ?? '') === $reqType;
                 }
@@ -531,21 +535,18 @@ class LearningController extends Controller
         });
 
         uasort($filteredItems, function ($a, $b) {
-            $dueA = ! empty($a['due']) ? Carbon::parse($a['due']) : null;
-            $dueB = ! empty($b['due']) ? Carbon::parse($b['due']) : null;
+            $hasDueA = ! empty($a['due']);
+            $hasDueB = ! empty($b['due']);
 
-            $isPastA = $dueA && $dueA->isPast();
-            $isPastB = $dueB && $dueB->isPast();
+            if ($hasDueA && $hasDueB) {
+                $dueA = Carbon::parse($a['due']);
+                $dueB = Carbon::parse($b['due']);
 
-            $isUpcomingA = $dueA && ! $isPastA;
-            $isUpcomingB = $dueB && ! $isPastB;
-
-            if ($isUpcomingA !== $isUpcomingB) {
-                return $isUpcomingA ? -1 : 1;
-            }
-
-            if ($isUpcomingA && $isUpcomingB) {
-                return $dueA <=> $dueB;
+                if ($dueA->ne($dueB)) {
+                    return $dueA <=> $dueB;
+                }
+            } elseif ($hasDueA !== $hasDueB) {
+                return $hasDueA ? -1 : 1;
             }
 
             $timeA = isset($a['updated_at']) && $a['updated_at'] ? Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
@@ -1011,9 +1012,16 @@ class LearningController extends Controller
                     ]])->all();
                 $databasePayload = $data;
                 unset($databasePayload['id'], $databasePayload['course']);
+
+                $prefix = strtoupper($category);
+                $candidateNum = max(1, $asmCount + 1);
+                while (Assessment::where('class_section_id', $section->id)->where('code', "{$prefix}-{$candidateNum}")->exists()) {
+                    $candidateNum++;
+                }
+
                 $assessment = Assessment::create([
                     'class_section_id' => $section->id,
-                    'code' => strtoupper($category).'-'.($asmCount + 1),
+                    'code' => "{$prefix}-{$candidateNum}",
                     'name' => $data['title'],
                     'type' => $assessmentType,
                     'description' => $data['body'],
