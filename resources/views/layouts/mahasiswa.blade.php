@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f5f5f2">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'SALE')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
@@ -19,16 +20,21 @@
     <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 hidden bg-ink/30 data-[open=true]:block lg:hidden"></div>
 
     <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-white shadow-[2px_0_16px_rgba(29,39,48,0.03)] overscroll-contain overflow-hidden max-lg:-translate-x-full max-lg:transition-transform max-lg:data-[open=true]:translate-x-0">
-        <div class="px-6 pb-4 pt-6">
-            @php
-                $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
-                    (request()->is('admin*') ? route('admin.page', 'dashboard') :
-                    (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
-            @endphp
-            <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
-                <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
-                <span class="mt-0.5 block text-xs text-muted">{{ \App\Models\SystemSetting::valueFor('institution', 'Smart Academic Learning Ecosystem') }}</span>
-            </a>
+        <div class="px-6 pb-4 pt-6 flex items-start justify-between">
+            <div>
+                @php
+                    $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
+                        (request()->is('admin*') ? route('admin.page', 'dashboard') :
+                        (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
+                @endphp
+                <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
+                    <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
+                    <span class="mt-0.5 block text-xs text-muted">{{ \App\Models\SystemSetting::valueFor('institution', 'Smart Academic Learning Ecosystem') }}</span>
+                </a>
+            </div>
+            <button type="button" data-sidebar-close class="lg:hidden -mr-2 -mt-1 p-2 rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup navigasi">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
         </div>
 
         @if(request()->is('admin-prodi*'))
@@ -543,5 +549,13 @@
         })();
     </script>
     @endauth
+    <script>
+        // Tangani navigasi kembali browser (BFCache) agar token CSRF tidak kedaluwarsa (mencegah 419)
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -809,7 +809,7 @@
         </main>
 
         {{-- MODAL POPOVER: DAFTAR NOMOR SOAL (Grid Kotak-Kotak 1 s/d N) --}}
-        <dialog id="questions-grid-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] h-fit">
+        <dialog id="questions-grid-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] h-fit max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                 <div>
                     <h3 class="text-sm font-bold text-slate-900">Daftar Nomor Soal Ujian</h3>
@@ -854,7 +854,7 @@
         </dialog>
 
         {{-- MODAL KONFIRMASI KELUAR & KUMPULKAN OTOMATIS DARI RUANG UJIAN --}}
-        <dialog id="exit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
+        <dialog id="exit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex items-start gap-2.5 mb-2">
                     <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -876,7 +876,7 @@
                     Status Jawaban: <span id="modal-exit-answered-count" class="font-medium text-slate-700">Menghitung status jawaban...</span>
                 </p>
 
-                <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 border-t border-line/60">
                     <button type="button" id="modal-exit-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">
                         Lanjutkan Ujian
                     </button>
@@ -888,7 +888,7 @@
         </dialog>
 
         {{-- MODAL KONFIRMASI PENGUMPULAN --}}
-        <dialog id="submit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
+        <dialog id="submit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex items-start gap-2.5 mb-2">
                     <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
@@ -906,7 +906,7 @@
                     Status Jawaban: <span id="modal-answered-count" class="font-medium text-slate-700">Menghitung status jawaban...</span>
                 </p>
 
-                <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 border-t border-line/60">
                     <button type="button" id="modal-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">Batal &amp; Periksa Lagi</button>
                     <button type="button" id="modal-confirm-submit-btn" class="button-primary text-xs py-2.5 px-3 font-semibold cursor-pointer justify-center text-center">Ya, Kumpulkan Sekarang</button>
                 </div>

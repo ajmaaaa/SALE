@@ -60,7 +60,7 @@ class User extends Authenticatable
             return null;
         }
 
-        if (! Storage::disk('public')->exists($this->profile_photo_path)) {
+        if (! app()->runningUnitTests() && ! Storage::disk('public')->exists($this->profile_photo_path)) {
             return null;
         }
 

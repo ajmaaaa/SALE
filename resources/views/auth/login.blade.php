@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#102f50">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Masuk | SALE - Smart Academic Learning Ecosystem</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -141,6 +142,13 @@
                     }
                     toggleBtn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
                 });
+            }
+        });
+
+        // Tangani navigasi kembali browser (BFCache) agar token CSRF tidak kedaluwarsa (mencegah 419)
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
             }
         });
     </script>

@@ -41,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return redirect()->guest(route('login'))->with('notice', $message);
             }
 
-            return redirect()->back()->withErrors(['session' => $message]);
+            return redirect()->back()->withErrors(['session' => $message])->with('notice', $message);
         });
     })
     ->create();

@@ -777,7 +777,7 @@
     </main>
 
     {{-- MODAL POPOVER: DAFTAR BAGIAN MATERI --}}
-    <dialog id="material-grid-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] h-fit">
+    <dialog id="material-grid-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-lg w-[calc(100%-2rem)] h-fit max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <div>
                 <h3 class="text-sm font-bold text-slate-900">Daftar Bagian Materi</h3>
@@ -811,7 +811,7 @@
 
     @if(!$isLecturer && !$isSubmitted && !$isMaterial)
     {{-- MODAL KONFIRMASI PENGUMPULAN TUGAS CODING --}}
-    <dialog id="coding-submit-confirm-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50 h-fit">
+    <dialog id="coding-submit-confirm-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50 h-fit max-h-[90vh] overflow-y-auto">
         <div class="p-6">
             <div class="flex items-start gap-2.5 mb-2">
                 <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
@@ -829,7 +829,7 @@
                 Total Soal: <span class="font-medium text-slate-700">{{ $totalSteps }} Bagian</span> &middot; Status: <span class="font-medium text-slate-700">Terkunci setelah dikirim</span>
             </p>
 
-            <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 border-t border-line/60">
                 <button type="button" id="modal-coding-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">Batal &amp; Periksa Lagi</button>
                 <button type="button" id="modal-coding-confirm-btn" class="button-primary text-xs py-2.5 px-3 font-semibold cursor-pointer justify-center text-center">Ya, Serahkan Tugas</button>
             </div>

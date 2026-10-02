@@ -18,6 +18,7 @@ const setSidebar = (open) => {
 
 sidebarToggle?.addEventListener('click', () => setSidebar(sidebar?.dataset.open !== 'true'));
 sidebarBackdrop?.addEventListener('click', () => setSidebar(false));
+document.querySelectorAll('[data-sidebar-close]').forEach(btn => btn.addEventListener('click', () => setSidebar(false)));
 
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setSidebar(false);
