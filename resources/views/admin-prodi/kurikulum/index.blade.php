@@ -28,7 +28,6 @@
                 @endif
             </nav>
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
-            <p class="page-description">Tetapkan butir CPL dan CPMK program studi secara terpusat. Penetapan CPMK ke mata kuliah dilakukan pada menu Mata Kuliah, dan dosen pengampu nantinya dapat mengaitkan CPMK pada asesmen kelas.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
         </div>
@@ -136,7 +135,6 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-line">
             <div class="min-w-0">
                 <h2 class="text-base font-bold text-ink">Capaian Pembelajaran Mata Kuliah (CPMK): {{ $activeProdi?->name }}</h2>
-                <p class="text-xs text-muted mt-0.5">Daftar butir CPMK kurikulum program studi beserta standar kelulusan dan pemetaan CPL yang didukung. Penetapan CPMK ke mata kuliah dilakukan pada menu Mata Kuliah.</p>
             </div>
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 shrink-0 w-full sm:w-auto">
                 <div class="relative w-full sm:w-64 max-w-full">
