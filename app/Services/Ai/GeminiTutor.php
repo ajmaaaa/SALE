@@ -66,10 +66,16 @@ TEXT;
         $day = now('UTC')->toDateString();
         $this->adjust($userId, $day, $reserved, true);
         $started = microtime(true);
+        $apiKey = (string) (config('ai.key') ?: (\App\Models\SystemSetting::valueFor('ai_api_key') ?? ''));
+        $model = (string) (config('ai.model') ?: (\App\Models\SystemSetting::valueFor('ai_model') ?? 'gemini-3.6-flash'));
+        if (in_array($model, ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', ''], true)) {
+            $model = 'gemini-3.6-flash';
+        }
+
         try {
-            $response = Http::withHeaders(['x-goog-api-key' => config('ai.key')])
+            $response = Http::withHeaders(['x-goog-api-key' => $apiKey])
                 ->connectTimeout(15)->timeout(60)
-                ->post('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode(config('ai.model')).':generateContent', $payload);
+                ->post('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($model).':generateContent', $payload);
         } catch (ConnectionException $exception) {
             $timeout = str_contains($exception->getMessage(), 'cURL error 28');
             $this->recordUsage($userId, $stage, $context, [

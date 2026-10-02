@@ -716,14 +716,13 @@ class LearningController extends Controller
             $request->merge(['link' => 'https://'.ltrim((string) $request->input('link'), '/')]);
         }
 
-        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas', 'lainnya'], true)) {
+        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas'], true)) {
             $request->request->remove('questions');
         }
 
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
-            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman', 'lainnya'])],
-            'custom_type' => 'nullable|string|max:10',
+            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman'])],
             'task_mode' => 'nullable|in:regular,coding',
             'material_mode' => 'nullable|in:regular,coding',
             'ai_enabled' => 'nullable|boolean',
@@ -733,7 +732,7 @@ class LearningController extends Controller
             'pin_video' => 'nullable|boolean',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
-            'formats' => 'required_if:type,tugas,kuis,uts,uas,coding,lainnya|array|min:1',
+            'formats' => 'required_if:type,tugas,kuis,uts,uas,coding|array|min:1',
             'formats.*' => [Rule::in(['file', 'image', 'link', 'text'])],
             'question_type' => ['required', Rule::in(['uraian', 'pilihan', 'kompleks', 'coding', 'benar_salah', 'mencocokkan'])],
             'code_language' => 'nullable|in:python,web',
@@ -759,8 +758,8 @@ class LearningController extends Controller
             'coding_steps' => 'nullable|array|min:1|max:100',
             'coding_steps.*.title' => 'required|string|max:160',
             'coding_steps.*.body' => 'required|string|max:15000',
-            'coding_steps.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
-            'coding_steps.*.points' => 'nullable|integer|min:1|max:1000',
+            'coding_steps.*.cpmk' => ['nullable', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'coding_steps.*.points' => 'nullable|integer|min:0|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
             'manual_cpmk_weights' => 'nullable|array',
@@ -769,13 +768,6 @@ class LearningController extends Controller
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
         ]);
-        if ($data['type'] === 'lainnya') {
-            $customType = strtoupper(trim((string) $request->input('custom_type')));
-            if (! in_array($customType, ['UTS', 'UAS'], true)) {
-                return back()->withErrors(['custom_type' => 'Pilihan Lainnya hanya boleh diisi "UTS" atau "UAS".'])->withInput();
-            }
-            $data['type'] = strtolower($customType);
-        }
 
         $category = $data['type'];
         if (in_array($category, ['kuis', 'uts', 'uas'], true)
@@ -784,14 +776,17 @@ class LearningController extends Controller
                 'attachments' => 'Kuis, UTS, dan UAS dikerjakan langsung di ruang soal dan tidak menerima lampiran berkas atau tautan pengumpulan.',
             ])->withInput();
         }
-        $isCodingContent = $category === 'coding' || ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
+        $isCodingTask = ($category === 'coding') || ($category === 'tugas' && ($data['task_mode'] ?? null) === 'coding');
+        $isCodingMaterial = ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
+        $isCodingContent = $isCodingTask || $isCodingMaterial;
         $submittedQuestions = ! empty($data['questions']);
 
+        $validCpmk = array_column($academic['cpmk'], 'code');
+        $fallbackCpmk = in_array($data['cpmk'] ?? null, $validCpmk, true)
+            ? $data['cpmk']
+            : ($validCpmk[0] ?? 'CPMK');
+
         if ($isCodingContent && empty($data['coding_steps'])) {
-            $validCpmk = array_column($academic['cpmk'], 'code');
-            $fallbackCpmk = in_array($data['cpmk'] ?? null, $validCpmk, true)
-                ? $data['cpmk']
-                : ($validCpmk[0] ?? 'CPMK');
             $data['coding_steps'] = [[
                 'title' => $data['module'],
                 'body' => $data['body'],
@@ -799,9 +794,16 @@ class LearningController extends Controller
                 'link' => null,
                 'attachment' => null,
             ]];
+        } elseif ($isCodingContent && ! empty($data['coding_steps'])) {
+            foreach ($data['coding_steps'] as &$cStep) {
+                if (empty($cStep['cpmk'])) {
+                    $cStep['cpmk'] = $fallbackCpmk;
+                }
+            }
+            unset($cStep);
         }
 
-        if ($category === 'tugas' && ! $submittedQuestions) {
+        if ($category === 'tugas' && ! $isCodingTask && ! $submittedQuestions) {
             $manualWeights = array_filter(
                 $data['manual_cpmk_weights'] ?? [],
                 fn ($weight) => (float) $weight > 0
@@ -875,7 +877,7 @@ class LearningController extends Controller
             }
             unset($step);
             $data['coding_steps'] = array_values($data['coding_steps']);
-            if ($category === 'coding') {
+            if ($isCodingTask) {
                 $data['questions'] = array_map(fn ($step) => [
                     'type' => 'coding',
                     'prompt' => $step['title'],
@@ -887,7 +889,7 @@ class LearningController extends Controller
                 $data['scoring_mode'] = 'automatic_cpmk';
             }
         }
-        if ($category === 'tugas' && ! $submittedQuestions) {
+        if ($category === 'tugas' && ! $isCodingTask && ! $submittedQuestions) {
             $data['scoring_mode'] = 'manual_cpmk';
             $data['cpmk'] = array_key_first($data['manual_cpmk_weights']);
             $data['component'] = 'tugas';
@@ -1098,10 +1100,10 @@ class LearningController extends Controller
             }
         }
 
-        if ($data['ai_enabled'] && Schema::hasTable('ai_tasks')) {
+        if (Schema::hasTable('ai_tasks') && isset($assessment)) {
             DB::table('ai_tasks')->updateOrInsert(
                 ['id' => $assessment->id],
-                ['title' => $data['title'], 'body' => $data['body'], 'enabled' => true]
+                ['title' => $data['title'], 'body' => $data['body'], 'enabled' => (bool) ($data['ai_enabled'] ?? false)]
             );
         }
 
@@ -1161,7 +1163,7 @@ class LearningController extends Controller
             $request->merge(['link' => 'https://'.ltrim((string) $request->input('link'), '/')]);
         }
 
-        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas', 'lainnya'], true)) {
+        if (! in_array($request->input('type'), ['kuis', 'uts', 'uas'], true)) {
             $request->request->remove('questions');
         }
 
@@ -1169,8 +1171,7 @@ class LearningController extends Controller
 
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
-            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman', 'lainnya'])],
-            'custom_type' => 'nullable|string|max:10',
+            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman'])],
             'task_mode' => 'nullable|in:regular,coding',
             'material_mode' => 'nullable|in:regular,coding',
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
@@ -1205,8 +1206,8 @@ class LearningController extends Controller
             'coding_steps' => 'nullable|array|min:1|max:100',
             'coding_steps.*.title' => 'required|string|max:160',
             'coding_steps.*.body' => 'required|string|max:15000',
-            'coding_steps.*.cpmk' => ['required', Rule::in(array_column($academic['cpmk'], 'code'))],
-            'coding_steps.*.points' => 'nullable|integer|min:1|max:1000',
+            'coding_steps.*.cpmk' => ['nullable', Rule::in(array_column($academic['cpmk'], 'code'))],
+            'coding_steps.*.points' => 'nullable|integer|min:0|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
             'manual_cpmk_weights' => 'nullable|array',
@@ -1279,9 +1280,19 @@ class LearningController extends Controller
             $data['points'] = $data['points'] ?? ($existingItem['points'] ?? 100);
         }
 
-        $isCodingContent = $category === 'coding' || ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
+        $validCpmk = array_column($academic['cpmk'], 'code');
+        $fallbackCpmk = in_array($data['cpmk'] ?? null, $validCpmk, true)
+            ? $data['cpmk']
+            : ($validCpmk[0] ?? 'CPMK');
+
+        $isCodingTask = ($category === 'coding') || ($category === 'tugas' && ($data['task_mode'] ?? null) === 'coding');
+        $isCodingMaterial = ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
+        $isCodingContent = $isCodingTask || $isCodingMaterial;
         if ($isCodingContent && ! empty($data['coding_steps'])) {
             foreach ($data['coding_steps'] as $index => &$step) {
+                if (empty($step['cpmk'])) {
+                    $step['cpmk'] = $fallbackCpmk;
+                }
                 if ($request->hasFile("coding_steps.$index.attachment")) {
                     $step['attachment'] = $this->upload($request->file("coding_steps.$index.attachment"));
                 } else {
@@ -1291,7 +1302,7 @@ class LearningController extends Controller
             }
             unset($step);
             $data['coding_steps'] = array_values($data['coding_steps']);
-            if ($category === 'coding') {
+            if ($isCodingTask) {
                 $data['questions'] = array_map(fn ($step) => [
                     'type' => 'coding',
                     'prompt' => $step['title'],
@@ -1629,8 +1640,7 @@ class LearningController extends Controller
             }
         }
 
-        $isAssignmentType = in_array($resource['type'] ?? '', ['tugas', 'coding', 'pbl', 'case', 'project'], true);
-        $allowLate = $isAssignmentType ? true : ($resource['allow_late'] ?? true);
+        $allowLate = (bool) ($resource['allow_late'] ?? true);
         if (! $allowLate && ! empty($resource['due']) && Carbon::parse($resource['due'])->isPast()) {
             return back()->withErrors(['answer' => 'Batas waktu pengumpulan telah berakhir. Pengampu mengunci tugas ini dan tidak menerima pengumpulan terlambat.'])->withInput();
         }
@@ -1700,6 +1710,9 @@ class LearningController extends Controller
             unset($data['question_answers']);
         }
         $dbSub = Submission::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->first();
+        if ($isCodingSubmission && $dbSub && $dbSub->submitted_at) {
+            return back()->withErrors(['answer' => 'Tugas coding ini sudah diserahkan dan terkunci, tidak dapat dikerjakan atau diperbaiki lagi.'])->withInput();
+        }
         $previousFiles = $dbSub?->file_ids ?? [];
         $keep = $request->input('keep_files', $request->boolean('replace_files') ? [] : $previousFiles);
         abort_if(array_diff($keep, $previousFiles), 422);
@@ -2260,6 +2273,7 @@ class LearningController extends Controller
 
         $categoryCounts = [
             'all' => count($unreadNotifications),
+            'materi' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'materi')),
             'tugas' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
             'nilai' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'nilai')),
             'sistem' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'sistem')),
@@ -2268,7 +2282,7 @@ class LearningController extends Controller
 
         $category = $request->query('category');
         $notifications = $allNotifications;
-        if ($category && in_array($category, ['tugas', 'nilai', 'sistem', 'diskusi'])) {
+        if ($category && in_array($category, ['materi', 'tugas', 'nilai', 'sistem', 'diskusi'])) {
             $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
         }
 
@@ -2347,14 +2361,12 @@ class LearningController extends Controller
         $categoryCounts = [
             'all' => count($unreadNotifications),
             'tugas' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
-            'nilai' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'nilai')),
-            'sistem' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'sistem')),
             'diskusi' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
         ];
 
         $category = $request->query('category');
         $notifications = $allNotifications;
-        if ($category && in_array($category, ['tugas', 'nilai', 'sistem', 'diskusi'])) {
+        if ($category && in_array($category, ['tugas', 'diskusi'])) {
             $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
         }
 

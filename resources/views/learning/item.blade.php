@@ -11,7 +11,11 @@
     $hasMultiQuestions = !empty($item['questions']);
     $isDedicatedQuiz = in_array($item['type'], ['kuis', 'uts', 'uas'], true);
     $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
-    $isCodingTask = in_array($item['type'], ['coding'], true) || ($item['task_mode'] ?? null) === 'coding' || ($item['question_type'] ?? null) === 'coding';
+    $isCodingTask = in_array($item['type'], ['coding'], true)
+        || ($item['task_mode'] ?? null) === 'coding'
+        || ($item['question_type'] ?? null) === 'coding'
+        || !empty($item['coding_steps'])
+        || collect($item['questions'] ?? [])->contains(fn($q) => ($q['type'] ?? '') === 'coding');
     $submission = null;
     $studentId = auth()->id();
     if (empty($submission) && auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('submissions')) {
@@ -98,42 +102,19 @@
 
     </header>
 
-    {{-- Submission form wraps main questions & side actions if student --}}
-    @unless($isLecturer)
+    {{-- Submission form wraps main questions & side actions if student on regular tasks --}}
+    @unless($isLecturer || $isDedicatedQuiz || $isCodingTask)
     <form data-submission-form method="post" enctype="multipart/form-data" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}">
         @csrf
     @endunless
 
-        @if($isLecturer || ($isTask && !$isDedicatedQuiz))
+        @if($isLecturer || ($isTask && !$isDedicatedQuiz && !$isCodingTask))
         <div class="grid items-stretch gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
         @else
         <div class="w-full space-y-6">
         @endif
             {{-- Main Column: Instructions, Multi-Question Cards, Stimulus, Attachments, Discussions --}}
             <div class="min-w-0 space-y-6 flex flex-col">
-                {{-- Interactive Coding Workbench & AI Asisten Banner --}}
-                @if(!$isDedicatedQuiz && ($isCodingTask || $isCodingMaterial))
-                    <div class="rounded-xl border border-line bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center gap-1 rounded bg-brand px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                                    <span>✦</span> AI Asisten
-                                </span>
-                                <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                                    Editor Monaco &amp; Terminal Linux
-                                </span>
-                            </div>
-                            <h3 class="text-sm font-bold text-ink">Ruang Praktikum Coding &amp; Asisten AI Tersedia</h3>
-                            <p class="text-xs text-muted leading-relaxed">
-                                Anda dapat menguji algoritma Binary Search Tree langsung di editor kode interaktif dengan panduan konsep cerdas dari AI Asisten.
-                            </p>
-                        </div>
-                        <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-4 font-bold inline-flex items-center gap-1.5 shrink-0 shadow-xs self-start sm:self-center">
-                            <span>Buka Editor Kode &amp; Tanya AI</span>
-                            <span aria-hidden="true">↗</span>
-                        </a>
-                    </div>
-                @endif
 
                 {{-- Instructions Card --}}
                 <section class="surface p-6 sm:p-7 flex flex-col flex-1">
@@ -204,6 +185,73 @@
                                             <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Kuis Ditutup</button>
                                         @else
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($isCodingTask || $isCodingMaterial)
+                        <div class="mt-6 pt-5 border-t border-line/60">
+                            <div class="rounded-xl border border-line bg-canvas/40 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-muted">{{ $isCodingMaterial ? 'Informasi Praktikum Pemrograman' : 'Informasi Tugas Pemrograman & Penilaian' }}</p>
+                                    <div class="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink">
+                                        @if(!$isCodingMaterial)
+                                            <span>Durasi: <strong>{{ !empty($item['duration_enabled']) ? ($item['duration_minutes'] ?? 60).' menit' : 'Tanpa batas waktu' }}</strong></span>
+                                        @endif
+                                        <span><strong>{{ count($item['coding_steps'] ?? []) ?: (count($item['questions'] ?? []) ?: 1) }}</strong> butir instruksi / soal</span>
+                                        @if(!$isCodingMaterial)
+                                            <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
+                                        @endif
+                                        <span>Bahasa: <strong>{{ strtoupper($item['language'] ?? 'PYTHON') }}</strong></span>
+                                        @if(!empty($item['due']))
+                                            @php $isDuePast = \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
+                                            @if($isDuePast)
+                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>Terlambat</strong></span>
+                                            @else
+                                                <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
+                                            @endif
+                                        @endif
+                                    </div>
+
+                                    @if(!$isLecturer && !$isCodingMaterial)
+                                        @if($scoreValue !== null)
+                                            <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-2">
+                                                <span class="text-xs text-muted font-medium">Nilai Tugas:</span>
+                                                <span class="text-sm font-bold text-emerald-600 font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
+                                                @if($submission)
+                                                    <span class="text-xs text-slate-300">·</span>
+                                                    <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
+                                                @endif
+                                            </div>
+                                        @elseif($submission)
+                                            <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
+                                                <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '· '.$submission['time'] : '' }}</span>
+                                                <span class="text-xs text-slate-300">·</span>
+                                                <span class="text-xs font-medium text-amber-600">Menunggu penilaian dosen</span>
+                                            </div>
+                                        @else
+                                            <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
+                                                <span class="text-xs font-medium text-muted">Status: Belum diserahkan</span>
+                                            </div>
+                                        @endif
+                                    @endif
+                                </div>
+
+                                <div class="flex shrink-0 items-center">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        @if($isLecturer)
+                                            @if($isCodingTask)
+                                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat dan Nilai Mahasiswa</a>
+                                            @else
+                                                <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Praktikum Kode</a>
+                                            @endif
+                                        @elseif($isGraded || $submission)
+                                            <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Editor Kode / Jawaban</a>
+                                        @elseif($isLocked)
+                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Tugas Ditutup</button>
+                                        @else
+                                            <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">{{ $isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding' }}</a>
                                         @endif
                                     </div>
                                 </div>
@@ -445,8 +493,8 @@
 
                 </section>
 
-                {{-- Task Questions for Regular Assignments (Non-CBT Quiz) --}}
-                @if(!$isLecturer && $isTask && !$isDedicatedQuiz && $hasMultiQuestions)
+                {{-- Task Questions for Regular Assignments (Non-CBT Quiz, Non-Coding) --}}
+                @if(!$isLecturer && $isTask && !$isDedicatedQuiz && !$isCodingTask && $hasMultiQuestions)
                     <div class="space-y-5">
                         @foreach($item['questions'] as $qIdx => $q)
                             <section class="surface p-6 sm:p-7 space-y-4">
@@ -538,7 +586,7 @@
                 @endif
 
                 {{-- Single Objective Questions (Only Choices in Center, No Duplicate Button) --}}
-                @if(!$isLecturer && $isTask && !$hasMultiQuestions && in_array($item['question_type'], ['pilihan', 'kompleks', 'benar_salah']))
+                @if(!$isLecturer && $isTask && !$hasMultiQuestions && !$isCodingTask && in_array($item['question_type'], ['pilihan', 'kompleks', 'benar_salah']))
                     <section class="surface p-6 sm:p-7 space-y-4">
                         <h2 class="section-heading">Lembar Jawaban Soal</h2>
                         @if(in_array($item['question_type'], ['pilihan', 'kompleks']))
@@ -664,8 +712,8 @@
                         </a>
                     </div>
                 </aside>
-            @elseif($isTask && !$isDedicatedQuiz)
-                {{-- Student Submission Panel (Google Classroom Style for Tugas, Coding, PBL, etc.) --}}
+            @elseif($isTask && !$isDedicatedQuiz && !$isCodingTask)
+                {{-- Student Submission Panel (Google Classroom Style for Tugas, PBL, etc.) --}}
                 <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-bold text-ink">Tugas Anda</h2>
@@ -841,7 +889,7 @@
                 </aside>
             @endif
         </div>
-    @unless($isLecturer)
+    @unless($isLecturer || $isDedicatedQuiz || $isCodingTask)
     </form>
     @endunless
 
@@ -1094,5 +1142,27 @@
             if (form) form.submit();
         }
     }
+
+    (() => {
+        const subForm = document.querySelector('[data-submission-form]');
+        if (subForm) {
+            let isConfirmed = false;
+            subForm.addEventListener('submit', async (e) => {
+                if (isConfirmed) return;
+                e.preventDefault();
+                const ok = typeof window.saleConfirm === 'function'
+                    ? await window.saleConfirm({
+                        title: 'Kumpulkan Tugas?',
+                        message: 'Pastikan seluruh berkas atau tautan jawaban yang Anda lampirkan sudah lengkap dan benar. Apakah Anda yakin ingin mengumpulkan tugas ini sekarang?',
+                        confirmLabel: 'Kumpulkan Tugas',
+                    })
+                    : confirm('Apakah Anda yakin ingin mengumpulkan tugas ini sekarang?');
+                if (ok) {
+                    isConfirmed = true;
+                    subForm.submit();
+                }
+            });
+        }
+    })();
 </script>
 @endsection

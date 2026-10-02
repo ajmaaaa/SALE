@@ -112,7 +112,7 @@ class DatabaseNotificationService
     private function studentNotifications(User $user): array
     {
         $sections = $user->classSectionsEnrolled()
-            ->with(['mataKuliah', 'assessments' => fn ($query) => $query->gradable()->where('status', Assessment::STATUS_PUBLISHED)])
+            ->with(['mataKuliah', 'assessments' => fn ($query) => $query->where('status', Assessment::STATUS_PUBLISHED)])
             ->get();
         $assessmentIds = $sections->flatMap->assessments->pluck('id');
         $scores = StudentAssessmentScore::query()
@@ -136,24 +136,28 @@ class DatabaseNotificationService
                 $score = $scores->get($assessment->id);
                 $submission = $submissions->get($assessment->id);
                 $type = $assessment->type;
-                $target = $type === 'coding'
-                    ? route('course.assignment.code', [$section->id, $assessment->id], false)
-                    : route('mahasiswa.course.item', [$section->id, $assessment->id], false);
+                $payload = $assessment->learning_payload ?? [];
+                $isCoding = ($type === 'coding')
+                    || (($payload['task_mode'] ?? null) === 'coding')
+                    || (($payload['question_type'] ?? null) === 'coding')
+                    || !empty($payload['coding_steps']);
+                $isCodingMaterial = ($type === 'materi') && (($payload['material_mode'] ?? null) === 'coding');
+
+                $target = route('mahasiswa.course.item', [$section->id, $assessment->id], false);
 
                 if ($score && $score->score !== null) {
                     $eventAt = $score->updated_at ?? $score->published_at ?? now();
                     $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
-                    $isTask = in_array($type, ['tugas', 'coding', 'pbl', 'case', 'project'], true);
 
                     if ($isQuiz) {
                         $title = "Nilai Quiz Diperbarui: {$assessment->name} ({$section->display_code})";
                         $message = 'Nilai quiz sudah diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
-                    } elseif ($isTask) {
+                    } elseif ($isCoding) {
+                        $title = "Nilai Tugas Pemrograman Diperbarui: {$assessment->name} ({$section->display_code})";
+                        $message = 'Nilai tugas pemrograman sudah dinilai oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
+                    } else {
                         $title = "Nilai Tugas Diperbarui: {$assessment->name} ({$section->display_code})";
                         $message = 'Nilai tugas sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
-                    } else {
-                        $title = "Nilai Diperbarui: {$assessment->name} ({$section->display_code})";
-                        $message = 'Nilai sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format((float) $score->score, 0).'/100.'.($score->feedback ? ' Catatan dosen: "'.Str::limit($score->feedback, 80).'"' : '');
                     }
 
                     $notifications[] = $this->notification(
@@ -183,17 +187,68 @@ class DatabaseNotificationService
                 } else {
                     $dueText = $assessment->due_at?->translatedFormat('d M Y, H:i') ?? 'Tanpa batas tenggat';
                     $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
-                    $notifications[] = $this->notification(
-                        "pending_{$assessment->id}",
-                        ($isQuiz ? 'Kuis Tersedia: ' : 'Penugasan: ')."{$assessment->name} ({$section->display_code})",
-                        "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
-                        $assessment->created_at,
-                        $isQuiz ? 'quiz' : 'alert',
-                        $target,
-                        $isQuiz ? 'Mulai Kerjakan Kuis' : 'Buka Lembar Tugas',
-                        'tugas',
-                        $section->id
-                    );
+
+                    if ($isQuiz) {
+                        $notifications[] = $this->notification(
+                            "pending_{$assessment->id}",
+                            "Kuis Tersedia: {$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
+                            $assessment->created_at,
+                            'quiz',
+                            $target,
+                            'Mulai Kerjakan Kuis',
+                            'tugas',
+                            $section->id
+                        );
+                    } elseif ($isCoding && $type !== 'materi') {
+                        $notifications[] = $this->notification(
+                            "pending_{$assessment->id}",
+                            "Tugas Pemrograman Tersedia: {$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
+                            $assessment->created_at,
+                            'quiz',
+                            $target,
+                            'Mulai Kerjakan Tugas Koding',
+                            'tugas',
+                            $section->id
+                        );
+                    } elseif ($type === 'materi') {
+                        $notifications[] = $this->notification(
+                            "material_{$assessment->id}",
+                            ($isCodingMaterial ? 'Materi Pemrograman: ' : 'Materi Baru: ')."{$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Pelajari materi pembelajaran yang telah diterbitkan dosen.",
+                            $assessment->created_at,
+                            'alert',
+                            $target,
+                            'Pelajari Materi',
+                            'materi',
+                            $section->id
+                        );
+                    } elseif ($type === 'pengumuman') {
+                        $notifications[] = $this->notification(
+                            "announcement_{$assessment->id}",
+                            "Pengumuman: {$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Pengumuman penting dari dosen pengampu.",
+                            $assessment->created_at,
+                            'alert',
+                            $target,
+                            'Lihat Pengumuman',
+                            'sistem',
+                            $section->id
+                        );
+                    } else {
+                        $notifications[] = $this->notification(
+                            "pending_{$assessment->id}",
+                            "Penugasan: {$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
+                            $assessment->created_at,
+                            'alert',
+                            $target,
+                            'Buka Lembar Tugas',
+                            'tugas',
+                            $section->id
+                        );
+                    }
                 }
             }
             $this->appendDiscussionNotification($notifications, $user, $section);

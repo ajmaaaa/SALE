@@ -164,9 +164,13 @@ function linkVirtualAssets(source, files) {
             : `${unreferencedStyles}\n${out}`;
     }
 
+    const isNotPy = (name) => {
+        const lower = String(name || '').toLowerCase();
+        return !lower.endsWith('.py') && lower !== 'untitled' && !lower.startsWith('untitled-');
+    };
     // 4. Any JS file in workspace that was not explicitly linked is auto-injected
     const unreferencedScripts = files
-        .filter((file) => (isName(file.name, '.js') || looksLikeJs(file.code)) && !referencedSet.has(file.name.toLowerCase()))
+        .filter((file) => isNotPy(file.name) && (isName(file.name, '.js') || looksLikeJs(file.code)) && !referencedSet.has(file.name.toLowerCase()))
         .map((file) => `<script data-file="${file.name}" data-auto-injected="true">\n${file.code ?? ''}\n</script>`)
         .join('\n');
 
@@ -200,11 +204,12 @@ export function mainDocument(files = [], activeName = '') {
             return activeMatch;
         }
     }
-    return list.find((file) => file.name.toLowerCase() === 'index.html')
+    return list.find((file) => file.name.toLowerCase() === 'untitled.html')
+        ?? list.find((file) => file.name.toLowerCase() === 'index.html')
         ?? list.find((file) => isName(file.name, '.html') || isName(file.name, '.htm'))
         ?? list.find((file) => /^<!doctype\s+html|^<html/i.test(file.code?.trim() || ''))
         ?? list[list.length - 1]
-        ?? { name: 'index.html', code: '' };
+        ?? { name: 'untitled.html', code: '' };
 }
 
 let teardown = null;
@@ -248,8 +253,16 @@ export function runWeb({ code, files = [], activeName = '', frame, onOutput, sig
             timeoutId = null;
             finish();
             window.removeEventListener('message', onMessage);
+            if (signal?.aborted && frame) {
+                try { frame.srcdoc = ''; } catch {}
+            }
         };
-        signal?.addEventListener('abort', finish, { once: true });
+        signal?.addEventListener('abort', () => {
+            finish();
+            if (frame) {
+                try { frame.srcdoc = ''; } catch {}
+            }
+        }, { once: true });
         if (signal?.aborted) return teardown();
         window.addEventListener('message', onMessage);
         frame.srcdoc = buildPreviewDocument(htmlSource, list);

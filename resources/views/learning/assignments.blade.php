@@ -53,9 +53,7 @@
                     || (($item['task_mode'] ?? null) === 'coding')
                     || (($item['question_type'] ?? null) === 'coding')
                     || !empty($item['coding_steps']);
-                $targetUrl = $isCoding
-                    ? route('course.assignment.code', [$item['course'], $item['id']])
-                    : route('mahasiswa.course.item', [$item['course'], $item['id']]);
+                $targetUrl = route('mahasiswa.course.item', [$item['course'], $item['id']]);
                 $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
             @endphp
             <div class="assignment-item-row group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition" data-search="{{ mb_strtolower($item['title'] . ' ' . ($courses[$item['course']]['code'] ?? '') . ' ' . ($courses[$item['course']]['title'] ?? '')) }}">

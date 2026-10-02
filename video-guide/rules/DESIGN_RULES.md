@@ -34,6 +34,12 @@ Hal-hal di bawah ini **dilarang keras**. Ini adalah tanda-tanda desain AI-slop y
 - **DILARANG KERAS menggunakan gambar hasil generate AI** (seperti Midjourney, DALL-E, Stable Diffusion, atau generator ilustrasi AI sejenis). Ciri gambar AI generatif yang dilarang: tangan/jari terdistorsi, artefak rendering plastik, teks/ornamen ngawur, pencahayaan neon tak natural, dan vibe "AI slop" yang merusak citra profesional sistem SALE.
 - Dilarang menyisipkan karakter atau ilustrasi pseudo-3D glossy hasil prompt generator AI.
 
+### Larangan Tampilan Sintetis / Mockup Buatan Sendiri (Wajib Sistem Asli)
+- **DILARANG MEMBUAT TAMPILAN BARU ATAU SINTETIS DARI NOL**. Dilarang mendesain mockup UI buatan sendiri yang mengarang tata letak, tombol, kartu nilai, tab, modal, atau form yang tidak ada di sistem SALE.
+- **WAJIB MENGGUNAKAN TAMPILAN ASLI DARI SISTEM SALE**. Seluruh preview antarmuka mahasiswa, dosen, admin (seperti Workbench Koding AI, Profil & Pengaturan, Notifikasi, Transkrip Nilai / KHS, Forum Diskusi, Materi Video) wajib diambil langsung via screenshot/rekaman antarmuka aplikasi Laravel SALE yang sedang berjalan.
+- **DILARANG MENAMBAH-NAMBAHKAN ELEMEN YANG TIDAK ADA DI SISTEM**. Jangan menambahkan tab fiktif (seperti tab 'Tampilan' di profil), grafik radar fiktif di nilai, atau tombol yang tidak ada di kode aplikasi aslinya.
+- **DILARANG MENIMPA SECARA KASAR ATAU MEMBIARKAN ELEMEN BOCOR (OVERLAY LEAK)**. Jika menambahkan simulasi interaksi (seperti ketikan input teks, highlight, atau kursor), pastikan penempatan koordinatnya presisi pada form input asli dan unmount secara bersih saat berpindah slide/langkah sehingga tidak ada elemen yang tertinggal atau menimpa layar berikutnya.
+
 ---
 
 ## BAGIAN 2 — STANDAR DESAIN YANG WAJIB DITERAPKAN
@@ -111,6 +117,39 @@ Setiap file video memiliki:
 - Mulai langsung dengan konteks: "Satu hal yang sering bikin bingung adalah..." atau "Ini cara paling cepat untuk..."
 - Tempo bicara: 130–150 kata/menit (tidak terlalu cepat, tidak terlalu lambat)
 - Setiap kalimat voiceover di script diberi tanda `[VO]` sebelumnya
+
+---
+
+## BAGIAN 6 — STANDAR TIPOGRAFI, BADGE, & SINKRONISASI VO TERBARU
+
+Untuk panduan teknis dan implementasi kode lengkap, lihat [WORKFLOW_DAN_STANDAR_VIDEO.md](WORKFLOW_DAN_STANDAR_VIDEO.md).
+
+### 1. Hierarki Tipografi Kontras Tinggi
+- **Heading Utama**: `text-[52px]`–`[60px] font-extrabold` (bobot 800).
+- **Subjudul**: `text-2xl`–`3xl font-normal` (bobot 400, slate lembut) agar tidak menyaingi heading.
+- **Poin Kunci**: `text-2xl font-semibold` (bobot 600).
+- **Dilarang**: Menggunakan `font-bold` bersamaan pada heading dan deskripsi sehingga terlihat sama tebal dan sulit dibedakan.
+
+### 2. Standar Badge Nomor Urut
+- Semua nomor list (01, 02, 03, dst.) **wajib menggunakan container badge ber-background**:
+  - Dark Navy: `h-12 w-12 rounded-xl bg-white/10 border border-white/15 text-white font-bold text-lg shadow-sm`
+  - Light Cream: `h-12 w-12 rounded-xl bg-[#102f50]/10 border border-[#102f50]/15 text-[#102f50] font-bold text-lg shadow-sm`
+
+### 3. Poin Ringkas Bebas Paragraf Penjelas
+- Hapus seluruh kalimat penjelas 2 baris di bawah setiap poin list.
+- Tampilkan hanya frasa kunci yang padat, vokal, dan terarah sesuai narasi VO.
+
+### 4. Cover & Final CTA 3 Baris Bersih (Tanpa Card Box)
+- Dilarang membungkus cover atau CTA penutup dalam kotak card.
+- Tampilkan tepat 3 baris terpusat:
+  1. Baris 1: Judul Utama (`font-extrabold`)
+  2. Baris 2: Subjudul (`font-normal`)
+  3. Baris 3: `INSTITUT TEKNOLOGI SENGGARANG` (`text-base tracking-[0.25em] uppercase`)
+
+### 5. Sinkronisasi Audio Tingkat Kata (Word-Level Sync)
+- Seluruh timing teks dan transisi wajib diturunkan dari transkripsi Whisper milidetik (`voX_timestamps.json`).
+- Gunakan komponen `WordByWord.tsx` dengan penekanan kata kunci (*tagline spring punch*).
+- Batas transisi fase layar wajib disesuaikan dengan waktu mulai kalimat narasi segmen terkait.
 
 ---
 

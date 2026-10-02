@@ -519,4 +519,54 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertNull($assessment->due_at);
         $this->assertNull($assessment->learning_payload['due']);
     }
+
+    public function test_lecturer_can_store_programming_material_with_multiple_steps_without_points_or_grades(): void
+    {
+        $payload = [
+            'type' => 'materi',
+            'material_mode' => 'coding',
+            'title' => 'Tutorial Dasar Algoritma Pohon',
+            'module' => 'Minggu 4: Pengantar BST',
+            'body' => 'Pelajari konsep struktur pohon biner dan traversal secara bertahap.',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'coding_steps' => [
+                [
+                    'title' => 'Halaman 1: Konsep Simpul',
+                    'cpmk' => $this->cpmk1->code,
+                    'body' => 'Penjelasan struktur simpul node dan pointer kiri-kanan.',
+                    'points' => null,
+                ],
+                [
+                    'title' => 'Halaman 2: Penyisipan Rekursif',
+                    'cpmk' => $this->cpmk1->code,
+                    'body' => 'Panduan implementasi fungsi insert pada BST.',
+                    'points' => null,
+                ],
+                [
+                    'title' => 'Halaman 3: In-Order Traversal',
+                    'cpmk' => $this->cpmk1->code,
+                    'body' => 'Cara kerja traversal in-order untuk mencetak data terurut.',
+                    'points' => null,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertSessionHasNoErrors();
+        $assessment = \App\Models\Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Tutorial Dasar Algoritma Pohon')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertSame('materi', $assessment->type);
+        $this->assertSame('coding', $assessment->learning_payload['material_mode']);
+        $this->assertCount(3, $assessment->learning_payload['coding_steps']);
+        // Tidak ada questions atau asesmen tugas
+        $this->assertEmpty($assessment->learning_payload['questions'] ?? []);
+    }
 }

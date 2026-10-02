@@ -1,230 +1,219 @@
 import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import {
-  AnimatedBadge,
-  FloatingBackground,
-  fontFamily,
-  SaleLogo,
-} from "../../components/common";
+import { fontFamily } from "../../components/common";
+import { AcademicBackground } from "../../components/AcademicBackground";
+import { ShowcaseDisplay } from "../../components/ShowcaseDisplay";
+import { WordByWord } from "../../components/WordByWord";
 
+/**
+ * Scene 3 — Kerangka Outcome-Based Education (OBE)
+ * Durasi: 1103 frames (~36.77s)
+ *
+ * Theme: Pure Brand Navy (#102f50)
+ * Tipografi: Hierarki tajam (Heading font-extrabold vs Subjudul font-normal),
+ * Angka ber-badge background, poin ringkas tanpa detail panjang, timing tersinkron VO.
+ */
 export const Scene3ObeFramework: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const headerOpacity = interpolate(frame, [0, 20], [0, 1], {
+  const getItemAnim = (startFrame: number, delay = 0) => {
+    const rel = frame - (startFrame + delay);
+    const opacity = interpolate(rel, [0, 8], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    const s = spring({ frame: rel, fps, config: { damping: 16, stiffness: 90 } });
+    const scale = interpolate(s, [0, 1], [0.96, 1]);
+    return { opacity, transform: `scale(${scale})` };
+  };
+
+  // Phase conditions (Precisely matched to VO1 segments)
+  // Seg 10-12 (0–655f): Penerapan Penuh Kerangka OBE & 4 Tahapan
+  // Seg 13 (655–845f): Peta Capaian Kelas Dosen
+  // Seg 14-15 (845–1103f): Radar Portofolio Mahasiswa
+  const isPipeline = frame < 655;
+  const isDosenMap = frame >= 655 && frame < 845;
+  const isMahasiswaRadar = frame >= 845;
+
+  // Phase fades
+  const fadePipeline = interpolate(frame, [0, 8, 640, 655], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const headerY = interpolate(
-    spring({ frame, fps, config: { damping: 15 } }),
-    [0, 1],
-    [30, 0]
-  );
-
-  const pillars = [
-    {
-      step: "01",
-      title: "Pemetaan Asesmen ke Target CPMK",
-      desc: "Setiap butir materi, soal kuis, tugas mandiri, dan proyek coding dikaitkan secara presisi ke target CPMK spesifik.",
-      highlight: "Asesmen Berorientasi Hasil",
-    },
-    {
-      step: "02",
-      title: "Kalkulasi Capaian Otomatis & Real Time",
-      desc: "Sistem mengagregasikan nilai mahasiswa menjadi peta ketercapaian kompetensi kelas secara instan tanpa rekap manual.",
-      highlight: "Mesin Analitik Cerdas",
-    },
-    {
-      step: "03",
-      title: "Transparansi Radar Kompetensi Mahasiswa",
-      desc: "Mahasiswa memantau langsung radar capaian pribadi untuk mengetahui penguasaan keahlian nyata yang telah berhasil diraih.",
-      highlight: "Transparansi Akademik",
-    },
-  ];
-
-  // Active step in hierarchy flow (VO 75.4s - 89.2s -> local frames 230 - 645)
-  const isFlowFocus = frame >= 230 && frame < 645;
-  const activeFlowIndex =
-    frame < 230
-      ? -1
-      : frame < 330
-      ? 0
-      : frame < 430
-      ? 1
-      : frame < 540
-      ? 2
-      : 3;
+  const fadeDosenMap = interpolate(frame, [655, 665, 835, 845], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const fadeRadar = interpolate(frame - 845, [0, 10], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   return (
     <div
       style={{ fontFamily }}
-      className="relative flex h-full w-full flex-col justify-between bg-white p-16 text-slate-900 overflow-hidden select-none"
+      className="relative flex h-full w-full overflow-hidden select-none bg-[#102f50] text-white"
     >
-      <FloatingBackground />
+      <AcademicBackground theme="dark" />
 
-      {/* Top Bar */}
-      <div className="relative z-10 flex items-center justify-between">
-        <SaleLogo />
-        <AnimatedBadge text="PENJAMINAN MUTU AKADEMIK • OBE" delay={0} />
-      </div>
-
-      {/* Header */}
-      <div
-        style={{
-          transform: `translateY(${headerY}px)`,
-          opacity: headerOpacity,
-        }}
-        className="relative z-10 my-3 text-center max-w-4xl mx-auto"
-      >
-        <h2 className="text-5xl font-black tracking-tight text-[#102f50]">
-          Penerapan Penuh Kerangka OBE
-        </h2>
-        <p className="mt-2 text-lg text-slate-600">
-          Setiap materi perkuliahan, kuis, ujian, hingga baris kode pemrograman
-          terhubung langsung ke target CPL dan CPMK institusi.
-        </p>
-      </div>
-
-      {/* Visual OBE Flow & 3 Pillars */}
-      <div className="relative z-10 grid grid-cols-12 gap-8 my-auto items-center">
-        {/* Flow Diagram Box (Left, 5 cols) */}
-        <div className="col-span-5 flex flex-col gap-3 rounded-3xl bg-[#102f50] p-8 text-white shadow-2xl">
-          <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-            Alur Pengukuran Capaian
+      {/* === FASE 1: "Penerapan Penuh Kerangka OBE" — List Ber-Badge (0–340) === */}
+      {isPipeline && (
+        <div
+          style={{ opacity: fadePipeline }}
+          className="relative z-10 flex-1 grid grid-cols-12 gap-14 items-center px-24 max-w-[1720px] mx-auto w-full my-auto"
+        >
+          <div className="col-span-5 flex flex-col justify-center">
+            <div className="text-xs font-bold tracking-[0.25em] text-slate-400 uppercase mb-3">
+              STANDAR AKADEMIK OBE
+            </div>
+            <h1 className="text-[52px] font-extrabold tracking-tight text-white leading-tight">
+              <WordByWord
+                text="Penerapan Penuh Kerangka OBE"
+                startFrame={10}
+                durationInFrames={40}
+                highlightWords={["OBE"]}
+              />
+            </h1>
+            <div className="mt-4 text-2xl font-normal text-slate-300 leading-relaxed">
+              <WordByWord
+                text="Terhubung Langsung ke Target CPMK dan CPL Program Studi"
+                startFrame={60}
+                durationInFrames={45}
+                highlightWords={["CPMK", "CPL"]}
+              />
+            </div>
           </div>
-          <div className="text-2xl font-black">Hierarki Mutu Kurikulum</div>
 
-          <div className="mt-4 flex flex-col gap-3">
-            {[
-              {
-                label: "CPL (Capaian Pembelajaran Lulusan)",
-                sub: "Standar profil kompetensi lulusan program studi",
-                color: "bg-blue-600",
-              },
-              {
-                label: "CPMK (Capaian Mata Kuliah)",
-                sub: "Target kompetensi spesifik yang diturunkan per semester",
-                color: "bg-cyan-600",
-              },
-              {
-                label: "Asesmen & Tantangan Coding",
-                sub: "Tugas mandiri, kuis, ujian berwaktu, dan praktikum AI",
-                color: "bg-emerald-600",
-              },
-              {
-                label: "Portofolio & Laporan Capaian",
-                sub: "Peta ketercapaian kelas dan grafik radar kompetensi diri",
-                color: "bg-amber-600",
-              },
-            ].map((step, idx) => {
-              const sSpring = spring({
-                frame: frame - (10 + idx * 8),
-                fps,
-                config: { damping: 14 },
-              });
-              const sOpacity = interpolate(
-                frame - (10 + idx * 8),
-                [0, 10],
-                [0, 1],
-                { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-              );
+          <div className="col-span-7 grid grid-cols-2 gap-x-12 gap-y-10 pl-6">
+            <div style={getItemAnim(250, 0)} className="flex items-center gap-5">
+              <span className="flex items-center justify-center h-12 w-12 rounded-xl bg-white/10 border border-white/15 text-white font-bold text-lg shadow-sm shrink-0">
+                01
+              </span>
+              <div className="text-2xl font-semibold text-slate-100">Materi Terpetakan</div>
+            </div>
 
-              const isStepActive = isFlowFocus && activeFlowIndex === idx;
+            <div style={getItemAnim(310, 0)} className="flex items-center gap-5">
+              <span className="flex items-center justify-center h-12 w-12 rounded-xl bg-white/10 border border-white/15 text-white font-bold text-lg shadow-sm shrink-0">
+                02
+              </span>
+              <div className="text-2xl font-semibold text-slate-100">Kuis Berkelanjutan</div>
+            </div>
 
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    transform: `translateX(${interpolate(
-                      sSpring,
-                      [0, 1],
-                      [-20, 0]
-                    )}px) scale(${isStepActive ? 1.03 : 1})`,
-                    opacity: isFlowFocus ? (isStepActive ? 1 : 0.6) : sOpacity,
-                  }}
-                  className={`flex items-center gap-3.5 rounded-xl p-3.5 border ${
-                    isStepActive
-                      ? "bg-white/20 border-cyan-400 ring-2 ring-cyan-400/40 shadow-lg"
-                      : "bg-white/10 border-white/10 backdrop-blur-sm"
-                  }`}
-                >
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${step.color} text-xs font-black text-white shadow-sm`}
-                  >
-                    0{idx + 1}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-white">
-                      {step.label}
-                    </div>
-                    <div className="text-[11px] text-slate-300">{step.sub}</div>
-                  </div>
-                </div>
-              );
-            })}
+            <div style={getItemAnim(370, 0)} className="flex items-center gap-5">
+              <span className="flex items-center justify-center h-12 w-12 rounded-xl bg-white/10 border border-white/15 text-white font-bold text-lg shadow-sm shrink-0">
+                03
+              </span>
+              <div className="text-2xl font-semibold text-slate-100">Ujian &amp; Koding Otomatis</div>
+            </div>
+
+            <div style={getItemAnim(430, 0)} className="flex items-center gap-5">
+              <span className="flex items-center justify-center h-12 w-12 rounded-xl bg-white/10 border border-white/15 text-white font-bold text-lg shadow-sm shrink-0">
+                04
+              </span>
+              <div className="text-2xl font-semibold text-slate-100">Portofolio Capaian CPL</div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* 3 Pillars (Right, 7 cols) */}
-        <div className="col-span-7 flex flex-col gap-4">
-          {pillars.map((item, idx) => {
-            const pSpring = spring({
-              frame: frame - (20 + idx * 10),
-              fps,
-              config: { damping: 14 },
-            });
-            const pOpacity = interpolate(
-              frame - (20 + idx * 10),
-              [0, 10],
-              [0, 1],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-            );
+      {/* === FASE 2: Peta Capaian Kelas Dosen — Poin Kunci Ringkas (340–680) === */}
+      {isDosenMap && (
+        <div
+          style={{ opacity: fadeDosenMap }}
+          className="relative z-10 flex-1 grid grid-cols-12 gap-14 items-center px-24 max-w-[1720px] mx-auto w-full my-auto"
+        >
+          <div
+            style={getItemAnim(660, 0)}
+            className="col-span-7 flex justify-center"
+          >
+            <ShowcaseDisplay
+              src="screens/16_dosen_rekap_gradebook.png"
+              theme="dark"
+            />
+          </div>
 
-            // Right side cards get highlighted in the second half of the scene (frame 645+)
-            const isRightSideFocused = frame >= 645;
+          <div className="col-span-5 flex flex-col justify-center">
+            <div className="text-xs font-bold tracking-[0.25em] text-slate-400 uppercase mb-3">
+              MONITORING MUTU KELAS
+            </div>
+            <h2 className="text-[52px] font-extrabold tracking-tight text-white leading-tight">
+              <WordByWord
+                text="Peta Capaian Kelas"
+                startFrame={665}
+                durationInFrames={20}
+              />
+            </h2>
+            <div className="text-2xl font-normal text-slate-300 mt-3 leading-relaxed">
+              <WordByWord
+                text="Melihat Ketercapaian Kompetensi Kelas Secara Instan"
+                startFrame={685}
+                durationInFrames={35}
+                highlightWords={["Kompetensi", "Instan"]}
+              />
+            </div>
 
-            return (
-              <div
-                key={idx}
-                style={{
-                  transform: `translateX(${interpolate(
-                    pSpring,
-                    [0, 1],
-                    [30, 0]
-                  )}px)`,
-                  opacity: pOpacity,
-                }}
-                className={`flex items-start gap-5 rounded-2xl bg-slate-50 p-6 border shadow-sm ${
-                  isRightSideFocused
-                    ? "border-blue-300 ring-2 ring-blue-500/10 shadow-md bg-white"
-                    : "border-slate-200"
-                }`}
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#102f50] text-lg font-black text-white shadow-md">
-                  {item.step}
-                </div>
-                <div>
-                  <div className="inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-900 uppercase tracking-wide">
-                    {item.highlight}
-                  </div>
-                  <h3 className="mt-1 text-xl font-extrabold text-[#102f50]">
-                    {item.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
+            <div className="mt-10 flex flex-col gap-5">
+              <div style={getItemAnim(730, 0)} className="text-2xl font-semibold text-slate-100">
+                Evaluasi Bebas Rekapitulasi Manual
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Footer Info */}
-      <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 font-medium">
-        <span>Kepatuhan terhadap standar akreditasi BAN-PT, LAM-INFOKOM, dan IABEE</span>
-        <span>Master Video 01 • Bagian 03: Kerangka OBE</span>
-      </div>
+              <div style={getItemAnim(785, 0)} className="text-2xl font-semibold text-slate-100">
+                Kesiapan Akreditasi Program Studi
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === FASE 3: Radar Portofolio Mahasiswa — Poin Kunci Ringkas (680–1103) === */}
+      {isMahasiswaRadar && (
+        <div
+          style={{ opacity: fadeRadar }}
+          className="relative z-10 flex-1 grid grid-cols-12 gap-14 items-center px-24 max-w-[1720px] mx-auto w-full my-auto"
+        >
+          <div
+            style={getItemAnim(850, 0)}
+            className="col-span-7 flex justify-center"
+          >
+            <ShowcaseDisplay
+              src="screens/17_mahasiswa_transkrip_radar.png"
+              theme="dark"
+            />
+          </div>
+
+          <div className="col-span-5 flex flex-col justify-center">
+            <div className="text-xs font-bold tracking-[0.25em] text-slate-400 uppercase mb-3">
+              TRANSPARANSI KEAHLIAN
+            </div>
+            <h2 className="text-[52px] font-extrabold tracking-tight text-white leading-tight">
+              <WordByWord
+                text="Transparansi Keahlian"
+                startFrame={840}
+                durationInFrames={20}
+              />
+            </h2>
+            <div className="text-2xl font-normal text-slate-300 mt-3 leading-relaxed">
+              <WordByWord
+                text="Visualisasi Kompetensi Riil Mahasiswa"
+                startFrame={865}
+                durationInFrames={35}
+                highlightWords={["Kompetensi", "Riil"]}
+              />
+            </div>
+
+            <div className="mt-10 flex flex-col gap-5">
+              <div style={getItemAnim(920, 0)} className="text-2xl font-semibold text-slate-100">
+                Grafik Radar Ketercapaian
+              </div>
+
+              <div style={getItemAnim(980, 0)} className="text-2xl font-semibold text-slate-100">
+                Portofolio Bukti Autentik Keahlian
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -211,9 +211,7 @@
                                 @foreach($contents as $item)
                                     @php
                                         $isCodingMaterial = ($item['material_mode'] ?? null) === 'coding';
-                                        $materialUrl = $isCodingMaterial
-                                            ? route('course.assignment.code', [$course['id'], $item['id']])
-                                            : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
+                                        $materialUrl = $isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]);
                                     @endphp
                                     <div class="group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition">
                                         <a href="{{ $materialUrl }}" class="flex items-start gap-4 min-w-0 flex-1">
@@ -282,9 +280,9 @@
                                         $hasSubmission = in_array($item['id'], $submittedAssessmentIds, true);
                                         $isCoding = ($item['type'] === 'coding');
                                         $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
-                                        $itemUrl = $isCoding
-                                            ? route('course.assignment.code', [$course['id'], $item['id']])
-                                            : ($isDosen ? route('dosen.course.item', [$course['id'], $item['id']]) : route('mahasiswa.course.item', [$course['id'], $item['id']]));
+                                        $itemUrl = $isDosen
+                                            ? route('dosen.course.item', [$course['id'], $item['id']])
+                                            : route('mahasiswa.course.item', [$course['id'], $item['id']]);
                                     @endphp
                                     <div class="group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition">
                                         <a href="{{ $itemUrl }}" class="flex items-start gap-4 min-w-0 flex-1">

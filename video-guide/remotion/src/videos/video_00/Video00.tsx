@@ -1,6 +1,7 @@
 import React from "react";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
+import { slide } from "@remotion/transitions/slide";
 import { Audio, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Scene1Intro } from "./Scene1Intro";
 import { Scene2FourRoles } from "./Scene2FourRoles";
@@ -39,7 +40,7 @@ const ProgressBar: React.FC = () => {
     <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/20 z-50">
       <div
         style={{ width: `${progress}%` }}
-        className="h-full bg-cyan-400 shadow-sm"
+        className="h-full bg-white/70 shadow-sm"
       />
     </div>
   );
@@ -72,7 +73,7 @@ export const Video00: React.FC = () => {
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={slide({ direction: "from-right" })}
           timing={linearTiming({ durationInFrames: TRANSITION_DURATION })}
         />
 
@@ -96,7 +97,7 @@ export const Video00: React.FC = () => {
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={slide({ direction: "from-right" })}
           timing={linearTiming({ durationInFrames: TRANSITION_DURATION })}
         />
 

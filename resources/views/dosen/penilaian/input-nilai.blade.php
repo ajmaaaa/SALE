@@ -111,8 +111,8 @@
                                 </th>
                             @endif
 
-                            {{-- Kolom Jawaban Esai --}}
-                            <th class="py-3 px-3 text-center w-28 text-xs font-medium text-muted border-l border-line/50">Jawaban</th>
+                            {{-- Kolom Penilaian & Jawaban --}}
+                            <th class="py-3 px-3 text-center min-w-[140px] text-xs font-semibold text-ink border-l border-line/50">Penilaian &amp; Jawaban</th>
                             <th class="py-3 px-3 text-center w-28 text-xs font-medium text-muted border-l border-line/50">Status</th>
                         </tr>
                     </thead>
@@ -157,32 +157,48 @@
                                     </td>
                                 @endif
 
-                                {{-- Kolom Jawaban Esai --}}
+                                {{-- Kolom Penilaian & Jawaban --}}
                                 <td class="py-3 px-3 text-center border-l border-line/40">
                                     @php
                                         $essayInfo = $studentEssayData[$student->id] ?? null;
                                         $hasSub = ! empty($essayInfo['has_submission']);
+                                        $isCodingItem = !empty($essayInfo['is_coding']);
                                     @endphp
-                                    @if($hasSub)
+                                    @if($isCodingItem)
                                         <div class="inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap">
-                                            <button type="button"
-                                                    onclick="openAnswerModal({{ $student->id }}, '{{ addslashes($student->name) }}')"
-                                                    class="button-secondary min-h-0 text-xs py-1 px-2.5 inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:text-brand"
-                                                    title="Lihat Jawaban {{ $student->name }}">
+                                            <a href="{{ route('course.assignment.code', [$section->id, $assessment->id, 'student' => $student->id]) }}"
+                                               class="button-secondary min-h-0 text-xs py-1 px-2.5 inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:text-brand"
+                                               title="{{ $hasSub ? 'Buka dan Nilai Kode '.$student->name.' di Editor' : 'Buka Lembar Kerja Coding di Editor' }}">
                                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
                                                     <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
-                                                <span>Jawaban</span>
+                                                <span>Buka di Editor Kode</span>
+                                            </a>
+                                            @if($hasSub)
+                                                @if(!empty($essayInfo['is_late']))
+                                                    <span class="text-[11px] font-medium text-amber-700">Terlambat</span>
+                                                @else
+                                                    <span class="text-[11px] font-medium text-slate-500">Tepat Waktu</span>
+                                                @endif
+                                            @endif
+                                        </div>
+                                    @elseif($hasSub)
+                                        <div class="inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap">
+                                            <button type="button"
+                                                    onclick="openAnswerModal({{ $student->id }}, '{{ addslashes($student->name) }}')"
+                                                    class="button-secondary min-h-0 text-xs py-1 px-2.5 inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:text-brand"
+                                                    title="Lihat dan Nilai Jawaban {{ $student->name }}">
+                                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                                <span>Lihat dan Nilai Jawaban</span>
                                             </button>
                                             @if(!empty($essayInfo['is_late']))
-                                                <span class="text-[11px] font-semibold text-amber-800">
-                                                    Terlambat
-                                                </span>
+                                                <span class="text-[11px] font-medium text-amber-700">Terlambat</span>
                                             @else
-                                                <span class="text-[11px] font-semibold text-emerald-800">
-                                                    Tepat Waktu
-                                                </span>
+                                                <span class="text-[11px] font-medium text-slate-500">Tepat Waktu</span>
                                             @endif
                                         </div>
                                     @else
@@ -222,7 +238,7 @@
     <div class="bg-white rounded-2xl border border-line shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
             <div>
-                <h3 class="text-sm font-bold text-ink" id="modal-heading">Jawaban &amp; Penilaian</h3>
+                <h3 class="text-sm font-bold text-ink" id="modal-heading">Lihat dan Nilai Jawaban</h3>
                 <p class="text-xs text-muted mt-0.5" id="modal-student-name">Mahasiswa</p>
             </div>
             <button type="button" onclick="closeAnswerModal()"
@@ -366,7 +382,7 @@
         } else {
             // Kasus Tugas & Coding
             if (heading) {
-                heading.textContent = data.is_coding ? 'Jawaban Kode & Penilaian' : 'Jawaban & Penilaian Tugas';
+                heading.textContent = data.is_coding ? 'Jawaban Kode & Penilaian' : 'Lihat dan Nilai Jawaban';
             }
 
             if (data.has_submission) {
@@ -394,7 +410,27 @@
                     `;
                 }
 
-                if (data.answer_text && data.answer_text.trim()) {
+                if (data.is_coding) {
+                    html += `
+                        <div class="p-4 rounded-xl border border-line bg-canvas/30 space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-[10px] font-semibold text-slate-700 uppercase tracking-wider">Lembar Kerja Coding</span>
+                                        <span class="text-xs font-bold text-ink">${data.has_submission ? 'Pengerjaan Praktikum Tersedia' : 'Belum Ada Pengumpulan'}</span>
+                                    </div>
+                                    <p class="text-xs text-muted mt-1 leading-relaxed">
+                                        Buka Workbench Editor untuk memeriksa, menguji coba, dan memberikan nilai kode program mahasiswa secara langsung di editor.
+                                    </p>
+                                </div>
+                                <a href="${escapeHtml(data.editor_url)}" class="button-primary text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 shrink-0 shadow-2xs">
+                                    <span>Buka &amp; Nilai di Editor Kode</span>
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else if (data.answer_text && data.answer_text.trim()) {
                     let codeFiles = null;
                     try {
                         const parsed = JSON.parse(data.answer_text);
@@ -502,77 +538,146 @@
                     `;
                 }
             } else {
-                html += `
-                    <div class="p-3.5 rounded-xl border border-line/60 bg-canvas/40 text-xs text-muted">
-                        Mahasiswa belum mengumpulkan jawaban secara daring untuk tugas ini. Anda dapat menginput nilai di bawah ini.
-                    </div>
-                `;
+                if (data.is_coding) {
+                    html += `
+                        <div class="p-4 rounded-xl border border-line bg-canvas/30 space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-[10px] font-semibold text-slate-700 uppercase tracking-wider">Lembar Kerja Coding</span>
+                                        <span class="text-xs font-bold text-ink">Belum Ada Pengumpulan</span>
+                                    </div>
+                                    <p class="text-xs text-muted mt-1 leading-relaxed">
+                                        Mahasiswa belum mengumpulkan tugas praktikum coding ini. Anda tetap dapat meninjau lembar kerja dan memberikan nilai di editor.
+                                    </p>
+                                </div>
+                                <a href="${escapeHtml(data.editor_url)}" class="button-primary text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 shrink-0 shadow-2xs">
+                                    <span>Buka &amp; Nilai di Editor Kode</span>
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="p-3.5 rounded-xl border border-line/60 bg-canvas/40 text-xs text-muted">
+                            Mahasiswa belum mengumpulkan jawaban secara daring untuk tugas ini. Anda dapat menginput nilai di bawah ini.
+                        </div>
+                    `;
+                }
             }
 
             // Form Penilaian Tugas
-            html += `
-                <form method="post" action="${escapeHtml(data.score_url)}" class="space-y-3 pt-4 border-t border-line/60">
-                    <input type="hidden" name="_token" value="${csrfToken}">
-                    <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-muted">Form Penilaian Tugas</h4>
-                    </div>
-            `;
-
-            if (data.has_cpmks && data.cpmk_list && data.cpmk_list.length > 0) {
-                html += '<div class="space-y-2.5">';
-                data.cpmk_list.forEach((cpmk) => {
+            if (data.is_coding && data.coding_steps && data.coding_steps.length > 0) {
+                html += `
+                    <form method="post" action="${escapeHtml(data.coding_score_url || data.score_url)}" class="space-y-3 pt-4 border-t border-line/60">
+                        <input type="hidden" name="_token" value="${csrfToken}">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-muted">Penilaian Tugas Coding (Per Butir Soal)</h4>
+                        </div>
+                        <div class="space-y-2.5">
+                `;
+                data.coding_steps.forEach((step) => {
                     html += `
                         <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-line bg-canvas/30">
                             <div class="min-w-0 flex-1">
-                                <div class="font-bold text-xs text-ink">${escapeHtml(cpmk.code)}</div>
-                                ${cpmk.description ? `<div class="text-[11px] text-muted truncate">${escapeHtml(cpmk.description)}</div>` : ''}
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-[10px] font-semibold text-slate-700">Soal ${step.number}</span>
+                                    <span class="font-bold text-xs text-ink truncate">${escapeHtml(step.title)}</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    ${step.cpmk ? `<span class="font-mono text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${escapeHtml(step.cpmk)}</span>` : ''}
+                                    <span class="text-[11px] text-muted">Maksimal ${step.max_points} poin</span>
+                                </div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
                                 <input type="number"
-                                       name="cpmk_scores[${cpmk.id}]"
-                                       value="${cpmk.current_score !== '' ? cpmk.current_score : ''}"
+                                       name="scores[${step.answer_id}]"
+                                       value="${step.current_score !== '' ? step.current_score : ''}"
                                        min="0"
-                                       max="${cpmk.max_score}"
+                                       max="${step.max_points}"
                                        step="any"
                                        placeholder="0"
                                        class="field h-9 w-20 text-center font-bold text-sm"
-                                       aria-label="Nilai ${escapeHtml(cpmk.code)}">
-                                <span class="text-xs text-muted font-semibold">/ ${cpmk.max_score}</span>
+                                       aria-label="Nilai Soal ${step.number}">
+                                <span class="text-xs text-muted font-semibold">/ ${step.max_points}</span>
                             </div>
                         </div>
                     `;
                 });
-                html += '</div>';
+                html += `
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-2">
+                            <button type="button" onclick="closeAnswerModal()" class="button-secondary text-xs py-2 px-3">Batal</button>
+                            <button type="submit" class="button-primary text-xs py-2 px-5 font-semibold shadow-2xs">Simpan Nilai Coding</button>
+                        </div>
+                    </form>
+                `;
             } else {
                 html += `
-                    <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-line bg-canvas/30">
-                        <div>
-                            <div class="font-bold text-xs text-ink">Nilai Asesmen</div>
-                            <div class="text-[11px] text-muted">Maksimal 100 poin</div>
+                    <form method="post" action="${escapeHtml(data.score_url)}" class="space-y-3 pt-4 border-t border-line/60">
+                        <input type="hidden" name="_token" value="${csrfToken}">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-muted">Form Penilaian Tugas</h4>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <input type="number"
-                                   name="score"
-                                   value="${data.single_score !== '' ? data.single_score : ''}"
-                                   min="0"
-                                   max="100"
-                                   step="any"
-                                   placeholder="0"
-                                   class="field h-9 w-24 text-center font-bold text-sm"
-                                   aria-label="Nilai Asesmen">
-                            <span class="text-xs text-muted font-semibold">/ 100</span>
+                `;
+
+                if (data.has_cpmks && data.cpmk_list && data.cpmk_list.length > 0) {
+                    html += '<div class="space-y-2.5">';
+                    data.cpmk_list.forEach((cpmk) => {
+                        html += `
+                            <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-line bg-canvas/30">
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-bold text-xs text-ink">${escapeHtml(cpmk.code)}</div>
+                                    ${cpmk.description ? `<div class="text-[11px] text-muted truncate">${escapeHtml(cpmk.description)}</div>` : ''}
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <input type="number"
+                                           name="cpmk_scores[${cpmk.id}]"
+                                           value="${cpmk.current_score !== '' ? cpmk.current_score : ''}"
+                                           min="0"
+                                           max="${cpmk.max_score}"
+                                           step="any"
+                                           placeholder="0"
+                                           class="field h-9 w-20 text-center font-bold text-sm"
+                                           aria-label="Nilai ${escapeHtml(cpmk.code)}">
+                                    <span class="text-xs text-muted font-semibold">/ ${cpmk.max_score}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                } else {
+                    html += `
+                        <div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-line bg-canvas/30">
+                            <div>
+                                <div class="font-bold text-xs text-ink">Nilai Asesmen</div>
+                                <div class="text-[11px] text-muted">Maksimal 100 poin</div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <input type="number"
+                                       name="score"
+                                       value="${data.single_score !== '' ? data.single_score : ''}"
+                                       min="0"
+                                       max="100"
+                                       step="any"
+                                       placeholder="0"
+                                       class="field h-9 w-24 text-center font-bold text-sm"
+                                       aria-label="Nilai Asesmen">
+                                <span class="text-xs text-muted font-semibold">/ 100</span>
+                            </div>
                         </div>
-                    </div>
+                    `;
+                }
+
+                html += `
+                        <div class="flex items-center justify-end gap-2 pt-2">
+                            <button type="button" onclick="closeAnswerModal()" class="button-secondary text-xs py-2 px-3">Batal</button>
+                            <button type="submit" class="button-primary text-xs py-2 px-5 font-semibold shadow-2xs">Simpan Nilai Tugas</button>
+                        </div>
+                    </form>
                 `;
             }
-
-            html += `
-                    <div class="flex items-center justify-end gap-2 pt-2">
-                        <button type="button" onclick="closeAnswerModal()" class="button-secondary text-xs py-2 px-3">Batal</button>
-                        <button type="submit" class="button-primary text-xs py-2 px-5 font-semibold shadow-2xs">Simpan Nilai Tugas</button>
-                    </div>
-                </form>
-            `;
         }
 
         body.innerHTML = html;

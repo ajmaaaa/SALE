@@ -55,7 +55,7 @@ export const Scene1Intro: React.FC = () => {
       {/* Center Hero: Spacious, Minimal, Modern Tech Editorial */}
       <div className="relative z-10 my-auto flex flex-col items-center text-center max-w-4xl mx-auto py-10">
         <div className="text-sm font-bold tracking-widest text-sky-400 uppercase">
-          PANDUAN MAHASISWA &nbsp;&bull;&nbsp; EPISODE 01
+          PANDUAN MAHASISWA / EPISODE 01
         </div>
 
         <h1
@@ -83,13 +83,13 @@ export const Scene1Intro: React.FC = () => {
             transform: `translateY(${subY}px)`,
             opacity: subOpacity,
           }}
-          className="mt-8 flex items-center gap-6 text-sm font-medium tracking-wide text-slate-400"
+          className="mt-8 flex items-center gap-8 text-sm font-medium tracking-wide text-slate-400"
         >
-          <span>Login Akun</span>
-          <span className="text-slate-600">&bull;</span>
-          <span>Akses Portal</span>
-          <span className="text-slate-600">&bull;</span>
-          <span>Aktivasi Perkuliahan</span>
+          <span><span className="text-sky-500 font-bold">01</span> Login Akun</span>
+          <span className="text-slate-700">/</span>
+          <span><span className="text-sky-500 font-bold">02</span> Akses Portal</span>
+          <span className="text-slate-700">/</span>
+          <span><span className="text-sky-500 font-bold">03</span> Aktivasi Perkuliahan</span>
         </div>
       </div>
 

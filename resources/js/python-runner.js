@@ -1,7 +1,7 @@
 import workerSource from './python.worker.js?raw';
 import bstSuite from '../../app/Services/Ai/TestSuites/task_1.py?raw';
 
-export function runPython({ files, code, assignmentId, testAssignment = false, runtimeUrl, onOutput, onReady, signal }) {
+export function runPython({ files, code, assignmentId, testAssignment = false, runtimeUrl, activeFile, onOutput, onReady, signal }) {
     return new Promise((resolve, reject) => {
         // Laravel and Vite use different origins in development. A blob worker
         // belongs to the page origin; runtime imports use the absolute runtimeUrl.
@@ -33,7 +33,7 @@ export function runPython({ files, code, assignmentId, testAssignment = false, r
         };
         signal?.addEventListener('abort', cancel, { once: true });
         if (signal?.aborted) return cancel();
-        deadline(60000, 'Python belum berhasil dimuat. Muat ulang halaman dan coba lagi.');
+        deadline(20000, 'Waktu pemuatan runtime Python habis (20 detik). Coba muat ulang halaman.');
         worker.onerror = () => finish(new Error('Runtime Python gagal dimuat. Coba muat ulang halaman.'));
         worker.onmessage = ({ data }) => {
             if (data.type === 'ready') {
@@ -47,9 +47,10 @@ export function runPython({ files, code, assignmentId, testAssignment = false, r
             else if (data.type === 'error') finish(new Error(data.message));
         };
         worker.postMessage({
-            files: Array.isArray(files) && files.length ? files : [{ name: 'main.py', code: code ?? '' }],
+            files: Array.isArray(files) && files.length ? files : [{ name: activeFile || 'untitled', code: code ?? '' }],
             suite: testAssignment && String(assignmentId) === '1' ? bstSuite : '',
             runtimeUrl,
+            activeFile: activeFile || '',
         });
     });
 }

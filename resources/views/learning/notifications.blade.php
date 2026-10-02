@@ -22,6 +22,15 @@
                 </span>
             </a>
 
+            {{-- Materi --}}
+            <a href="{{ route('mahasiswa.notifications', ['category' => 'materi']) }}"
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'materi' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+                <span>Materi</span>
+                <span data-category-count="materi" class="text-xs font-bold {{ $selectedCategory === 'materi' ? 'text-white' : 'text-slate-600' }}">
+                    ({{ $categoryCounts['materi'] ?? 0 }})
+                </span>
+            </a>
+
             {{-- Tugas & Kuis --}}
             <a href="{{ route('mahasiswa.notifications', ['category' => 'tugas']) }}"
                class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'tugas' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">

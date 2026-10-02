@@ -108,6 +108,14 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $assessment = Assessment::latest('id')->first();
         $this->assertNotNull($assessment);
         $this->assertTrue((bool) ($assessment->learning_payload['ai_enabled'] ?? false));
+        $this->assertEquals(1, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
+
+        // Student views task with AI enabled
+        $viewRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $viewRes->assertOk();
+        $viewRes->assertDontSee('AI Aktif');
+        $viewRes->assertDontSee('Interaktif');
+        $viewRes->assertSee('id="panel-ai"', false);
 
         // 2. Dosen updates task with AI disabled (ai_enabled = 0)
         $updateRes = $this->actingAs($this->dosen)->put(route('dosen.item.update', [$this->section->id, $assessment->id]), [
@@ -135,6 +143,59 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $updateRes->assertSessionHasNoErrors();
         $assessment->refresh();
         $this->assertFalse((bool) ($assessment->learning_payload['ai_enabled'] ?? true));
+        $this->assertEquals(0, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
+
+        // Student views task with AI disabled: no panel-ai, no status badge
+        $viewResDisabled = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $viewResDisabled->assertOk();
+        $viewResDisabled->assertDontSee('AI Dinonaktifkan');
+        $viewResDisabled->assertDontSee('id="panel-ai"', false);
+
+        // 3. Dosen creates programming material with multiple steps and AI disabled
+        $matRes = $this->actingAs($this->dosen)->post(route('dosen.item.store', $this->section->id), [
+            'type' => 'materi',
+            'material_mode' => 'coding',
+            'title' => 'Materi Praktikum Algoritma',
+            'module' => 'Modul 1: Pengenalan',
+            'body' => 'Pelajari konsep dasar pemrograman.',
+            'ai_enabled' => '0',
+            'cpmk' => $this->cpmk->code,
+            'code_language' => 'python',
+            'coding_steps' => [
+                [
+                    'title' => 'Tahap 1: Sintaks Dasar',
+                    'body' => 'Pahami print dan variabel.',
+                ],
+                [
+                    'title' => 'Tahap 2: Pengulangan Loop',
+                    'body' => 'Pahami for dan while loop.',
+                ],
+            ],
+        ]);
+
+        $matRes->assertSessionHasNoErrors();
+        $matAssessment = Assessment::latest('id')->first();
+        $this->assertNotNull($matAssessment);
+        $this->assertEquals('materi', $matAssessment->type);
+        $this->assertFalse((bool) ($matAssessment->learning_payload['ai_enabled'] ?? true));
+        $this->assertEquals(0, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $matAssessment->id)->value('enabled'));
+
+        // Student views programming material: shows 'Materi Pemrograman', no CPMK badge, no submit button/modal, and no AI/Interaktif badges
+        $matView = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $matAssessment->id]));
+        $matView->assertOk();
+        $matView->assertSee('Materi Pemrograman');
+        $matView->assertSee('Kembali ke Kelas');
+        $matView->assertDontSee('id="panel-step-cpmk"', false);
+        $matView->assertDontSee('id="btn-submit-code-trigger"', false);
+        $matView->assertDontSee('id="coding-submit-confirm-modal"', false);
+        $matView->assertDontSee('AI Dinonaktifkan');
+        $matView->assertDontSee('Interaktif');
+        $matView->assertDontSee('id="panel-ai"', false);
+
+        // Lecturer views programming material: displays material view without redirecting to penilaian and no grading panel
+        $dosenMatView = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $matAssessment->id]));
+        $dosenMatView->assertOk();
+        $dosenMatView->assertDontSee('id="panel-grading"', false);
     }
 
     public function test_student_can_submit_code_without_answering_all_questions_validation_error(): void
@@ -226,10 +287,17 @@ class CodingTaskSubmissionAndAiTest extends TestCase
             ],
         ]);
 
-        // 1. Dosen view does NOT see "Mode Tinjau Dosen" badge
+        // 1. Dosen view cannot take task; redirected to penilaian page
         $dosenRes = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
-        $dosenRes->assertOk();
-        $dosenRes->assertDontSee('Mode Tinjau Dosen');
+        $dosenRes->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+
+        // Dosen reviewing student with ?student=
+        $dosenReviewRes = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]) . '?student=' . $this->mahasiswa->id);
+        $dosenReviewRes->assertOk();
+        $dosenReviewRes->assertSee('Meninjau:');
+        $dosenReviewRes->assertSee('Kembali ke Penilaian');
+        $dosenReviewRes->assertDontSee('id="panel-ai"', false);
+        $dosenReviewRes->assertDontSee('Serahkan');
 
         // 2. Buttons: "Sebelumnya" and "Selanjutnya" exist, and submit is hidden until last step
         $studentRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
@@ -320,6 +388,142 @@ class CodingTaskSubmissionAndAiTest extends TestCase
             'assessment_id' => $assessment->id,
             'mahasiswa_id' => $this->mahasiswa->id,
             'cpmk_id' => $this->cpmk->id,
+            'score' => 95,
+        ]);
+    }
+
+    public function test_lecturer_can_grade_multi_question_coding_task_per_step_and_syncs_to_cpmk(): void
+    {
+        // Create 2 CPMKs for the course
+        $cpmk2 = Cpmk::create([
+            'prodi_id' => $this->cpmk->prodi_id,
+            'mata_kuliah_id' => $this->mataKuliah->id,
+            'code' => 'CPMK-02',
+            'description' => 'Mampu mengimplementasikan algoritma pencarian',
+        ]);
+        $this->mataKuliah->cpmks()->attach([$cpmk2->id]);
+
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'type' => 'tugas',
+            'code' => 'TGS-MULTI-CODING',
+            'name' => 'Tugas Praktikum 2 Soal',
+            'final_weight' => 20,
+            'status' => 'published',
+            'learning_payload' => [
+                'type' => 'tugas',
+                'task_mode' => 'coding',
+                'title' => 'Tugas Praktikum 2 Soal',
+                'module' => 'Modul 3',
+                'body' => 'Selesaikan 2 soal pemrograman berikut.',
+                'coding_steps' => [
+                    [
+                        'title' => 'Soal 1: Fungsi Factorial',
+                        'cpmk' => 'CPMK-01',
+                        'points' => 50,
+                        'body' => 'Buat fungsi factorial',
+                        'code' => 'def factorial(n): pass',
+                    ],
+                    [
+                        'title' => 'Soal 2: Fungsi Fibonacci',
+                        'cpmk' => 'CPMK-02',
+                        'points' => 50,
+                        'body' => 'Buat fungsi fibonacci',
+                        'code' => 'def fibonacci(n): pass',
+                    ],
+                ],
+            ],
+        ]);
+        $assessment->cpmks()->attach([
+            $this->cpmk->id => ['weight' => 50],
+            $cpmk2->id => ['weight' => 50],
+        ]);
+
+        $submittedCode = json_encode([
+            [
+                'step' => 1,
+                'name' => 'factorial.py',
+                'code' => "def factorial(n):\n    return 1 if n <= 1 else n * factorial(n - 1)",
+            ],
+            [
+                'step' => 2,
+                'name' => 'fibonacci.py',
+                'code' => "def fibonacci(n):\n    return n if n <= 1 else fibonacci(n - 1) + fibonacci(n - 2)",
+            ],
+        ]);
+
+        $submission = Submission::create([
+            'assessment_id' => $assessment->id,
+            'user_id' => $this->mahasiswa->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'attempt' => 1,
+            'version' => 1,
+            'status' => 'pending',
+            'submitted_at' => now(),
+            'answer' => $submittedCode,
+        ]);
+
+        // Dosen opens grading page
+        $res = $this->actingAs($this->dosen)->get(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+        $res->assertOk();
+        $res->assertSee('Buka di Editor Kode');
+        $res->assertSee('Penilaian Tugas Coding (Per Butir Soal)');
+
+        // Check created submission answers
+        $answers = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->get();
+        $this->assertCount(2, $answers);
+
+        $ans1 = $answers->firstWhere('question_id', '1');
+        $ans2 = $answers->firstWhere('question_id', '2');
+        $this->assertNotNull($ans1);
+        $this->assertNotNull($ans2);
+        $this->assertEquals(50, $ans1->max_score);
+        $this->assertEquals(50, $ans2->max_score);
+
+        // Dosen grades Soal 1 = 45 / 50 and Soal 2 = 50 / 50
+        $gradeRes = $this->actingAs($this->dosen)->post(
+            route('dosen.penilaian.asesmen.student.coding_scores', [$this->section->id, $assessment->id, $this->mahasiswa->id]),
+            [
+                'scores' => [
+                    $ans1->id => 45,
+                    $ans2->id => 50,
+                ],
+            ]
+        );
+
+        $gradeRes->assertSessionHasNoErrors();
+        $gradeRes->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+
+        // Verify earned_scores in submission_answers
+        $this->assertDatabaseHas('submission_answers', [
+            'id' => $ans1->id,
+            'earned_score' => 45,
+        ]);
+        $this->assertDatabaseHas('submission_answers', [
+            'id' => $ans2->id,
+            'earned_score' => 50,
+        ]);
+
+        // Verify CPMK scores:
+        // Soal 1 (45/50) = 90% of CPMK-01 (max 50) -> 45
+        // Soal 2 (50/50) = 100% of CPMK-02 (max 50) -> 50
+        $this->assertDatabaseHas('student_assessment_cpmk_scores', [
+            'assessment_id' => $assessment->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'cpmk_id' => $this->cpmk->id,
+            'score' => 45,
+        ]);
+        $this->assertDatabaseHas('student_assessment_cpmk_scores', [
+            'assessment_id' => $assessment->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'cpmk_id' => $cpmk2->id,
+            'score' => 50,
+        ]);
+
+        // Total score = 45 + 50 = 95
+        $this->assertDatabaseHas('student_assessment_scores', [
+            'assessment_id' => $assessment->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
             'score' => 95,
         ]);
     }

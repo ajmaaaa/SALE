@@ -22,7 +22,7 @@ class LearningPreview
     public static function courses(): array
     {
         $defaultCourses = [
-            1 => ['id' => 1, 'code' => 'IF204', 'title' => 'Struktur Data dan Algoritma', 'lecturer' => 'Dr. Budi Santoso, M.Kom.', 'description' => 'Struktur data fundamental, analisis kompleksitas, dan penerapannya dalam penyelesaian masalah komputasi.', 'cover' => null, 'video' => 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', 'video_type' => 'url', 'video_title' => 'Video Pengantar: Struktur Data dan Algoritma (YouTube Link)'],
+            1 => ['id' => 1, 'code' => 'IF204', 'title' => 'Struktur Data dan Algoritma', 'lecturer' => 'Dr. Budi Santoso, M.Kom.', 'description' => 'Struktur data fundamental, analisis kompleksitas, dan penerapannya dalam penyelesaian masalah komputasi.', 'cover' => null, 'video' => 'https://www.youtube.com/watch?v=6hMDlTWKrdg', 'video_type' => 'url', 'video_title' => 'Pengantar Struktur Data: Pohon Biner (Tree)'],
             2 => ['id' => 2, 'code' => 'IF218', 'title' => 'Interaksi Manusia dan Komputer', 'lecturer' => 'Dr. Ratna Prameswari, M.Ds.', 'description' => 'Merancang dan mengevaluasi antarmuka yang mudah digunakan melalui pendekatan berpusat pada pengguna.', 'cover' => null, 'video' => '00000000-0000-4000-8000-000000000001', 'video_type' => 'file', 'video_title' => 'Video Materi: Pengantar Antarmuka dan Usability (.mp4)'],
             3 => ['id' => 3, 'code' => 'IF221', 'title' => 'Kecerdasan Buatan Terapan', 'lecturer' => 'Prof. Nadia Rahman, Ph.D.', 'description' => 'Membangun model pembelajaran mesin dan memilih metode evaluasi yang sesuai.', 'cover' => null, 'video' => 'https://www.youtube.com/watch?v=aircAruvnKk', 'video_type' => 'url', 'video_title' => 'Video Pengantar: AI Terapan (YouTube Link)'],
             4 => ['id' => 4, 'code' => 'IF230', 'title' => 'Rekayasa Perangkat Lunak', 'lecturer' => 'Ir. Fajar Nugroho, M.T.', 'description' => 'Dari analisis kebutuhan sampai pengujian perangkat lunak dalam proyek tim.', 'cover' => null, 'video' => null],
@@ -348,6 +348,22 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 fn($uuid) => !in_array($uuid, $excludeUuids, true)
             ));
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $filemetaUuids)));
+        }
+
+        if (empty($payload['coding_steps']) && ! empty($payload['questions'])) {
+            $codingQuestions = array_filter($payload['questions'], fn($q) => ($q['type'] ?? '') === 'coding');
+            if (! empty($codingQuestions)) {
+                $payload['coding_steps'] = array_values(array_map(function($q) use ($payload) {
+                    return [
+                        'title' => $q['prompt'] ?? 'Soal Pemrograman',
+                        'body' => $q['body'] ?? $payload['body'] ?? '',
+                        'cpmk' => $q['cpmk'] ?? null,
+                        'points' => $q['points'] ?? 100,
+                        'link' => null,
+                        'attachment' => null,
+                    ];
+                }, $codingQuestions));
+            }
         }
 
         if (! empty($payload['coding_steps']) && is_array($payload['coding_steps'])) {

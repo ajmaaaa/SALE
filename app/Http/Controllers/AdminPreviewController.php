@@ -60,6 +60,9 @@ class AdminPreviewController extends Controller
                 ->groupBy('feature')->orderByDesc('total_tokens')->get();
         }
 
+        $aiQuota = (int) ($settings['ai_token_quota'] ?? 1000000);
+        $aiRemainingTokens = max(0, $aiQuota - (int) ($aiMetrics['total_tokens'] ?? 0));
+
         $backupList = collect();
         $backupDir = self::getBackupDirectory();
         if (is_dir($backupDir)) {
@@ -141,8 +144,13 @@ class AdminPreviewController extends Controller
                     'output_tokens' => number_format((int) $aiMetrics['output_tokens'], 0, ',', '.'),
                     'total_tokens' => number_format((int) $aiMetrics['total_tokens'], 0, ',', '.'),
                     'total_tokens_formatted' => number_format((int) $aiMetrics['total_tokens'], 0, ',', '.').' token',
+                    'remaining_tokens' => number_format($aiRemainingTokens, 0, ',', '.'),
+                    'remaining_tokens_formatted' => number_format($aiRemainingTokens, 0, ',', '.').' token',
+                    'quota' => number_format($aiQuota, 0, ',', '.'),
                     'requests_description' => number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan bulan ini',
+                    'remaining_description' => 'Terpakai ' . number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') . ' dari ' . number_format($aiQuota, 0, ',', '.') . ' kuota (' . number_format((int) $aiMetrics['requests'], 0, ',', '.') . ' permintaan)',
                 ],
+                'requests_html' => view('admin.partials.monitoring-ai-requests', ['aiRequestRows' => $aiRequestRows, 'demo' => false])->render(),
                 'latestBackup' => $latestBackup,
             ], 200, [
                 'Cache-Control' => 'no-cache, no-store, must-revalidate',
@@ -152,7 +160,7 @@ class AdminPreviewController extends Controller
         }
 
         return view('admin.'.$section, compact(
-            'users', 'academic', 'settings', 'logs', 'visibleUsers', 'visibleAcademic', 'record', 'aiRequestRows', 'aiMetrics', 'aiByFeature', 'backupList', 'latestBackup', 'storageMetrics'
+            'users', 'academic', 'settings', 'logs', 'visibleUsers', 'visibleAcademic', 'record', 'aiRequestRows', 'aiMetrics', 'aiByFeature', 'backupList', 'latestBackup', 'storageMetrics', 'aiRemainingTokens', 'aiQuota'
         ));
     }
 

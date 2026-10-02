@@ -85,15 +85,22 @@ class InputNilaiController extends Controller
                     }
                 }
             } elseif (! empty($payload['coding_steps'])) {
-                $cpmkCounts = array_count_values(array_filter(array_column($payload['coding_steps'], 'cpmk')));
-                $totalS = max(1, count($payload['coding_steps']));
+                $steps = $payload['coding_steps'];
+                $cpmkPoints = [];
+                foreach ($steps as $s) {
+                    $c = $s['cpmk'] ?? '';
+                    if ($c) {
+                        $cpmkPoints[$c] = ($cpmkPoints[$c] ?? 0.0) + (float) ((isset($s['points']) && (float) $s['points'] > 0) ? $s['points'] : 1.0);
+                    }
+                }
+                $totalPoints = array_sum($cpmkPoints) ?: 1.0;
                 $accumulated = 0.0;
-                $itemsLeft = count($cpmkCounts);
-                foreach ($cpmkCounts as $code => $cnt) {
+                $itemsLeft = count($cpmkPoints);
+                foreach ($cpmkPoints as $code => $pts) {
                     $itemsLeft--;
                     $cpmkModel = $findCpmk($code);
                     if ($cpmkModel) {
-                        $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($cnt / $totalS) * 100, 2);
+                        $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($pts / $totalPoints) * 100, 2);
                         $accumulated += $w;
                         $syncData[$cpmkModel->id] = ['weight' => $w];
                     }
@@ -295,6 +302,72 @@ class InputNilaiController extends Controller
                 ];
             }
 
+            $codingStepsData = [];
+            if ($isCoding) {
+                $rawCodingSteps = $payload['coding_steps'] ?? [];
+                if (empty($rawCodingSteps)) {
+                    $rawCodingSteps = [[
+                        'title' => $assessment->name,
+                        'cpmk' => $payload['cpmk'] ?? ($cpmks->first()?->code ?? 'CPMK-01'),
+                        'points' => 100,
+                    ]];
+                }
+
+                $totalStepsCount = max(1, count($rawCodingSteps));
+                $parsedSubmittedFiles = [];
+                if ($sub && ! empty($sub->answer)) {
+                    try {
+                        $decoded = json_decode($sub->answer, true);
+                        if (is_array($decoded)) {
+                            $parsedSubmittedFiles = $decoded;
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
+                foreach ($rawCodingSteps as $cIdx => $cStep) {
+                    $stepNum = $cIdx + 1;
+                    $stepQId = (string) $stepNum;
+                    $stepMaxPoints = (float) ((isset($cStep['points']) && (float) $cStep['points'] > 0) ? $cStep['points'] : round(100 / $totalStepsCount, 1));
+                    $stepCpmk = $cStep['cpmk'] ?? '';
+
+                    $stepAns = null;
+                    if ($sub && $sub->relationLoaded('answers')) {
+                        $stepAns = $sub->answers->first(function ($a) use ($stepQId, $cIdx) {
+                            return ($a->question_id !== null && (string) $a->question_id === $stepQId)
+                                || ($a->question_index !== null && (int) $a->question_index === (int) $cIdx);
+                        });
+                    }
+
+                    if (! $stepAns && $sub && Schema::hasTable('submission_answers')) {
+                        $stepAns = SubmissionAnswer::firstOrCreate([
+                            'submission_id' => $sub->id,
+                            'question_id' => $stepQId,
+                            'version' => $sub->version ?? 1,
+                        ], [
+                            'question_index' => $cIdx,
+                            'max_score' => $stepMaxPoints,
+                            'grading_status' => 'manual_pending',
+                        ]);
+                    }
+
+                    $matchedFile = collect($parsedSubmittedFiles)->first(function ($f) use ($stepNum) {
+                        return (isset($f['step']) && (int) $f['step'] === $stepNum)
+                            || (! isset($f['step']) && preg_match('/_soal_' . $stepNum . '\./', $f['name'] ?? ''));
+                    }) ?? ($parsedSubmittedFiles[$cIdx] ?? null);
+
+                    $codingStepsData[] = [
+                        'number' => $stepNum,
+                        'title' => $cStep['title'] ?? ('Soal ' . $stepNum),
+                        'cpmk' => $stepCpmk,
+                        'max_points' => $stepMaxPoints,
+                        'current_score' => $stepAns?->earned_score !== null ? (float) $stepAns->earned_score : '',
+                        'answer_id' => $stepAns?->id ?? $stepQId,
+                        'has_code' => ! empty($matchedFile['code']),
+                        'file_name' => $matchedFile['name'] ?? null,
+                    ];
+                }
+            }
+
             $currentStudentScore = $existingScores->get($student->id);
 
             $studentEssayData[$student->id] = [
@@ -307,11 +380,14 @@ class InputNilaiController extends Controller
                 'is_coding' => $isCoding,
                 'questions' => $processedQuestions,
                 'essays' => $essays,
+                'coding_steps' => $codingStepsData,
+                'editor_url' => route('course.assignment.code', [$section->id, $assessment->id]) . '?student=' . $student->id,
+                'score_url' => route('dosen.penilaian.asesmen.student.score', [$section->id, $assessment->id, $student->id]),
+                'coding_score_url' => route('dosen.penilaian.asesmen.student.coding_scores', [$section->id, $assessment->id, $student->id]),
+                'essay_score_url' => route('dosen.penilaian.asesmen.student.essay_scores', [$section->id, $assessment->id, $student->id]),
                 'answer_text' => $sub?->answer ?? $sub?->answers?->first()?->answer_text,
                 'link' => $sub?->link,
                 'files' => $attachedFiles,
-                'score_url' => route('dosen.penilaian.asesmen.student.score', [$section->id, $assessment->id, $student->id]),
-                'essay_score_url' => route('dosen.penilaian.asesmen.student.essay_scores', [$section->id, $assessment->id, $student->id]),
                 'has_cpmks' => $cpmks->isNotEmpty(),
                 'cpmk_list' => $cpmkList,
                 'single_score' => $currentStudentScore?->score !== null ? (float) $currentStudentScore->score : '',
@@ -582,6 +658,159 @@ class InputNilaiController extends Controller
         return redirect()
             ->route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id])
             ->with('notice', "Nilai tugas mahasiswa {$student->name} berhasil disimpan.");
+    }
+
+    /**
+     * Simpan nilai tugas coding per butir soal dari modal tinjau jawaban.
+     */
+    public function storeStudentCodingScores(
+        Request $request,
+        ClassSection $section,
+        Assessment $assessment,
+        \App\Models\User $student
+    ): RedirectResponse {
+        $this->authorizeOwnership($section);
+        $this->authorizeAssessmentBelongsToSection($section, $assessment);
+
+        abort_unless(
+            $section->students()->where('users.id', $student->id)->exists(),
+            404,
+            'Mahasiswa tidak terdaftar pada kelas ini.'
+        );
+
+        $dosenId = Auth::guard('web')->id();
+        $payload = $assessment->learning_payload ?? [];
+        $codingSteps = $payload['coding_steps'] ?? [];
+        if (empty($codingSteps)) {
+            $codingSteps = [[
+                'title' => $assessment->name,
+                'cpmk' => $payload['cpmk'] ?? ($assessment->cpmks()->first()?->code ?? 'CPMK-01'),
+                'points' => 100,
+            ]];
+        }
+
+        $submission = Submission::firstOrCreate([
+            'assessment_id' => $assessment->id,
+            'user_id' => $student->id,
+        ], [
+            'mahasiswa_id' => $student->id,
+            'attempt' => 1,
+            'version' => 1,
+            'status' => 'pending',
+        ]);
+
+        $scores = $request->input('scores', []);
+        $totalStepsCount = max(1, count($codingSteps));
+
+        DB::transaction(function () use ($codingSteps, $totalStepsCount, $submission, $scores, $dosenId, $assessment, $student) {
+            $totalEarned = 0.0;
+            $hasAnyScore = false;
+            $cpmkEarned = [];
+            $cpmkMax = [];
+
+            foreach ($codingSteps as $idx => $step) {
+                $stepNum = $idx + 1;
+                $qId = (string) $stepNum;
+                $maxScore = (float) ((isset($step['points']) && (float) $step['points'] > 0) ? $step['points'] : round(100 / $totalStepsCount, 1));
+                $cpmkCode = (string) ($step['cpmk'] ?? '');
+
+                $answer = SubmissionAnswer::where('submission_id', $submission->id)
+                    ->where(fn ($q) => $q->where('question_id', $qId)->orWhere('question_index', $idx))
+                    ->first();
+
+                if (! $answer) {
+                    $answer = SubmissionAnswer::create([
+                        'submission_id' => $submission->id,
+                        'question_index' => $idx,
+                        'question_id' => $qId,
+                        'version' => $submission->version ?? 1,
+                        'max_score' => $maxScore,
+                        'grading_status' => 'manual_pending',
+                    ]);
+                }
+
+                $val = null;
+                if (array_key_exists($answer->id, $scores)) {
+                    $val = $scores[$answer->id];
+                } elseif (array_key_exists($qId, $scores)) {
+                    $val = $scores[$qId];
+                } elseif (array_key_exists($idx, $scores)) {
+                    $val = $scores[$idx];
+                }
+
+                if ($val !== null && $val !== '') {
+                    $earned = min($maxScore, max(0.0, (float) $val));
+                    $answer->forceFill([
+                        'max_score' => $maxScore,
+                        'earned_score' => $earned,
+                        'grading_status' => 'manual_graded',
+                        'graded_by_id' => $dosenId,
+                        'graded_at' => now(),
+                    ])->save();
+
+                    $totalEarned += $earned;
+                    $hasAnyScore = true;
+
+                    if ($cpmkCode) {
+                        $normCode = preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($cpmkCode)));
+                        $cpmkEarned[$normCode] = ($cpmkEarned[$normCode] ?? 0.0) + $earned;
+                        $cpmkMax[$normCode] = ($cpmkMax[$normCode] ?? 0.0) + $maxScore;
+                    }
+                } else {
+                    $answer->forceFill([
+                        'max_score' => $maxScore,
+                        'earned_score' => null,
+                        'grading_status' => 'manual_pending',
+                        'graded_by_id' => null,
+                        'graded_at' => null,
+                    ])->save();
+                }
+            }
+
+            $assessment->loadMissing('cpmks');
+            $cpmks = $assessment->cpmks;
+
+            if ($hasAnyScore) {
+                if ($cpmks->isNotEmpty()) {
+                    $cpmkScoresToSync = [];
+                    foreach ($cpmks as $cpmk) {
+                        $normC = preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($cpmk->code)));
+                        $maxCpmkScore = $this->obe->assessmentCpmkMaxScore($assessment, $cpmk);
+
+                        if (isset($cpmkEarned[$normC]) && isset($cpmkMax[$normC]) && $cpmkMax[$normC] > 0) {
+                            $ratio = $cpmkEarned[$normC] / $cpmkMax[$normC];
+                            $cpmkScoresToSync[$cpmk->id] = round($ratio * $maxCpmkScore, 2);
+                        } else {
+                            $totalMax = array_sum($cpmkMax);
+                            if ($totalMax > 0) {
+                                $ratio = $totalEarned / $totalMax;
+                                $cpmkScoresToSync[$cpmk->id] = round($ratio * $maxCpmkScore, 2);
+                            } else {
+                                $cpmkScoresToSync[$cpmk->id] = null;
+                            }
+                        }
+                    }
+
+                    $this->obe->syncCpmkScores($assessment, $student->id, $cpmkScoresToSync, $dosenId, true);
+                } else {
+                    $totalMax = array_sum($cpmkMax);
+                    $finalScore = $totalMax > 0 ? round(($totalEarned / $totalMax) * 100, 2) : round($totalEarned, 2);
+                    $this->obe->syncDirectScore($assessment, $student->id, $finalScore, $dosenId, true);
+                }
+            } else {
+                $this->obe->syncDirectScore($assessment, $student->id, null, $dosenId, false);
+            }
+        });
+
+        if ($request->input('return_to') === 'editor' || $request->input('action') === 'save') {
+            return redirect()
+                ->route('course.assignment.code', [$section->id, $assessment->id, 'student' => $student->id])
+                ->with('notice', "Nilai tugas coding mahasiswa {$student->name} berhasil disimpan.");
+        }
+
+        return redirect()
+            ->route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id])
+            ->with('notice', "Nilai tugas coding mahasiswa {$student->name} berhasil disimpan.");
     }
 
     /**

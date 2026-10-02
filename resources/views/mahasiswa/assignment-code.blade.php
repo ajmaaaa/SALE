@@ -83,7 +83,12 @@
     @php
     $isLecturer = auth()->user()?->hasRole(\App\Models\Role::DOSEN) ?? false;
     $isMaterial = ($item['type'] ?? '') === 'materi';
-    $aiEnabled = (bool) ($item['ai_enabled'] ?? true);
+    $reviewStudent = $reviewStudent ?? null;
+    $codingStepsData = $codingStepsData ?? [];
+    $studentScore = $studentScore ?? null;
+    $codingScoreUrl = $codingScoreUrl ?? null;
+    $isSubmitted = (!$isLecturer && !$isMaterial && !empty($submission?->submitted_at));
+    $aiEnabled = ($isLecturer || $isSubmitted) ? false : (bool) ($item['ai_enabled'] ?? true);
     $storedLanguage = $item['language'] ?? 'python';
     $requestedLanguage = request()->query('language');
     $language = in_array($requestedLanguage, ['python', 'web'], true) ? $requestedLanguage : $storedLanguage;
@@ -168,7 +173,7 @@
                     }
                     $cleanName = preg_replace('/_soal_\d+(\.[^.]+)$/', '$1', $pf['name'] ?? '');
                     $savedStepFiles[$stepIdx][] = [
-                        'name' => $cleanName ?: ($language === 'web' ? 'index.html' : 'main.py'),
+                        'name' => $cleanName ?: ($language === 'web' ? 'untitled.html' : 'untitled'),
                         'code' => $pf['code'] ?? '',
                     ];
                 }
@@ -180,19 +185,19 @@
         $defaultFiles = $savedStepFiles[0];
     } elseif ($language === 'web') {
         $defaultFiles = [[
-            'name' => 'index.html',
+            'name' => 'untitled.html',
             'code' => $materialSteps[0]['code'] ?? '<!DOCTYPE html><html><body><h1>Halo SALE</h1></body></html>',
         ]];
     } elseif ((int)($item['id'] ?? 0) === 1 || $isMaterial) {
         $defaultFiles = [[
-            'name' => 'main.py',
+            'name' => 'untitled',
             'code' => $materialSteps[0]['code'] ?? 'class Node:',
         ]];
     } else {
-        $defaultFiles = [['name' => 'main.py', 'code' => '# Tulis jawaban Python kamu di sini']];
+        $defaultFiles = [['name' => 'untitled', 'code' => '# Tulis jawaban Python kamu di sini']];
     }
 @endphp
-    @if($hasSavedSubmission)
+    @if($hasSavedSubmission && !$isLecturer && !$isSubmitted)
         <script>
             try {
                 const draftKey = `sale.code.assignment.{{ $item['id'] }}.{{ $language }}`;
@@ -203,26 +208,39 @@
     <header class="sticky top-0 z-30 bg-white shadow-[0_1px_3px_rgba(29,39,48,0.06)] border-b border-line/60">
         <div class="flex min-h-14 w-full flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6">
             <div class="flex min-w-0 items-center gap-2.5">
-                <a href="{{ $finishUrl }}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-ink text-xs font-semibold transition cursor-pointer" aria-label="Kembali ke Halaman Course">
-                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-                    <span class="hidden sm:inline">Kembali</span>
-                </a>
+                @if($isLecturer)
+                    <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition cursor-pointer" title="Kembali ke Penilaian">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                        <span>Kembali ke Penilaian</span>
+                    </a>
+                @else
+                    <a href="{{ $finishUrl }}" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-ink text-xs font-semibold transition cursor-pointer" aria-label="Kembali ke Halaman Course">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                        <span class="hidden sm:inline">Kembali</span>
+                    </a>
+                @endif
                 <div class="min-w-0 border-l border-line/60 pl-3">
                     <h1 class="truncate text-sm font-bold text-ink leading-tight">{{ $item['title'] }}</h1>
                     <p class="truncate text-xs text-muted">{{ $course['code'] }} · {{ $item['module'] }}</p>
                 </div>
-                @if($submission)
-                    <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold" title="Terkoneksi ke Database: Diserahkan pada {{ $submission->submitted_at?->translatedFormat('d M Y, H:i') ?? 'Sistem' }}">
-                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span>Tersimpan di Database</span>
+                @if($isLecturer && $reviewStudent)
+                    <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs" title="Meninjau berkas tugas yang dikumpulkan mahasiswa">
+                        <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Meninjau: <strong class="text-ink font-semibold">{{ $reviewStudent->name }}</strong> ({{ $reviewStudent->nim_nidn ?? '-' }})</span>
                     </div>
+                @elseif($submission && $submission->submitted_at)
+                    <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium" title="Diserahkan pada {{ $submission->submitted_at->translatedFormat('d M Y, H:i') }}">
+                        <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                        <span class="font-medium text-ink">Tersimpan di Database</span>
+                    </div>
+                    @if($studentScore !== null)
+                        <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold" title="Nilai Asesmen">
+                            <span class="text-slate-500 font-normal">Nilai:</span>
+                            <span class="font-mono font-bold text-ink">{{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100</span>
+                        </div>
+                    @endif
                 @endif
-                @if($isLecturer && !$isMaterial)
-                    <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 text-brand hover:bg-brand/20 border border-brand/30 text-xs font-bold transition shadow-2xs" title="Buka Halaman Penilaian Dosen">
-                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        <span>Halaman Penilaian Dosen</span>
-                    </a>
-                @endif
+
             </div>
 
             {{-- Center: Tombol Daftar Bagian (Grid Popover Trigger) --}}
@@ -245,20 +263,27 @@
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
 
-                @if($isMaterial || $isLecturer)
-                    <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Selesaikan Course">
-                        <span>Selesaikan Course</span>
-                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-                    </a>
-                @else
-                    <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-block;' }}">
-                        @csrf
-                        <input type="hidden" name="answer" data-code-answer>
-                        <button type="submit" id="btn-submit-code" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="{{ $submission ? 'Perbarui Tugas ke Database' : 'Serahkan Tugas ke Database' }}">
-                            <span>{{ $submission ? 'Perbarui Tugas' : 'Serahkan' }}</span>
+                @if(!$isLecturer)
+                    @if($isMaterial)
+                        <a href="{{ $finishUrl }}" id="btn-step-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Kembali ke Kelas">
+                            <span>Kembali ke Kelas</span>
                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-                        </button>
-                    </form>
+                        </a>
+                    @elseif($isSubmitted)
+                        <div id="status-submitted-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold select-none {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Tugas coding telah diserahkan dan tidak dapat diubah lagi">
+                            <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <span>Tugas Sudah Diserahkan</span>
+                        </div>
+                    @else
+                        <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-block;' }}">
+                            @csrf
+                            <input type="hidden" name="answer" data-code-answer>
+                            <button type="button" id="btn-submit-code-trigger" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="Serahkan Tugas ke Database">
+                                <span>Serahkan</span>
+                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+                            </button>
+                        </form>
+                    @endif
                 @endif
             </div>
         </div>
@@ -284,14 +309,13 @@
                             {{ $isMaterial ? 'Materi Pemrograman' : 'Praktikum Coding' }}
                         </span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span id="panel-step-cpmk" class="font-mono text-xs font-semibold text-brand">
-                            {{ $materialSteps[0]['cpmk'] ?? ($item['cpmk'] ?? 'CPMK-01') }}
-                        </span>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-white border border-line/70 text-ink shadow-2xs">
-                            Interaktif
-                        </span>
-                    </div>
+                    @if(!$isMaterial)
+                        <div class="flex items-center gap-2">
+                            <span id="panel-step-cpmk" class="font-mono text-xs font-semibold text-brand">
+                                {{ $materialSteps[0]['cpmk'] ?? ($item['cpmk'] ?? 'CPMK-01') }}
+                            </span>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Scrollable Body Panel Kiri --}}
@@ -501,9 +525,9 @@
                     </div>
 
                     <textarea data-code-files-json class="hidden" aria-hidden="true">@json($defaultFiles)</textarea>
-                    <div data-code-editor data-assignment-id="{{ $item['id'] }}" data-runtime-url="{{ asset('vendor/pyodide') }}/" data-code-language="{{ $language }}" data-max-files="5" data-max-file-chars="8000" data-max-total-chars="20000" class="code-editor flex-1 h-full overflow-auto bg-[#282c34]" aria-label="Editor kode {{ $language === 'web' ? 'HTML/CSS/JS' : 'Python' }}"></div>
+                    <div data-code-editor data-assignment-id="{{ $item['id'] }}" data-runtime-url="{{ asset('vendor/pyodide') }}/" data-code-language="{{ $language }}" data-max-files="5" data-max-file-chars="8000" data-max-total-chars="20000" @if($isLecturer) data-is-lecturer="1" @endif @if($isSubmitted) data-read-only="1" data-is-submitted="1" @endif class="code-editor flex-1 h-full overflow-auto bg-[#282c34]" aria-label="Editor kode {{ $language === 'web' ? 'HTML/CSS/JS' : 'Python' }}"></div>
                     <div class="flex items-center justify-between gap-3 px-3 py-1.5 bg-[#20242b] text-[11px] text-[#aeb8c4]">
-                        <span data-code-save-status>Draf tersimpan di browser</span>
+                        <span data-code-save-status>{{ $isLecturer ? 'Mode Peninjauan Berkas Mahasiswa' : ($isSubmitted ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)' : 'Draf tersimpan di browser') }}</span>
                         <span class="flex items-center gap-3">
                             <span data-chars-count></span>
                             <span>UTF-8, 4 Spasi</span>
@@ -556,7 +580,123 @@
                 </div>
             </div>
 
-            @if($aiEnabled)
+            @if($isLecturer && $reviewStudent && !$isMaterial)
+            {{-- Handle Geser Kanan (Editor <-> Penilaian Dosen) --}}
+            <div data-resizer="right" class="hidden xl:flex w-3 shrink-0 cursor-col-resize items-center justify-center group relative z-10 select-none py-4 hover:bg-brand/5 active:bg-brand/10 transition-colors" title="Geser untuk mengatur lebar panel penilaian">
+                <div class="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-brand group-active:bg-brand group-hover:w-1.5 transition-all"></div>
+            </div>
+
+            {{-- PANEL 3 (KANAN): Penilaian & Evaluasi Dosen Langsung di Editor --}}
+            <aside id="panel-grading" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: var(--workbench-right-width, 360px); min-width: 280px; max-width: 600px;" aria-labelledby="grading-heading">
+                {{-- Header Panel Penilaian --}}
+                <div class="p-4 border-b border-line/60 bg-white flex items-center justify-between shrink-0">
+                    <div>
+                        <h2 id="grading-heading" class="text-sm font-bold text-ink">Penilaian Tugas Coding</h2>
+                        <p class="text-xs text-muted mt-0.5">Nilai langsung per butir soal</p>
+                    </div>
+                    @if($studentScore !== null)
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                            Total: {{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100
+                        </span>
+                    @endif
+                </div>
+
+                @if(session('notice'))
+                    <div class="px-4 py-2 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800 flex items-center gap-1.5 shrink-0">
+                        <svg class="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                        <span>{{ session('notice') }}</span>
+                    </div>
+                @endif
+
+                {{-- Informasi Mahasiswa & Pengumpulan --}}
+                <div class="px-4 py-3 bg-slate-50/70 border-b border-line/60 text-xs space-y-1 shrink-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-muted">Mahasiswa:</span>
+                        <span class="font-semibold text-ink">{{ $reviewStudent->name }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-muted">NIM:</span>
+                        <span class="font-mono text-ink">{{ $reviewStudent->nim_nidn ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-muted">Pengumpulan:</span>
+                        <span class="font-medium text-ink">{{ $submission?->submitted_at?->translatedFormat('d M Y, H:i') ?? 'Belum ada pengumpulan' }}</span>
+                    </div>
+                </div>
+
+                {{-- Form Penilaian (Scrollable) --}}
+                <form method="post" action="{{ $codingScoreUrl }}" class="flex-1 flex flex-col min-h-0" id="form-coding-grading">
+                    @csrf
+                    <input type="hidden" name="return_to" id="grading-return-to" value="editor">
+
+                    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-semibold text-muted uppercase tracking-wider text-[11px]">Nilai Per Butir Soal</span>
+                            <span class="text-[11px] text-muted">Maks. 100 Poin</span>
+                        </div>
+
+                        @foreach($codingStepsData as $s)
+                            <div class="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-2xs">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-800 font-bold text-[10px] border border-slate-200">
+                                            {{ $s['number'] }}
+                                        </span>
+                                        <span class="text-xs font-semibold text-ink truncate">{{ $s['title'] }}</span>
+                                    </div>
+                                    @if(!empty($s['cpmk']))
+                                        <span class="font-mono text-[10px] font-semibold text-slate-600 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 shrink-0">
+                                            {{ $s['cpmk'] }}
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <div class="flex items-center justify-between gap-3 pt-1 border-t border-slate-100">
+                                    <button type="button" onclick="setMaterialStep({{ $s['number'] - 1 }})" class="text-[11px] font-medium text-slate-600 hover:text-ink hover:underline cursor-pointer inline-flex items-center gap-1">
+                                        <span>Buka Kode Soal {{ $s['number'] }}</span>
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                                    </button>
+
+                                    <div class="flex items-center gap-1.5">
+                                        <input type="number"
+                                               name="scores[{{ $s['answer_id'] }}]"
+                                               data-step-score
+                                               data-max="{{ $s['max_points'] }}"
+                                               min="0"
+                                               max="{{ $s['max_points'] }}"
+                                               step="0.1"
+                                               value="{{ $s['current_score'] }}"
+                                               placeholder="0"
+                                               class="field w-16 text-right font-mono text-xs py-1 px-2 font-bold"
+                                               aria-label="Nilai Soal {{ $s['number'] }}">
+                                        <span class="text-xs text-muted font-medium">/ {{ $s['max_points'] }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+
+                        {{-- Kalkulasi Total Otomatis --}}
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 flex items-center justify-between text-xs">
+                            <span class="font-semibold text-slate-700">Estimasi Total Nilai:</span>
+                            <div class="flex items-center gap-1 font-mono font-bold text-ink text-sm">
+                                <span id="grading-total-preview">{{ $studentScore !== null ? rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') : '0' }}</span>
+                                <span class="text-muted text-xs font-normal">/ 100</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tombol Aksi Simpan --}}
+                    <div class="p-3 border-t border-line/60 bg-white flex items-center justify-end gap-2 shrink-0">
+                        <button type="submit" onclick="document.getElementById('grading-return-to').value='editor'" class="button-secondary text-xs py-1.5 px-3 font-semibold cursor-pointer" title="Simpan nilai dan tetap di editor ini">
+                            Simpan Nilai
+                        </button>
+                        <button type="submit" onclick="document.getElementById('grading-return-to').value='list'" class="button-primary text-xs py-1.5 px-3.5 font-bold cursor-pointer" title="Simpan nilai dan kembali ke daftar penilaian">
+                            Simpan &amp; Selesai
+                        </button>
+                    </div>
+                </form>
+            </aside>
+            @elseif($aiEnabled)
             {{-- Handle Geser Kanan (Editor <-> AI Asisten) --}}
             <div data-resizer="right" class="hidden xl:flex w-3 shrink-0 cursor-col-resize items-center justify-center group relative z-10 select-none py-4 hover:bg-brand/5 active:bg-brand/10 transition-colors" title="Geser untuk mengatur lebar AI Asisten">
                 <div class="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-brand group-active:bg-brand group-hover:w-1.5 transition-all"></div>
@@ -565,10 +705,7 @@
             {{-- PANEL 3 (KANAN): AI Asisten ("ai assitennya di kanan") --}}
             <aside id="panel-ai" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: var(--workbench-right-width, 340px); min-width: 260px; max-width: 600px;" aria-labelledby="assistant-heading">
                 <div class="border-b border-line/60 p-4 bg-white">
-                    <div class="flex items-center justify-between">
-                        <h2 id="assistant-heading" class="text-sm font-bold text-ink">AI Asisten</h2>
-                        <span class="text-xs font-semibold text-brand">Asisten Belajar</span>
-                    </div>
+                    <h2 id="assistant-heading" class="text-sm font-bold text-ink">AI Asisten</h2>
                 </div>
 
                 @if (isset($errors) && $errors->has('ai'))
@@ -592,17 +729,23 @@
                 @endguest
 
                 {{-- Chat Messages (Full-height scrollable stream) --}}
-                <div data-ai-messages class="flex-1 space-y-3 overflow-y-auto p-4 text-xs leading-5 flex flex-col" aria-live="polite">
-                    <article class="self-start mr-auto max-w-[92%] rounded-2xl rounded-tl-xs bg-white p-3.5 border border-line/70 shadow-xs">
-                        <div class="flex items-center gap-1.5 mb-1.5">
-                            <span class="text-brand text-xs font-bold">✦</span>
-                            <p class="font-semibold text-ink">AI Asisten</p>
-                        </div>
-                        <p class="text-muted leading-relaxed">
-                            Halo! Saya AI Asisten, asisten coding Anda untuk modul <strong class="text-ink">{{ $item['title'] }}</strong>.
-                            Tanyakan satu konsep atau pilih potongan kode lalu klik <strong class="text-ink">Tanyakan baris terpilih</strong>. Contoh mengajarkan konsep pendukung, bukan implementasi tugas. Bantuan dibatasi sepanjang tugas, termasuk setelah membuka chat kembali. Pertanyaan dan kode terpilih dikirim ke layanan AI Google untuk diproses.
+                <div data-ai-messages class="flex-1 space-y-3 overflow-y-auto p-4 text-xs leading-5 flex flex-col relative" aria-live="polite">
+                    {{-- Teks Panduan di Tengah (Hilang saat sudah ada percakapan) --}}
+                    <div data-ai-initial-message class="my-auto mx-auto max-w-[270px] text-center select-none pointer-events-none py-6 space-y-1.5">
+                        <p class="text-xs font-semibold text-slate-700 tracking-tight">Konsultasi Pemrograman</p>
+                        <p class="text-[11.5px] text-slate-500 leading-relaxed">
+                            Tanyakan konsep logika, diskusikan kendala kode, atau sorot baris di editor lalu klik <span class="font-medium text-slate-700">Tanyakan Baris</span>.
                         </p>
-                    </article>
+                    </div>
+                </div>
+
+                {{-- Info Batas Penggunaan AI (Hanya tampil jika batas token mahasiswa habis) --}}
+                <div data-ai-quota-bar hidden class="px-3 py-1.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] text-slate-600">
+                    <div class="flex items-center gap-1.5 font-medium text-slate-700">
+                        <svg class="h-3.5 w-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        <span data-ai-quota-message>Batas penggunaan AI harian telah habis.</span>
+                    </div>
+                    <span data-ai-reset-info class="text-slate-500 text-[10.5px]">Akan di-reset pukul 07.00 WIB</span>
                 </div>
 
                 {{-- Pinned Chat Input at Bottom --}}
@@ -625,10 +768,6 @@
                                 </svg>
                             </button>
                         </div>
-                    </div>
-                    <div class="mt-1.5 flex items-center justify-between px-1">
-                        <span data-ai-status role="status" class="text-[10px] text-muted">Memuat kuota AI…</span>
-                        <span class="text-[10px] text-muted">Tekan <kbd class="font-mono bg-canvas px-1 py-0.5 rounded border border-line/60 font-semibold">Enter ↵</kbd> kirim</span>
                     </div>
                 </form>
             </aside>
@@ -660,7 +799,7 @@
                         </span>
                         <span class="truncate font-semibold">{{ $s['title'] }}</span>
                     </div>
-                    <span class="text-[11px] shrink-0 opacity-80">{{ $s['cpmk'] ?? 'Materi' }}</span>
+                    <span class="text-[11px] shrink-0 opacity-80">{{ $isMaterial ? ('Tahap ' . ($sIdx + 1)) : ($s['cpmk'] ?? 'Soal') }}</span>
                 </button>
             @endforeach
         </div>
@@ -669,6 +808,34 @@
             <span class="text-xs text-slate-500">Total {{ $totalSteps }} Bagian Materi</span>
         </div>
     </dialog>
+
+    @if(!$isLecturer && !$isSubmitted && !$isMaterial)
+    {{-- MODAL KONFIRMASI PENGUMPULAN TUGAS CODING --}}
+    <dialog id="coding-submit-confirm-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50 h-fit">
+        <div class="p-6">
+            <div class="flex items-start gap-2.5 mb-2">
+                <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">Serahkan Tugas Pemrograman?</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Konfirmasi pengumpulan berkas tugas ke dosen.</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                Pastikan seluruh baris kode dan fungsi telah Anda periksa dan uji. Setelah tugas diserahkan, kode akan <strong>terkunci permanen</strong> dan tidak dapat dikerjakan atau diperbaiki lagi.
+            </p>
+
+            <p class="text-xs text-slate-500 mb-6">
+                Total Soal: <span class="font-medium text-slate-700">{{ $totalSteps }} Bagian</span> &middot; Status: <span class="font-medium text-slate-700">Terkunci setelah dikirim</span>
+            </p>
+
+            <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+                <button type="button" id="modal-coding-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">Batal &amp; Periksa Lagi</button>
+                <button type="button" id="modal-coding-confirm-btn" class="button-primary text-xs py-2.5 px-3 font-semibold cursor-pointer justify-center text-center">Ya, Serahkan Tugas</button>
+            </div>
+        </div>
+    </dialog>
+    @endif
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -681,6 +848,12 @@
             const btnStepNext = document.getElementById('btn-step-next');
             const btnStepFinish = document.getElementById('btn-step-finish');
             const formCodeSubmit = document.getElementById('form-code-submit');
+            const statusSubmittedBadge = document.getElementById('status-submitted-badge');
+
+            const codingSubmitModal = document.getElementById('coding-submit-confirm-modal');
+            const btnSubmitCodeTrigger = document.getElementById('btn-submit-code-trigger');
+            const modalCodingCancelBtn = document.getElementById('modal-coding-cancel-btn');
+            const modalCodingConfirmBtn = document.getElementById('modal-coding-confirm-btn');
 
             const panelStepBadge = document.getElementById('panel-step-badge');
             const panelStepCpmk = document.getElementById('panel-step-cpmk');
@@ -691,7 +864,7 @@
             const btnOpenMaterialModal = document.getElementById('btn-open-material-modal');
             const modalMaterialClose = document.getElementById('modal-material-close');
             const gridStepBtns = document.querySelectorAll('[data-grid-material-step]');
-            const defaultFileName = '{{ $language === "web" ? "index.html" : "main.py" }}';
+            const defaultFileName = '{{ $language === "web" ? "untitled.html" : "untitled" }}';
             const isMaterialItem = {{ ($isMaterial || (int)($item['id'] ?? 0) === 1) ? 'true' : 'false' }};
             const stepFilesMap = {};
 
@@ -742,13 +915,21 @@
                 // Update stepper button "Sebelumnya"
                 if (btnStepPrev) btnStepPrev.disabled = currentStep === 0;
 
-                // Tombol "Selesaikan Course" / "Serahkan" HANYA MUNCUL DI SOAL TERAKHIR
+                {{-- Stepper button update di soal terakhir --}}
                 const isLast = (currentStep === totalSteps - 1);
                 if (btnStepNext) {
                     if (isLast) {
-                        btnStepNext.style.setProperty('display', 'none', 'important');
-                        btnStepNext.classList.add('!hidden');
+                        @if($isLecturer)
+                            btnStepNext.disabled = true;
+                            btnStepNext.style.removeProperty('display');
+                            btnStepNext.style.display = 'inline-flex';
+                            btnStepNext.classList.remove('!hidden', 'hidden');
+                        @else
+                            btnStepNext.style.setProperty('display', 'none', 'important');
+                            btnStepNext.classList.add('!hidden');
+                        @endif
                     } else {
+                        btnStepNext.disabled = false;
                         btnStepNext.style.removeProperty('display');
                         btnStepNext.style.display = 'inline-flex';
                         btnStepNext.classList.remove('!hidden', 'hidden');
@@ -772,6 +953,16 @@
                     } else {
                         formCodeSubmit.style.setProperty('display', 'none', 'important');
                         formCodeSubmit.classList.add('!hidden');
+                    }
+                }
+                if (statusSubmittedBadge) {
+                    if (isLast) {
+                        statusSubmittedBadge.style.removeProperty('display');
+                        statusSubmittedBadge.style.display = 'inline-flex';
+                        statusSubmittedBadge.classList.remove('!hidden', 'hidden');
+                    } else {
+                        statusSubmittedBadge.style.setProperty('display', 'none', 'important');
+                        statusSubmittedBadge.classList.add('!hidden');
                     }
                 }
 
@@ -803,6 +994,24 @@
                     window.setWorkbenchCode(targetFiles[0]?.code ?? '');
                 }
             };
+
+            // Ekspos ke window agar tombol di panel penilaian dosen bisa mengarahkan ke soal tertentu
+            window.setMaterialStep = setMaterialStep;
+
+            // Kalkulator total skor otomatis untuk panel penilaian dosen
+            const scoreInputs = document.querySelectorAll('[data-step-score]');
+            const totalPreview = document.getElementById('grading-total-preview');
+            if (scoreInputs.length > 0 && totalPreview) {
+                const calcTotal = () => {
+                    let total = 0;
+                    scoreInputs.forEach(inp => {
+                        const val = parseFloat(inp.value);
+                        if (!isNaN(val)) total += val;
+                    });
+                    totalPreview.textContent = (Math.round(total * 100) / 100).toString();
+                };
+                scoreInputs.forEach(inp => inp.addEventListener('input', calcTotal));
+            }
 
             // Kolektor berkas seluruh soal/bagian untuk dikirim ke database
             window.getAllWorkbenchFiles = () => {
@@ -841,13 +1050,28 @@
                 return allFiles;
             };
 
-            // Saat kumpulkan tugas, kumpulkan berkas dari seluruh soal yang telah dikerjakan
-            formCodeSubmit?.addEventListener('submit', () => {
+            // Konfirmasi pengumpulan berkas tugas koding
+            btnSubmitCodeTrigger?.addEventListener('click', () => {
+                codingSubmitModal?.showModal();
+            });
+
+            modalCodingCancelBtn?.addEventListener('click', () => {
+                codingSubmitModal?.close();
+            });
+
+            codingSubmitModal?.addEventListener('click', (e) => {
+                if (e.target === codingSubmitModal) codingSubmitModal.close();
+            });
+
+            modalCodingConfirmBtn?.addEventListener('click', () => {
+                modalCodingConfirmBtn.disabled = true;
+                modalCodingConfirmBtn.textContent = 'Menyerahkan...';
                 const allFiles = window.getAllWorkbenchFiles();
                 const ansInput = document.querySelector('[data-code-answer]');
                 if (ansInput && allFiles.length > 0) {
                     ansInput.value = JSON.stringify(allFiles);
                 }
+                formCodeSubmit?.submit();
             });
 
             btnStepPrev?.addEventListener('click', () => setMaterialStep(currentStep - 1));

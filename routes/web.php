@@ -136,6 +136,9 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
         Route::post('/asesmen/{assessment}/mahasiswa/{student}/nilai-esai', [InputNilaiController::class, 'storeStudentEssayScores'])
             ->whereNumber(['assessment', 'student'])
             ->name('asesmen.student.essay_scores');
+        Route::post('/asesmen/{assessment}/mahasiswa/{student}/nilai-coding', [InputNilaiController::class, 'storeStudentCodingScores'])
+            ->whereNumber(['assessment', 'student'])
+            ->name('asesmen.student.coding_scores');
         Route::get('/asesmen/{assessment}/nilai/template', [InputNilaiController::class, 'downloadTemplate'])->whereNumber('assessment')->name('asesmen.nilai.template');
         Route::get('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'import'])->whereNumber('assessment')->name('asesmen.nilai.import');
         Route::post('/asesmen/{assessment}/nilai/import', [InputNilaiController::class, 'processImport'])->whereNumber('assessment')->name('asesmen.nilai.import.process');

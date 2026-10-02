@@ -652,7 +652,7 @@
                                 <div class="h-full flex flex-col">
                                     {{-- Canvas Header Status --}}
                                     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-xs bg-slate-50/50">
-                                        <span class="text-slate-600 font-medium">Klik premis di kiri lalu klik pasangan jawaban di kanan untuk menghubungkan.</span>
+                                        <span class="text-slate-600 font-medium">Tarik garis atau klik pasangan di kiri/kanan untuk menghubungkan. Klik pada garis untuk membatalkannya.</span>
                                         <div class="flex items-center gap-3">
                                             <span class="text-slate-500 font-semibold"><span id="match-counter-{{ $qIdx }}">0 dari {{ count($pairs) }}</span> terhubung</span>
                                             <button type="button" data-reset-lines="{{ $qIdx }}" class="text-xs text-muted hover:text-ink underline font-medium cursor-pointer">Reset Semua Garis</button>
@@ -692,9 +692,9 @@
                                                             data-dot-side="left"
                                                             data-dot-idx="{{ $pIdx }}"
                                                             data-color="{{ $colors[$pIdx % count($colors)] }}"
-                                                            class="match-dot absolute -right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white bg-slate-300 shadow-xs flex items-center justify-center cursor-pointer"
+                                                            class="match-dot absolute -right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white bg-slate-300 shadow-xs flex items-center justify-center cursor-pointer transition-transform duration-150"
                                                             title="Hubungkan Premis {{ $pIdx + 1 }}">
-                                                            <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
+                                                            <span class="h-1.5 w-1.5 rounded-full bg-white pointer-events-none"></span>
                                                         </button>
 
                                                         <input type="hidden"
@@ -724,9 +724,10 @@
                                                         <button type="button"
                                                             data-dot-side="right"
                                                             data-dot-idx="{{ $tIdx }}"
-                                                            class="match-dot absolute -left-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white bg-slate-300 shadow-xs flex items-center justify-center cursor-pointer"
+                                                            data-color="{{ $colors[$tIdx % count($colors)] }}"
+                                                            class="match-dot absolute -left-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white bg-slate-300 shadow-xs flex items-center justify-center cursor-pointer transition-transform duration-150"
                                                             title="Pasangkan dengan Jawaban {{ $tIdx + 1 }}">
-                                                            <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
+                                                            <span class="h-1.5 w-1.5 rounded-full bg-white pointer-events-none"></span>
                                                         </button>
 
                                                         <div class="min-w-0 pl-3 w-full">
@@ -853,70 +854,62 @@
         </dialog>
 
         {{-- MODAL KONFIRMASI KELUAR & KUMPULKAN OTOMATIS DARI RUANG UJIAN --}}
-        <dialog id="exit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
-            <div class="flex items-start gap-3.5 mb-4">
-                <div class="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <dialog id="exit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
+            <div class="p-6">
+                <div class="flex items-start gap-2.5 mb-2">
+                    <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
                         <line x1="12" y1="9" x2="12" y2="13"/>
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Keluar &amp; Kumpulkan Ujian?</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Jawaban yang telah dikerjakan akan disimpan otomatis sebagai hasil akhir kuis.</p>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-base font-bold text-slate-900">Keluar &amp; Kumpulkan Ujian?</h3>
-                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                        Jawaban yang telah dikerjakan akan disimpan otomatis sebagai hasil akhir kuis.
-                    </p>
-                </div>
-            </div>
 
-            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 mb-4 text-xs text-slate-700 space-y-1.5">
-                <div class="flex items-center gap-1.5 font-bold text-slate-900">
-                    <svg class="h-4 w-4 shrink-0 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    <span>Ujian Selesai &amp; Tidak Dapat Diulang</span>
-                </div>
-                <p class="text-[11px] text-slate-600 leading-normal">
-                    Jika Anda keluar sekarang sebelum selesai, nilai dan lembar jawaban Anda akan <strong>langsung dikumpulkan secara otomatis</strong> dan Anda <strong>tidak dapat melanjutkan ujian lagi</strong>.
+                <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                    Jika Anda keluar sekarang sebelum selesai, nilai dan lembar jawaban Anda akan <strong>langsung dikumpulkan otomatis</strong> dan tidak dapat diulang kembali.
                 </p>
-            </div>
 
-            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 text-xs">
-                <span id="modal-exit-answered-count" class="font-bold text-slate-800">Menghitung status jawaban...</span>
-            </div>
+                <p class="text-xs text-slate-500 mb-5">
+                    Status Jawaban: <span id="modal-exit-answered-count" class="font-medium text-slate-700">Menghitung status jawaban...</span>
+                </p>
 
-            <div class="flex items-center justify-end gap-2.5">
-                <button type="button" id="modal-exit-cancel-btn" class="button-secondary text-xs py-2 px-3.5 font-medium cursor-pointer">
-                    Lanjutkan Mengerjakan
-                </button>
-                <button type="button" id="modal-exit-confirm-btn" class="button-primary text-xs py-2 px-4 font-bold cursor-pointer">
-                    Ya, Keluar &amp; Kumpulkan
-                </button>
+                <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+                    <button type="button" id="modal-exit-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">
+                        Lanjutkan Ujian
+                    </button>
+                    <button type="button" id="modal-exit-confirm-btn" class="button-primary text-xs py-2.5 px-3 font-semibold cursor-pointer justify-center text-center">
+                        Ya, Kumpulkan
+                    </button>
+                </div>
             </div>
         </dialog>
 
         {{-- MODAL KONFIRMASI PENGUMPULAN --}}
-        <dialog id="submit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+        <dialog id="submit-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/50 max-w-md w-[calc(100%-2rem)] h-fit">
+            <div class="p-6">
+                <div class="flex items-start gap-2.5 mb-2">
+                    <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Kumpulkan Lembar Kuis?</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Pemeriksaan final sebelum penyimpanan permanen.</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="text-base font-bold text-slate-900">Kumpulkan Lembar Kuis?</h3>
-                    <p class="text-xs text-slate-500">Pemeriksaan final sebelum penyimpanan permanen.</p>
+
+                <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                    Pastikan Anda telah memeriksa seluruh jawaban. Setelah dikumpulkan, lembar jawaban kuis akan <strong>terkunci</strong> dan tidak dapat dikerjakan ulang.
+                </p>
+                
+                <p class="text-xs text-slate-500 mb-5">
+                    Status Jawaban: <span id="modal-answered-count" class="font-medium text-slate-700">Menghitung status jawaban...</span>
+                </p>
+
+                <div class="grid grid-cols-2 gap-3 pt-4 border-t border-line/60">
+                    <button type="button" id="modal-cancel-btn" class="button-secondary text-xs py-2.5 px-3 font-medium cursor-pointer justify-center text-center">Batal &amp; Periksa Lagi</button>
+                    <button type="button" id="modal-confirm-submit-btn" class="button-primary text-xs py-2.5 px-3 font-semibold cursor-pointer justify-center text-center">Ya, Kumpulkan Sekarang</button>
                 </div>
-            </div>
-
-            <p class="text-xs text-slate-600 leading-relaxed mb-4">
-                Pastikan Anda telah memeriksa seluruh jawaban. Setelah dikumpulkan, lembar jawaban kuis akan <strong>terkunci</strong> dan tidak dapat dikerjakan ulang.
-            </p>
-            
-            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 text-xs">
-                <span id="modal-answered-count" class="font-bold text-slate-800">Menghitung status jawaban...</span>
-            </div>
-
-            <div class="flex items-center justify-end gap-2.5">
-                <button type="button" id="modal-cancel-btn" class="button-secondary text-xs py-2 px-3.5 font-medium cursor-pointer">Batal &amp; Periksa Lagi</button>
-                <button type="button" id="modal-confirm-submit-btn" class="button-primary text-xs py-2 px-4 font-bold shadow-xs cursor-pointer">Ya, Kumpulkan Sekarang</button>
             </div>
         </dialog>
 
@@ -1159,6 +1152,40 @@
                 // 6. INTERACTIVE MATCHING LINE-DRAWING (SVG Canvas)
                 // ==========================================
                 const matchingQuestions = {};
+                let activeMatchingDrag = null;
+                let suppressCardClickUntil = 0;
+
+                // Listener pointer global untuk tarik garis (drag & drop)
+                window.addEventListener('pointermove', (e) => {
+                    if (!activeMatchingDrag) return;
+                    if (e.pointerId !== activeMatchingDrag.pointerId) return;
+
+                    const dist = Math.hypot(e.clientX - activeMatchingDrag.startX, e.clientY - activeMatchingDrag.startY);
+                    if (!activeMatchingDrag.isDragging) {
+                        if (dist > 5) {
+                            activeMatchingDrag.isDragging = true;
+                            activeMatchingDrag.onDragStart();
+                        } else {
+                            return;
+                        }
+                    }
+
+                    activeMatchingDrag.onDragMove(e);
+                });
+
+                const endActiveMatchingDrag = (e) => {
+                    if (!activeMatchingDrag) return;
+                    if (e.pointerId !== activeMatchingDrag.pointerId) return;
+
+                    if (activeMatchingDrag.isDragging) {
+                        suppressCardClickUntil = Date.now() + 120;
+                        activeMatchingDrag.onDragEnd(e);
+                    }
+                    activeMatchingDrag = null;
+                };
+
+                window.addEventListener('pointerup', endActiveMatchingDrag);
+                window.addEventListener('pointercancel', endActiveMatchingDrag);
 
                 document.querySelectorAll('.match-canvas-container').forEach(container => {
                     const qIdxMatch = container.id.match(/\d+/);
@@ -1174,7 +1201,7 @@
                     const resetBtn = container.querySelector(`[data-reset-lines="${qIdx}"]`);
 
                     const connections = {};
-                    let selectedPremiseIdx = null;
+                    let selectedNode = null; // { side: 'left' | 'right', idx: number } | null
 
                     // Pulihkan sambungan yang tersimpan sebelumnya
                     leftDots.forEach(ld => {
@@ -1196,61 +1223,186 @@
                         }
                     });
 
+                    const updateSelectionUI = () => {
+                        leftCards.forEach(c => {
+                            const isSel = selectedNode && selectedNode.side === 'left' && Number(c.dataset.matchLeftCard) === selectedNode.idx;
+                            c.classList.toggle('ring-2', !!isSel);
+                            c.classList.toggle('ring-brand', !!isSel);
+                            c.classList.toggle('border-brand', !!isSel);
+                        });
+                        rightCards.forEach(c => {
+                            const isSel = selectedNode && selectedNode.side === 'right' && Number(c.dataset.matchRightCard) === selectedNode.idx;
+                            c.classList.toggle('ring-2', !!isSel);
+                            c.classList.toggle('ring-brand', !!isSel);
+                            c.classList.toggle('border-brand', !!isSel);
+                        });
+                        leftDots.forEach(d => {
+                            const isSel = selectedNode && selectedNode.side === 'left' && Number(d.dataset.dotIdx) === selectedNode.idx;
+                            d.classList.toggle('selected', !!isSel);
+                            d.style.transform = isSel ? 'translateY(-50%) scale(1.3)' : '';
+                        });
+                        rightDots.forEach(d => {
+                            const isSel = selectedNode && selectedNode.side === 'right' && Number(d.dataset.dotIdx) === selectedNode.idx;
+                            d.classList.toggle('selected', !!isSel);
+                            d.style.transform = isSel ? 'translateY(-50%) scale(1.3)' : '';
+                        });
+                    };
+
+                    const clearSelection = () => {
+                        selectedNode = null;
+                        updateSelectionUI();
+                    };
+
+                    const connectPair = (lIdx, rIdx, targetVal) => {
+                        // Aturan 1-ke-1: Jika premis lain sudah terhubung ke target jawaban ini, putuskan yang lama
+                        Object.entries(connections).forEach(([otherL, c]) => {
+                            if (Number(otherL) !== lIdx && c.targetIdx === rIdx) {
+                                delete connections[otherL];
+                                const oldHidden = document.getElementById(`hidden-match-${qIdx}-${otherL}`);
+                                if (oldHidden) oldHidden.value = '';
+                            }
+                        });
+
+                        const lDot = container.querySelector(`[data-dot-side="left"][data-dot-idx="${lIdx}"]`);
+                        const color = lDot?.dataset.color || '#1d4ed8';
+
+                        connections[lIdx] = {
+                            targetIdx: rIdx,
+                            targetVal: targetVal,
+                            color: color
+                        };
+
+                        const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
+                        if (hiddenInp) hiddenInp.value = targetVal;
+
+                        clearSelection();
+                        redrawLines();
+                    };
+
                     const disconnectConnection = (lIdx) => {
                         delete connections[lIdx];
                         const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
                         if (hiddenInp) hiddenInp.value = '';
 
-                        if (selectedPremiseIdx === lIdx) {
-                            selectedPremiseIdx = null;
-                            leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                            leftDots.forEach(d => d.classList.remove('selected'));
+                        if (selectedNode && selectedNode.side === 'left' && selectedNode.idx === lIdx) {
+                            clearSelection();
                         }
                         redrawLines();
+                    };
+
+                    const getDotCenter = (side, idx) => {
+                        const dot = container.querySelector(`[data-dot-side="${side}"][data-dot-idx="${idx}"]`);
+                        const cRect = container.getBoundingClientRect();
+                        if (!dot) return { x: 0, y: 0, color: '#1d4ed8' };
+                        const dRect = dot.getBoundingClientRect();
+                        return {
+                            x: dRect.left + dRect.width / 2 - cRect.left + container.scrollLeft,
+                            y: dRect.top + dRect.height / 2 - cRect.top + container.scrollTop,
+                            color: dot.dataset.color || (side === 'left' ? '#1d4ed8' : '#2563eb')
+                        };
                     };
 
                     const drawLine = (x1, y1, x2, y2, color, id) => {
                         const dx = Math.abs(x2 - x1) * 0.45;
                         const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+                        const midX = (x1 + x2) / 2;
+                        const midY = (y1 + y2) / 2;
 
+                        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        group.setAttribute('class', 'connection-group');
+                        group.setAttribute('data-line-id', id);
+                        group.setAttribute('style', 'pointer-events: stroke; cursor: pointer;');
+
+                        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                        title.textContent = 'Klik untuk membatalkan garis';
+                        group.appendChild(title);
+
+                        // Garis tampak
                         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         path.setAttribute('d', d);
                         path.setAttribute('stroke', color);
                         path.setAttribute('stroke-width', '2.5');
                         path.setAttribute('fill', 'none');
                         path.setAttribute('stroke-linecap', 'round');
-                        path.setAttribute('class', 'connection-line cursor-pointer');
-                        path.setAttribute('style', 'pointer-events: stroke;');
+                        path.setAttribute('class', 'connection-line');
+                        path.setAttribute('style', 'pointer-events: stroke; cursor: pointer; transition: stroke 0.15s, stroke-width 0.15s;');
                         path.setAttribute('id', `line-${qIdx}-${id}`);
 
+                        // Area sentuh/klik lebar tak kasat mata (stroke dengan opacity 0.001 agar valid painted stroke di SVG)
                         const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         hitPath.setAttribute('d', d);
-                        hitPath.setAttribute('stroke', 'transparent');
-                        hitPath.setAttribute('stroke-width', '16');
+                        hitPath.setAttribute('stroke', '#000000');
+                        hitPath.setAttribute('stroke-opacity', '0.001');
+                        hitPath.setAttribute('stroke-width', '28');
                         hitPath.setAttribute('fill', 'none');
                         hitPath.setAttribute('stroke-linecap', 'round');
                         hitPath.setAttribute('class', 'cursor-pointer');
-                        hitPath.setAttribute('style', 'pointer-events: stroke;');
+                        hitPath.setAttribute('style', 'pointer-events: stroke; cursor: pointer;');
 
-                        const onLineClick = (e) => {
+                        // Badge tombol batal di tengah kurva garis (tampil saat di-hover)
+                        const badge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        badge.setAttribute('class', 'cancel-badge');
+                        badge.setAttribute('style', 'opacity: 0; pointer-events: all; cursor: pointer; transition: opacity 0.15s ease;');
+
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', midX);
+                        circle.setAttribute('cy', midY);
+                        circle.setAttribute('r', '11');
+                        circle.setAttribute('fill', '#e11d48');
+                        circle.setAttribute('stroke', '#ffffff');
+                        circle.setAttribute('stroke-width', '2');
+
+                        const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line1.setAttribute('x1', midX - 3.5);
+                        line1.setAttribute('y1', midY - 3.5);
+                        line1.setAttribute('x2', midX + 3.5);
+                        line1.setAttribute('y2', midY + 3.5);
+                        line1.setAttribute('stroke', '#ffffff');
+                        line1.setAttribute('stroke-width', '2');
+                        line1.setAttribute('stroke-linecap', 'round');
+
+                        const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line2.setAttribute('x1', midX + 3.5);
+                        line2.setAttribute('y1', midY - 3.5);
+                        line2.setAttribute('x2', midX - 3.5);
+                        line2.setAttribute('y2', midY + 3.5);
+                        line2.setAttribute('stroke', '#ffffff');
+                        line2.setAttribute('stroke-width', '2');
+                        line2.setAttribute('stroke-linecap', 'round');
+
+                        badge.appendChild(circle);
+                        badge.appendChild(line1);
+                        badge.appendChild(line2);
+
+                        // Handler batalkan garis saat diklik atau ditekan
+                        const onLineCancel = (e) => {
                             e.stopPropagation();
+                            e.preventDefault();
+                            suppressCardClickUntil = Date.now() + 150;
                             disconnectConnection(id);
                         };
 
-                        path.addEventListener('click', onLineClick);
-                        hitPath.addEventListener('click', onLineClick);
-
-                        hitPath.addEventListener('mouseenter', () => {
-                            path.setAttribute('stroke-width', '4');
-                            path.setAttribute('opacity', '0.7');
+                        group.addEventListener('click', onLineCancel);
+                        group.addEventListener('pointerdown', (e) => {
+                            e.stopPropagation();
                         });
-                        hitPath.addEventListener('mouseleave', () => {
+                        group.addEventListener('touchend', onLineCancel);
+
+                        group.addEventListener('mouseenter', () => {
+                            path.setAttribute('stroke', '#e11d48');
+                            path.setAttribute('stroke-width', '3.5');
+                            badge.style.opacity = '1';
+                        });
+                        group.addEventListener('mouseleave', () => {
+                            path.setAttribute('stroke', color);
                             path.setAttribute('stroke-width', '2.5');
-                            path.setAttribute('opacity', '1');
+                            badge.style.opacity = '0';
                         });
 
-                        svg.appendChild(path);
-                        svg.appendChild(hitPath);
+                        group.appendChild(path);
+                        group.appendChild(hitPath);
+                        group.appendChild(badge);
+                        svg.appendChild(group);
                     };
 
                     const redrawLines = () => {
@@ -1321,60 +1473,200 @@
 
                     matchingQuestions[qIdx] = { redraw: redrawLines };
 
-                    // 1-Click Select Premis di Kolom Kiri
+                    // ==========================================
+                    // DRAG & DROP LOGIC (BIDIRECTIONAL: LEFT <-> RIGHT)
+                    // ==========================================
+                    const startCardDrag = (e, side, idx) => {
+                        if (e.target.closest('[data-disconnect-left]')) return;
+                        if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+                        const originCard = container.querySelector(side === 'left' ? `[data-match-left-card="${idx}"]` : `[data-match-right-card="${idx}"]`);
+                        const dotCenter = getDotCenter(side, idx);
+
+                        activeMatchingDrag = {
+                            qIdx,
+                            container,
+                            side,
+                            idx,
+                            startX: e.clientX,
+                            startY: e.clientY,
+                            pointerId: e.pointerId,
+                            isDragging: false,
+                            onDragStart: () => {
+                                clearSelection();
+                                originCard?.classList.add('ring-2', 'ring-brand', 'border-brand');
+                                svg.style.width = Math.max(container.scrollWidth, container.clientWidth) + 'px';
+                                svg.style.height = Math.max(container.scrollHeight, container.clientHeight) + 'px';
+                            },
+                            onDragMove: (pe) => {
+                                const cRect = container.getBoundingClientRect();
+                                const curX = pe.clientX - cRect.left + container.scrollLeft;
+                                const curY = pe.clientY - cRect.top + container.scrollTop;
+
+                                let x1, y1, x2, y2;
+                                if (side === 'left') {
+                                    x1 = dotCenter.x;
+                                    y1 = dotCenter.y;
+                                    x2 = curX;
+                                    y2 = curY;
+                                } else {
+                                    // Menarik dari kanan ke kiri
+                                    x1 = curX;
+                                    y1 = curY;
+                                    x2 = dotCenter.x;
+                                    y2 = dotCenter.y;
+                                }
+
+                                const dx = Math.abs(x2 - x1) * 0.45;
+                                const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+                                let draftLine = svg.querySelector('.draft-matching-line');
+                                if (!draftLine) {
+                                    draftLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                                    draftLine.setAttribute('class', 'draft-matching-line');
+                                    draftLine.setAttribute('fill', 'none');
+                                    draftLine.setAttribute('stroke', dotCenter.color || '#2563eb');
+                                    draftLine.setAttribute('stroke-width', '2.5');
+                                    draftLine.setAttribute('stroke-dasharray', '6 4');
+                                    draftLine.setAttribute('stroke-linecap', 'round');
+                                    draftLine.setAttribute('style', 'pointer-events: none;');
+                                    svg.appendChild(draftLine);
+                                }
+                                draftLine.setAttribute('d', d);
+
+                                // Highlight kartu target yang sedang diarahkan
+                                const elUnder = document.elementFromPoint(pe.clientX, pe.clientY);
+                                if (side === 'left') {
+                                    const rCard = elUnder?.closest('[data-match-right-card]');
+                                    rightCards.forEach(rc => {
+                                        const isHovered = rc === rCard && container.contains(rc);
+                                        rc.classList.toggle('ring-2', isHovered);
+                                        rc.classList.toggle('ring-emerald-500', isHovered);
+                                        rc.classList.toggle('border-emerald-500', isHovered);
+                                        rc.classList.toggle('bg-emerald-50/40', isHovered);
+                                    });
+                                } else {
+                                    // Menarik dari kanan ke kiri: highlight kartu kiri
+                                    const lCard = elUnder?.closest('[data-match-left-card]');
+                                    leftCards.forEach(lc => {
+                                        const isHovered = lc === lCard && container.contains(lc);
+                                        lc.classList.toggle('ring-2', isHovered);
+                                        lc.classList.toggle('ring-emerald-500', isHovered);
+                                        lc.classList.toggle('border-emerald-500', isHovered);
+                                        lc.classList.toggle('bg-emerald-50/40', isHovered);
+                                    });
+                                }
+                            },
+                            onDragEnd: (pe) => {
+                                const draftLine = svg.querySelector('.draft-matching-line');
+                                if (draftLine) draftLine.remove();
+
+                                originCard?.classList.remove('ring-2', 'ring-brand', 'border-brand');
+                                leftCards.forEach(lc => lc.classList.remove('ring-2', 'ring-emerald-500', 'border-emerald-500', 'bg-emerald-50/40'));
+                                rightCards.forEach(rc => rc.classList.remove('ring-2', 'ring-emerald-500', 'border-emerald-500', 'bg-emerald-50/40'));
+
+                                const dropEl = document.elementFromPoint(pe.clientX, pe.clientY);
+                                if (side === 'left') {
+                                    const targetRight = dropEl?.closest('[data-match-right-card]');
+                                    if (targetRight && container.contains(targetRight)) {
+                                        const rDot = targetRight.querySelector('[data-dot-side="right"]');
+                                        if (rDot) {
+                                            const rIdx = Number(rDot.dataset.dotIdx);
+                                            const targetVal = targetRight.dataset.targetVal;
+                                            connectPair(idx, rIdx, targetVal);
+                                        }
+                                    }
+                                } else {
+                                    // Menarik dari kanan ke kiri dan dilepas di kartu premis kiri
+                                    const targetLeft = dropEl?.closest('[data-match-left-card]');
+                                    if (targetLeft && container.contains(targetLeft)) {
+                                        const lIdx = Number(targetLeft.dataset.matchLeftCard);
+                                        const targetVal = originCard?.dataset.targetVal;
+                                        if (targetVal) {
+                                            connectPair(lIdx, idx, targetVal);
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    };
+
+                    // ==========================================
+                    // CLICK-TO-CONNECT (BIDIRECTIONAL: LEFT <-> RIGHT)
+                    // ==========================================
+                    // Klik pada Kartu Kiri (Premis)
                     leftCards.forEach(lc => {
+                        const lIdx = Number(lc.dataset.matchLeftCard);
+
+                        lc.addEventListener('pointerdown', (e) => startCardDrag(e, 'left', lIdx));
+
                         lc.addEventListener('click', (e) => {
+                            if (Date.now() < suppressCardClickUntil) return;
                             if (e.target.closest('[data-disconnect-left]')) return;
 
-                            const pIdx = Number(lc.dataset.matchLeftCard);
-
-                            if (selectedPremiseIdx === pIdx) {
-                                // Deselect jika ditekan kembali
-                                selectedPremiseIdx = null;
-                                leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                                leftDots.forEach(d => d.classList.remove('selected'));
+                            if (!selectedNode) {
+                                selectedNode = { side: 'left', idx: lIdx };
+                                updateSelectionUI();
                                 return;
                             }
 
-                            selectedPremiseIdx = pIdx;
-                            leftCards.forEach(c => {
-                                const isTarget = Number(c.dataset.matchLeftCard) === pIdx;
-                                c.classList.toggle('ring-2', isTarget);
-                                c.classList.toggle('ring-brand', isTarget);
-                                c.classList.toggle('border-brand', isTarget);
-                            });
-                            leftDots.forEach(d => {
-                                d.classList.toggle('selected', Number(d.dataset.dotIdx) === pIdx);
-                            });
+                            if (selectedNode.side === 'left') {
+                                if (selectedNode.idx === lIdx) {
+                                    clearSelection();
+                                } else {
+                                    selectedNode = { side: 'left', idx: lIdx };
+                                    updateSelectionUI();
+                                }
+                                return;
+                            }
+
+                            if (selectedNode.side === 'right') {
+                                // Kartu kanan sudah dipilih sebelumnya -> hubungkan dengan kartu kiri ini!
+                                const rIdx = selectedNode.idx;
+                                const rightCard = container.querySelector(`[data-match-right-card="${rIdx}"]`);
+                                const targetVal = rightCard ? rightCard.dataset.targetVal : '';
+                                if (targetVal) {
+                                    connectPair(lIdx, rIdx, targetVal);
+                                }
+                            }
                         });
                     });
 
-                    // 1-Click Pasangkan dengan Jawaban di Kolom Kanan
+                    // Klik pada Kartu Kanan (Pasangan Jawaban)
                     rightCards.forEach(rc => {
+                        const rIdx = Number(rc.dataset.matchRightCard);
+                        const targetVal = rc.dataset.targetVal;
+
+                        rc.addEventListener('pointerdown', (e) => startCardDrag(e, 'right', rIdx));
+
                         rc.addEventListener('click', () => {
-                            if (selectedPremiseIdx === null) return;
-                            const lIdx = selectedPremiseIdx;
-                            const rDot = rc.querySelector('[data-dot-side="right"]');
-                            if (!rDot) return;
-                            const rIdx = Number(rDot.dataset.dotIdx);
-                            const targetVal = rc.dataset.targetVal;
-                            const lDot = container.querySelector(`[data-dot-side="left"][data-dot-idx="${lIdx}"]`);
-                            const color = lDot?.dataset.color || '#1d4ed8';
+                            if (Date.now() < suppressCardClickUntil) return;
 
-                            // Pasangkan atau pindahkan sambungan
-                            connections[lIdx] = { targetIdx: rIdx, targetVal, color };
-                            const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
-                            if (hiddenInp) hiddenInp.value = targetVal;
+                            if (!selectedNode) {
+                                selectedNode = { side: 'right', idx: rIdx };
+                                updateSelectionUI();
+                                return;
+                            }
 
-                            // Reset seleksi
-                            selectedPremiseIdx = null;
-                            leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                            leftDots.forEach(d => d.classList.remove('selected'));
-                            redrawLines();
+                            if (selectedNode.side === 'right') {
+                                if (selectedNode.idx === rIdx) {
+                                    clearSelection();
+                                } else {
+                                    selectedNode = { side: 'right', idx: rIdx };
+                                    updateSelectionUI();
+                                }
+                                return;
+                            }
+
+                            if (selectedNode.side === 'left') {
+                                // Kartu kiri sudah dipilih sebelumnya -> hubungkan dengan kartu kanan ini!
+                                const lIdx = selectedNode.idx;
+                                connectPair(lIdx, rIdx, targetVal);
+                            }
                         });
                     });
 
-                    // Putuskan / Batalkan Sambungan Satuan (Inline Action)
+                    // Putuskan / Batalkan Sambungan Satuan (Inline Action pada kartu premis)
                     container.querySelectorAll('[data-disconnect-left]').forEach(btn => {
                         btn.addEventListener('click', (e) => {
                             e.stopPropagation();
@@ -1390,9 +1682,7 @@
                             const hiddenInp = document.getElementById(`hidden-match-${qIdx}-${lIdx}`);
                             if (hiddenInp) hiddenInp.value = '';
                         });
-                        selectedPremiseIdx = null;
-                        leftCards.forEach(c => c.classList.remove('ring-2', 'ring-brand', 'border-brand'));
-                        leftDots.forEach(d => d.classList.remove('selected'));
+                        clearSelection();
                         redrawLines();
                     });
 

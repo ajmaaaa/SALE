@@ -63,19 +63,38 @@ class AiTutorController extends Controller
             $this->authorizeAssessment($content['assessment'], $request->user());
         }
 
-        // Pastikan tugas coding terdaftar di ai_tasks dan berstatus aktif
+        // Pastikan status ai_tasks sinkron dengan pengaturan ai_enabled pada konten
+        $isAiAllowed = (bool) ($content['ai_enabled'] ?? true);
+        $taskTitle = $content['title'] ?? 'Praktikum Coding';
+        $taskBody = $content['body'] ?? 'Selesaikan tugas coding.';
+        if (! empty($content['coding_steps']) && is_array($content['coding_steps'])) {
+            $stepsDesc = [];
+            foreach ($content['coding_steps'] as $sIdx => $st) {
+                $stTitle = $st['title'] ?? ('Tahap '.($sIdx + 1));
+                $stBody = $st['body'] ?? '';
+                $stepsDesc[] = ($sIdx + 1).". {$stTitle}: {$stBody}";
+            }
+            $taskBody .= "\n\nDetail Tahap/Instruksi:\n".implode("\n", $stepsDesc);
+        }
+
         $task = DB::table('ai_tasks')->where('id', $assignment)->first();
         if (! $task) {
             DB::table('ai_tasks')->insert([
                 'id' => $assignment,
-                'title' => $content['title'] ?? 'Praktikum Coding',
-                'body' => $content['body'] ?? 'Selesaikan tugas coding.',
-                'enabled' => true,
+                'title' => $taskTitle,
+                'body' => $taskBody,
+                'enabled' => $isAiAllowed,
             ]);
             $task = DB::table('ai_tasks')->where('id', $assignment)->first();
-        } elseif (! $task->enabled) {
-            DB::table('ai_tasks')->where('id', $assignment)->update(['enabled' => true]);
-            $task->enabled = true;
+        } else {
+            DB::table('ai_tasks')->where('id', $assignment)->update([
+                'title' => $taskTitle,
+                'body' => $taskBody,
+                'enabled' => $isAiAllowed,
+            ]);
+            $task->title = $taskTitle;
+            $task->body = $taskBody;
+            $task->enabled = $isAiAllowed;
         }
 
         // Integrasikan akses akun AI: seluruh akun mahasiswa (dan dosen) otomatis diberikan izin akses AI asisten belajar
@@ -86,7 +105,7 @@ class AiTutorController extends Controller
             ]);
         }
 
-        abort_unless($task && $task->enabled, 403, 'AI untuk tugas ini tidak aktif.');
+        abort_unless($task && $task->enabled, 403, 'AI Asisten dinonaktifkan oleh dosen pengampu.');
 
         return $task;
     }
@@ -147,14 +166,19 @@ class AiTutorController extends Controller
         $turns = DB::table('ai_turns')->where('user_id', $request->user()->id)->where('task_id', $task->id)->orderBy('id')->get(['question', 'answer', 'status']);
         $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$request->user()->id)->where('day', now('UTC')->toDateString())->value('tokens');
 
-        $isLiveAi = (bool) config('ai.enabled') && filled(config('ai.key'));
+        $dailyTokens = (int) (config('ai.daily_tokens') ?: (\App\Models\SystemSetting::valueFor('ai_token_quota') ?? 500000));
+        $remainingTokens = max(0, $dailyTokens - $used);
+
+        $apiKey = (string) (config('ai.key') ?: (\App\Models\SystemSetting::valueFor('ai_api_key') ?? ''));
+        $isLiveAi = filled($apiKey);
         $isDemo = ! $isLiveAi && app()->environment('local');
 
         return response()->json([
             'enabled' => $isLiveAi || $isDemo,
-            'remaining_tokens' => max(0, config('ai.daily_tokens', 100000) - $used),
-            'remaining_turns' => max(0, config('ai.task_turns', 12) - $turns->count()),
+            'remaining_tokens' => $remainingTokens,
+            'total_tokens' => $dailyTokens,
             'reset_at' => now('UTC')->addDay()->startOfDay()->toIso8601String(),
+            'reset_time_wib' => '07.00 WIB',
             'history' => $turns,
             'demo_mode' => $isDemo,
         ]);
@@ -164,20 +188,28 @@ class AiTutorController extends Controller
     {
         $task = $this->task($request, $assignment);
 
-        $isLiveAi = config('ai.enabled') && filled(config('ai.key'));
+        $apiKey = (string) (config('ai.key') ?: (\App\Models\SystemSetting::valueFor('ai_api_key') ?? ''));
+        $isLiveAi = filled($apiKey);
         $isDemo = ! $isLiveAi && app()->environment('local');
 
         abort_unless($isLiveAi || $isDemo, 503, 'AI belum diaktifkan oleh pengelola.');
         $input = $request->validate(['question' => 'required|string|max:2000', 'code' => 'nullable|string|max:4000']);
         $userId = $request->user()->id;
+
+        // Validasi kuota token harian: batasan HANYA berdasarkan sisa token, bukan jumlah turn/permintaan
+        $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$userId)->where('day', now('UTC')->toDateString())->value('tokens');
+        $dailyTokens = (int) (config('ai.daily_tokens') ?: (\App\Models\SystemSetting::valueFor('ai_token_quota') ?? 500000));
+        abort_if($used >= $dailyTokens, 429, 'Sisa kuota token Anda telah habis. Kuota akan di-reset pada pukul 07.00 WIB.');
+
         $lock = Cache::lock('ai:user:'.$userId, 180);
         abort_unless($lock->get(), 429, 'Tunggu permintaan sebelumnya selesai.');
         try {
             $rate = 'ai:send:'.$userId;
-            abort_if(RateLimiter::tooManyAttempts($rate, 3), 429, 'Maksimal tiga pertanyaan per menit.');
+            abort_if(RateLimiter::tooManyAttempts($rate, 10), 429, 'Pertanyaan terlalu cepat. Tunggu beberapa detik sebelum mengirim lagi.');
             RateLimiter::hit($rate, 60);
+
             $history = DB::table('ai_turns')->where('user_id', $userId)->where('task_id', $task->id)->orderBy('id')->get(['question', 'code', 'answer', 'status'])->map(fn ($row) => (array) $row)->all();
-            abort_if(count($history) >= config('ai.task_turns'), 429, 'Batas bantuan untuk tugas ini sudah tercapai. Lanjutkan percobaanmu atau diskusikan dengan dosen.');
+
             $id = DB::table('ai_turns')->insertGetId(['user_id' => $userId, 'task_id' => $task->id, 'question' => $input['question'], 'code' => $input['code'] ?? '']);
             try {
                 if ($isLiveAi) {
@@ -192,8 +224,8 @@ class AiTutorController extends Controller
                     throw $exception;
                 }
                 // Record only the exception type, never prompts, credentials, or raw provider data.
-                Log::error('AI tutor request failed', ['exception' => get_class($exception)]);
-                abort(503, 'Layanan AI mengalami gangguan. Permintaan tidak diulang otomatis.');
+                Log::error('AI tutor request failed', ['exception' => get_class($exception), 'message' => $exception->getMessage()]);
+                abort(503, 'Layanan AI mengalami gangguan: '.($exception->getMessage() ?: 'Silakan coba lagi sebentar lagi.'));
             }
 
             return response()->json(['answer' => $answer]);

@@ -71,14 +71,10 @@
                 <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
                 <select id="type" name="type" class="field" data-content-type required>
                     <option value="" disabled @selected(!old('type', $item['type'] ?? '') && !request('type'))>Pilih jenis konten</option>
-                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
+                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('type', $item['type'] ?? request('type')) === $value || ($value === 'tugas' && old('type', $item['type'] ?? '') === 'coding'))>{{ $label }}</option>
                     @endforeach
                 </select>
-                <div data-custom-type-container hidden class="mt-2.5 space-y-1">
-                    <label class="form-label text-xs" for="custom_type">Nama jenis konten kustom</label>
-                    <input id="custom_type" name="custom_type" class="field text-xs py-2 bg-white" placeholder="Ketik jenis konten..." data-custom-type value="{{ old('custom_type', $item['custom_type'] ?? '') }}" maxlength="20">
-                </div>
             </div>
             <div>
                 <label class="form-label" for="module">Nama modul / topik <span class="text-danger">*</span></label>
@@ -98,16 +94,22 @@
             <textarea id="body" name="body" required rows="5" class="field" placeholder="Tuliskan petunjuk umum, stimulus materi, atau deskripsi singkat...">{{ old('body', $item['body'] ?? '') }}</textarea>
         </div>
 
+        @php
+            $itemType = old('type', $item['type'] ?? '');
+            $taskModeVal = old('task_mode', $item['task_mode'] ?? ((($item['type'] ?? '') === 'coding' || ($item['question_type'] ?? '') === 'coding') ? 'coding' : 'regular'));
+            $matModeVal = old('material_mode', $item['material_mode'] ?? ((($item['type'] ?? '') === 'materi' && ($item['question_type'] ?? '') === 'coding') ? 'coding' : 'regular'));
+        @endphp
+
         <fieldset data-material-mode-settings hidden>
             <legend class="form-label">Jenis materi</legend>
             <div class="grid gap-2 sm:grid-cols-2">
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                    <input type="radio" name="material_mode" value="regular" data-material-mode @checked(old('material_mode', $item['material_mode'] ?? 'regular') === 'regular')>
+                    <input type="radio" name="material_mode" value="regular" data-material-mode @checked($matModeVal === 'regular')>
                     <span class="ml-1 font-semibold text-ink">Materi biasa</span>
                     <span class="mt-1 block pl-5 text-muted">Bacaan, video, atau lampiran pembelajaran.</span>
                 </label>
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                    <input type="radio" name="material_mode" value="coding" data-material-mode @checked(old('material_mode', $item['material_mode'] ?? '') === 'coding')>
+                    <input type="radio" name="material_mode" value="coding" data-material-mode @checked($matModeVal === 'coding')>
                     <span class="ml-1 font-semibold text-ink">Tutorial pemrograman</span>
                     <span class="mt-1 block pl-5 text-muted">Editor praktik dengan pendamping AI Asisten.</span>
                 </label>
@@ -198,7 +200,7 @@
             @php
                 $itemType = old('type', $item['type'] ?? '');
                 $itemDue = old('due', $item['due'] ?? '');
-                $hasQuizDue = !empty($itemDue) && in_array($itemType, ['kuis', 'uts', 'uas', 'lainnya'], true);
+                $hasQuizDue = !empty($itemDue) && in_array($itemType, ['kuis', 'uts', 'uas'], true);
                 $quizDueVal = $hasQuizDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
             @endphp
             <div class="mt-4 border-t border-line/60 pt-4">
@@ -223,11 +225,11 @@
                     <legend class="form-label">Jenis tugas</legend>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'regular')>
+                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked($taskModeVal === 'regular')>
                             <span class="ml-1 font-semibold text-ink">Tugas biasa</span>
                         </label>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked(old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding')>
+                            <input type="radio" name="task_mode" value="coding" data-task-mode @checked($taskModeVal === 'coding')>
                             <span class="ml-1 font-semibold text-ink">Pemrograman</span>
                         </label>
                     </div>
@@ -236,21 +238,6 @@
                 </fieldset>
             </div>
 
-            {{-- Pengaturan Bantuan AI untuk Tugas Pemrograman --}}
-            @php
-                $aiEnabledVal = (bool) old('ai_enabled', $item['ai_enabled'] ?? true);
-                $isCodingSelected = old('task_mode', ($item['type'] ?? '') === 'coding' ? 'coding' : 'regular') === 'coding';
-            @endphp
-            <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4" @if(!$isCodingSelected) hidden @endif>
-                <label class="flex cursor-pointer items-center justify-between gap-4">
-                    <span>
-                        <span class="block text-sm font-bold text-ink">Bantuan AI Asisten</span>
-                        <span class="mt-0.5 block text-xs text-muted">Aktifkan AI Asisten untuk membimbing konsep pemrograman mahasiswa selama pengerjaan tugas.</span>
-                    </span>
-                    <input type="hidden" name="ai_enabled" value="0">
-                    <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal)>
-                </label>
-            </div>
 
             @php
                 $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding'], true);
@@ -338,6 +325,22 @@
                 <input type="hidden" name="formats[]" value="{{ $format }}">
             @endforeach
         </div>
+        </div>
+
+        {{-- Pengaturan Bantuan AI untuk Pemrograman (Materi & Tugas) --}}
+        @php
+            $aiEnabledVal = (bool) old('ai_enabled', $item['ai_enabled'] ?? true);
+            $isCodingSelected = $taskModeVal === 'coding' || $matModeVal === 'coding' || ($item['type'] ?? '') === 'coding';
+        @endphp
+        <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs" @if(!$isCodingSelected) hidden @endif>
+            <label class="flex cursor-pointer items-center justify-between gap-4">
+                <span>
+                    <span class="block text-sm font-bold text-ink">Izinkan Bantuan AI Asisten</span>
+                    <span class="mt-0.5 block text-xs text-muted">Aktifkan AI Asisten untuk membimbing konsep pemrograman mahasiswa selama praktikum atau pengerjaan tugas/materi ini.</span>
+                </span>
+                <input type="hidden" name="ai_enabled" value="0" @if(!$isCodingSelected) disabled @endif>
+                <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal) @if(!$isCodingSelected) disabled @endif>
+            </label>
         </div>
 
         {{-- Paket Soal Asesmen (Kuis, UTS, UAS) --}}
@@ -538,33 +541,35 @@
             <script type="application/json" data-old-questions>@json(old('questions', $item['questions'] ?? []))</script>
         </section>
 
-        {{-- Paket Tahapan Pemrograman (Tugas / Praktik Pemrograman) --}}
+        {{-- Paket Tahapan Pemrograman (Materi / Tugas Pemrograman) --}}
         <section data-coding-step-builder class="space-y-4" hidden>
-            {{-- Toolbar Tahapan Pemrograman (Sama persis dengan Toolbar Kuis) --}}
+            {{-- Toolbar Tahapan Pemrograman --}}
             <div class="rounded-xl border border-line/80 bg-white p-4 shadow-2xs space-y-3">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex flex-wrap items-center gap-2.5">
-                        <h2 class="text-sm font-bold text-ink" data-coding-title-label>Susun Soal (Pemrograman)</h2>
-                        <span class="text-xs font-semibold text-slate-700" data-coding-total-points-badge>
+                        <h2 class="text-sm font-bold text-ink" data-coding-title-label>{{ ($item['type'] ?? '') === 'materi' ? 'Tahapan Materi Pemrograman' : 'Susun Soal (Pemrograman)' }}</h2>
+                        <span class="text-xs font-semibold text-slate-700" data-coding-total-points-badge @if(($item['type'] ?? '') === 'materi') hidden @endif>
                             Total Skor: 100 / 100
                         </span>
-                        <span class="text-xs text-muted font-medium" data-coding-step-total>1 soal</span>
+                        <span class="text-xs text-muted font-medium" data-coding-step-total>{{ ($item['type'] ?? '') === 'materi' ? '1 tahap' : '1 soal' }}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-coding-step>+ Tambah Soal</button>
+                        <button type="button" class="button-primary text-xs py-1.5 px-3.5 font-semibold" data-add-coding-step>
+                            <span data-add-coding-step-label>{{ ($item['type'] ?? '') === 'materi' ? '+ Tambah Tahap' : '+ Tambah Soal' }}</span>
+                        </button>
                     </div>
                 </div>
 
-                {{-- Baris Pengaturan: Target Jumlah Soal (Otomatis menyesuaikan dan bagi rata poin) --}}
-                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line/40 pt-3 text-xs">
+                {{-- Baris Pengaturan: Target Jumlah Soal (Hanya muncul jika Tugas yang dinilai) --}}
+                <div data-coding-target-wrapper class="flex flex-wrap items-center justify-between gap-3 border-t border-line/40 pt-3 text-xs" @if(($item['type'] ?? '') === 'materi') hidden @endif>
                     <div class="flex items-center gap-2">
-                        <span class="text-muted font-medium">Target Jumlah Soal (maks. 100):</span>
+                        <span class="text-muted font-medium" data-coding-target-label>Target Jumlah Soal (maks. 100):</span>
                         <input type="number" min="1" max="100" value="1" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-coding-target-count placeholder="1">
                     </div>
                 </div>
             </div>
 
-            {{-- Navigasi Tab Tahap Soal (Sama persis dengan Kuis) --}}
+            {{-- Navigasi Tab Tahap / Halaman --}}
             <div data-coding-pagination-header class="flex items-center justify-between gap-3 rounded-xl border border-line/70 bg-white px-3 py-2 shadow-2xs">
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 max-w-full min-w-0 flex-1" data-coding-step-tabs></div>
                 <div class="flex items-center gap-1.5 shrink-0 pl-2 border-l border-line/60">
@@ -576,23 +581,25 @@
             {{-- Baris Form Tahap --}}
             <div data-coding-step-rows></div>
 
-            {{-- Template Tahap (3 kolom atas persis seperti Kuis, dengan Judul Tahap menggantikan Jenis Soal) --}}
+            {{-- Template Tahap / Soal --}}
             <template data-coding-step-template>
                 <section data-coding-step-row class="rounded-xl border border-line/70 bg-white p-5 shadow-xs space-y-4">
                     <div class="flex items-center justify-between border-b border-line/50 pb-3">
                         <div class="flex items-center gap-2">
                             <h3 data-coding-step-title class="text-sm font-bold text-ink">Soal 1</h3>
                         </div>
-                        <button type="button" data-remove-coding-step class="text-xs font-medium text-danger hover:underline">Hapus soal</button>
+                        <button type="button" data-remove-coding-step class="text-xs font-medium text-danger hover:underline">
+                            <span data-remove-coding-step-label>Hapus soal</span>
+                        </button>
                     </div>
 
-                    {{-- 3 Kolom: Judul Tahap, Target CPMK & Poin Soal --}}
+                    {{-- Baris Input: Judul Soal/Tahap, Target CPMK & Poin Soal (Poin & CPMK per soal untuk Tugas) --}}
                     <div class="grid gap-3 sm:grid-cols-3">
-                        <div>
-                            <label class="form-label text-xs mb-1.5">Judul Tahap <span class="text-danger">*</span></label>
+                        <div data-step-title-column class="sm:col-span-1">
+                            <label class="form-label text-xs mb-1.5"><span data-coding-field-title-label>Judul Soal</span> <span class="text-danger">*</span></label>
                             <input data-step-field="title" type="text" class="field text-xs py-2 bg-white font-medium" placeholder="Contoh: Implementasi Logika Utama" required>
                         </div>
-                        <div>
+                        <div data-step-cpmk-column class="sm:col-span-1">
                             <label class="form-label text-xs mb-1.5">Target CPMK <span class="text-danger">*</span></label>
                             <select data-step-field="cpmk" class="field text-xs py-2 bg-white" required>
                                 @foreach(\App\Support\AcademicPreview::config($course['id'])['cpmk'] as $outcome)
@@ -602,22 +609,22 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div>
+                        <div data-step-points-column class="sm:col-span-1">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="form-label text-xs mb-0">Poin Soal <span class="text-danger">*</span></label>
                                 <span data-step-point-share class="text-[11px] font-semibold font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">100 / 100</span>
                             </div>
                             <div class="relative flex items-center">
-                                <input data-step-field="points" type="number" min="1" max="1000" value="100" class="field text-xs py-2 pr-12 bg-white font-mono font-bold text-ink" placeholder="100" required>
+                                <input data-step-field="points" type="number" min="0" max="1000" value="100" class="field text-xs py-2 pr-12 bg-white font-mono font-bold text-ink" placeholder="100" required>
                                 <span class="pointer-events-none absolute right-3 text-xs text-muted font-medium">poin</span>
                             </div>
                         </div>
                     </div>
 
-                    {{-- Pertanyaan / Materi / Instruksi Tahap --}}
+                    {{-- Pertanyaan / Materi / Instruksi --}}
                     <div>
-                        <label class="form-label text-xs">Pertanyaan / Instruksi Tahap <span class="text-danger">*</span></label>
-                        <textarea rows="4" data-step-field="body" class="field text-xs leading-relaxed" placeholder="Jelaskan materi atau instruksi pekerjaan pemrograman pada tahap ini..." required></textarea>
+                        <label class="form-label text-xs"><span data-coding-field-body-label>Pertanyaan / Instruksi Soal</span> <span class="text-danger">*</span></label>
+                        <textarea rows="4" data-step-field="body" class="field text-xs leading-relaxed" placeholder="Jelaskan instruksi atau pertanyaan pekerjaan pemrograman pada soal ini..." required></textarea>
                     </div>
 
                     {{-- Tambahkan pendukung --}}

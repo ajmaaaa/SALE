@@ -18,12 +18,15 @@
     <header><h1 class="page-heading">Monitoring sistem</h1><p class="page-description">Data penggunaan yang telah tercatat oleh layanan SALE.</p></header>
     <div class="grid gap-4 md:grid-cols-3">
         @php
+            $aiQuota = (int) ($aiQuota ?? ($settings['ai_token_quota'] ?? 1000000));
+            $remainingTokens = (int) ($aiRemainingTokens ?? max(0, $aiQuota - (int) ($aiMetrics['total_tokens'] ?? 0)));
             $cards = [
                 [
                     'target' => 'ai',
-                    'label' => 'Pemakaian AI',
-                    'value' => number_format((int) $aiMetrics['total_tokens'], 0, ',', '.').' token',
-                    'description' => number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan bulan ini',
+                    'label' => 'Sisa Token AI',
+                    'sublabel' => 'Pemakaian AI',
+                    'value' => number_format($remainingTokens, 0, ',', '.').' token',
+                    'description' => 'Terpakai '.number_format((int) $aiMetrics['total_tokens'], 0, ',', '.').' dari '.number_format((int) $aiQuota, 0, ',', '.').' kuota ('.number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan)',
                 ],
                 [
                     'target' => 'storage',
@@ -41,7 +44,7 @@
         @endphp
         @foreach($cards as $c)
             <a href="{{ $monitorUrl($detail === $c['target'] ? null : $c['target']) }}" @if($detail === $c['target']) aria-current="true" @endif class="surface group border p-5 transition hover:border-brand hover:shadow-md {{ $detail === $c['target'] ? 'border-brand ring-1 ring-brand' : 'border-transparent' }}">
-                <h2 class="text-sm text-muted">{{ $c['label'] }}</h2>
+                <h2 class="text-sm text-muted">{{ $c['label'] }}@if(!empty($c['sublabel'])) <span class="sr-only">({{ $c['sublabel'] }})</span>@endif</h2>
                 <p data-metric-value="{{ $c['target'] }}" class="mt-3 text-xl sm:text-2xl font-semibold tracking-tight">{{ $c['value'] }}</p>
                 <p data-metric-description="{{ $c['target'] }}" class="mt-2 text-xs leading-5 text-muted">{{ $c['description'] }}</p>
                 <span class="mt-5 block text-xs font-semibold text-brand">{{ $detail === $c['target'] ? 'Tutup detail' : 'Lihat detail' }}</span>
@@ -63,11 +66,14 @@
                 </a>
             </div>
             <dl class="grid gap-4 p-5 sm:grid-cols-4 sm:p-6">
+                @php
+                    $aiMetricKeys = ['Permintaan' => 'requests', 'Token input' => 'input_tokens', 'Token output' => 'output_tokens', 'Total token' => 'total_tokens'];
+                @endphp
                 @foreach(['Permintaan' => $aiMetrics['requests'], 'Token input' => $aiMetrics['input_tokens'], 'Token output' => $aiMetrics['output_tokens'], 'Total token' => $aiMetrics['total_tokens']] as $label => $value)
-                    <div class="rounded-xl border border-line/50 bg-canvas/50 p-4"><dt class="text-xs text-muted">{{ $label }}</dt><dd class="mt-1 text-xl font-bold text-ink">{{ number_format((int) $value, 0, ',', '.') }}</dd></div>
+                    <div class="rounded-xl border border-line/50 bg-canvas/50 p-4"><dt class="text-xs text-muted">{{ $label }}</dt><dd data-ai-metric="{{ $aiMetricKeys[$label] }}" class="mt-1 text-xl font-bold text-ink">{{ number_format((int) $value, 0, ',', '.') }}</dd></div>
                 @endforeach
             </dl>
-            <div class="border-t border-line/60 p-5 sm:p-6">@include('admin.partials.monitoring-ai-requests', ['demo' => false])</div>
+            <div data-ai-requests-container class="border-t border-line/60 p-5 sm:p-6">@include('admin.partials.monitoring-ai-requests', ['demo' => false])</div>
         </section>
     @elseif($detail === 'storage')
         <section class="surface overflow-hidden" aria-labelledby="storage-heading">
@@ -276,9 +282,31 @@
 
                 if (data.aiMetrics) {
                     const aiVal = document.querySelector('[data-metric-value="ai"]');
-                    if (aiVal && data.aiMetrics.total_tokens_formatted) aiVal.textContent = data.aiMetrics.total_tokens_formatted;
+                    if (aiVal && data.aiMetrics.remaining_tokens_formatted) {
+                        aiVal.textContent = data.aiMetrics.remaining_tokens_formatted;
+                    } else if (aiVal && data.aiMetrics.total_tokens_formatted) {
+                        aiVal.textContent = data.aiMetrics.total_tokens_formatted;
+                    }
                     const aiDesc = document.querySelector('[data-metric-description="ai"]');
-                    if (aiDesc && data.aiMetrics.requests_description) aiDesc.textContent = data.aiMetrics.requests_description;
+                    if (aiDesc && data.aiMetrics.remaining_description) {
+                        aiDesc.textContent = data.aiMetrics.remaining_description;
+                    } else if (aiDesc && data.aiMetrics.requests_description) {
+                        aiDesc.textContent = data.aiMetrics.requests_description;
+                    }
+
+                    for (const key of ['requests', 'input_tokens', 'output_tokens', 'total_tokens']) {
+                        const el = document.querySelector(`[data-ai-metric="${key}"]`);
+                        if (el && data.aiMetrics[key] !== undefined) {
+                            el.textContent = data.aiMetrics[key];
+                        }
+                    }
+                }
+
+                if (data.requests_html) {
+                    const reqContainer = document.querySelector('[data-ai-requests-container]');
+                    if (reqContainer) {
+                        reqContainer.innerHTML = data.requests_html;
+                    }
                 }
 
                 if (data.storageMetrics) {
@@ -305,7 +333,7 @@
             }
         }
 
-        setInterval(refreshMonitoringData, 10000);
+        setInterval(refreshMonitoringData, 4000);
 
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'visible') {

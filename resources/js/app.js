@@ -60,9 +60,10 @@ if (editorMount && editorSource) {
     const maxTotalChars = Number(editorMount.dataset.maxTotalChars) || 20000;
     const ALLOWED = ['html', 'htm', 'css', 'js', 'py'];
     const DEFAULT_EXT = isWeb ? 'html' : 'py';
+    const DEFAULT_FILE_NAME = isWeb ? 'untitled.html' : 'untitled';
     let defaultFiles = [];
     try { defaultFiles = JSON.parse(editorSource.value || '[]'); } catch { /* keep template. */ }
-    if (!Array.isArray(defaultFiles) || !defaultFiles.length) defaultFiles = [{ name: `main.${DEFAULT_EXT}`, code: '' }];
+    if (!Array.isArray(defaultFiles) || !defaultFiles.length) defaultFiles = [{ name: DEFAULT_FILE_NAME, code: '' }];
 
     // Horizontal Workbench Resizers (Soal <-> Editor <-> AI Asisten) - Synchronous execution
     const workbenchContainer = document.querySelector('#workbench-container');
@@ -169,7 +170,7 @@ if (editorMount && editorSource) {
         import('@codemirror/lang-javascript'),
         import('@codemirror/theme-one-dark'),
         import('@codemirror/state'),
-    ]).then(([cm, langPy, langHtml, langCss, langJs, { oneDark }, { Compartment }]) => {
+    ]).then(([cm, langPy, langHtml, langCss, langJs, { oneDark }, { Compartment, EditorState }]) => {
         const { basicSetup, EditorView } = cm;
         const { python } = langPy;
         const { html } = langHtml;
@@ -183,19 +184,23 @@ if (editorMount && editorSource) {
             return isWeb ? html() : python();
         };
 
-        let files = defaultFiles.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
+        const isLecturer = editorMount.dataset.isLecturer === '1';
+        const isReadOnly = editorMount.dataset.readOnly === '1';
+        let files = defaultFiles.map((file) => ({ name: String(file?.name || DEFAULT_FILE_NAME), code: String(file?.code ?? '') }));
         const draftKey = `sale.code.assignment.${editorMount.dataset.assignmentId}.${editorMount.dataset.codeLanguage || 'python'}`;
-        try {
-            const raw = localStorage.getItem(draftKey);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length) {
-                    files = parsed.map((file) => ({ name: String(file?.name || `main.${DEFAULT_EXT}`), code: String(file?.code ?? '') }));
+        if (!isLecturer && !isReadOnly) {
+            try {
+                const raw = localStorage.getItem(draftKey);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length) {
+                        files = parsed.map((file) => ({ name: String(file?.name || DEFAULT_FILE_NAME), code: String(file?.code ?? '') }));
+                    }
                 }
-            }
-        } catch { /* Storage is optional. */ }
+            } catch { /* Storage is optional. */ }
+        }
 
-        let active = Math.max(0, files.findIndex((file) => isWeb ? /\.htm?l$/i.test(file.name) : file.name === 'main.py'));
+        let active = 0;
 
         let context = null;
         const mention = document.querySelector('[data-mention-code]');
@@ -206,7 +211,7 @@ if (editorMount && editorSource) {
         const fileLanguageBadge = document.querySelector('[data-file-language-badge]');
         document.querySelector('[data-code-submit] button')?.removeAttribute('disabled');
 
-        const flush = () => { if (files[active]) files[active].code = editor.state.doc.toString(); };
+        const flush = () => { if (files[active] && !isReadOnly) files[active].code = editor.state.doc.toString(); };
         const updateCounter = () => {
             const current = files[active]?.code.length ?? 0;
             const total = files.reduce((sum, file) => sum + file.code.length, 0);
@@ -215,14 +220,24 @@ if (editorMount && editorSource) {
         const setStatus = (text, temporary = false) => {
             if (!saveStatus) return;
             saveStatus.textContent = text;
-            if (temporary) setTimeout(() => { saveStatus.textContent = 'Draf tersimpan di browser ini'; }, 2600);
+            if (temporary) setTimeout(() => {
+                saveStatus.textContent = isLecturer
+                    ? 'Mode Peninjauan Berkas Mahasiswa'
+                    : (isReadOnly ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)' : 'Draf tersimpan di browser ini');
+            }, 2600);
         };
         const persist = () => {
             flush();
-            try {
-                localStorage.setItem(draftKey, JSON.stringify(files));
-                saveStatus.textContent = 'Draf tersimpan di browser ini';
-            } catch { saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+            if (isReadOnly) {
+                if (saveStatus) saveStatus.textContent = 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)';
+            } else if (!isLecturer) {
+                try {
+                    localStorage.setItem(draftKey, JSON.stringify(files));
+                    if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+            } else if (saveStatus) {
+                saveStatus.textContent = 'Mode Peninjauan Berkas Mahasiswa';
+            }
             updateCounter();
         };
         const validate = () => {
@@ -230,7 +245,9 @@ if (editorMount && editorSource) {
             if (files.some((file) => file.code.length > maxFileChars)) return `Satu berkas melebihi batas ${maxFileChars.toLocaleString('id-ID')} karakter.`;
             if (files.reduce((sum, file) => sum + file.code.length, 0) > maxTotalChars) return `Total kode melebihi batas ${maxTotalChars.toLocaleString('id-ID')} karakter.`;
             const badExt = files.some((file) => {
-                const ext = String(file.name).split('.').pop().toLowerCase();
+                const parts = String(file.name).split('.');
+                if (parts.length <= 1) return false;
+                const ext = parts.pop().toLowerCase();
                 return ext !== '' && !ALLOWED.includes(ext);
             });
             if (badExt) return `Ekstensi berkas tidak diizinkan. Gunakan .html, .css, .js, atau .py.`;
@@ -238,26 +255,35 @@ if (editorMount && editorSource) {
         };
 
         const compartment = new Compartment();
-        const editor = new EditorView({
-            doc: files[active].code,
-            extensions: [
-                basicSetup,
-                compartment.of(modeFor(files[active].name)),
-                oneDark,
-                EditorView.lineWrapping,
-                EditorView.updateListener.of((update) => {
-                    if (mention) mention.disabled = update.state.selection.main.empty;
-                    if (update.docChanged) {
-                        files[active].code = update.state.doc.toString();
+        const readOnlyCompartment = new Compartment();
+        const editorExtensions = [
+            basicSetup,
+            compartment.of(modeFor(files[active].name)),
+            readOnlyCompartment.of(EditorState.readOnly.of(isReadOnly)),
+            oneDark,
+            EditorView.lineWrapping,
+            EditorView.updateListener.of((update) => {
+                if (mention) mention.disabled = update.state.selection.main.empty;
+                if (update.docChanged && !isReadOnly) {
+                    files[active].code = update.state.doc.toString();
+                    if (!isLecturer) {
                         try {
                             localStorage.setItem(draftKey, JSON.stringify(files));
-                            saveStatus.textContent = 'Draf tersimpan di browser ini';
-                        } catch { saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
-updateCounter();
-        refreshLanguageBadge();
+                            if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                        } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
                     }
-                }),
-            ],
+                    updateCounter();
+                    refreshLanguageBadge();
+                }
+            }),
+        ];
+        if (isReadOnly) {
+            editorExtensions.push(EditorView.editable.of(false));
+        }
+
+        const editor = new EditorView({
+            doc: files[active].code,
+            extensions: editorExtensions,
             parent: editorMount,
         });
         updateCounter();
@@ -274,18 +300,26 @@ updateCounter();
 
         window.setWorkbenchFiles = (newFiles) => {
             if (!Array.isArray(newFiles) || newFiles.length === 0) {
-                newFiles = [{ name: isWeb ? 'index.html' : 'main.py', code: '' }];
+                newFiles = [{ name: DEFAULT_FILE_NAME, code: '' }];
             }
             flush();
             files = newFiles.map(f => ({
-                name: String(f.name || (isWeb ? 'index.html' : 'main.py')),
+                name: String(f.name || DEFAULT_FILE_NAME),
                 code: String(f.code ?? '')
             }));
             active = 0;
             if (editor && files[0]) {
+                if (isReadOnly) {
+                    editor.dispatch({
+                        effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(false)),
+                    });
+                }
                 editor.dispatch({
                     changes: { from: 0, to: editor.state.doc.length, insert: files[0].code },
-                    effects: compartment.reconfigure(modeFor(files[0].name)),
+                    effects: [
+                        compartment.reconfigure(modeFor(files[0].name)),
+                        ...(isReadOnly ? [readOnlyCompartment.reconfigure(EditorState.readOnly.of(true))] : []),
+                    ],
                 });
                 if (fileNameEl) fileNameEl.textContent = files[0].name;
                 refreshLanguageBadge();
@@ -304,6 +338,7 @@ updateCounter();
         };
 
         window.setWorkbenchCode = (newCode) => {
+            if (isReadOnly) return;
             if (editor && files && files[active]) {
                 editor.dispatch({
                     changes: { from: 0, to: editor.state.doc.length, insert: newCode }
@@ -314,21 +349,31 @@ updateCounter();
         };
 
         const refreshLanguageBadge = () => {
-            const key = String(files[active].name).split('.').pop().toLowerCase();
-            const meta = FILE_ICONS[key];
+            const raw = String(files[active].name).toLowerCase();
+            const hasExt = raw.includes('.');
+            const key = hasExt ? raw.split('.').pop() : '';
+            const meta = hasExt ? FILE_ICONS[key] : null;
             if (fileLanguageBadge) {
                 fileLanguageBadge.innerHTML = buildIcon(files[active].name, 18);
-                fileLanguageBadge.title = meta?.label || key || 'File';
+                fileLanguageBadge.title = meta?.label || 'Berkas';
                 fileLanguageBadge.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/70';
-                fileLanguageBadge.dataset.fileLanguage = key;
+                fileLanguageBadge.dataset.fileLanguage = key || 'file';
             }
         };
 
         const load = (index) => {
             active = index;
+            if (isReadOnly) {
+                editor.dispatch({
+                    effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(false)),
+                });
+            }
             editor.dispatch({
                 changes: { from: 0, to: editor.state.doc.length, insert: files[active].code },
-                effects: compartment.reconfigure(modeFor(files[active].name)),
+                effects: [
+                    compartment.reconfigure(modeFor(files[active].name)),
+                    ...(isReadOnly ? [readOnlyCompartment.reconfigure(EditorState.readOnly.of(true))] : []),
+                ],
             });
             if (fileNameEl) fileNameEl.textContent = files[active].name;
             refreshLanguageBadge();
@@ -362,18 +407,24 @@ updateCounter();
                 icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 128 128" aria-hidden="true"><path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/><path fill="#323330" d="M116.347 96.736c-.917-5.711-4.641-10.508-15.672-14.981-3.832-1.761-8.104-3.022-9.377-5.926-.452-1.69-.512-2.642-.226-3.665.821-3.32 4.784-4.355 7.925-3.403 2.023.678 3.938 2.237 5.093 4.724 5.402-3.498 5.391-3.475 9.163-5.879-1.381-2.141-2.118-3.129-3.022-4.045-3.249-3.629-7.676-5.498-14.756-5.355l-3.688.477c-3.534.893-6.902 2.748-8.877 5.235-5.926 6.724-4.236 18.492 2.975 23.335 7.104 5.332 17.54 6.545 18.873 11.531 1.297 6.104-4.486 8.08-10.234 7.378-4.236-.881-6.592-3.034-9.139-6.949-4.688 2.713-4.688 2.713-9.508 5.485 1.143 2.499 2.344 3.63 4.26 5.795 9.068 9.198 31.76 8.746 35.83-5.176.165-.478 1.261-3.666.38-8.581zM69.462 58.943H57.753l-.048 30.272c0 6.438.333 12.34-.714 14.149-1.713 3.558-6.152 3.117-8.175 2.427-2.059-1.012-3.106-2.451-4.319-4.485-.333-.584-.583-1.036-.667-1.071l-9.52 5.83c1.583 3.249 3.915 6.069 6.902 7.901 4.462 2.678 10.459 3.499 16.731 2.059 4.082-1.189 7.604-3.652 9.448-7.401 2.666-4.915 2.094-10.864 2.07-17.444.06-10.735.001-21.468.001-32.237z"/></svg>',
             },
         };
-        const FILE_ICON_FALLBACK = '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="#cbd5e1"/><path d="M15 3l4 4h-4z" fill="#94a3b8"/></svg>';
+        const FILE_DEFAULT_ICON = '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
         const buildIcon = (name, size = 14) => {
-            const key = String(name).split('.').pop().toLowerCase();
+            const raw = String(name).toLowerCase();
+            if (!raw.includes('.')) {
+                return FILE_DEFAULT_ICON.replace(/@SIZE@/g, String(size));
+            }
+            const key = raw.split('.').pop();
             const meta = FILE_ICONS[key];
-            return (meta?.icon || FILE_ICON_FALLBACK).replace('@SIZE@', String(size));
+            return (meta?.icon || FILE_DEFAULT_ICON).replace(/@SIZE@/g, String(size));
         };
         const languageBadge = (name) => {
-            const key = String(name).split('.').pop().toLowerCase();
-            const meta = FILE_ICONS[key];
+            const raw = String(name).toLowerCase();
+            const hasExt = raw.includes('.');
+            const key = hasExt ? raw.split('.').pop() : '';
+            const meta = hasExt ? FILE_ICONS[key] : null;
             const badge = document.createElement('span');
-            badge.dataset.fileLanguage = key;
-            badge.title = meta?.label || key || 'File';
+            badge.dataset.fileLanguage = key || 'file';
+            badge.title = meta?.label || 'Berkas';
             badge.className = 'flex shrink-0 items-center';
             badge.innerHTML = buildIcon(name);
             return badge;
@@ -385,42 +436,59 @@ updateCounter();
             files.forEach((file, index) => {
                 const tab = document.createElement('div');
                 tab.dataset.fileTab = file.name;
-                tab.className = `group flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-mono ${index === active ? 'border-brand/25 bg-brand/10 text-brand-dark' : 'border-transparent text-muted hover:bg-white'}`;
+                tab.className = `group flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-mono select-none cursor-pointer ${index === active ? 'border-brand/25 bg-brand/10 text-brand-dark' : 'border-transparent text-muted hover:bg-white'}`;
+                tab.addEventListener('click', () => select(index));
+                if (!isReadOnly && !isLecturer) {
+                    tab.addEventListener('dblclick', (e) => {
+                        if (e.target.closest('[data-file-delete]')) return;
+                        startRename(index);
+                    });
+                }
                 const core = document.createElement('button');
                 core.type = 'button';
                 core.dataset.fileSelect = '';
-                core.title = file.name;
-                core.className = 'max-w-44 truncate font-semibold';
+                core.title = !isReadOnly && !isLecturer ? `${file.name} (Klik 2x untuk ubah nama)` : file.name;
+                core.className = 'max-w-44 truncate font-semibold cursor-pointer';
                 core.textContent = file.name;
-                core.addEventListener('click', () => select(index));
-                core.addEventListener('dblclick', () => startRename(index));
-                const renameBtn = document.createElement('button');
-                renameBtn.type = 'button';
-                renameBtn.dataset.fileRename = '';
-                renameBtn.title = 'Ubah nama berkas';
-                renameBtn.setAttribute('aria-label', `Ubah nama ${file.name}`);
-                renameBtn.className = 'px-0.5 leading-none text-muted opacity-60 hover:text-ink group-hover:opacity-100';
-                renameBtn.textContent = 'Ubah';
-                renameBtn.addEventListener('click', () => startRename(index));
-                const deleteBtn = document.createElement('button');
-                deleteBtn.type = 'button';
-                deleteBtn.dataset.fileDelete = '';
-                deleteBtn.title = 'Hapus berkas';
-                deleteBtn.setAttribute('aria-label', `Hapus ${file.name}`);
-                deleteBtn.className = 'px-0.5 leading-none text-muted opacity-60 hover:text-danger group-hover:opacity-100';
-                deleteBtn.textContent = '×';
-                deleteBtn.addEventListener('click', () => removeFile(index));
-                tab.append(languageBadge(file.name), core, renameBtn, deleteBtn);
+                core.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    select(index);
+                });
+                if (!isReadOnly && !isLecturer) {
+                    core.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        startRename(index);
+                    });
+                }
+                tab.append(languageBadge(file.name), core);
+
+                if (!isReadOnly && !isLecturer) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.dataset.fileDelete = '';
+                    deleteBtn.title = 'Hapus berkas';
+                    deleteBtn.setAttribute('aria-label', `Hapus ${file.name}`);
+                    deleteBtn.className = 'ml-0.5 px-0.5 leading-none text-muted opacity-60 hover:text-danger group-hover:opacity-100 cursor-pointer';
+                    deleteBtn.textContent = '×';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeFile(index);
+                    });
+                    tab.append(deleteBtn);
+                }
                 fileTabs.append(tab);
             });
-            const addBtn = document.createElement('button');
-            addBtn.type = 'button';
-            addBtn.dataset.fileAdd = '';
-            addBtn.title = 'Tambah berkas baru';
-            addBtn.className = 'shrink-0 rounded-md border border-dashed border-line/70 px-2 py-1 text-[11px] font-semibold text-muted hover:bg-white hover:text-ink';
-            addBtn.textContent = '+ Berkas';
-            addBtn.addEventListener('click', addFile);
-            fileTabs.append(addBtn);
+
+            if (!isReadOnly && !isLecturer) {
+                const addBtn = document.createElement('button');
+                addBtn.type = 'button';
+                addBtn.dataset.fileAdd = '';
+                addBtn.title = 'Tambah berkas baru';
+                addBtn.className = 'shrink-0 rounded-md border border-dashed border-line/70 px-2 py-1 text-[11px] font-semibold text-muted hover:bg-white hover:text-ink';
+                addBtn.textContent = '+ Berkas';
+                addBtn.addEventListener('click', addFile);
+                fileTabs.append(addBtn);
+            }
         }
 
         let renameInput = null;
@@ -473,18 +541,22 @@ updateCounter();
             const currentExt = String(files[index].name).split('.').pop().toLowerCase();
             const lastDot = candidate.lastIndexOf('.');
             let ext = '';
+            let name = candidate;
             if (lastDot >= 0 && lastDot < candidate.length - 1) {
                 ext = candidate.slice(lastDot + 1).toLowerCase();
+                if (!ALLOWED.includes(ext)) return setStatus(`Ekstensi .${ext} tidak diizinkan. Gunakan .html, .css, .js, atau .py.`, true);
+                name = candidate;
             } else {
                 const lower = candidate.toLowerCase();
-                if (lower.startsWith('style') || lower === 'css') ext = 'css';
-                else if (lower.startsWith('script') || lower === 'js' || lower === 'app') ext = 'js';
-                else if (lower.startsWith('index') || lower === 'html' || lower === 'page') ext = 'html';
-                else ext = (currentExt && ALLOWED.includes(currentExt)) ? currentExt : DEFAULT_EXT;
+                if (lower.startsWith('style') || lower === 'css') { ext = 'css'; name = `${candidate}.css`; }
+                else if (lower.startsWith('script') || lower === 'js' || lower === 'app') { ext = 'js'; name = `${candidate}.js`; }
+                else if (lower.startsWith('index') || lower === 'html' || lower === 'page') { ext = 'html'; name = `${candidate}.html`; }
+                else if (isWeb) { ext = 'html'; name = `${candidate}.html`; }
+                else {
+                    name = candidate;
+                }
             }
 
-            const name = lastDot >= 0 ? candidate : `${candidate}.${ext}`;
-            if (!ALLOWED.includes(ext)) return setStatus(`Ekstensi .${ext} tidak diizinkan. Gunakan .html, .css, .js, atau .py.`, true);
             if (files.some((file, i) => i !== index && file.name.toLowerCase() === name.toLowerCase())) return setStatus(`Berkas "${name}" sudah ada.`, true);
             files[index].name = name;
             if (index === active) {
@@ -497,8 +569,11 @@ updateCounter();
         function addFile() {
             if (files.length >= maxFiles) return setStatus(`Maksimal ${maxFiles} berkas.`, true);
             let n = 1;
-            let name;
-            do { name = `berkas-${n}`; n += 1; } while (files.some((file) => file.name.toLowerCase() === name.toLowerCase()));
+            let name = DEFAULT_FILE_NAME;
+            while (files.some((file) => file.name.toLowerCase() === name.toLowerCase())) {
+                name = isWeb ? `untitled-${n}.html` : `untitled-${n}`;
+                n += 1;
+            }
             flush();
             files.push({ name, code: '' });
             active = files.length - 1;
@@ -703,28 +778,49 @@ updateCounter();
         if (testBtn) testBtn.disabled = false;
         const setRunBtnState = (running) => {
             if (!runBtn) return;
-            runBtn.disabled = running;
             if (running) {
+                runBtn.disabled = false;
                 runBtn.innerHTML = '<svg class="h-3.5 w-3.5 animate-spin text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor"/></svg>';
-                runBtn.title = 'Sedang menjalankan…';
+                runBtn.title = 'Sedang menjalankan… Klik untuk menghentikan';
+                runBtn.classList.add('bg-rose-600', 'hover:bg-rose-500');
+                runBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
             } else {
+                runBtn.disabled = false;
                 runBtn.innerHTML = '<svg class="h-3.5 w-3.5 fill-current text-white ml-0.5" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
                 runBtn.title = 'Jalankan kode';
+                runBtn.classList.remove('bg-rose-600', 'hover:bg-rose-500');
+                runBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
             }
         };
 
         const isHtmlCode = (text) => /^<!doctype\s+html|^<html|^<body|^<div|^<h[1-6]|^<p[\s>]/i.test(String(text || '').trim());
+        const isPyCode = (text) => /(^|\n)(import\s+|from\s+\w+\s+import|def\s+\w+\s*\(|class\s+\w+|print\s*\(|if\s+__name__\s*==)/m.test(String(text || ''));
+
         const detectRunAsWeb = (testAssignment) => {
             if (testAssignment) return false;
-            if (isWeb) return true;
-            const currentName = files[active]?.name?.toLowerCase() || '';
-            if (currentName.endsWith('.html') || currentName.endsWith('.htm')) return true;
-            if (isHtmlCode(files[active]?.code)) return true;
-            const hasHtml = files.some((f) => f.name.toLowerCase().endsWith('.html') || f.name.toLowerCase().endsWith('.htm') || isHtmlCode(f.code));
-            const hasPy = files.some((f) => f.name.toLowerCase().endsWith('.py'));
-            if (hasHtml && !hasPy) return true;
-            if ((currentName.endsWith('.css') || currentName.endsWith('.js')) && hasHtml) return true;
-            return false;
+            const current = files[active];
+            const currentName = current?.name?.toLowerCase() || '';
+            const currentCode = current?.code || '';
+
+            // 1. If currently viewing HTML, CSS, or JS, run Web!
+            if (currentName.endsWith('.html') || currentName.endsWith('.htm') || currentName.endsWith('.css') || currentName.endsWith('.js')) {
+                return true;
+            }
+
+            // 2. In Python workspace (!isWeb), default to Python unless explicitly viewing HTML
+            if (!isWeb) {
+                if (currentName.endsWith('.py') || !currentName.includes('.') || currentName === 'untitled' || currentName.startsWith('untitled-')) {
+                    return false;
+                }
+                if (isHtmlCode(currentCode)) return true;
+                return false;
+            }
+
+            // 3. In Web workspace (isWeb)
+            if (currentName.endsWith('.py')) return false;
+            if (isPyCode(currentCode)) return false;
+
+            return true;
         };
 
         const execute = async (testAssignment = false) => {
@@ -760,10 +856,14 @@ updateCounter();
                     appendOutput('Selesai · pratinjau dirender di tab Pratinjau. Kode berjalan di iframe tanpa akses data situs.');
                     activateTab('preview');
                 } else {
+                    const activeFileName = files[active]?.name || DEFAULT_FILE_NAME;
                     const { runPython } = await import('./python-runner');
                     const exitCode = await runPython({
-                        files, assignmentId: editorMount.dataset.assignmentId, testAssignment,
+                        files,
+                        assignmentId: editorMount.dataset.assignmentId,
+                        testAssignment,
                         runtimeUrl: editorMount.dataset.runtimeUrl,
+                        activeFile: activeFileName,
                         signal: execution.signal,
                         onOutput: (stream, text) => {
                             progress.remove();
@@ -772,7 +872,7 @@ updateCounter();
                         onReady: (version) => {
                             const pyVerEl = document.querySelector('[data-python-version]');
                             if (pyVerEl) pyVerEl.textContent = `Python ${version}`;
-                            progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : 'Sedang menjalankan main.py…';
+                            progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : `Sedang menjalankan ${activeFileName}…`;
                         },
                     });
                     progress.remove();
@@ -792,7 +892,13 @@ updateCounter();
                 stopBtn.hidden = true;
             }
         };
-        runBtn.addEventListener('click', () => execute(false));
+        runBtn.addEventListener('click', () => {
+            if (execution) {
+                execution.abort();
+                return;
+            }
+            execute(false);
+        });
         testBtn?.addEventListener('click', () => execute(true));
         stopBtn.addEventListener('click', () => execution?.abort());
         document.querySelector('[data-clear-terminal]')?.addEventListener('click', () => terminalOutput.replaceChildren());
@@ -809,8 +915,7 @@ updateCounter();
             thinkingEl = document.createElement('article');
             thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted';
             thinkingEl.innerHTML = `
-                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
-                <span class="font-medium text-slate-600">AI Asisten sedang berpikir</span>
+                <span class="font-medium text-slate-600">Mengetik</span>
                 <span class="inline-flex items-center gap-1 pl-1 py-0.5" aria-hidden="true">
                     <span class="typing-dot"></span>
                     <span class="typing-dot"></span>
@@ -879,7 +984,19 @@ updateCounter();
             .replace(/\_\_([^_]+)\_\_/g, '<strong>$1</strong>')
             .replace(/\_([^_]+)\_/g, '<em>$1</em>');
 
+        const initialMsg = messages?.querySelector('[data-ai-initial-message]');
+        const removeInitialMsg = () => {
+            if (initialMsg) {
+                initialMsg.style.display = 'none';
+                initialMsg.remove();
+            }
+        };
+
+        const quotaBar = document.querySelector('[data-ai-quota-bar]');
+        const resetInfoEl = document.querySelector('[data-ai-reset-info]');
+
         const bubble = (name, text, isUser = false) => {
+            removeInitialMsg();
             const article = document.createElement('article');
             if (isUser) {
                 article.className = 'self-end ml-auto max-w-[72%] rounded-2xl rounded-tr-xs bg-brand-soft border border-brand/20 p-3 shadow-xs text-ink';
@@ -893,11 +1010,8 @@ updateCounter();
             } else {
                 article.className = 'self-start mr-auto max-w-[90%] rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3.5 shadow-xs text-ink';
                 const heading = document.createElement('div');
-                heading.className = 'flex items-center gap-1.5 mb-2';
-                heading.innerHTML = `
-                    <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand/10 text-brand text-[10px] font-bold">✦</span>
-                    <span class="text-[11px] font-semibold text-ink">${name}</span>
-                `;
+                heading.className = 'flex items-center gap-1.5 mb-1.5';
+                heading.innerHTML = `<span class="text-[11px] font-semibold text-ink">${name}</span>`;
                 const body = document.createElement('div');
                 body.className = 'text-xs leading-relaxed text-slate-700 ai-response';
                 body.innerHTML = renderMarkdown(text);
@@ -910,19 +1024,52 @@ updateCounter();
             try {
                 const response = await fetch(aiForm.action, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
                 const data = await response.json();
-                ready = response.ok && data.enabled && data.remaining_turns > 0 && data.remaining_tokens > 0;
-                status.textContent = response.ok
-                    ? `${data.enabled ? 'Sisa' : 'AI belum aktif · sisa'} ${data.remaining_tokens.toLocaleString('id-ID')} token · ${data.remaining_turns} permintaan tugas · reset token 07.00 WIB`
-                    : (data.message || 'Status AI belum tersedia.');
-                if (restore && response.ok) data.history.forEach(turn => {
-                    bubble('Anda', turn.question, true);
-                    bubble('AI Asisten', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
-                });
+                const remTokens = (typeof data.remaining_tokens === 'number') ? data.remaining_tokens : 0;
+                ready = response.ok && data.enabled && remTokens > 0;
+
+                // Tampilkan info reset hanya jika batas kuota token mahasiswa sudah habis
+                if (quotaBar) {
+                    if (remTokens <= 0 && response.ok) {
+                        quotaBar.hidden = false;
+                        if (resetInfoEl && data.reset_time_wib) {
+                            resetInfoEl.textContent = `Akan di-reset pukul ${data.reset_time_wib}`;
+                        }
+                    } else {
+                        quotaBar.hidden = true;
+                    }
+                }
+
+                // Jika token habis, nonaktifkan textarea dan tombol
+                if (assistantInput) {
+                    if (remTokens <= 0 && response.ok) {
+                        assistantInput.disabled = true;
+                        assistantInput.placeholder = `Batas kuota token habis. Akan di-reset pukul ${data.reset_time_wib || '07.00 WIB'}.`;
+                    } else if (response.ok) {
+                        assistantInput.disabled = false;
+                        assistantInput.placeholder = 'Tanyakan petunjuk konsep kode...';
+                    }
+                }
+
+                if (status) {
+                    status.textContent = response.ok
+                        ? (remTokens > 0 ? (data.enabled ? 'Siap' : 'AI belum aktif') : `Batas harian habis (Reset ${data.reset_time_wib || '07.00 WIB'})`)
+                        : (data.message || 'Status AI belum tersedia.');
+                }
+
+                if (restore && response.ok && Array.isArray(data.history) && data.history.length > 0) {
+                    removeInitialMsg();
+                    data.history.forEach(turn => {
+                        bubble('Anda', turn.question, true);
+                        bubble('AI Asisten', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
+                    });
+                }
             } catch {
                 ready = false;
-                status.textContent = 'Tidak dapat memuat status AI. Muat ulang halaman.';
+                if (status) status.textContent = 'Tidak dapat memuat status AI. Muat ulang halaman.';
             }
-            aiForm.querySelector('button[type="submit"]').disabled = busy || !ready;
+            if (assistantSubmitBtn) {
+                assistantSubmitBtn.disabled = busy || !ready;
+            }
         };
         if (aiForm) updateStatus(true);
 
@@ -997,6 +1144,7 @@ updateCounter();
 
         aiForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
+            removeInitialMsg();
             if (busy || !ready) return;
             const input = document.querySelector('#assistant-message');
             const question = input.value.trim();
@@ -1277,12 +1425,6 @@ function parseCategory(value) {
     if (normalized.includes('uts')) return 'uts';
     if (normalized.includes('uas')) return 'uas';
     if (normalized.includes('kuis') || normalized.includes('quiz') || normalized.includes('ujian')) return 'kuis';
-    if (normalized === 'lainnya') {
-        const customValue = (document.querySelector('[data-custom-type]')?.value || '').toLowerCase().trim();
-        if (customValue.includes('uas')) return 'uas';
-        if (customValue.includes('uts')) return 'uts';
-        return 'uts';
-    }
     if (normalized === 'tugas') return 'tugas';
     return '';
 }
@@ -1291,8 +1433,6 @@ function parseCategory(value) {
 const contentType = document.querySelector('[data-content-type]');
 if (contentType) {
     const questionType = document.querySelector('[data-question-type]');
-    const customTypeContainer = document.querySelector('[data-custom-type-container]');
-    const customTypeInput = document.querySelector('[data-custom-type]');
     const assignmentFields = document.querySelector('[data-assignment-fields]');
     const materialModeSettings = document.querySelector('[data-material-mode-settings]');
     const pinVideoOption = document.querySelector('[data-pin-video-option]');
@@ -1338,14 +1478,6 @@ if (contentType) {
     };
 
     const sync = () => {
-        const isCustom = contentType.value === 'lainnya';
-        if (customTypeContainer) customTypeContainer.hidden = !isCustom;
-        if (customTypeInput) {
-            customTypeInput.disabled = !isCustom;
-            const customIsValid = ['UTS', 'UAS'].includes(customTypeInput.value.trim().toUpperCase());
-            customTypeInput.setCustomValidity(isCustom && !customIsValid ? 'Hanya dapat diisi "UTS" atau "UAS"' : '');
-        }
-
         const category = parseCategory(contentType.value);
         const selectedText = contentType.options[contentType.selectedIndex]?.text || '';
 
@@ -1361,7 +1493,12 @@ if (contentType) {
         const isQuestionContent = ['kuis', 'uts', 'uas'].includes(category);
 
         setSectionVisibility(assignmentFields, showAssignment);
-        setSectionVisibility(codingAiSetting, showAssignment && selectedTaskMode === 'coding');
+        setSectionVisibility(codingAiSetting, isCoding);
+        if (codingAiSetting) {
+            codingAiSetting.querySelectorAll('input[name="ai_enabled"]').forEach(inp => {
+                inp.disabled = !isCoding;
+            });
+        }
         setSectionVisibility(materialModeSettings, showMaterialMode);
         setSectionVisibility(pinVideoOption, showMaterialMode);
         if (pinVideoOption) {
@@ -1375,7 +1512,12 @@ if (contentType) {
         if (questionType) questionType.value = isCoding ? 'coding' : 'uraian';
         setSectionVisibility(codingStepBuilder, isCoding && isQuestionStep);
         codingStepBuilder?.querySelectorAll('input,select,textarea').forEach(field => {
-            field.disabled = !(isCoding && isQuestionStep);
+            if (showMaterialMode && (field.dataset.stepField === 'points' || field.dataset.stepField === 'cpmk' || field.closest('[data-coding-target-wrapper]'))) {
+                field.disabled = true;
+                field.required = false;
+            } else {
+                field.disabled = !(isCoding && isQuestionStep);
+            }
         });
         const showManualCpmk = category === 'tugas' && !isCoding;
         if (manualCpmkSettings) {
@@ -1549,15 +1691,18 @@ if (contentForm) {
         const step2Label = contentForm.querySelector('[data-step-2-label]');
         const nextBtnText = contentForm.querySelector('[data-next-btn-text]');
         if (step2Label) {
-            step2Label.textContent = mode === 'coding' ? 'Susun tahapan' : 'Susun soal';
+            step2Label.textContent = cat === 'materi' ? 'Susun materi' : 'Susun soal';
         }
         if (nextBtnText) {
-            nextBtnText.textContent = mode === 'coding' ? 'Selanjutnya: Susun tahapan' : 'Selanjutnya: Susun soal';
+            nextBtnText.textContent = cat === 'materi' ? 'Selanjutnya: Susun materi' : 'Selanjutnya: Susun soal';
         }
 
         paintProgress(step);
 
         if (questionsStep) {
+            if (typeof window.__refreshCodingStepBuilder === 'function') {
+                window.__refreshCodingStepBuilder();
+            }
             if (mode === 'questions' && builder) {
                 const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
                 firstInput?.focus();
@@ -1572,6 +1717,9 @@ if (contentForm) {
         showStep('setup');
         clearHighlights();
         showFormError('');
+        if (typeof window.__refreshCodingStepBuilder === 'function') {
+            window.__refreshCodingStepBuilder();
+        }
     });
     typeInput?.addEventListener('input', () => {
         showStep('setup');
@@ -1580,6 +1728,9 @@ if (contentForm) {
     contentForm.querySelectorAll('[data-task-mode], [data-material-mode]').forEach(radio => {
         radio.addEventListener('change', () => {
             showStep(contentForm.dataset.step || 'setup');
+            if (typeof window.__refreshCodingStepBuilder === 'function') {
+                window.__refreshCodingStepBuilder();
+            }
         });
     });
 
@@ -1598,18 +1749,6 @@ if (contentForm) {
             typeInput?.focus();
             showFormError('Pilih jenis konten terlebih dahulu.');
             return;
-        }
-
-        if (typeInput.value === 'lainnya') {
-            const customTypeInput = contentForm.querySelector('#custom_type');
-            const customVal = customTypeInput?.value.trim().toUpperCase() || '';
-            if (!['UTS', 'UAS'].includes(customVal)) {
-                customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-                customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                customTypeInput?.focus();
-                showFormError('Nama jenis konten kustom harus diisi "UTS" atau "UAS".');
-                return;
-            }
         }
 
         // 2. Modul / Topik
@@ -1723,20 +1862,6 @@ if (contentForm) {
             showFormError('Pilih jenis konten terlebih dahulu.');
             e.preventDefault();
             return false;
-        }
-
-        if (typeInput.value === 'lainnya') {
-            const customTypeInput = contentForm.querySelector('#custom_type');
-            const customVal = customTypeInput?.value.trim().toUpperCase() || '';
-            if (!['UTS', 'UAS'].includes(customVal)) {
-                showStep('setup');
-                customTypeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-                customTypeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                customTypeInput?.focus();
-                showFormError('Nama jenis konten kustom harus diisi "UTS" atau "UAS".');
-                e.preventDefault();
-                return false;
-            }
         }
 
         // 2. Modul / Topik
@@ -1878,12 +2003,13 @@ if (contentForm) {
 
         // B. Khusus Tahapan Pemrograman (Tugas / Praktik Pemrograman)
         else if (stepMode === 'coding') {
+            const isMaterial = (cat === 'materi');
             const codingBuilder = contentForm.querySelector('[data-coding-step-builder]');
             const codingRows = [...contentForm.querySelectorAll('[data-coding-step-row]')];
             if (codingRows.length === 0) {
                 showStep('questions');
                 codingBuilder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                showFormError('Tambahkan minimal 1 tahapan pemrograman.');
+                showFormError(isMaterial ? 'Tambahkan minimal 1 tahapan materi pemrograman.' : 'Tambahkan minimal 1 soal pemrograman.');
                 e.preventDefault();
                 return false;
             }
@@ -1903,31 +2029,31 @@ if (contentForm) {
                     titleInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
                     titleInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     titleInp?.focus();
-                    showFormError(`Tahap ${idx + 1}: Judul tahap belum diisi.`);
+                    showFormError(isMaterial ? `Tahap ${idx + 1}: Judul tahap belum diisi.` : `Soal ${idx + 1}: Judul soal belum diisi.`);
                     e.preventDefault();
                     return false;
                 }
 
-                if (!cpmkSelect?.value) {
+                if (!isMaterial && !cpmkSelect?.value) {
                     showStep('questions');
                     const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
                     tabs?.[idx]?.click();
                     cpmkSelect?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
                     cpmkSelect?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     cpmkSelect?.focus();
-                    showFormError(`Tahap ${idx + 1}: Pilih target CPMK.`);
+                    showFormError(`Soal ${idx + 1}: Pilih target CPMK.`);
                     e.preventDefault();
                     return false;
                 }
 
-                if (pts <= 0) {
+                if (!isMaterial && pts <= 0) {
                     showStep('questions');
                     const tabs = codingBuilder?.querySelectorAll('[data-coding-step-tabs] button');
                     tabs?.[idx]?.click();
                     pointsInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
                     pointsInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     pointsInp?.focus();
-                    showFormError(`Tahap ${idx + 1}: Skor poin harus lebih dari 0.`);
+                    showFormError(`Soal ${idx + 1}: Skor poin harus lebih dari 0.`);
                     e.preventDefault();
                     return false;
                 }
@@ -1939,22 +2065,24 @@ if (contentForm) {
                     bodyInp?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
                     bodyInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     bodyInp?.focus();
-                    showFormError(`Tahap ${idx + 1}: Materi / instruksi tahap belum diisi.`);
+                    showFormError(isMaterial ? `Tahap ${idx + 1}: Penjelasan materi / panduan praktik belum diisi.` : `Soal ${idx + 1}: Pertanyaan / instruksi soal belum diisi.`);
                     e.preventDefault();
                     return false;
                 }
             }
 
-            const totalPoints = codingRows.reduce((sum, r) => sum + (parseInt(r.querySelector('[data-step-field="points"]')?.value) || 0), 0);
-            if (totalPoints !== 100) {
-                showStep('questions');
-                codingBuilder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                const badge = codingBuilder?.querySelector('[data-coding-total-points-badge]');
-                badge?.classList.add('ring-2', 'ring-danger/50');
-                setTimeout(() => badge?.classList.remove('ring-2', 'ring-danger/50'), 3000);
-                showFormError(`Total skor tahapan adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Sesuaikan skor agar pas 100.`);
-                e.preventDefault();
-                return false;
+            if (!isMaterial) {
+                const totalPoints = codingRows.reduce((sum, r) => sum + (parseInt(r.querySelector('[data-step-field="points"]')?.value) || 0), 0);
+                if (totalPoints !== 100) {
+                    showStep('questions');
+                    codingBuilder?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const badge = codingBuilder?.querySelector('[data-coding-total-points-badge]');
+                    badge?.classList.add('ring-2', 'ring-danger/50');
+                    setTimeout(() => badge?.classList.remove('ring-2', 'ring-danger/50'), 3000);
+                    showFormError(`Total skor adalah ${totalPoints} / 100 (${totalPoints < 100 ? 'kurang ' + (100 - totalPoints) : 'lebih +' + (totalPoints - 100)} poin). Sesuaikan skor agar pas 100.`);
+                    e.preventDefault();
+                    return false;
+                }
             }
         }
 
@@ -2140,19 +2268,42 @@ if (codingStepBuilder) {
     const stepCountBadge = codingStepBuilder.querySelector('[data-coding-step-total]');
     let activeIndex = 0;
 
+    const isMaterialMode = () => {
+        const typeEl = document.querySelector('[data-content-type]');
+        const cat = parseCategory(typeEl?.value);
+        return cat === 'materi';
+    };
+
     const updateTotalPointsBadge = () => {
-        const pointInputs = [...rows.querySelectorAll('[data-step-field="points"]')];
-        const total = pointInputs.reduce((sum, inp) => sum + (parseInt(inp.value, 10) || 0), 0);
+        const isMaterial = isMaterialMode();
+        const targetWrapper = codingStepBuilder.querySelector('[data-coding-target-wrapper]');
+        const titleLabel = codingStepBuilder.querySelector('[data-coding-title-label]');
+        const addBtnLabel = codingStepBuilder.querySelector('[data-add-coding-step-label]');
+
         if (totalPointsBadge) {
-            totalPointsBadge.textContent = `Total Skor: ${total} / 100`;
-            if (total === 100) {
-                totalPointsBadge.className = 'text-xs font-semibold text-slate-700';
-            } else {
-                totalPointsBadge.className = 'text-xs font-semibold text-rose-600';
+            totalPointsBadge.hidden = isMaterial;
+            if (!isMaterial) {
+                const pointInputs = [...rows.querySelectorAll('[data-step-field="points"]')];
+                const total = pointInputs.reduce((sum, inp) => sum + (parseInt(inp.value, 10) || 0), 0);
+                totalPointsBadge.textContent = `Total Skor: ${total} / 100`;
+                if (total === 100) {
+                    totalPointsBadge.className = 'text-xs font-semibold text-slate-700';
+                } else {
+                    totalPointsBadge.className = 'text-xs font-semibold text-rose-600';
+                }
             }
         }
+        if (targetWrapper) {
+            targetWrapper.hidden = isMaterial;
+        }
+        if (titleLabel) {
+            titleLabel.textContent = isMaterial ? 'Tahapan Materi Pemrograman' : 'Susun Soal (Pemrograman)';
+        }
+        if (addBtnLabel) {
+            addBtnLabel.textContent = isMaterial ? '+ Tambah Tahap' : '+ Tambah Soal';
+        }
         if (stepCountBadge) {
-            stepCountBadge.textContent = `${rows.children.length} soal`;
+            stepCountBadge.textContent = isMaterial ? `${rows.children.length} tahap` : `${rows.children.length} soal`;
         }
         if (targetCountInput && document.activeElement !== targetCountInput) {
             targetCountInput.value = rows.children.length;
@@ -2162,11 +2313,26 @@ if (codingStepBuilder) {
     const distributePoints = () => {
         const total = rows.children.length;
         if (total === 0) return;
+        const isMaterial = isMaterialMode();
+        if (isMaterial) {
+            [...rows.children].forEach((row) => {
+                const ptsInput = row.querySelector('[data-step-field="points"]');
+                if (ptsInput) {
+                    ptsInput.value = '';
+                    ptsInput.disabled = true;
+                    ptsInput.required = false;
+                }
+            });
+            updateTotalPointsBadge();
+            return;
+        }
         const base = Math.floor(100 / total);
         let remainder = 100 % total;
         [...rows.children].forEach((row) => {
             const ptsInput = row.querySelector('[data-step-field="points"]');
             if (ptsInput) {
+                ptsInput.disabled = false;
+                ptsInput.required = true;
                 const pts = base + (remainder > 0 ? 1 : 0);
                 if (remainder > 0) remainder--;
                 ptsInput.value = pts;
@@ -2177,6 +2343,7 @@ if (codingStepBuilder) {
 
     const update = () => {
         const total = rows.children.length;
+        const isMaterial = isMaterialMode();
         const paginationHeader = codingStepBuilder.querySelector('[data-coding-pagination-header]');
         if (paginationHeader) {
             paginationHeader.hidden = (total === 0);
@@ -2185,12 +2352,58 @@ if (codingStepBuilder) {
         [...rows.children].forEach((row, index) => {
             row.hidden = index !== activeIndex;
             const titleEl = row.querySelector('[data-coding-step-title]');
-            if (titleEl) titleEl.textContent = `Soal ${index + 1}`;
+            if (titleEl) titleEl.textContent = isMaterial ? `Tahap ${index + 1}` : `Soal ${index + 1}`;
+
+            const removeBtnLabel = row.querySelector('[data-remove-coding-step-label]');
+            if (removeBtnLabel) removeBtnLabel.textContent = isMaterial ? 'Hapus tahap' : 'Hapus soal';
+
+            const fieldTitleLabel = row.querySelector('[data-coding-field-title-label]');
+            if (fieldTitleLabel) fieldTitleLabel.textContent = isMaterial ? 'Judul Tahap' : 'Judul Soal';
+
+            const fieldBodyLabel = row.querySelector('[data-coding-field-body-label]');
+            if (fieldBodyLabel) fieldBodyLabel.textContent = isMaterial ? 'Penjelasan Materi & Panduan Praktik' : 'Pertanyaan / Instruksi Soal';
+
+            const bodyInput = row.querySelector('textarea[data-step-field="body"]');
+            if (bodyInput) {
+                bodyInput.placeholder = isMaterial
+                    ? 'Tuliskan materi pembelajaran, konsep kode, atau panduan praktik untuk tahap ini...'
+                    : 'Jelaskan instruksi atau pertanyaan pekerjaan pemrograman pada soal ini...';
+            }
+
+            const titleInput = row.querySelector('input[data-step-field="title"]');
+            if (titleInput) {
+                titleInput.placeholder = isMaterial
+                    ? 'Contoh: Pengenalan Sintaks Dasar'
+                    : 'Contoh: Implementasi Logika Utama';
+            }
+
+            const titleCol = row.querySelector('[data-step-title-column]');
+            const cpmkCol = row.querySelector('[data-step-cpmk-column]');
+            const cpmkSelect = row.querySelector('select[data-step-field="cpmk"]');
+            const pointsCol = row.querySelector('[data-step-points-column]');
+            const ptsInput = row.querySelector('input[data-step-field="points"]');
+
+            if (cpmkCol) cpmkCol.hidden = isMaterial;
+            if (cpmkSelect) {
+                cpmkSelect.disabled = isMaterial;
+                cpmkSelect.required = !isMaterial;
+            }
+
+            if (pointsCol) pointsCol.hidden = isMaterial;
+            if (ptsInput) {
+                ptsInput.disabled = isMaterial;
+                ptsInput.required = !isMaterial;
+                if (isMaterial) ptsInput.value = '';
+            }
+
+            if (titleCol) {
+                titleCol.className = isMaterial ? 'sm:col-span-3' : 'sm:col-span-1';
+            }
+
             row.querySelectorAll('[data-step-field]').forEach(input => {
                 input.name = `coding_steps[${index}][${input.dataset.stepField}]`;
             });
-            const ptsInput = row.querySelector('input[data-step-field="points"]');
-            const pts = ptsInput ? (parseInt(ptsInput.value, 10) || 0) : 0;
+            const pts = ptsInput && !isMaterial ? (parseInt(ptsInput.value, 10) || 0) : 0;
             const pointShare = row.querySelector('[data-step-point-share]');
             if (pointShare) {
                 pointShare.textContent = `${pts} / 100`;
@@ -2202,14 +2415,14 @@ if (codingStepBuilder) {
             for (let index = 0; index < total; index++) {
                 const row = rows.children[index];
                 const ptsInput = row?.querySelector('input[data-step-field="points"]');
-                const pts = ptsInput ? (parseInt(ptsInput.value, 10) || 0) : 0;
+                const pts = ptsInput && !isMaterial ? (parseInt(ptsInput.value, 10) || 0) : 0;
                 const button = document.createElement('button');
                 const isActive = index === activeIndex;
                 button.type = 'button';
                 button.className = isActive
                     ? 'px-2.5 py-1 text-xs font-bold rounded-md bg-brand text-white shadow-2xs transition shrink-0'
                     : 'px-2.5 py-1 text-xs font-medium rounded-md bg-slate-50 border border-line/60 text-ink hover:bg-slate-100 transition shrink-0';
-                button.textContent = pts > 0 ? `Soal ${index + 1} (${pts}p)` : `Soal ${index + 1}`;
+                button.textContent = isMaterial ? `Tahap ${index + 1}` : (pts > 0 ? `Soal ${index + 1} (${pts}p)` : `Soal ${index + 1}`);
                 button.addEventListener('click', () => { activeIndex = index; update(); });
                 tabs.appendChild(button);
             }
@@ -2452,8 +2665,17 @@ if (codingStepBuilder) {
     if (oldSteps.length > 0) {
         oldSteps.forEach(step => add(step, false));
     } else {
-        add({ points: 100 }, false);
+        add({ points: isMaterialMode() ? '' : 100 }, false);
+        if (!isMaterialMode()) {
+            distributePoints();
+        }
     }
+    window.__refreshCodingStepBuilder = () => {
+        if (isMaterialMode()) {
+            distributePoints();
+        }
+        update();
+    };
     update();
 }
 

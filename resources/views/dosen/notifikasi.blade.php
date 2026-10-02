@@ -31,24 +31,6 @@
                 </span>
             </a>
 
-            {{-- Nilai --}}
-            <a href="{{ route('dosen.notifications', ['category' => 'nilai']) }}"
-               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'nilai' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
-                <span>Nilai</span>
-                <span data-category-count="nilai" class="text-xs font-bold {{ $selectedCategory === 'nilai' ? 'text-white' : 'text-slate-600' }}">
-                    ({{ $categoryCounts['nilai'] ?? 0 }})
-                </span>
-            </a>
-
-            {{-- Sistem --}}
-            <a href="{{ route('dosen.notifications', ['category' => 'sistem']) }}"
-               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'sistem' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
-                <span>Sistem</span>
-                <span data-category-count="sistem" class="text-xs font-bold {{ $selectedCategory === 'sistem' ? 'text-white' : 'text-slate-600' }}">
-                    ({{ $categoryCounts['sistem'] ?? 0 }})
-                </span>
-            </a>
-
             {{-- Diskusi --}}
             <a href="{{ route('dosen.notifications', ['category' => 'diskusi']) }}"
                class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'diskusi' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
