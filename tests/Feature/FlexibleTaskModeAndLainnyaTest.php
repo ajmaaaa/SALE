@@ -1,0 +1,291 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\Cpmk;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
+use App\Models\Role;
+use App\Models\Semester;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class FlexibleTaskModeAndLainnyaTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $dosen;
+    private User $mahasiswa;
+    private ClassSection $section;
+    private MataKuliah $mataKuliah;
+    private Cpmk $cpmk1;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $dosenRole = Role::firstOrCreate(
+            ['name' => Role::DOSEN],
+            ['label' => 'Dosen']
+        );
+        $mhsRole = Role::firstOrCreate(
+            ['name' => Role::MAHASISWA],
+            ['label' => 'Mahasiswa']
+        );
+
+        $this->dosen = User::factory()->create([
+            'role_id' => $dosenRole->id,
+            'email' => 'dosen.test@example.com',
+        ]);
+        $this->mahasiswa = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mhs.test@example.com',
+        ]);
+
+        $prodi = Prodi::create([
+            'code' => 'IF',
+            'name' => 'Informatika',
+        ]);
+
+        $semester = Semester::create([
+            'code' => '20261',
+            'name' => '2026/2027 Ganjil',
+            'term' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->mataKuliah = MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'IF101',
+            'name' => 'Algoritma & Pemrograman',
+            'sks' => 3,
+            'semester_paket' => 1,
+        ]);
+
+        $this->cpmk1 = Cpmk::create([
+            'prodi_id' => $prodi->id,
+            'mata_kuliah_id' => $this->mataKuliah->id,
+            'code' => 'CPMK-1',
+            'description' => 'Memahami logika dasar pemrograman',
+        ]);
+        $this->mataKuliah->cpmks()->attach($this->cpmk1->id);
+
+        $this->section = ClassSection::create([
+            'mata_kuliah_id' => $this->mataKuliah->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $this->dosen->id,
+            'section_code' => 'IF101-A',
+            'enrollment_code' => 'ENROLL123',
+        ]);
+
+        $this->section->students()->attach($this->mahasiswa->id);
+    }
+
+    public function test_lecturer_can_create_uts_in_regular_assignment_mode(): void
+    {
+        $payload = [
+            'type' => 'uts',
+            'task_mode' => 'regular',
+            'title' => 'UTS Praktik Berkas',
+            'module' => 'Modul UTS',
+            'body' => 'Unggah laporan studi kasus dan diagram perancangan sistem.',
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            'due' => now()->addDays(7)->format('Y-m-d\TH:i'),
+            'allow_late' => '1',
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'UTS Praktik Berkas')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertEquals('uts', $assessment->type);
+        $this->assertEquals('regular', $assessment->learning_payload['task_mode'] ?? null);
+        $this->assertEquals(10, $assessment->final_weight);
+        $this->assertTrue((bool) $assessment->allow_late);
+
+        // Student views UTS in regular mode: should see standard submission panel, not quiz room
+        $studentView = $this->actingAs($this->mahasiswa)
+            ->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+
+        $studentView->assertOk();
+        $studentView->assertSee('Tugas Anda');
+        $studentView->assertSee('Kumpulkan Tugas');
+        $studentView->assertDontSee('Mulai Kerjakan Kuis');
+    }
+
+    public function test_lecturer_can_create_uts_in_cbt_quiz_mode(): void
+    {
+        $payload = [
+            'type' => 'uts',
+            'task_mode' => 'quiz',
+            'title' => 'UTS Teori CBT',
+            'module' => 'Modul UTS CBT',
+            'body' => 'Kerjakan butir soal pilihan ganda di ruang ujian.',
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 90,
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => 'Apa itu Big-O notation?',
+                    'options' => "Kompleksitas waktu\nBahasa pemrograman\nHardware komputer",
+                    'correct_answer' => 'Kompleksitas waktu',
+                    'points' => 100,
+                    'cpmk' => 'CPMK-1',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'UTS Teori CBT')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertEquals('uts', $assessment->type);
+        $this->assertEquals('quiz', $assessment->learning_payload['task_mode'] ?? null);
+        $this->assertNotEmpty($assessment->learning_payload['questions'] ?? []);
+
+        // Student views UTS in quiz mode: should see quiz room button
+        $studentView = $this->actingAs($this->mahasiswa)
+            ->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+
+        $studentView->assertOk();
+        $studentView->assertSee('Mulai Kerjakan Kuis');
+    }
+
+    public function test_lecturer_can_create_item_with_type_lainnya(): void
+    {
+        $payload = [
+            'type' => 'lainnya',
+            'title' => 'Formulir Pendataan Kelompok',
+            'module' => 'Administrasi Kelas',
+            'body' => 'Silakan kumpulkan daftar anggota kelompok dan link repositori Github.',
+            'due' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'allow_late' => '1',
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertRedirect();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Formulir Pendataan Kelompok')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertEquals('lainnya', $assessment->type);
+        $this->assertEquals(0, (float) $assessment->final_weight);
+
+        // Assure "lainnya" is excluded from gradable assessments and CPMK pivot
+        $gradables = $this->section->gradableAssessments()->get();
+        $this->assertFalse($gradables->contains('id', $assessment->id));
+        $this->assertEmpty($assessment->cpmks);
+
+        // Student views "lainnya": should see "Pengumpulan Anda" and "Kirimkan", no points
+        $studentView = $this->actingAs($this->mahasiswa)
+            ->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+
+        $studentView->assertOk();
+        $studentView->assertSee('Pengumpulan Anda');
+        $studentView->assertSee('Kirimkan');
+        $studentView->assertDontSee('Total Bobot:');
+
+        // Lecturer views "lainnya": should see "Lihat Pengumpulan Mahasiswa"
+        $lecturerView = $this->actingAs($this->dosen)
+            ->get(route('dosen.course.item', [$this->section->id, $assessment->id]));
+
+        $lecturerView->assertOk();
+        $lecturerView->assertSee('Lihat Pengumpulan Mahasiswa');
+        $lecturerView->assertDontSee('Total Bobot:');
+    }
+
+    public function test_lecturer_can_create_uas_in_coding_mode(): void
+    {
+        $payload = [
+            'type' => 'uas',
+            'task_mode' => 'coding',
+            'title' => 'UAS Praktikum Pemrograman',
+            'module' => 'Modul UAS Coding',
+            'body' => 'Implementasikan algoritma Dijkstra menggunakan Python.',
+            'coding_steps' => [
+                [
+                    'title' => 'Implementasi Graph dan Dijkstra',
+                    'body' => 'Buat fungsi dijkstra(graph, start) yang mengembalikan jarak terpendek.',
+                    'cpmk' => 'CPMK-1',
+                    'points' => 100,
+                ],
+            ],
+            'due' => now()->addDays(10)->format('Y-m-d\TH:i'),
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'UAS Praktikum Pemrograman')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertEquals('uas', $assessment->type);
+        $this->assertEquals('coding', $assessment->learning_payload['task_mode'] ?? null);
+
+        // Student views UAS in coding mode: should see editor button
+        $studentView = $this->actingAs($this->mahasiswa)
+            ->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+
+        $studentView->assertOk();
+        $studentView->assertSee('Mulai Kerjakan Tugas Koding');
+    }
+
+    public function test_input_nilai_page_loads_for_regular_uts_with_task_submission_modal(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'UTS-1',
+            'name' => 'UTS Analisis Algoritma',
+            'type' => 'uts',
+            'description' => 'Kerjakan analisis kompleksitas.',
+            'learning_payload' => [
+                'type' => 'uts',
+                'task_mode' => 'regular',
+                'title' => 'UTS Analisis Algoritma',
+                'module' => 'Modul UTS',
+                'body' => 'Kerjakan analisis kompleksitas.',
+                'points' => 100,
+            ],
+            'final_weight' => 20,
+            'status' => Assessment::STATUS_PUBLISHED,
+        ]);
+
+        $this->section->gradableAssessments();
+
+        $response = $this->actingAs($this->dosen)
+            ->get(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+
+        $response->assertOk();
+        $response->assertSee('Input Nilai');
+        $response->assertSee('UTS Analisis Algoritma');
+    }
+}
+

@@ -294,7 +294,7 @@ class AssessmentController extends Controller
 
     private function withHeaderCounts(ClassSection $section): ClassSection
     {
-        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])])->load(['mataKuliah', 'semester', 'dosen']);
         $section->cpmk_used_count = $this->cpmksFor($section)->count();
         $section->cpl_used_count = $this->cplsFor($section)->count();
 

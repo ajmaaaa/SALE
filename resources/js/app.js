@@ -1422,6 +1422,7 @@ function parseCategory(value) {
     if (!normalized) return '';
     if (normalized === 'materi') return 'materi';
     if (normalized === 'pengumuman') return 'pengumuman';
+    if (normalized === 'lainnya') return 'lainnya';
     if (normalized.includes('coding') || normalized.includes('pemrograman')) return 'coding';
     if (normalized.includes('uts')) return 'uts';
     if (normalized.includes('uas')) return 'uas';
@@ -1484,14 +1485,77 @@ if (contentType) {
 
         if (assessmentTitleLabel && selectedText) assessmentTitleLabel.textContent = `Susun Soal (${selectedText})`;
 
-        const showAssignment = ['tugas', 'coding'].includes(category);
+        const modeQuizCard = document.querySelector('[data-mode-card="quiz"]');
+        const modeRegularCard = document.querySelector('[data-mode-card="regular"]');
+        const modeCodingCard = document.querySelector('[data-mode-card="coding"]');
+        const modeQuizLabel = document.querySelector('[data-mode-quiz-label]');
+        const modeQuizDesc = document.querySelector('[data-mode-quiz-desc]');
+        const modeRegularLabel = document.querySelector('[data-mode-regular-label]');
+        const modeRegularDesc = document.querySelector('[data-mode-regular-desc]');
+        const taskModeLegend = document.querySelector('[data-task-mode-legend]');
+        const taskModeContainer = document.querySelector('[data-task-mode-container]');
+        const taskModeGrid = document.querySelector('[data-task-mode-grid]');
+
+        const hasTaskMode = ['tugas', 'kuis', 'uts', 'uas', 'coding'].includes(category);
+        if (taskModeContainer) taskModeContainer.hidden = !hasTaskMode;
+
+        if (hasTaskMode) {
+            if (['uts', 'uas'].includes(category)) {
+                if (taskModeLegend) taskModeLegend.textContent = `Bentuk pelaksanaan ${category.toUpperCase()}`;
+                if (modeQuizCard) modeQuizCard.hidden = false;
+                if (modeQuizLabel) modeQuizLabel.textContent = `Ruang Ujian (${category.toUpperCase()} CBT)`;
+                if (modeQuizDesc) modeQuizDesc.textContent = 'Susun butir soal pilihan ganda, esai, dan timer ujian.';
+                if (modeRegularCard) modeRegularCard.hidden = false;
+                if (modeRegularLabel) modeRegularLabel.textContent = 'Pengumpulan Berkas / Tugas';
+                if (modeRegularDesc) modeRegularDesc.textContent = 'Mahasiswa mengumpulkan dokumen, laporan, atau tautan.';
+                if (modeCodingCard) modeCodingCard.hidden = false;
+                if (taskModeGrid) {
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-3';
+                }
+            } else if (category === 'kuis') {
+                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk kuis';
+                if (modeQuizCard) modeQuizCard.hidden = false;
+                if (modeQuizLabel) modeQuizLabel.textContent = 'Ruang Soal (Kuis CBT)';
+                if (modeQuizDesc) modeQuizDesc.textContent = 'Susun butir soal pilihan ganda & esai dengan timer kuis.';
+                if (modeRegularCard) modeRegularCard.hidden = true;
+                if (modeCodingCard) modeCodingCard.hidden = false;
+                if (taskModeGrid) {
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';
+                }
+                const currentChecked = document.querySelector('[data-task-mode]:checked')?.value;
+                if (currentChecked === 'regular') {
+                    const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
+                    if (quizRadio) quizRadio.checked = true;
+                }
+            } else {
+                // tugas / coding
+                if (taskModeLegend) taskModeLegend.textContent = 'Jenis tugas';
+                if (modeQuizCard) modeQuizCard.hidden = true;
+                if (modeRegularCard) modeRegularCard.hidden = false;
+                if (modeRegularLabel) modeRegularLabel.textContent = 'Tugas biasa';
+                if (modeRegularDesc) modeRegularDesc.textContent = 'Pengumpulan dokumen, berkas, atau tautan.';
+                if (modeCodingCard) modeCodingCard.hidden = false;
+                if (taskModeGrid) {
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';
+                }
+                const currentChecked = document.querySelector('[data-task-mode]:checked')?.value;
+                if (currentChecked === 'quiz') {
+                    const regRadio = document.querySelector('[data-task-mode][value="regular"]');
+                    if (regRadio) regRadio.checked = true;
+                }
+            }
+        }
+
+        const showAssignment = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'lainnya'].includes(category);
         const showMaterialMode = category === 'materi';
         const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const selectedMaterialMode = document.querySelector('[data-material-mode]:checked')?.value || 'regular';
         const isCoding = (showAssignment && (category === 'coding' || selectedTaskMode === 'coding'))
             || (showMaterialMode && selectedMaterialMode === 'coding');
 
-        const isQuestionContent = ['kuis', 'uts', 'uas'].includes(category);
+        const isQuiz = showAssignment && (
+            selectedTaskMode === 'quiz' || (category === 'kuis' && selectedTaskMode !== 'coding')
+        );
 
         setSectionVisibility(assignmentFields, showAssignment);
         setSectionVisibility(codingAiSetting, isCoding);
@@ -1507,8 +1571,8 @@ if (contentType) {
             if (pinInput) pinInput.disabled = !showMaterialMode;
         }
         const isQuestionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
-        setSectionVisibility(questionBuilder, isQuestionContent && isQuestionStep);
-        setSectionVisibility(quizDurationSettings, ['kuis', 'uts', 'uas'].includes(category));
+        setSectionVisibility(questionBuilder, isQuiz && isQuestionStep);
+        setSectionVisibility(quizDurationSettings, isQuiz);
 
         if (questionType) questionType.value = isCoding ? 'coding' : 'uraian';
         setSectionVisibility(codingStepBuilder, isCoding && isQuestionStep);
@@ -1520,7 +1584,7 @@ if (contentType) {
                 field.disabled = !(isCoding && isQuestionStep);
             }
         });
-        const showManualCpmk = category === 'tugas' && !isCoding;
+        const showManualCpmk = ['tugas', 'uts', 'uas'].includes(category) && !isCoding && !isQuiz;
         if (manualCpmkSettings) {
             setSectionVisibility(manualCpmkSettings, showManualCpmk);
             manualCpmkSettings.querySelectorAll('input').forEach(field => {
@@ -1542,8 +1606,14 @@ if (contentType) {
         }
         const linkInput = document.querySelector('#link');
         if (linkInput) linkInput.value = '';
-        const regularTask = document.querySelector('[data-task-mode][value="regular"]');
-        if (regularTask) regularTask.checked = true;
+        const newCat = parseCategory(contentType.value);
+        if (newCat === 'kuis') {
+            const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
+            if (quizRadio) quizRadio.checked = true;
+        } else {
+            const regularTask = document.querySelector('[data-task-mode][value="regular"]');
+            if (regularTask) regularTask.checked = true;
+        }
         const regularMaterial = document.querySelector('[data-material-mode][value="regular"]');
         if (regularMaterial) regularMaterial.checked = true;
         const points = document.querySelector('#points');
@@ -1588,11 +1658,13 @@ if (contentForm) {
         const cat = parseCategory(typeInput?.value);
         const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const selectedMaterialMode = contentForm.querySelector('[data-material-mode]:checked')?.value || 'regular';
-        const isCoding = (['tugas', 'coding'].includes(cat) && (cat === 'coding' || selectedTaskMode === 'coding'))
+        const isCoding = (['tugas', 'coding', 'uts', 'uas', 'kuis'].includes(cat) && (cat === 'coding' || selectedTaskMode === 'coding'))
             || (cat === 'materi' && selectedMaterialMode === 'coding');
 
         if (isCoding) return 'coding';
-        if (['kuis', 'uts', 'uas'].includes(cat)) return 'questions';
+        if (selectedTaskMode === 'quiz' || (cat === 'kuis' && selectedTaskMode !== 'coding' && selectedTaskMode !== 'regular')) {
+            return 'questions';
+        }
         return 'none';
     };
 
@@ -1671,11 +1743,14 @@ if (contentForm) {
         }
 
         const cat = parseCategory(typeInput?.value);
-        if (durationSettings) durationSettings.hidden = !['kuis', 'uts', 'uas'].includes(cat);
-        if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding'].includes(cat);
+        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const isQuiz = selectedTaskMode === 'quiz' || (cat === 'kuis' && selectedTaskMode !== 'coding');
+
+        if (durationSettings) durationSettings.hidden = !isQuiz;
+        if (legacySettings) legacySettings.hidden = questionsStep || !['tugas', 'coding', 'uts', 'uas', 'kuis', 'lainnya'].includes(cat);
         const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
         if (manualCpmkSettings) {
-            const showManualCpmk = cat === 'tugas' && mode === 'none' && !questionsStep;
+            const showManualCpmk = ['tugas', 'uts', 'uas'].includes(cat) && mode === 'none' && !questionsStep;
             manualCpmkSettings.hidden = !showManualCpmk;
             manualCpmkSettings.querySelectorAll('input').forEach(field => {
                 field.disabled = !showManualCpmk;

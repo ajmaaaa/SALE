@@ -85,7 +85,7 @@ class ClassSection extends Model
 
     public function gradableAssessments(): HasMany
     {
-        return $this->hasMany(Assessment::class)->whereNotIn('type', ['materi', 'pengumuman']);
+        return $this->hasMany(Assessment::class)->whereNotIn('type', ['materi', 'pengumuman', 'lainnya']);
     }
 
     /**

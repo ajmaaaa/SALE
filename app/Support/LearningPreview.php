@@ -637,7 +637,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                 }
 
                 return Assessment::whereIn('class_section_id', $sectionIds)
-                    ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'])
+                    ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
                     ->where('type', '!=', 'materi')
                     ->where('status', 'published')
                     ->get()

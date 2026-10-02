@@ -53,7 +53,7 @@ class ClassSectionController extends Controller
             })
             ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])
             ->withCount('students')
-            ->withCount(['assessments' => fn ($query) => $query->whereNotIn('type', ['materi', 'pengumuman'])])
+            ->withCount(['assessments' => fn ($query) => $query->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])])
             ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
                 $query->where('semester_id', $selectedSemesterId);
             })

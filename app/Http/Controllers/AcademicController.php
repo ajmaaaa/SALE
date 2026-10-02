@@ -77,7 +77,7 @@ class AcademicController extends Controller
                 'mataKuliah',
                 'dosen',
                 'semester',
-                'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])->orderBy('id'),
+                'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])->orderBy('id'),
             ]);
 
             if ($selectedSemester) {
@@ -97,7 +97,7 @@ class AcademicController extends Controller
                             'mataKuliah',
                             'dosen',
                             'semester',
-                            'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])->orderBy('id'),
+                            'assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])->orderBy('id'),
                         ])->get();
                 }
             }

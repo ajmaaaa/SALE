@@ -132,10 +132,15 @@ class InputNilaiController extends Controller
             $rawQuestions = QuizQuestion::canonicalizeQuestions($rawQuestions);
         }
 
+        $rawTaskMode = $payload['task_mode'] ?? null;
         $isCoding = in_array($assessment->type, ['coding'], true)
-            || ($payload['task_mode'] ?? null) === 'coding'
+            || $rawTaskMode === 'coding'
             || (($payload['type'] ?? '') === 'tugas' && ($payload['question_type'] ?? '') === 'coding');
-        $isTipeSoal = ! $isCoding && (in_array($assessment->type, ['kuis', 'uts', 'uas'], true) || ! empty($rawQuestions));
+        $isTipeSoal = ! $isCoding && (
+            $rawTaskMode === 'quiz'
+            || (! empty($rawQuestions) && $rawTaskMode !== 'regular')
+            || ($assessment->type === 'kuis' && $rawTaskMode !== 'regular')
+        );
         $isAssignment = ! $isTipeSoal;
 
         $essayQuestions = collect($rawQuestions)->filter(function ($q) {
@@ -1426,7 +1431,7 @@ class InputNilaiController extends Controller
 
     private function withHeaderCounts(ClassSection $section): ClassSection
     {
-        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])])->load(['mataKuliah', 'semester', 'dosen']);
 
         return $section;
     }

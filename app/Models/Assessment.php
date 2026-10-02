@@ -79,6 +79,6 @@ class Assessment extends Model
 
     public function scopeGradable($query)
     {
-        return $query->whereNotIn('type', ['materi', 'pengumuman']);
+        return $query->whereNotIn('type', ['materi', 'pengumuman', 'lainnya']);
     }
 }

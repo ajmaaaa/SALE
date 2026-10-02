@@ -31,7 +31,7 @@ class DashboardController extends Controller
             if (Schema::hasTable('assessments')) {
                 $sectionIds = $enrolledSections->pluck('id');
                 $assessments = Assessment::whereIn('class_section_id', $sectionIds)
-                    ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'])
+                    ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
                     ->where('status', 'published')
                     ->get();
 

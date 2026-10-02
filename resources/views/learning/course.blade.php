@@ -23,7 +23,7 @@
         });
 
     // Urutkan tugas berdasarkan tanggal upload terbaru (paling baru paling atas)
-    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis'])
+    $tugasItems = collect($items)->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
         ->sort(function ($a, $b) {
             $timeA = !empty($a['created_at']) ? \Carbon\Carbon::parse($a['created_at'])->timestamp : (!empty($a['published_at']) ? \Carbon\Carbon::parse($a['published_at'])->timestamp : (!empty($a['updated_at']) ? \Carbon\Carbon::parse($a['updated_at'])->timestamp : 0));
             $timeB = !empty($b['created_at']) ? \Carbon\Carbon::parse($b['created_at'])->timestamp : (!empty($b['published_at']) ? \Carbon\Carbon::parse($b['published_at'])->timestamp : (!empty($b['updated_at']) ? \Carbon\Carbon::parse($b['updated_at'])->timestamp : 0));

@@ -70,7 +70,7 @@ class DatabaseNotificationService
 
         return Assessment::query()
             ->whereIn('class_section_id', $sectionIds)
-            ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'])
+            ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
             ->where('status', Assessment::STATUS_PUBLISHED)
             ->whereNotIn('id', $completedIds)
             ->count();
@@ -234,6 +234,18 @@ class DatabaseNotificationService
                             $target,
                             'Lihat Pengumuman',
                             'sistem',
+                            $section->id
+                        );
+                    } elseif ($type === 'lainnya') {
+                        $notifications[] = $this->notification(
+                            "pending_{$assessment->id}",
+                            "Pengumpulan: {$assessment->name} ({$section->display_code})",
+                            "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
+                            $assessment->created_at,
+                            'alert',
+                            $target,
+                            'Buka Lembar Pengumpulan',
+                            'tugas',
                             $section->id
                         );
                     } else {

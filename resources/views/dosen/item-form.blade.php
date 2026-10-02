@@ -71,7 +71,7 @@
                 <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
                 <select id="type" name="type" class="field" data-content-type required>
                     <option value="" disabled @selected(!old('type', $item['type'] ?? '') && !request('type'))>Pilih jenis konten</option>
-                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman'] as $value => $label)
+                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('type', $item['type'] ?? request('type')) === $value || ($value === 'tugas' && old('type', $item['type'] ?? '') === 'coding'))>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -96,7 +96,16 @@
 
         @php
             $itemType = old('type', $item['type'] ?? '');
-            $taskModeVal = old('task_mode', $item['task_mode'] ?? ((($item['type'] ?? '') === 'coding' || ($item['question_type'] ?? '') === 'coding') ? 'coding' : 'regular'));
+            $storedTaskMode = old('task_mode', $item['task_mode'] ?? null);
+            if ($storedTaskMode) {
+                $taskModeVal = $storedTaskMode;
+            } elseif (($item['type'] ?? '') === 'coding' || ($item['question_type'] ?? '') === 'coding') {
+                $taskModeVal = 'coding';
+            } elseif (in_array($item['type'] ?? '', ['kuis', 'uts', 'uas'], true)) {
+                $taskModeVal = (!empty($item['questions']) || ($item['type'] ?? '') === 'kuis') ? 'quiz' : 'regular';
+            } else {
+                $taskModeVal = 'regular';
+            }
             $matModeVal = old('material_mode', $item['material_mode'] ?? ((($item['type'] ?? '') === 'materi' && ($item['question_type'] ?? '') === 'coding') ? 'coding' : 'regular'));
         @endphp
 
@@ -218,19 +227,26 @@
             </div>
         </section>
 
-        {{-- Tugas biasa dan pemrograman berada dalam satu jenis konten. --}}
+        {{-- Pengaturan Pelaksanaan Tugas / Ujian --}}
         <div data-legacy-question-settings data-assignment-fields class="space-y-4 pt-2 transition-all duration-300 ease-out" hidden>
-            <div class="grid gap-4 sm:grid-cols-1">
+            <div class="grid gap-4 sm:grid-cols-1" data-task-mode-container>
                 <fieldset>
-                    <legend class="form-label">Jenis tugas</legend>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
-                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked($taskModeVal === 'regular')>
-                            <span class="ml-1 font-semibold text-ink">Tugas biasa</span>
+                    <legend class="form-label" data-task-mode-legend>Bentuk pelaksanaan</legend>
+                    <div class="grid gap-2 grid-cols-1 sm:grid-cols-2" data-task-mode-grid>
+                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="quiz" hidden>
+                            <input type="radio" name="task_mode" value="quiz" data-task-mode @checked($taskModeVal === 'quiz')>
+                            <span class="ml-1 font-semibold text-ink" data-mode-quiz-label>Ruang Ujian (CBT)</span>
+                            <span class="mt-1 block pl-5 text-muted" data-mode-quiz-desc>Susun butir soal pilihan ganda &amp; esai dengan timer ujian.</span>
                         </label>
-                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
+                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="regular">
+                            <input type="radio" name="task_mode" value="regular" data-task-mode @checked($taskModeVal === 'regular')>
+                            <span class="ml-1 font-semibold text-ink" data-mode-regular-label>Tugas biasa</span>
+                            <span class="mt-1 block pl-5 text-muted" data-mode-regular-desc>Pengumpulan dokumen, laporan berkas, atau tautan.</span>
+                        </label>
+                        <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="coding">
                             <input type="radio" name="task_mode" value="coding" data-task-mode @checked($taskModeVal === 'coding')>
                             <span class="ml-1 font-semibold text-ink">Pemrograman</span>
+                            <span class="mt-1 block pl-5 text-muted">Pengerjaan kode di editor dengan bantuan asisten AI.</span>
                         </label>
                     </div>
                     <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
@@ -240,7 +256,7 @@
 
 
             @php
-                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding'], true);
+                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding', 'uts', 'uas', 'lainnya'], true);
                 $taskDueVal = $hasTaskDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
             @endphp
             <div class="rounded-xl border border-line/70 bg-white p-4">

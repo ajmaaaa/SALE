@@ -447,7 +447,7 @@ class PenilaianController extends Controller
 
     private function withHeaderCounts(ClassSection $section, $cpls = null, $cpmks = null): ClassSection
     {
-        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman'])])->load(['mataKuliah', 'semester', 'dosen']);
+        $section->loadCount('students')->loadCount(['assessments' => fn ($q) => $q->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])])->load(['mataKuliah', 'semester', 'dosen']);
         $section->cpmk_used_count = ($cpmks ?? $this->cpmksFor($section))->count();
         $section->cpl_used_count = ($cpls ?? $this->cplsFor($section))->count();
 

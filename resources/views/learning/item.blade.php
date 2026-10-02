@@ -7,9 +7,12 @@
 @php
     $currentRole = request()->routeIs('dosen.*') ? 'dosen' : 'mahasiswa';
     $isLecturer = $currentRole === 'dosen';
-    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true);
+    $isTask = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'], true);
     $hasMultiQuestions = !empty($item['questions']);
-    $isDedicatedQuiz = in_array($item['type'], ['kuis', 'uts', 'uas'], true);
+    $taskMode = $item['task_mode'] ?? null;
+    $isDedicatedQuiz = ($taskMode === 'quiz')
+        || ($item['type'] === 'kuis' && $taskMode !== 'regular' && $taskMode !== 'coding')
+        || (in_array($item['type'], ['uts', 'uas'], true) && $taskMode !== 'regular' && $taskMode !== 'coding' && !empty($item['questions']));
     $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
     $isCodingTask = in_array($item['type'], ['coding'], true)
         || ($item['task_mode'] ?? null) === 'coding'
@@ -68,7 +71,7 @@
     $isAttemptRejected = $studentAttempt && ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_REJECTED || ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $studentAttempt->deadline_at && now()->greaterThan($studentAttempt->deadline_at->copy()->addSeconds(30))));
     $isLocked = !$isSubmitted && $isPast && !$allowLate;
     $isInputsDisabled = !empty($submission) || $isLocked || $isGraded || $isAttemptRejected;
-    $isTaskOrQuiz = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project'], true);
+    $isTaskOrQuiz = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'], true);
     $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
     $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
     $courseBackUrl = $courseBaseUrl . '?tab=' . $targetTab;
@@ -633,10 +636,12 @@
 
                     @if($isTask)
                         <div class="space-y-2.5 text-xs">
-                            <div class="flex items-center justify-between text-muted">
-                                <span>Total Bobot:</span>
-                                <span class="font-bold text-ink">{{ $item['points'] ?? 100 }} Poin</span>
-                            </div>
+                            @if($item['type'] !== 'lainnya')
+                                <div class="flex items-center justify-between text-muted">
+                                    <span>Total Bobot:</span>
+                                    <span class="font-bold text-ink">{{ $item['points'] ?? 100 }} Poin</span>
+                                </div>
+                            @endif
                             <div class="flex items-center justify-between text-muted">
                                 <span>Tenggat Waktu:</span>
                                 @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
@@ -646,7 +651,7 @@
                                 <span>Pengumpulan Terlambat:</span>
                                 <span class="font-medium text-ink">{{ !empty($item['allow_late']) ? 'Diizinkan' : 'Ditolak / Dikunci' }}</span>
                             </div>
-                            @if(!empty($item['component']))
+                            @if(!empty($item['component']) && $item['type'] !== 'lainnya')
                                 <div class="flex items-center justify-between text-muted">
                                     <span>Komponen Evaluasi:</span>
                                     <span class="font-semibold text-ink uppercase">{{ $item['component'] }}</span>
@@ -685,12 +690,12 @@
                                     <span>{{ $lateCount }} mahasiswa</span>
                                 </div>
                             @endif
-                            <p class="text-muted text-[11px] pt-0.5">Lihat seluruh pengumpulan mahasiswa dan lakukan penilaian jawaban serta berkas tugas.</p>
+                            <p class="text-muted text-[11px] pt-0.5">{{ $item['type'] === 'lainnya' ? 'Lihat berkas atau data yang dikumpulkan oleh mahasiswa.' : 'Lihat seluruh pengumpulan mahasiswa dan lakukan penilaian jawaban serta berkas tugas.' }}</p>
                         </div>
 
                         <div class="pt-1">
                             <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="button-primary w-full py-2.5 text-xs font-bold text-center block shadow-xs">
-                                Lihat &amp; Nilai Mahasiswa
+                                {{ $item['type'] === 'lainnya' ? 'Lihat Pengumpulan Mahasiswa' : 'Lihat & Nilai Mahasiswa' }}
                             </a>
                         </div>
                     @else
@@ -716,7 +721,7 @@
                 {{-- Student Submission Panel (Google Classroom Style for Tugas, PBL, etc.) --}}
                 <aside class="rounded-xl bg-white p-5 shadow-sm space-y-4 h-fit xl:sticky xl:top-24 border border-line/60">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-bold text-ink">Tugas Anda</h2>
+                        <h2 class="text-sm font-bold text-ink">{{ $item['type'] === 'lainnya' ? 'Pengumpulan Anda' : 'Tugas Anda' }}</h2>
                         @if($isGraded)
                             <div class="text-right">
                                 <span class="whitespace-nowrap text-sm font-bold text-emerald-600">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }}</span>
@@ -746,7 +751,9 @@
                     </div>
 
                     <div class="text-xs text-muted flex items-center gap-2">
-                        <span>{{ $item['points'] ?? 100 }} Poin</span>
+                        @if($item['type'] !== 'lainnya')
+                            <span>{{ $item['points'] ?? 100 }} Poin</span>
+                        @endif
                         @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
                         @if($isDuePast)
                             <span class="text-rose-600 font-semibold">Terlambat</span>
@@ -882,7 +889,7 @@
                             </button>
                         @else
                             <button type="submit" class="button-primary w-full py-2.5 text-xs font-bold">
-                                Kumpulkan Tugas
+                                {{ $item['type'] === 'lainnya' ? 'Kirimkan' : 'Kumpulkan Tugas' }}
                             </button>
                         @endif
                     </div>
