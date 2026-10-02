@@ -23,6 +23,22 @@ class AppServiceProvider extends ServiceProvider
                 if ($sessionLifetime && is_numeric($sessionLifetime) && (int) $sessionLifetime > 0) {
                     config(['session.lifetime' => (int) $sessionLifetime]);
                 }
+
+                $aiKey = \App\Models\SystemSetting::valueFor('ai_api_key');
+                if (! empty($aiKey)) {
+                    config([
+                        'ai.enabled' => true,
+                        'ai.key' => $aiKey,
+                    ]);
+                    $aiModel = \App\Models\SystemSetting::valueFor('ai_model');
+                    if (! empty($aiModel)) {
+                        config(['ai.model' => $aiModel]);
+                    }
+                    $aiQuota = \App\Models\SystemSetting::valueFor('ai_token_quota');
+                    if (! empty($aiQuota) && is_numeric($aiQuota)) {
+                        config(['ai.global_daily_tokens' => (int) $aiQuota]);
+                    }
+                }
             }
         } catch (\Throwable) {
             // Abaikan jika database belum terhubung atau saat proses migrasi awal

@@ -79,7 +79,7 @@
         {{-- Card 4: Pemakaian Token AI --}}
         <a class="surface p-5 hover:shadow-md transition group border border-line/60" href="{{ route('admin.page', ['section' => 'monitoring', 'detail' => 'ai']) }}">
             <div class="flex items-center justify-between">
-                <p class="text-xs font-semibold text-muted">KUOTA AI BULAN INI</p>
+                <p class="text-xs font-semibold text-muted">PEMAKAIAN AI BULAN INI</p>
                 <svg class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             </div>
             <p class="mt-3 text-2xl font-bold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }} <span class="text-xs font-normal text-muted">token</span></p>
@@ -104,8 +104,8 @@
                 <div class="grid gap-5 sm:grid-cols-2 pt-1">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Sisa Kuota Tersedia</p>
-                        <p class="mt-2 text-3xl font-bold text-ink">{{ number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') }}</p>
-                        <p class="mt-1 text-xs text-muted">Token terpakai berdasarkan panggilan API bulan ini</p>
+                        <p class="mt-2 text-3xl font-bold text-ink">{{ number_format((int) ($aiMetrics['remaining_tokens'] ?? max(0, ($aiMetrics['quota'] ?? 1000000) - ($aiMetrics['total_tokens'] ?? 0))), 0, ',', '.') }}</p>
+                        <p class="mt-1 text-xs text-muted">Sisa kuota dari batas {{ number_format((int) ($aiMetrics['quota'] ?? 1000000), 0, ',', '.') }} token bulan ini</p>
                     </div>
 
                     <dl class="space-y-2.5 text-xs rounded-xl bg-canvas/60 p-3.5 border border-line/40">
@@ -119,7 +119,7 @@
                         </div>
                         <div class="flex justify-between">
                             <dt class="text-muted">Latensi rata-rata</dt>
-                            <dd class="font-medium text-ink">{{ $aiMetrics['average_latency_ms'] === null ? 'Belum ada data' : number_format((float) $aiMetrics['average_latency_ms'], 0, ',', '.').' ms' }}</dd>
+                            <dd class="font-medium text-ink">{{ empty($aiMetrics['average_latency_ms']) ? 'Belum ada data' : number_format((float) $aiMetrics['average_latency_ms'], 0, ',', '.').' ms' }}</dd>
                         </div>
                     </dl>
                 </div>

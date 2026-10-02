@@ -23,6 +23,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Services\Ai\AiModelFetcher;
+use App\Services\Ai\AiUsageRecorder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminPreviewController extends Controller
@@ -59,6 +60,10 @@ class AdminPreviewController extends Controller
                 ->selectRaw('feature, COUNT(*) requests, COALESCE(SUM(total_tokens), 0) total_tokens, AVG(total_tokens) average_tokens')
                 ->groupBy('feature')->orderByDesc('total_tokens')->get();
         }
+
+        $quota = (int) (SystemSetting::valueFor('ai_token_quota') ?: config('ai.global_daily_tokens', 1000000));
+        $aiMetrics['quota'] = $quota;
+        $aiMetrics['remaining_tokens'] = max(0, $quota - (int) ($aiMetrics['total_tokens'] ?? 0));
 
         $backupList = collect();
         $backupDir = self::getBackupDirectory();
@@ -810,18 +815,144 @@ class AdminPreviewController extends Controller
                 // Sinkronkan daftar model langsung dari provider API dan simpan ke cache
                 $liveModels = AiModelFetcher::getModels($provider, $key, true);
 
+                // Lakukan live test call untuk menguji respons model & mencatat penggunaan token aktual
+                $activeModel = $model ?: ($provider === 'Google AI' ? 'gemini-3.6-flash' : ($provider === 'Open AI' ? 'gpt-4o-mini' : 'deepseek-chat'));
+                $testSuccess = false;
+                $testedTokens = 0;
+                $testedLatency = 0;
+
+                try {
+                    $testPrompt = 'Halo! Uji koneksi sistem SALE.';
+                    if ($provider === 'Google AI') {
+                        $modelsToTry = array_values(array_unique(array_filter([$activeModel, 'gemini-3.6-flash', 'gemini-3.8-flash'])));
+                        foreach ($modelsToTry as $tryModel) {
+                            $mStart = microtime(true);
+                            $genRes = Http::withoutVerifying()->timeout(15)
+                                ->withHeaders(['x-goog-api-key' => $key])
+                                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$tryModel}:generateContent", [
+                                    'contents' => [['role' => 'user', 'parts' => [['text' => $testPrompt]]]],
+                                    'generationConfig' => ['maxOutputTokens' => 15],
+                                ]);
+
+                            if ($genRes->successful()) {
+                                $testedLatency = (int) round((microtime(true) - $mStart) * 1000);
+                                $inTokens = (int) ($genRes->json('usageMetadata.promptTokenCount') ?? 0);
+                                $outTokens = (int) ($genRes->json('usageMetadata.candidatesTokenCount') ?? 0);
+                                $thTokens = (int) ($genRes->json('usageMetadata.thoughtsTokenCount') ?? 0);
+                                $totTokens = (int) ($genRes->json('usageMetadata.totalTokenCount') ?? ($inTokens + $outTokens + $thTokens));
+
+                                $activeModel = $tryModel;
+                                SystemSetting::updateOrCreate(['key' => 'ai_model'], ['value' => $activeModel]);
+
+                                app(AiUsageRecorder::class)->record([
+                                    'feature' => 'test_koneksi',
+                                    'stage' => 'ping',
+                                    'provider' => 'google',
+                                    'model' => $activeModel,
+                                    'user_id' => auth()->id() ?? 1,
+                                ], [
+                                    'status' => 'completed',
+                                    'usage_source' => 'confirmed',
+                                    'input_tokens' => $inTokens,
+                                    'output_tokens' => $outTokens,
+                                    'thinking_tokens' => $thTokens,
+                                    'total_tokens' => $totTokens,
+                                    'latency_ms' => $testedLatency,
+                                ]);
+                                $testedTokens = $totTokens;
+                                $testSuccess = true;
+                                break;
+                            }
+                        }
+                    } elseif ($provider === 'Open AI') {
+                        $mStart = microtime(true);
+                        $genRes = Http::withoutVerifying()->timeout(15)
+                            ->withToken($key)
+                            ->post('https://api.openai.com/v1/chat/completions', [
+                                'model' => $activeModel,
+                                'messages' => [['role' => 'user', 'content' => $testPrompt]],
+                                'max_tokens' => 15,
+                            ]);
+                        if ($genRes->successful()) {
+                            $testedLatency = (int) round((microtime(true) - $mStart) * 1000);
+                            $inTokens = (int) ($genRes->json('usage.prompt_tokens') ?? 0);
+                            $outTokens = (int) ($genRes->json('usage.completion_tokens') ?? 0);
+                            $totTokens = (int) ($genRes->json('usage.total_tokens') ?? ($inTokens + $outTokens));
+
+                            app(AiUsageRecorder::class)->record([
+                                'feature' => 'test_koneksi',
+                                'stage' => 'ping',
+                                'provider' => 'openai',
+                                'model' => $activeModel,
+                                'user_id' => auth()->id() ?? 1,
+                            ], [
+                                'status' => 'completed',
+                                'usage_source' => 'confirmed',
+                                'input_tokens' => $inTokens,
+                                'output_tokens' => $outTokens,
+                                'thinking_tokens' => 0,
+                                'total_tokens' => $totTokens,
+                                'latency_ms' => $testedLatency,
+                            ]);
+                            $testedTokens = $totTokens;
+                            $testSuccess = true;
+                        }
+                    } else { // DeepSeek
+                        $mStart = microtime(true);
+                        $genRes = Http::withoutVerifying()->timeout(15)
+                            ->withToken($key)
+                            ->post('https://api.deepseek.com/chat/completions', [
+                                'model' => $activeModel,
+                                'messages' => [['role' => 'user', 'content' => $testPrompt]],
+                                'max_tokens' => 15,
+                            ]);
+                        if ($genRes->successful()) {
+                            $testedLatency = (int) round((microtime(true) - $mStart) * 1000);
+                            $inTokens = (int) ($genRes->json('usage.prompt_tokens') ?? 0);
+                            $outTokens = (int) ($genRes->json('usage.completion_tokens') ?? 0);
+                            $totTokens = (int) ($genRes->json('usage.total_tokens') ?? ($inTokens + $outTokens));
+
+                            app(AiUsageRecorder::class)->record([
+                                'feature' => 'test_koneksi',
+                                'stage' => 'ping',
+                                'provider' => 'deepseek',
+                                'model' => $activeModel,
+                                'user_id' => auth()->id() ?? 1,
+                            ], [
+                                'status' => 'completed',
+                                'usage_source' => 'confirmed',
+                                'input_tokens' => $inTokens,
+                                'output_tokens' => $outTokens,
+                                'thinking_tokens' => 0,
+                                'total_tokens' => $totTokens,
+                                'latency_ms' => $testedLatency,
+                            ]);
+                            $testedTokens = $totTokens;
+                            $testSuccess = true;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Gagal uji generateContent AI: ' . $e->getMessage());
+                }
+
+                $msg = "Koneksi ke {$provider} API berhasil terhubung aktif (HTTP {$response->status()} OK).";
+                if ($testSuccess) {
+                    $msg .= " Uji pemanggilan model {$activeModel} berhasil ({$testedLatency} ms, {$testedTokens} token tercatat).";
+                }
+
                 return response()->json([
                     'success' => true,
                     'provider' => $provider,
                     'models' => $liveModels,
+                    'model' => $activeModel,
                     'source' => $source,
                     'status_code' => $response->status(),
-                    'message' => "Koneksi ke {$provider} API berhasil terhubung aktif (HTTP {$response->status()} OK).",
+                    'message' => $msg,
                     'flow' => [
                         ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian berhasil diinisiasi.'],
                         ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses autentikasi dan rute sistem.'],
-                        ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
-                        ['step' => 'AI API', 'status' => 'ok', 'detail' => "Respons 200 OK diterima dari gateway resmi {$provider}."]
+                        ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kredensial berhasil dimuat dari database sistem.'],
+                        ['step' => 'AI API', 'status' => 'ok', 'detail' => "Respons 200 OK diterima dari gateway resmi {$provider}." . ($testSuccess ? " Token tercatat ({$testedTokens} token)." : '')]
                     ]
                 ]);
             }
