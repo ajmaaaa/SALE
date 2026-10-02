@@ -1518,17 +1518,20 @@ if (contentType) {
         const taskModeLegend = document.querySelector('[data-task-mode-legend]');
         const taskModeContainer = document.querySelector('[data-task-mode-container]');
         const taskModeGrid = document.querySelector('[data-task-mode-grid]');
-        const taskModeInfo = document.querySelector('[data-task-mode-info]');
-        const taskModeInfoTitle = document.querySelector('[data-task-mode-info-title]');
-        const taskModeInfoDesc = document.querySelector('[data-task-mode-info-desc]');
 
-        const hasTaskMode = ['tugas', 'kuis', 'uts', 'uas', 'coding', 'pbl'].includes(category);
+        // Hanya tugas, uts, dan uas yang membutuhkan pemilihan bentuk pelaksanaan
+        const hasTaskMode = ['tugas', 'uts', 'uas', 'coding'].includes(category);
         if (taskModeContainer) taskModeContainer.hidden = !hasTaskMode;
 
-        if (hasTaskMode) {
+        if (category === 'kuis') {
+            const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
+            if (quizRadio) quizRadio.checked = true;
+        } else if (category === 'pbl') {
+            const regRadio = document.querySelector('[data-task-mode][value="regular"]');
+            if (regRadio) regRadio.checked = true;
+        } else if (hasTaskMode) {
             if (['uts', 'uas'].includes(category)) {
                 if (taskModeLegend) taskModeLegend.textContent = `Bentuk pelaksanaan ${category.toUpperCase()}`;
-                if (taskModeInfo) taskModeInfo.hidden = true;
                 if (taskModeGrid) {
                     taskModeGrid.hidden = false;
                     taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-3';
@@ -1540,30 +1543,9 @@ if (contentType) {
                 if (modeRegularLabel) modeRegularLabel.textContent = 'Pengumpulan Berkas / Laporan';
                 if (modeRegularDesc) modeRegularDesc.textContent = 'Mahasiswa mengumpulkan dokumen, laporan, atau tautan.';
                 if (modeCodingCard) modeCodingCard.hidden = false;
-            } else if (category === 'kuis') {
-                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk kuis';
-                if (taskModeGrid) taskModeGrid.hidden = true;
-                if (taskModeInfo) {
-                    taskModeInfo.hidden = false;
-                    if (taskModeInfoTitle) taskModeInfoTitle.textContent = 'Ruang Soal (Kuis CBT)';
-                    if (taskModeInfoDesc) taskModeInfoDesc.textContent = '— Dikerjakan langsung di ruang soal interaktif dengan timer pengerjaan.';
-                }
-                const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
-                if (quizRadio) quizRadio.checked = true;
-            } else if (category === 'pbl') {
-                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk pelaksanaan PBL';
-                if (taskModeGrid) taskModeGrid.hidden = true;
-                if (taskModeInfo) {
-                    taskModeInfo.hidden = false;
-                    if (taskModeInfoTitle) taskModeInfoTitle.textContent = 'Laporan Proyek (Dokumen / Tautan)';
-                    if (taskModeInfoDesc) taskModeInfoDesc.textContent = '— Pengumpulan dokumen laporan proyek akhir, rancangan, atau tautan repositori.';
-                }
-                const regRadio = document.querySelector('[data-task-mode][value="regular"]');
-                if (regRadio) regRadio.checked = true;
             } else {
                 // tugas / coding
                 if (taskModeLegend) taskModeLegend.textContent = 'Bentuk pelaksanaan tugas';
-                if (taskModeInfo) taskModeInfo.hidden = true;
                 if (taskModeGrid) {
                     taskModeGrid.hidden = false;
                     taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';

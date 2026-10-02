@@ -414,7 +414,7 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $response->assertSee('data-main-category', false);
         $response->assertSee('data-assessment-type', false);
         $response->assertSee('data-unified-time-settings', false);
-        $response->assertSee('data-task-mode-info', false);
+        $response->assertDontSee('data-task-mode-info', false);
 
         // Pastikan hanya ada tepat SATU input name="due" di seluruh form
         $content = $response->getContent();

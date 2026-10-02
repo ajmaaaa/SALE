@@ -223,15 +223,9 @@
 
         {{-- Pengaturan Pelaksanaan Tugas / Ujian & Waktu --}}
         <div data-legacy-question-settings data-assignment-fields class="space-y-5 pt-2 transition-all duration-300 ease-out" hidden>
-            <div data-task-mode-container class="rounded-xl border border-line/70 bg-white p-4 space-y-3">
+            <div data-task-mode-container class="rounded-xl border border-line/70 bg-white p-4 space-y-3" @if(!in_array($subCategoryVal, ['tugas', 'uts', 'uas'], true) || $mainCategoryVal !== 'asesmen') hidden @endif>
                 <fieldset>
                     <legend class="form-label" data-task-mode-legend>Bentuk pelaksanaan</legend>
-
-                    {{-- Info banner khusus Kuis (selalu CBT) dan PBL (selalu laporan proyek) --}}
-                    <div data-task-mode-info class="rounded-lg border border-line/70 bg-slate-50 p-3 text-xs flex items-center gap-2 text-ink" hidden>
-                        <span class="font-semibold" data-task-mode-info-title>Ruang Soal (Kuis CBT)</span>
-                        <span class="text-muted" data-task-mode-info-desc>— Dikerjakan langsung di ruang soal interaktif.</span>
-                    </div>
 
                     <div class="grid gap-2 grid-cols-1 sm:grid-cols-2" data-task-mode-grid>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="quiz" hidden>
