@@ -1293,7 +1293,10 @@ class ObeExcelExportService
 
         // Baris 1: Nama Sistem & Ekosistem Utama (Warna Hitam)
         $sheet->mergeCells("A1:{$lastColLetter}1");
-        $sheet->setCellValue('A1', 'SISTEM INFORMASI AKADEMIK & OUTCOME-BASED EDUCATION (SALE)');
+        $appNameVal = \App\Models\SystemSetting::appName();
+        $institutionVal = \App\Models\SystemSetting::valueFor('institution', '');
+        $kopA1 = $institutionVal ? mb_strtoupper($institutionVal, 'UTF-8') . ' - ' . mb_strtoupper($appNameVal, 'UTF-8') : mb_strtoupper($appNameVal, 'UTF-8');
+        $sheet->setCellValue('A1', $kopA1);
         $sheet->getStyle('A1')->getFont()->setName('Times New Roman')->setSize(13.5)->setBold(true)->getColor()->setARGB(self::COLOR_HEADER_BLACK);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getRowDimension(1)->setRowHeight(24);

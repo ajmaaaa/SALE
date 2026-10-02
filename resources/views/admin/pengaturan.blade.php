@@ -17,6 +17,13 @@
     $aiApiKey = $settings['ai_api_key'] ?? '';
     $maintenance = $settings['maintenance_mode'] ?? '0';
     $sessionLifetime = $settings['session_lifetime'] ?? (string) config('session.lifetime', 120);
+    $appName = $settings['app_name'] ?? 'SALE';
+    $institutionMinistry = $settings['institution_ministry'] ?? '';
+    $institutionAddress = $settings['institution_address'] ?? '';
+    $institutionPhone = $settings['institution_phone'] ?? '';
+    $institutionWebsite = $settings['institution_website'] ?? '';
+    $institutionEmail = $settings['institution_email'] ?? '';
+    $currentLogoUrl = \App\Models\SystemSetting::logoUrl();
 
     $selectedProviderKey = 'Google AI';
     $currentAiProvider = strtolower(old('ai_provider', $aiProvider));
@@ -57,7 +64,7 @@
     </header>
     
     {{-- Form Konfigurasi Sistem Lengkap --}}
-    <form class="space-y-6" method="post" action="{{ route('admin.settings.store') }}">
+    <form class="space-y-6" method="post" action="{{ route('admin.settings.store') }}" enctype="multipart/form-data">
         @csrf
 
         {{-- Seksi 1: Profil & Identitas Institusi --}}
@@ -91,8 +98,59 @@
                     <input class="field font-mono" id="campus_domain" type="text" disabled value="https://sale.campus.ac.id" readonly>
                     <p class="mt-1 text-[11px] text-muted">Domain utama portal LMS institusi (konfigurasi web server).</p>
                 </div>
+
+                <div>
+                    <label class="form-label" for="app_name">Nama Aplikasi / Sistem</label>
+                    <input class="field" name="app_name" id="app_name" type="text" value="{{ old('app_name', $appName) }}" placeholder="Contoh: SALE">
+                    <p class="mt-1 text-[11px] text-muted">Nama sistem yang ditampilkan pada laporan Excel, CSV, dan header dokumen.</p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="institution_ministry">Nama Kementerian / Departemen</label>
+                    <input class="field" name="institution_ministry" id="institution_ministry" type="text" value="{{ old('institution_ministry', $institutionMinistry) }}" placeholder="Contoh: KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI">
+                    <p class="mt-1 text-[11px] text-muted">Ditampilkan pada kop surat resmi di laporan cetak PDF.</p>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="form-label" for="institution_address">Alamat Kampus</label>
+                    <input class="field" name="institution_address" id="institution_address" type="text" value="{{ old('institution_address', $institutionAddress) }}" placeholder="Contoh: Jalan Sultan Mansyur Syah, Dompak, Tanjungpinang 29124">
+                    <p class="mt-1 text-[11px] text-muted">Alamat lengkap kampus yang tercetak pada kop surat laporan PDF.</p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="institution_phone">Telepon / Faksimile</label>
+                    <input class="field" name="institution_phone" id="institution_phone" type="text" value="{{ old('institution_phone', $institutionPhone) }}" placeholder="Contoh: Telepon (0771) 4500089, Faksimile (0771) 4500090">
+                    <p class="mt-1 text-[11px] text-muted">Ditampilkan pada baris kontak kop surat laporan PDF.</p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="institution_website">Website Resmi Kampus</label>
+                    <input class="field font-mono" name="institution_website" id="institution_website" type="text" value="{{ old('institution_website', $institutionWebsite) }}" placeholder="Contoh: http://umrah.ac.id">
+                    <p class="mt-1 text-[11px] text-muted">URL website kampus yang tercetak pada kop surat laporan PDF.</p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="institution_email">Email Resmi Institusi</label>
+                    <input class="field font-mono" name="institution_email" id="institution_email" type="email" value="{{ old('institution_email', $institutionEmail) }}" placeholder="Contoh: email@umrah.ac.id">
+                    <p class="mt-1 text-[11px] text-muted">Email resmi kampus yang tercetak pada kop surat laporan PDF.</p>
+                </div>
+
+                {{-- Logo Institusi Upload --}}
+                <div class="md:col-span-2">
+                    <label class="form-label" for="app_logo">Logo Institusi</label>
+                    <div class="flex items-start gap-4 flex-wrap">
+                        <div class="shrink-0">
+                            <img id="logo-preview" src="{{ $currentLogoUrl }}" alt="Logo Institusi" class="h-16 w-auto object-contain rounded border border-line/40 bg-white p-1">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <input class="field text-sm" name="app_logo" id="app_logo" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                            <p class="mt-1 text-[11px] text-muted">Format: PNG, JPG, SVG, atau WebP. Maks. 2 MB. Logo ini akan digunakan pada seluruh laporan cetak PDF dan tampilan sistem.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
+
 
         {{-- Seksi 2: Konfigurasi Operasional Akademik --}}
         <section class="surface p-6 border border-line/60 space-y-5">
@@ -235,6 +293,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Preview logo real-time saat file dipilih
+    const logoInput = document.getElementById('app_logo');
+    const logoPreview = document.getElementById('logo-preview');
+    if (logoInput && logoPreview) {
+        logoInput.addEventListener('change', () => {
+            const file = logoInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => { logoPreview.src = e.target.result; };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+
     const providerSelect = document.getElementById('ai_provider');
     const modelSelect = document.getElementById('ai_model');
     const modelHint = document.getElementById('ai_model_hint');

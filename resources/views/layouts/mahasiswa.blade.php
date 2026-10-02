@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f5f5f2">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'SALE')</title>
+    <title>@yield('title', \App\Models\SystemSetting::appName())</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         html { scrollbar-gutter: stable; }
@@ -28,7 +28,7 @@
                         (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
                 @endphp
                 <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
-                    <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">SALE</span>
+                    <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">{{ \App\Models\SystemSetting::appName() }}</span>
                     <span class="mt-0.5 block text-xs text-muted">{{ \App\Models\SystemSetting::valueFor('institution', 'Smart Academic Learning Ecosystem') }}</span>
                 </a>
             </div>

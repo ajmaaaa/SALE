@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -704,10 +705,34 @@ class AdminPreviewController extends Controller
             'ai_api_key' => ['nullable', 'string', 'max:255'],
             'maintenance_mode' => ['nullable', Rule::in(['0', '1'])],
             'session_lifetime' => ['nullable', 'integer', 'min:5', 'max:10080'],
+            'app_name' => ['nullable', 'string', 'max:100'],
+            'institution_ministry' => ['nullable', 'string', 'max:255'],
+            'institution_address' => ['nullable', 'string', 'max:255'],
+            'institution_phone' => ['nullable', 'string', 'max:150'],
+            'institution_website' => ['nullable', 'string', 'max:255'],
+            'institution_email' => ['nullable', 'email', 'max:150'],
+            'app_logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
         ]);
-        DB::transaction(function () use ($data) {
-            foreach ($data as $key => $value) {
-                SystemSetting::updateOrCreate(['key' => $key], ['value' => (string) ($value ?? '')]);
+        DB::transaction(function () use ($data, $request) {
+            // Simpan semua field teks ke system_settings (kecuali app_logo)
+            $textFields = ['institution', 'institution_code', 'semester', 'support', 'ai_token_quota',
+                'ai_provider', 'ai_model', 'ai_api_key', 'maintenance_mode', 'session_lifetime',
+                'app_name', 'institution_ministry', 'institution_address', 'institution_phone',
+                'institution_website', 'institution_email'];
+            foreach ($textFields as $field) {
+                if (array_key_exists($field, $data)) {
+                    SystemSetting::updateOrCreate(['key' => $field], ['value' => (string) ($data[$field] ?? '')]);
+                }
+            }
+            // Handle upload logo
+            if ($request->hasFile('app_logo') && $request->file('app_logo')->isValid()) {
+                // Hapus logo lama jika ada
+                $oldPath = SystemSetting::valueFor('app_logo_path');
+                if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+                $newPath = $request->file('app_logo')->store('logos', 'public');
+                SystemSetting::updateOrCreate(['key' => 'app_logo_path'], ['value' => $newPath]);
             }
             Semester::query()->update(['is_active' => false]);
             Semester::where('name', $data['semester'])->update(['is_active' => true]);
@@ -718,6 +743,7 @@ class AdminPreviewController extends Controller
         });
         return back()->with('notice', 'Pengaturan sistem berhasil disimpan ke database.');
     }
+
 
     public function testAiConnection(Request $request)
     {

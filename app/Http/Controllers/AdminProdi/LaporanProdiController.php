@@ -52,7 +52,12 @@ class LaporanProdiController extends AdminProdiController
         $colLetters   = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 
         // ── Baris 1: Judul ────────────────────────────────────────────────────
-        $sheet->setCellValue('A1', 'LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI');
+        $appN = \App\Models\SystemSetting::appName();
+        $instN = \App\Models\SystemSetting::valueFor('institution', '');
+        $excelTitle = $instN
+            ? mb_strtoupper($instN, 'UTF-8') . ' - LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI'
+            : 'LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI';
+        $sheet->setCellValue('A1', $excelTitle);
         $sheet->mergeCells('A1:I1');
         $sheet->getStyle('A1')->applyFromArray([
             'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '000000']],

@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Akademik &amp; Capaian Prodi {{ $activeProdi?->code }} - {{ $activeSemester?->name }} | UMRAH</title>
     @php
-        $logoPath = public_path('images/logo-umrah.png');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        $logoBase64 = \App\Models\SystemSetting::logoBase64();
     @endphp
     <style>
         /* ── Dimensi & Pengaturan Kertas ── */
@@ -419,18 +418,33 @@
             <div class="kop-container">
                 <div class="kop-logo-cell">
                     @if($logoBase64)
-                        <img src="{{ $logoBase64 }}" alt="Logo UMRAH">
+                        <img src="{{ $logoBase64 }}" alt="Logo Institusi">
                     @else
-                        <img src="{{ asset('images/logo-umrah.png') }}" alt="Logo UMRAH">
+                        <img src="{{ asset('images/logo-umrah.png') }}" alt="Logo Institusi">
                     @endif
                 </div>
                 <div class="kop-text-cell">
-                    <div class="kop-instansi-1">KEMENTERIAN PENDIDIKAN TINGGI,</div>
-                    <div class="kop-instansi-2">SAINS, DAN TEKNOLOGI</div>
-                    <div class="kop-univ">UNIVERSITAS MARITIM RAJA ALI HAJI</div>
-                    <div class="kop-alamat">Jalan Sultan Mansyur Syah, Dompak, Tanjungpinang 29124</div>
-                    <div class="kop-kontak">Telepon (0771) 4500089, Faksimile (0771) 4500090, SLI (0771) 4500091, Kotak Pos 155</div>
-                    <div class="kop-web">Laman http://umrah.ac.id, Posel email@umrah.ac.id</div>
+                    @php
+                        $kopMinistry = \App\Models\SystemSetting::valueFor('institution_ministry', 'KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI');
+                        $kopUniv = \App\Models\SystemSetting::valueFor('institution', 'UNIVERSITAS MARITIM RAJA ALI HAJI');
+                        $kopAddress = \App\Models\SystemSetting::valueFor('institution_address', 'Jalan Sultan Mansyur Syah, Dompak, Tanjungpinang 29124');
+                        $kopPhone = \App\Models\SystemSetting::valueFor('institution_phone', 'Telepon (0771) 4500089, Faksimile (0771) 4500090, SLI (0771) 4500091, Kotak Pos 155');
+                        $kopWeb = \App\Models\SystemSetting::valueFor('institution_website', 'http://umrah.ac.id');
+                        $kopEmail = \App\Models\SystemSetting::valueFor('institution_email', 'email@umrah.ac.id');
+                    @endphp
+                    @if($kopMinistry)
+                        <div class="kop-instansi-1">{{ mb_strtoupper($kopMinistry) }}</div>
+                    @endif
+                    <div class="kop-univ">{{ mb_strtoupper($kopUniv) }}</div>
+                    @if($kopAddress)
+                        <div class="kop-alamat">{{ $kopAddress }}</div>
+                    @endif
+                    @if($kopPhone)
+                        <div class="kop-kontak">{{ $kopPhone }}</div>
+                    @endif
+                    @if($kopWeb || $kopEmail)
+                        <div class="kop-web">{{ $kopWeb ? 'Laman '.$kopWeb : '' }}{{ ($kopWeb && $kopEmail) ? ', ' : '' }}{{ $kopEmail ? 'Posel '.$kopEmail : '' }}</div>
+                    @endif
                 </div>
                 <div class="kop-spacer-cell"></div>
             </div>

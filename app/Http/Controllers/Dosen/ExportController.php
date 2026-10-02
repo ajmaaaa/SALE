@@ -227,7 +227,10 @@ class ExportController extends Controller
         }
 
         fputcsv($handle, [mb_strtoupper($title, 'UTF-8')], ';');
-        fputcsv($handle, ['SISTEM INFORMASI AKADEMIK & OBE (SALE)'], ';');
+        $appN = \App\Models\SystemSetting::appName();
+        $instN = \App\Models\SystemSetting::valueFor('institution', '');
+        $csvHeader = $instN ? mb_strtoupper($instN, 'UTF-8') . ' - ' . mb_strtoupper($appN, 'UTF-8') : mb_strtoupper($appN, 'UTF-8');
+        fputcsv($handle, [$csvHeader], ';');
         fputcsv($handle, [], ';');
         fputcsv($handle, ['Mata Kuliah', $mkLabel], ';');
         if ($mk?->prodi?->name) {
