@@ -18,7 +18,7 @@
                 </span>
             </nav>
             <h1 class="page-heading">Laporan Akademik &amp; Capaian Nilai Prodi</h1>
-            <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, intake mahasiswa baru, rata-rata nilai, dan ekspor data.</p>
+            <p class="page-description">Laporan metrik spesifik per prodi per semester: jumlah dosen/mahasiswa, rata-rata nilai, dan ekspor data.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <a href="{{ route('admin-prodi.laporan.print', ['prodi_id' => $activeProdi?->id, 'semester_id' => $activeSemester?->id]) }}" target="_blank" class="button-secondary text-xs flex items-center justify-center gap-1.5 shadow-2xs flex-1 sm:flex-initial">
@@ -117,7 +117,6 @@
                         <th class="px-4 py-3.5 w-48 !align-middle">Dosen Ketua</th>
                         <th class="px-4 py-3.5 w-40 !align-middle">Dosen Anggota</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">Mahasiswa Terdaftar</th>
-                        <th class="px-4 py-3.5 text-center w-36 !align-middle">Jumlah Asesmen</th>
                         <th class="px-4 py-3.5 text-center w-36 !align-middle">Rata-rata Nilai Kelas</th>
                     </tr>
                 </thead>
@@ -140,23 +139,23 @@
                         <td class="px-4 py-3.5 !align-middle">
                             <span class="font-semibold text-ink block">{{ $cr['dosen_ketua'] }}</span>
                         </td>
-                        <td class="px-4 py-3.5 !align-middle">
-                            @if($cr['dosen_wakil'] !== '-')
+                        @php
+                            $hasAnggota = !empty($cr['dosen_wakil']) && $cr['dosen_wakil'] !== '-';
+                        @endphp
+                        <td class="px-4 py-3.5 !align-middle {{ $hasAnggota ? '' : 'text-center' }}">
+                            @if($hasAnggota)
                                 <span class="font-medium text-ink block">{{ $cr['dosen_wakil'] }}</span>
                             @else
-                                <span class="text-muted italic text-[11px]"></span>
+                                <span class="text-muted font-medium">-</span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
                             {{ $cr['students_count'] }} <span class="font-normal text-muted">orang</span>
                         </td>
-                        <td class="px-4 py-3.5 text-center font-bold text-ink !align-middle whitespace-nowrap">
-                            {{ $cr['assessments_count'] }} <span class="font-normal text-muted">asesmen</span>
-                        </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
                             @if($cr['class_average'] !== null)
                                 <span class="font-bold text-ink text-sm">
-                                    {{ number_format($cr['class_average'], 2) }}
+                                     {{ number_format($cr['class_average'], 2) }}
                                 </span>
                             @else
                                 <span class="text-muted italic text-[11px]">Belum dinilai</span>
@@ -165,7 +164,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="py-12 text-center text-muted !align-middle">
+                        <td colspan="7" class="py-12 text-center text-muted !align-middle">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <svg class="h-8 w-8 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
