@@ -7,7 +7,6 @@
 @php
     $settings = $settings ?? [];
     $institution = $settings['institution'] ?? 'Universitas Contoh';
-    $institutionCode = $settings['institution_code'] ?? 'UNIV-01';
     $activeSemester = $settings['semester'] ?? 'Ganjil 2026/2027';
     $supportEmail = $settings['support'] ?? 'akademik@example.test';
     $aiQuota = $settings['ai_token_quota'] ?? 1000000;
@@ -76,33 +75,21 @@
 
             <div class="grid gap-5 md:grid-cols-2">
                 <div>
-                    <label class="form-label" for="institution">Nama Resmi Institusi / Kampus</label>
+                    <label class="form-label" for="institution">Nama Resmi Institusi / Kampus <span class="text-danger">*</span></label>
                     <input required class="field" name="institution" id="institution" type="text" value="{{ old('institution', $institution) }}" placeholder="Contoh: Universitas Contoh">
                     <p class="mt-1 text-[11px] text-muted">Ditampilkan pada navbar dan dokumen laporan cetak.</p>
-                </div>
-
-                <div>
-                    <label class="form-label" for="institution_code">Kode Institusi</label>
-                    <input class="field font-mono" name="institution_code" id="institution_code" type="text" value="{{ old('institution_code', $institutionCode) }}" placeholder="Contoh: UNIV-01">
-                    <p class="mt-1 text-[11px] text-muted">Identifikasi kode kampus untuk integrasi sistem eksternal.</p>
-                </div>
-
-                <div>
-                    <label class="form-label" for="support">Email Narahubung &amp; Bantuan Teknis</label>
-                    <input required class="field" name="support" id="support" type="email" value="{{ old('support', $supportEmail) }}" placeholder="bantuan@kampus.ac.id">
-                    <p class="mt-1 text-[11px] text-muted">Tujuan kontak ketika pengguna mengalami kendala akses atau teknis.</p>
-                </div>
-
-                <div>
-                    <label class="form-label" for="campus_domain">Domain Layanan Kampus</label>
-                    <input class="field font-mono" id="campus_domain" type="text" disabled value="https://sale.campus.ac.id" readonly>
-                    <p class="mt-1 text-[11px] text-muted">Domain utama portal LMS institusi (konfigurasi web server).</p>
                 </div>
 
                 <div>
                     <label class="form-label" for="app_name">Nama Aplikasi / Sistem</label>
                     <input class="field" name="app_name" id="app_name" type="text" value="{{ old('app_name', $appName) }}" placeholder="Contoh: SALE">
                     <p class="mt-1 text-[11px] text-muted">Nama sistem yang ditampilkan pada laporan Excel, CSV, dan header dokumen.</p>
+                </div>
+
+                <div>
+                    <label class="form-label" for="support">Email Narahubung &amp; Bantuan Teknis <span class="text-danger">*</span></label>
+                    <input required class="field" name="support" id="support" type="email" value="{{ old('support', $supportEmail) }}" placeholder="bantuan@kampus.ac.id">
+                    <p class="mt-1 text-[11px] text-muted">Tujuan kontak ketika pengguna mengalami kendala akses atau teknis.</p>
                 </div>
 
                 <div>
@@ -129,22 +116,67 @@
                     <p class="mt-1 text-[11px] text-muted">URL website kampus yang tercetak pada kop surat laporan PDF.</p>
                 </div>
 
-                <div>
+                <div class="md:col-span-2">
                     <label class="form-label" for="institution_email">Email Resmi Institusi</label>
                     <input class="field font-mono" name="institution_email" id="institution_email" type="email" value="{{ old('institution_email', $institutionEmail) }}" placeholder="Contoh: email@umrah.ac.id">
                     <p class="mt-1 text-[11px] text-muted">Email resmi kampus yang tercetak pada kop surat laporan PDF.</p>
                 </div>
 
-                {{-- Logo Institusi Upload --}}
-                <div class="md:col-span-2">
-                    <label class="form-label" for="app_logo">Logo Institusi</label>
-                    <div class="flex items-start gap-4 flex-wrap">
-                        <div class="shrink-0">
-                            <img id="logo-preview" src="{{ $currentLogoUrl }}" alt="Logo Institusi" class="h-16 w-auto object-contain rounded border border-line/40 bg-white p-1">
+                {{-- Logo Institusi (Gaya Foto Profil dengan Live Preview) --}}
+                <div class="md:col-span-2 border-t border-line/60 pt-5">
+                    <label class="form-label mb-2">Logo Institusi</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-5 p-4 rounded-xl border border-line/70 bg-canvas/30">
+                        {{-- Avatar / Logo Container --}}
+                        <div class="relative shrink-0">
+                            <button type="button" onclick="document.getElementById('app_logo').click()" class="relative group cursor-pointer block h-20 w-20 shrink-0 rounded-2xl border border-[#cbd1d0] bg-white p-2 shadow-2xs hover:border-brand hover:shadow-xs transition select-none" title="Ubah Logo Institusi">
+                                @if(!empty($currentLogoUrl))
+                                    <img id="logo-preview-img" src="{{ $currentLogoUrl }}" alt="Logo Institusi" class="h-full w-full object-contain group-hover:opacity-90 transition" onerror="this.classList.add('hidden'); document.getElementById('logo-placeholder').classList.remove('hidden');">
+                                    <div id="logo-placeholder" class="hidden flex h-full w-full flex-col items-center justify-center rounded-xl bg-slate-50 text-slate-400 group-hover:text-brand transition">
+                                        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 21h18M3 7v14M21 7v14M6 11h2M6 15h2M10 11h4M10 15h4M16 11h2M16 15h2M4 7l8-4 8 4"/>
+                                        </svg>
+                                    </div>
+                                @else
+                                    <img id="logo-preview-img" src="" alt="Logo Institusi" class="hidden h-full w-full object-contain group-hover:opacity-90 transition">
+                                    <div id="logo-placeholder" class="flex h-full w-full flex-col items-center justify-center rounded-xl bg-slate-50 text-slate-400 group-hover:text-brand transition">
+                                        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 21h18M3 7v14M21 7v14M6 11h2M6 15h2M10 11h4M10 15h4M16 11h2M16 15h2M4 7l8-4 8 4"/>
+                                        </svg>
+                                    </div>
+                                @endif
+                                <span class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow-xs ring-2 ring-white group-hover:bg-brand-dark transition-colors" title="Ubah Logo">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 20h9"/>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                    </svg>
+                                </span>
+                            </button>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <input class="field text-sm" name="app_logo" id="app_logo" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp">
-                            <p class="mt-1 text-[11px] text-muted">Format: PNG, JPG, SVG, atau WebP. Maks. 2 MB. Logo ini akan digunakan pada seluruh laporan cetak PDF dan tampilan sistem.</p>
+
+                        {{-- Info & Action Buttons --}}
+                        <div class="space-y-2 flex-1 min-w-0">
+                            <div>
+                                <p class="text-sm font-bold text-ink">Pratinjau Logo Institusi</p>
+                                <p class="text-xs text-muted leading-relaxed mt-0.5">
+                                    Format: PNG, JPG, SVG, atau WebP. Maks. 2 MB. Logo ini akan digunakan pada seluruh laporan cetak PDF dan tampilan sistem.
+                                </p>
+                            </div>
+
+                            <input class="hidden" name="app_logo" id="app_logo" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+                            <input type="hidden" name="remove_logo" id="remove_logo" value="0">
+
+                            <div class="flex flex-wrap items-center gap-2 pt-1">
+                                <button type="button" onclick="document.getElementById('app_logo').click()" class="button-secondary text-xs py-2 px-3.5 font-semibold inline-flex items-center gap-1.5 shadow-2xs">
+                                    <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    <span id="btn-choose-label">{{ !empty($currentLogoUrl) ? 'Ganti Logo' : 'Pilih Berkas Logo' }}</span>
+                                </button>
+
+                                <button type="button" id="btn-remove-logo" onclick="handleRemoveLogo()" class="text-xs font-semibold py-2 px-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" @if(!\App\Models\SystemSetting::hasCustomLogo()) hidden @endif>
+                                    Hapus Logo
+                                </button>
+
+                                <span id="selected-file-info" class="text-xs text-ink font-medium truncate max-w-xs" hidden></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -293,19 +325,106 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Preview logo real-time saat file dipilih
+    // Live preview dan manipulasi logo institusi (mirip photo profil)
     const logoInput = document.getElementById('app_logo');
-    const logoPreview = document.getElementById('logo-preview');
-    if (logoInput && logoPreview) {
+    const logoPreviewImg = document.getElementById('logo-preview-img');
+    const logoPlaceholder = document.getElementById('logo-placeholder');
+    const btnRemoveLogo = document.getElementById('btn-remove-logo');
+    const btnChooseLabel = document.getElementById('btn-choose-label');
+    const selectedFileInfo = document.getElementById('selected-file-info');
+    const removeLogoInput = document.getElementById('remove_logo');
+    const initialLogoUrl = @json($currentLogoUrl);
+    const hasCustomLogoInitially = @json(\App\Models\SystemSetting::hasCustomLogo());
+
+    if (logoInput) {
         logoInput.addEventListener('change', () => {
             const file = logoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => { logoPreview.src = e.target.result; };
-                reader.readAsDataURL(file);
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Ukuran berkas logo melebihi 2 MB. Silakan pilih berkas yang lebih kecil.');
+                logoInput.value = '';
+                return;
+            }
+            if (removeLogoInput) removeLogoInput.value = '0';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (logoPreviewImg) {
+                    logoPreviewImg.src = e.target.result;
+                    logoPreviewImg.classList.remove('hidden');
+                }
+                if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+            if (selectedFileInfo) {
+                selectedFileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+                selectedFileInfo.hidden = false;
+            }
+            if (btnChooseLabel) btnChooseLabel.textContent = 'Ganti Berkas';
+            if (btnRemoveLogo) {
+                btnRemoveLogo.hidden = false;
+                btnRemoveLogo.textContent = 'Batalkan Pilihan';
             }
         });
     }
+
+    window.handleRemoveLogo = function () {
+        if (logoInput && logoInput.files.length > 0) {
+            // Membatalkan file baru yang baru dipilih
+            logoInput.value = '';
+            if (selectedFileInfo) {
+                selectedFileInfo.textContent = '';
+                selectedFileInfo.hidden = true;
+            }
+            if (hasCustomLogoInitially && initialLogoUrl) {
+                if (logoPreviewImg) {
+                    logoPreviewImg.src = initialLogoUrl;
+                    logoPreviewImg.classList.remove('hidden');
+                }
+                if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+                if (btnRemoveLogo) {
+                    btnRemoveLogo.textContent = 'Hapus Logo';
+                    btnRemoveLogo.hidden = false;
+                }
+                if (btnChooseLabel) btnChooseLabel.textContent = 'Ganti Logo';
+            } else {
+                if (logoPreviewImg) logoPreviewImg.classList.add('hidden');
+                if (logoPlaceholder) logoPlaceholder.classList.remove('hidden');
+                if (btnRemoveLogo) btnRemoveLogo.hidden = true;
+                if (btnChooseLabel) btnChooseLabel.textContent = 'Pilih Berkas Logo';
+            }
+            if (removeLogoInput) removeLogoInput.value = '0';
+        } else if (hasCustomLogoInitially) {
+            // Menandai hapus logo yang sudah tersimpan
+            const currentlyMarkedForRemoval = removeLogoInput && removeLogoInput.value === '1';
+            if (!currentlyMarkedForRemoval) {
+                if (removeLogoInput) removeLogoInput.value = '1';
+                if (logoPreviewImg) logoPreviewImg.classList.add('hidden');
+                if (logoPlaceholder) logoPlaceholder.classList.remove('hidden');
+                if (selectedFileInfo) {
+                    selectedFileInfo.textContent = 'Logo akan dihapus saat disimpan.';
+                    selectedFileInfo.hidden = false;
+                }
+                if (btnRemoveLogo) {
+                    btnRemoveLogo.textContent = 'Batal Hapus';
+                }
+            } else {
+                if (removeLogoInput) removeLogoInput.value = '0';
+                if (logoPreviewImg) {
+                    logoPreviewImg.src = initialLogoUrl;
+                    logoPreviewImg.classList.remove('hidden');
+                }
+                if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+                if (selectedFileInfo) {
+                    selectedFileInfo.textContent = '';
+                    selectedFileInfo.hidden = true;
+                }
+                if (btnRemoveLogo) {
+                    btnRemoveLogo.textContent = 'Hapus Logo';
+                }
+            }
+        }
+    };
+
 
 
     const providerSelect = document.getElementById('ai_provider');

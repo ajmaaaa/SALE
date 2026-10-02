@@ -40,16 +40,26 @@ class SystemSetting extends Model
         return '';
     }
 
+    public static function hasCustomLogo(): bool
+    {
+        $storedPath = static::valueFor('app_logo_path');
+        return ! empty($storedPath) && Storage::disk('public')->exists($storedPath);
+    }
+
     /**
      * Kembalikan URL publik logo (untuk tampilan UI/sidebar).
      */
-    public static function logoUrl(): string
+    public static function logoUrl(): ?string
     {
         $storedPath = static::valueFor('app_logo_path');
         if ($storedPath && Storage::disk('public')->exists($storedPath)) {
             return Storage::disk('public')->url($storedPath);
         }
-        return asset('images/logo-umrah.png');
+        $defaultPath = public_path('images/logo-umrah.png');
+        if (file_exists($defaultPath)) {
+            return asset('images/logo-umrah.png');
+        }
+        return null;
     }
 
     /**

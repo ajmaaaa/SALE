@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminAiExportAndMonitoringTest extends TestCase
@@ -210,5 +213,62 @@ class AdminAiExportAndMonitoringTest extends TestCase
     {
         $exitCode = \Illuminate\Support\Facades\Artisan::call('sale:backup');
         $this->assertEquals(0, $exitCode);
+    }
+
+    public function test_admin_settings_page_does_not_contain_institution_code_or_domain(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/admin/pengaturan');
+
+        $response->assertOk();
+        $response->assertDontSee('Kode Institusi');
+        $response->assertDontSee('Domain Layanan Kampus');
+        $response->assertDontSee('name="institution_code"', false);
+        $response->assertDontSee('name="campus_domain"', false);
+        $response->assertSee('Logo Institusi');
+        $response->assertSee('Pratinjau Logo Institusi');
+        $response->assertSee('id="logo-preview-img"', false);
+        $response->assertSee('id="logo-placeholder"', false);
+        $response->assertSee('id="btn-remove-logo"', false);
+    }
+
+    public function test_admin_can_upload_and_remove_institution_logo(): void
+    {
+        Storage::fake('public');
+        \App\Models\Semester::create(['name' => 'Ganjil 2026/2027', 'code' => '20261', 'is_active' => true]);
+
+        $logoFile = UploadedFile::fake()->image('kampus_logo.png', 120, 120);
+
+        $payload = [
+            'institution' => 'Universitas Maritim Raja Ali Haji',
+            'semester' => 'Ganjil 2026/2027',
+            'support' => 'admin@umrah.ac.id',
+            'app_logo' => $logoFile,
+        ];
+
+        $response = $this->actingAs($this->admin)->post('/admin/pengaturan', $payload);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('notice');
+
+        $savedPath = SystemSetting::valueFor('app_logo_path');
+        $this->assertNotNull($savedPath);
+        Storage::disk('public')->assertExists($savedPath);
+        $this->assertTrue(SystemSetting::hasCustomLogo());
+        $this->assertNotNull(SystemSetting::logoUrl());
+
+        // Test hapus logo dengan remove_logo = 1
+        $removePayload = [
+            'institution' => 'Universitas Maritim Raja Ali Haji',
+            'semester' => 'Ganjil 2026/2027',
+            'support' => 'admin@umrah.ac.id',
+            'remove_logo' => '1',
+        ];
+
+        $removeResponse = $this->actingAs($this->admin)->post('/admin/pengaturan', $removePayload);
+
+        $removeResponse->assertRedirect();
+        $this->assertNull(SystemSetting::valueFor('app_logo_path'));
+        Storage::disk('public')->assertMissing($savedPath);
+        $this->assertFalse(SystemSetting::hasCustomLogo());
     }
 }

@@ -712,6 +712,7 @@ class AdminPreviewController extends Controller
             'institution_website' => ['nullable', 'string', 'max:255'],
             'institution_email' => ['nullable', 'email', 'max:150'],
             'app_logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            'remove_logo' => ['nullable', 'in:0,1,true,false'],
         ]);
         DB::transaction(function () use ($data, $request) {
             // Simpan semua field teks ke system_settings (kecuali app_logo)
@@ -724,8 +725,14 @@ class AdminPreviewController extends Controller
                     SystemSetting::updateOrCreate(['key' => $field], ['value' => (string) ($data[$field] ?? '')]);
                 }
             }
-            // Handle upload logo
-            if ($request->hasFile('app_logo') && $request->file('app_logo')->isValid()) {
+            // Handle upload logo / hapus logo
+            if ($request->boolean('remove_logo')) {
+                $oldPath = SystemSetting::valueFor('app_logo_path');
+                if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+                SystemSetting::where('key', 'app_logo_path')->delete();
+            } elseif ($request->hasFile('app_logo') && $request->file('app_logo')->isValid()) {
                 // Hapus logo lama jika ada
                 $oldPath = SystemSetting::valueFor('app_logo_path');
                 if ($oldPath && Storage::disk('public')->exists($oldPath)) {
