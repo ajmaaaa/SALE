@@ -263,7 +263,7 @@
             color: #000;
         }
         .formal-table thead th {
-            background-color: #f2f2f2;
+            background-color: transparent;
             font-weight: bold;
             text-align: center;
             font-size: 9pt;
@@ -282,7 +282,7 @@
             font-size: 9pt;
         }
         .formal-table .table-total-row td {
-            background-color: #f2f2f2;
+            background-color: transparent;
             font-weight: bold;
         }
         .formal-table .val {
@@ -372,8 +372,10 @@
                 size: var(--paper-width) var(--paper-min-height);
                 margin: var(--paper-padding);
             }
-            .formal-table th {
-                background-color: #f2f2f2 !important;
+            .formal-table th,
+            .formal-table thead th,
+            .formal-table .table-total-row td {
+                background-color: transparent !important;
             }
             .signatures-container,
             .doc-footer-bsre {
