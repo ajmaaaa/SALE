@@ -535,18 +535,37 @@ class LearningController extends Controller
         });
 
         uasort($filteredItems, function ($a, $b) {
-            $hasDueA = ! empty($a['due']);
-            $hasDueB = ! empty($b['due']);
+            $dueA = ! empty($a['due']) ? Carbon::parse($a['due']) : null;
+            $dueB = ! empty($b['due']) ? Carbon::parse($b['due']) : null;
 
-            if ($hasDueA && $hasDueB) {
-                $dueA = Carbon::parse($a['due']);
-                $dueB = Carbon::parse($b['due']);
+            $isPastA = $dueA && $dueA->isPast();
+            $isPastB = $dueB && $dueB->isPast();
 
+            $isUpcomingA = $dueA && ! $isPastA;
+            $isUpcomingB = $dueB && ! $isPastB;
+
+            // 1. Prioritaskan tugas aktif yang tenggatnya belum terlewat (upcoming)
+            if ($isUpcomingA !== $isUpcomingB) {
+                return $isUpcomingA ? -1 : 1;
+            }
+
+            // 2. Jika sama-sama upcoming, urutkan dari tenggat tercepat/terdekat (ascending)
+            if ($isUpcomingA && $isUpcomingB) {
                 if ($dueA->ne($dueB)) {
                     return $dueA <=> $dueB;
                 }
-            } elseif ($hasDueA !== $hasDueB) {
-                return $hasDueA ? -1 : 1;
+            }
+
+            // 3. Jika satu lewat tenggat (terlambat) dan satu tanpa tenggat, utamakan tanpa tenggat
+            if ($isPastA !== $isPastB) {
+                return $isPastA ? 1 : -1;
+            }
+
+            // 4. Jika sama-sama lewat tenggat (terlambat), urutkan dari yang paling baru lewat tenggat
+            if ($isPastA && $isPastB) {
+                if ($dueA->ne($dueB)) {
+                    return $dueB <=> $dueA;
+                }
             }
 
             $timeA = isset($a['updated_at']) && $a['updated_at'] ? Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));

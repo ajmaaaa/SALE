@@ -196,4 +196,54 @@ class CodingTaskOverviewAndNotificationTest extends TestCase
         // Links must direct to item overview (not directly workbench)
         $this->assertTrue(collect($links)->contains(fn ($l) => str_contains($l, "/course/{$this->section->id}/item/{$codingTask->id}")));
     }
+
+    public function test_assignments_page_prioritizes_nearest_upcoming_deadline_over_overdue_tasks(): void
+    {
+        $overdueTask = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TUGAS-PAST',
+            'name' => 'Tugas Sudah Terlewat',
+            'type' => 'tugas',
+            'learning_payload' => ['task_mode' => 'regular'],
+            'final_weight' => 10,
+            'status' => Assessment::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(5),
+            'due_at' => now()->subDays(3),
+        ]);
+
+        $farUpcomingTask = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TUGAS-FAR',
+            'name' => 'Tugas Pekan Depan',
+            'type' => 'tugas',
+            'learning_payload' => ['task_mode' => 'regular'],
+            'final_weight' => 10,
+            'status' => Assessment::STATUS_PUBLISHED,
+            'published_at' => now(),
+            'due_at' => now()->addDays(5),
+        ]);
+
+        $nearUpcomingTask = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TUGAS-NEAR',
+            'name' => 'Tugas Tenggat Terdekat',
+            'type' => 'tugas',
+            'learning_payload' => ['task_mode' => 'regular'],
+            'final_weight' => 10,
+            'status' => Assessment::STATUS_PUBLISHED,
+            'published_at' => now(),
+            'due_at' => now()->addDay(),
+        ]);
+
+        $response = $this->actingAs($this->mahasiswa)->get(route('mahasiswa.assignment.index'));
+        $response->assertOk();
+
+        $items = $response->viewData('items');
+        $itemTitles = array_column(array_values($items), 'title');
+
+        $this->assertSame('Tugas Tenggat Terdekat', $itemTitles[0]);
+        $this->assertSame('Tugas Pekan Depan', $itemTitles[1]);
+        $this->assertSame('Tugas Sudah Terlewat', $itemTitles[2]);
+    }
 }
+

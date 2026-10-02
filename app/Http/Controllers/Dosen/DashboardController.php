@@ -44,10 +44,10 @@ class DashboardController extends Controller
 
                 $secAssessments = $section->relationLoaded('assessments') ? $section->assessments : $section->assessments()->get();
 
-                // 1. Tugas dalam waktu dekat
+                // 1. Tugas dalam waktu dekat (hanya yang belum terlewat / upcoming)
                 $secTasks = $secAssessments->whereNotIn('type', ['materi', 'pengumuman'])->where('status', 'published');
-                $taskWithDue = $secTasks->filter(fn ($asm) => ! empty($asm->due_at))->sortBy('due_at');
-                $nearestUpcomingTask = $taskWithDue->first() ?? $secTasks->first();
+                $upcomingTasks = $secTasks->filter(fn ($asm) => ! empty($asm->due_at) && $asm->due_at->isFuture())->sortBy('due_at');
+                $nearestUpcomingTask = $upcomingTasks->first();
 
                 // 2. Update materi terbaru
                 $latestMaterial = $secAssessments

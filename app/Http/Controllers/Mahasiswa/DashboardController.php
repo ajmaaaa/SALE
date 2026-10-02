@@ -56,10 +56,10 @@ class DashboardController extends Controller
             $courses = $enrolledSections->map(function ($sec) use ($activeItems) {
                 $secAssessments = $sec->relationLoaded('assessments') ? $sec->assessments : $sec->assessments()->get();
 
-                // 1. Cek tugas dalam waktu dekat (belum dikerjakan)
+                // 1. Cek tugas dalam waktu dekat (belum dikerjakan dan belum terlewat / upcoming)
                 $secActiveTasks = $activeItems->where('class_section_id', $sec->id);
-                $taskWithDue = $secActiveTasks->filter(fn ($asm) => ! empty($asm->due_at))->sortBy('due_at');
-                $nearestUpcomingTask = $taskWithDue->first() ?? $secActiveTasks->first();
+                $upcomingTasks = $secActiveTasks->filter(fn ($asm) => ! empty($asm->due_at) && $asm->due_at->isFuture())->sortBy('due_at');
+                $nearestUpcomingTask = $upcomingTasks->first();
 
                 // 2. Cek update materi terbaru
                 $latestMaterial = $secAssessments
