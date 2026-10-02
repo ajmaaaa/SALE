@@ -55,16 +55,16 @@
     };
 
     // Untuk mahasiswa: cek apakah ada tugas/kuis aktif yang belum diserahkan
-    $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis'])
+    $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])
         ->filter(fn($item) => $isDosen || !\App\Models\Submission::where('assessment_id', $item['id'])->where('mahasiswa_id', auth()->id())->exists())
         ->sort($sortTaskFn)
         ->first();
 
-    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->sort($sortTaskFn)->first();
+    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])->sort($sortTaskFn)->first();
 
     $sks = $course['sks'] ?? '3 SKS';
     $studentsCount = $course['students_count'] ?? 0;
-    $assessmentsCount = $course['assessments_count'] ?? $contents->whereIn('type', ['tugas', 'coding', 'kuis'])->count();
+    $assessmentsCount = $course['assessments_count'] ?? $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])->count();
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
     $rawDue = $next['due'] ?? null;

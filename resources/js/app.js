@@ -1427,6 +1427,7 @@ function parseCategory(value) {
     if (normalized.includes('uts')) return 'uts';
     if (normalized.includes('uas')) return 'uas';
     if (normalized.includes('kuis') || normalized.includes('quiz') || normalized.includes('ujian')) return 'kuis';
+    if (normalized === 'pbl' || normalized.includes('pbl') || normalized.includes('project')) return 'pbl';
     if (normalized === 'tugas') return 'tugas';
     return '';
 }
@@ -1496,7 +1497,7 @@ if (contentType) {
         const taskModeContainer = document.querySelector('[data-task-mode-container]');
         const taskModeGrid = document.querySelector('[data-task-mode-grid]');
 
-        const hasTaskMode = ['tugas', 'kuis', 'uts', 'uas', 'coding'].includes(category);
+        const hasTaskMode = ['tugas', 'kuis', 'uts', 'uas', 'coding', 'pbl'].includes(category);
         if (taskModeContainer) taskModeContainer.hidden = !hasTaskMode;
 
         if (hasTaskMode) {
@@ -1527,6 +1528,21 @@ if (contentType) {
                     const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
                     if (quizRadio) quizRadio.checked = true;
                 }
+            } else if (category === 'pbl') {
+                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk pelaksanaan PBL';
+                if (modeQuizCard) modeQuizCard.hidden = true;
+                if (modeRegularCard) modeRegularCard.hidden = false;
+                if (modeRegularLabel) modeRegularLabel.textContent = 'Laporan Proyek (Dokumen / Tautan)';
+                if (modeRegularDesc) modeRegularDesc.textContent = 'Pengumpulan laporan akhir, dokumen rancangan, atau tautan repositori.';
+                if (modeCodingCard) modeCodingCard.hidden = false;
+                if (taskModeGrid) {
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';
+                }
+                const currentChecked = document.querySelector('[data-task-mode]:checked')?.value;
+                if (currentChecked === 'quiz') {
+                    const regRadio = document.querySelector('[data-task-mode][value="regular"]');
+                    if (regRadio) regRadio.checked = true;
+                }
             } else {
                 // tugas / coding
                 if (taskModeLegend) taskModeLegend.textContent = 'Jenis tugas';
@@ -1546,7 +1562,7 @@ if (contentType) {
             }
         }
 
-        const showAssignment = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'lainnya'].includes(category);
+        const showAssignment = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'pbl', 'lainnya'].includes(category);
         const showMaterialMode = category === 'materi';
         const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const selectedMaterialMode = document.querySelector('[data-material-mode]:checked')?.value || 'regular';
@@ -1584,7 +1600,7 @@ if (contentType) {
                 field.disabled = !(isCoding && isQuestionStep);
             }
         });
-        const showManualCpmk = ['tugas', 'uts', 'uas'].includes(category) && !isCoding && !isQuiz;
+        const showManualCpmk = ['tugas', 'uts', 'uas', 'pbl'].includes(category) && !isCoding && !isQuiz;
         if (manualCpmkSettings) {
             setSectionVisibility(manualCpmkSettings, showManualCpmk);
             manualCpmkSettings.querySelectorAll('input').forEach(field => {

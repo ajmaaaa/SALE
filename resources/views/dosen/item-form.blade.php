@@ -71,7 +71,7 @@
                 <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
                 <select id="type" name="type" class="field" data-content-type required>
                     <option value="" disabled @selected(!old('type', $item['type'] ?? '') && !request('type'))>Pilih jenis konten</option>
-                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
+                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pbl' => 'Project-Based Learning (PBL)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('type', $item['type'] ?? request('type')) === $value || ($value === 'tugas' && old('type', $item['type'] ?? '') === 'coding'))>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -256,7 +256,7 @@
 
 
             @php
-                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding', 'uts', 'uas', 'lainnya'], true);
+                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding', 'uts', 'uas', 'pbl', 'lainnya'], true);
                 $taskDueVal = $hasTaskDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
             @endphp
             <div class="rounded-xl border border-line/70 bg-white p-4">

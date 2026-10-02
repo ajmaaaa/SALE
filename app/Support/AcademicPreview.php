@@ -16,6 +16,7 @@ class AcademicPreview
             ['code' => 'kuis', 'name' => 'Kuis', 'weight' => 10],
             ['code' => 'uts', 'name' => 'UTS', 'weight' => 20],
             ['code' => 'uas', 'name' => 'UAS', 'weight' => 25],
+            ['code' => 'pbl', 'name' => 'PBL', 'weight' => 15],
             ['code' => 'proyek', 'name' => 'Proyek', 'weight' => 15],
             ['code' => 'partisipasi', 'name' => 'Kehadiran & partisipasi', 'weight' => 5],
         ];

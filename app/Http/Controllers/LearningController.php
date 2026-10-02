@@ -468,7 +468,7 @@ class LearningController extends Controller
                             || (($payload['question_type'] ?? null) === 'coding')
                             || ! empty($payload['coding_steps']);
 
-                        $itemType = $isCoding ? 'coding' : (in_array($asm->type, ['tugas', 'kuis', 'uts', 'uas', 'pbl', 'case', 'lainnya']) ? ($asm->type === 'pbl' ? 'tugas' : $asm->type) : ($asmData['type'] ?? 'tugas'));
+                        $itemType = $isCoding ? 'coding' : (in_array($asm->type, ['tugas', 'kuis', 'uts', 'uas', 'pbl', 'case', 'lainnya']) ? $asm->type : ($asmData['type'] ?? 'tugas'));
 
                         $publishedAt = $asm->published_at ?? $asm->created_at;
                         $publishedAtFormatted = $asmData['published_at_formatted'] ?? ($publishedAt ? Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null);
@@ -504,7 +504,9 @@ class LearningController extends Controller
                 $reqType = $request->query('type');
                 if ($reqType === 'tugas') {
                     // Karena filter tugas coding dihapus & digabung ke tugas, filter "Tugas" mencakup tugas coding
-                    $typeMatch = $isCoding || in_array($item['type'] ?? '', ['tugas', 'coding', 'pbl', 'case'], true);
+                    $typeMatch = $isCoding || in_array($item['type'] ?? '', ['tugas', 'coding'], true);
+                } elseif ($reqType === 'pbl') {
+                    $typeMatch = ($item['type'] ?? '') === 'pbl';
                 } elseif ($reqType === 'kuis') {
                     $typeMatch = ($item['type'] ?? '') === 'kuis';
                 } elseif ($reqType === 'uts') {
@@ -742,7 +744,7 @@ class LearningController extends Controller
                 'question_type' => 'coding',
             ]);
         }
-        if (in_array($rawType, ['uts', 'uas'], true)) {
+        if (in_array($rawType, ['uts', 'uas', 'pbl'], true)) {
             if ($rawTaskMode === 'coding') {
                 $request->merge(['question_type' => 'coding']);
             } elseif ($rawTaskMode === 'quiz') {
@@ -775,7 +777,7 @@ class LearningController extends Controller
 
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
-            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman', 'lainnya'])],
+            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'pengumuman', 'lainnya'])],
             'task_mode' => 'nullable|in:regular,coding,quiz',
             'material_mode' => 'nullable|in:regular,coding',
             'ai_enabled' => 'nullable|boolean',
@@ -856,7 +858,7 @@ class LearningController extends Controller
             unset($cStep);
         }
 
-        if ($category === 'tugas' && ! $isCodingTask && ! $submittedQuestions) {
+        if (in_array($category, ['tugas', 'uts', 'uas', 'pbl'], true) && ! $isCodingTask && ! $submittedQuestions) {
             $manualWeights = array_filter(
                 $data['manual_cpmk_weights'] ?? [],
                 fn ($weight) => (float) $weight > 0
@@ -918,7 +920,7 @@ class LearningController extends Controller
             unset($question);
             $data['questions'] = QuizQuestion::canonicalizeQuestions($data['questions']);
             $data['points'] = array_sum(array_column($data['questions'], 'points'));
-            $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas'], true) ? $category : ($category === 'lainnya' ? 'lainnya' : 'tugas');
+            $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas', 'pbl'], true) ? $category : ($category === 'lainnya' ? 'lainnya' : 'tugas');
             $data['scoring_mode'] = 'automatic_cpmk';
         }
         if ($isCodingContent) {
@@ -938,11 +940,11 @@ class LearningController extends Controller
                     'points' => (isset($step['points']) && (int) $step['points'] > 0) ? (int) $step['points'] : 100,
                 ], $data['coding_steps']);
                 $data['points'] = array_sum(array_column($data['questions'], 'points'));
-                $data['component'] = in_array($category, ['uts', 'uas', 'kuis'], true) ? $category : 'tugas';
+                $data['component'] = in_array($category, ['uts', 'uas', 'kuis', 'pbl'], true) ? $category : 'tugas';
                 $data['scoring_mode'] = 'automatic_cpmk';
             }
         }
-        if (in_array($category, ['tugas', 'uts', 'uas'], true) && ! $isCodingTask && ! $submittedQuestions && ! empty($data['manual_cpmk_weights'])) {
+        if (in_array($category, ['tugas', 'uts', 'uas', 'pbl'], true) && ! $isCodingTask && ! $submittedQuestions && ! empty($data['manual_cpmk_weights'])) {
             $data['scoring_mode'] = 'manual_cpmk';
             $data['cpmk'] = array_key_first($data['manual_cpmk_weights']);
             $data['component'] = $category;
@@ -1051,7 +1053,8 @@ class LearningController extends Controller
         $data['ai_enabled'] = $request->has('ai_enabled')
             ? $request->boolean('ai_enabled')
             : ($data['question_type'] === 'coding' && ! in_array($category, ['kuis', 'uts', 'uas'], true));
-        $data += ['formats' => [], 'link' => null, 'due' => null, 'options' => null];
+        $data['formats'] = ! empty($data['formats']) ? $data['formats'] : ['file', 'image', 'link', 'text'];
+        $data += ['link' => null, 'due' => null, 'options' => null];
         if (Schema::hasTable('class_sections') && Schema::hasTable('assessments')) {
             if ($section && in_array($category, ['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'pengumuman', 'lainnya'], true)) {
                 $assessmentType = ($category === 'coding') ? 'tugas' : $category;
@@ -1233,7 +1236,7 @@ class LearningController extends Controller
                 'question_type' => 'coding',
             ]);
         }
-        if (in_array($rawType, ['uts', 'uas'], true)) {
+        if (in_array($rawType, ['uts', 'uas', 'pbl'], true)) {
             if ($rawTaskMode === 'coding') {
                 $request->merge(['question_type' => 'coding']);
             } elseif ($rawTaskMode === 'quiz') {
@@ -1267,7 +1270,7 @@ class LearningController extends Controller
 
         $data = $request->validate([
             'title' => 'required|string|max:160', 'module' => 'required|string|max:100',
-            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pengumuman', 'lainnya'])],
+            'type' => ['required', Rule::in(['materi', 'tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'pengumuman', 'lainnya'])],
             'task_mode' => 'nullable|in:regular,coding,quiz',
             'material_mode' => 'nullable|in:regular,coding',
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
@@ -1370,7 +1373,7 @@ class LearningController extends Controller
             unset($question);
             $data['questions'] = QuizQuestion::canonicalizeQuestions($data['questions']);
             $data['points'] = array_sum(array_column($data['questions'], 'points'));
-            $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas'], true) ? $category : ($category === 'lainnya' ? 'lainnya' : 'tugas');
+            $data['component'] ??= in_array($category, ['kuis', 'uts', 'uas', 'pbl'], true) ? $category : ($category === 'lainnya' ? 'lainnya' : 'tugas');
             $data['scoring_mode'] = 'automatic_cpmk';
         } else {
             $data['points'] = $data['points'] ?? ($existingItem['points'] ?? 100);
@@ -1406,11 +1409,11 @@ class LearningController extends Controller
                     'points' => (isset($step['points']) && (int) $step['points'] > 0) ? (int) $step['points'] : 100,
                 ], $data['coding_steps']);
                 $data['points'] = array_sum(array_column($data['questions'], 'points'));
-                $data['component'] = in_array($category, ['uts', 'uas', 'kuis'], true) ? $category : 'tugas';
+                $data['component'] = in_array($category, ['uts', 'uas', 'kuis', 'pbl'], true) ? $category : 'tugas';
                 $data['scoring_mode'] = 'automatic_cpmk';
             }
         }
-        if (in_array($category, ['tugas', 'uts', 'uas'], true) && ! $isCodingTask && empty($data['questions']) && ! empty($data['manual_cpmk_weights'])) {
+        if (in_array($category, ['tugas', 'uts', 'uas', 'pbl'], true) && ! $isCodingTask && empty($data['questions']) && ! empty($data['manual_cpmk_weights'])) {
             $data['scoring_mode'] = 'manual_cpmk';
             $data['cpmk'] = array_key_first($data['manual_cpmk_weights']);
             $data['component'] = $category;
@@ -1926,17 +1929,15 @@ class LearningController extends Controller
                 }
             }
 
-            if (in_array($resource['type'], ['kuis', 'uts', 'uas'], true) || $isFromQuizRoom) {
-                $questions = $resource['questions'] ?? [];
-                if (! empty($questions)) {
-                    $answers = $data['question_answers'] ?? [];
-                    if (isset($submission) && $assessment) {
-                        $result = $this->quizGrades->recordAutomaticScores($assessment, $submission, $questions, $answers);
-                        $gradeForSession = $result['score'];
-                    }
+            $questions = $resource['questions'] ?? [];
+            if (! empty($questions) && (in_array($resource['type'], ['kuis', 'uts', 'uas'], true) || $isFromQuizRoom)) {
+                $answers = $data['question_answers'] ?? [];
+                if (isset($submission) && $assessment) {
+                    $result = $this->quizGrades->recordAutomaticScores($assessment, $submission, $questions, $answers);
+                    $gradeForSession = $result['score'];
                 }
-            } elseif (in_array($resource['type'], ['tugas', 'coding'], true) || ($resource['task_mode'] ?? null) === 'coding') {
-                // Pengumpulan Tugas -> status MENUNGGU penilaian dosen (score = null)
+            } elseif (in_array($resource['type'], ['tugas', 'coding', 'uts', 'uas', 'pbl', 'case', 'project'], true) || in_array($resource['task_mode'] ?? null, ['regular', 'coding'], true)) {
+                // Pengumpulan Tugas / Berkas / Proyek / Ujian Non-CBT -> status MENUNGGU penilaian dosen (score = null)
                 if ($user && Schema::hasTable('student_assessment_scores')) {
                     $assessmentModel = Assessment::find($item);
                     if ($assessmentModel) {

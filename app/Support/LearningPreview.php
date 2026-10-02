@@ -305,7 +305,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             ?? 'Asesmen '.$assessment->name.' dengan bobot '.$assessment->final_weight.'% terhadap nilai akhir.';
         $due = $assessment->due_at?->format('Y-m-d\TH:i');
         $type = match ($assessment->type) {
-            'pbl', 'case', 'project', 'proyek' => 'tugas',
+            'case', 'project', 'proyek' => 'tugas',
             default => $assessment->type,
         };
 
@@ -775,7 +775,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                             'course' => $sec->id,
                             'title' => $asm->name,
                             'module' => $asm->code,
-                            'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project']) ? (in_array($asm->type, ['pbl', 'project']) ? 'tugas' : $asm->type) : 'tugas',
+                            'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project']) ? (in_array($asm->type, ['project']) ? 'tugas' : $asm->type) : 'tugas',
                             'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
                             'points' => 100,
                             'created_at' => $asm->created_at,

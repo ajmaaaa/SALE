@@ -287,5 +287,124 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $response->assertSee('Input Nilai');
         $response->assertSee('UTS Analisis Algoritma');
     }
+
+    public function test_lecturer_can_create_pbl_and_student_submission_creates_pending_score(): void
+    {
+        $payload = [
+            'type' => 'pbl',
+            'task_mode' => 'regular',
+            'title' => 'Proyek Capstone Web E-Commerce',
+            'module' => 'PBL Tahap 1',
+            'body' => 'Rancang arsitektur sistem dan kumpulkan laporan dokumen desain serta tautan prototipe.',
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            'due' => now()->addDays(14)->format('Y-m-d\TH:i'),
+            'allow_late' => '1',
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Proyek Capstone Web E-Commerce')
+            ->first();
+
+        $this->assertNotNull($assessment);
+        $this->assertEquals('pbl', $assessment->type);
+        $this->assertEquals('pbl', $assessment->learning_payload['component'] ?? null);
+
+        // Verify PBL is included in gradable assessments
+        $gradables = $this->section->gradableAssessments()->pluck('id')->all();
+        $this->assertContains($assessment->id, $gradables);
+
+        // Student submits assignment
+        $submitResponse = $this->actingAs($this->mahasiswa)
+            ->post(route('mahasiswa.course.submit', [$this->section->id, $assessment->id]), [
+                'answer' => 'Berikut adalah tautan repositori proyek kami: https://github.com/mahasiswa/pbl-project',
+                'link' => 'https://github.com/mahasiswa/pbl-project',
+            ]);
+
+        $submitResponse->assertSessionHasNoErrors();
+
+        // Verify pending score record exists (score = null, meaning waiting for lecturer grading)
+        $scoreRecord = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $this->mahasiswa->id)
+            ->first();
+
+        $this->assertNotNull($scoreRecord);
+        $this->assertNull($scoreRecord->score);
+
+        // Lecturer can view Input Nilai and sees student submission
+        $nilaiResponse = $this->actingAs($this->dosen)
+            ->get(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+
+        $nilaiResponse->assertOk();
+        $nilaiResponse->assertSee('Proyek Capstone Web E-Commerce');
+    }
+
+    public function test_quiz_assessment_isolates_only_essay_questions_for_manual_grading_in_input_nilai(): void
+    {
+        $payload = [
+            'type' => 'kuis',
+            'task_mode' => 'quiz',
+            'title' => 'Kuis Logika & Algoritma',
+            'module' => 'Modul Kuis 1',
+            'body' => 'Kerjakan kuis berikut dengan teliti.',
+            'question_type' => 'uraian',
+            'questions' => [
+                [
+                    'type' => 'pilihan',
+                    'prompt' => 'Apa kompleksitas pencarian binary search?',
+                    'cpmk' => 'CPMK-1',
+                    'points' => 50,
+                    'options' => "O(1)\nO(n)\nO(log n)\nO(n^2)",
+                    'correct_answer' => 'C',
+                ],
+                [
+                    'type' => 'uraian',
+                    'prompt' => 'Jelaskan perbedaan mendasar antara Stack dan Queue!',
+                    'cpmk' => 'CPMK-1',
+                    'points' => 50,
+                    'essay_guide' => 'Stack bersifat LIFO sedangkan Queue bersifat FIFO.',
+                ],
+            ],
+            'points' => 100,
+        ];
+
+        $response = $this->actingAs($this->dosen)
+            ->post(route('dosen.item.store', $this->section->id), $payload);
+
+        $response->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Kuis Logika & Algoritma')
+            ->first();
+
+        $this->assertNotNull($assessment);
+
+        // Access Input Nilai page as lecturer
+        $nilaiView = $this->actingAs($this->dosen)
+            ->get(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+
+        $nilaiView->assertOk();
+
+        // In view data, verify that only the essay question is flagged for manual grading
+        $this->assertTrue($nilaiView->viewData('hasEssayQuestions'));
+        $this->assertTrue($nilaiView->viewData('isTipeSoal'));
+
+        $studentData = $nilaiView->viewData('studentEssayData')[$this->mahasiswa->id] ?? null;
+        $this->assertNotNull($studentData);
+        $this->assertTrue($studentData['is_tipe_soal']);
+
+        $essayList = collect($studentData['questions'])->filter(fn ($q) => ! empty($q['is_essay']));
+        $this->assertCount(1, $essayList);
+        $this->assertEquals('Jelaskan perbedaan mendasar antara Stack dan Queue!', $essayList->first()['prompt']);
+    }
 }
+
+
 
