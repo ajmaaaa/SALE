@@ -425,6 +425,59 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $this->assertStringNotContainsString('id="task_due"', $content);
         $this->assertStringNotContainsString('id="quiz_due"', $content);
     }
+
+    public function test_create_item_form_isolates_features_per_category_on_initial_render(): void
+    {
+        // 1. Pengumuman
+        $resPengumuman = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'pengumuman']));
+        $resPengumuman->assertOk();
+        $this->assertMatchesRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resPengumuman->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resPengumuman->getContent());
+        $this->assertMatchesRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resPengumuman->getContent());
+
+        // 2. Materi
+        $resMateri = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'materi']));
+        $resMateri->assertOk();
+        $this->assertMatchesRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resMateri->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resMateri->getContent());
+        $this->assertMatchesRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resMateri->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<fieldset\s+data-material-mode-settings\s+hidden/', $resMateri->getContent());
+
+        // 3. Kuis
+        $resKuis = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'kuis']));
+        $resKuis->assertOk();
+        $this->assertDoesNotMatchRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resKuis->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resKuis->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resKuis->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<div\s+data-timer-setting-container[^>]*hidden/', $resKuis->getContent());
+
+        // 4. PBL
+        $resPbl = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'pbl']));
+        $resPbl->assertOk();
+        $this->assertDoesNotMatchRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resPbl->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resPbl->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resPbl->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-timer-setting-container[^>]*hidden/', $resPbl->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<fieldset\s+data-manual-cpmk-settings[^>]*hidden/', $resPbl->getContent());
+
+        // 5. Tugas
+        $resTugas = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'tugas']));
+        $resTugas->assertOk();
+        $this->assertDoesNotMatchRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resTugas->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resTugas->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resTugas->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-timer-setting-container[^>]*hidden/', $resTugas->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<fieldset\s+data-manual-cpmk-settings[^>]*hidden/', $resTugas->getContent());
+
+        // 6. Lainnya
+        $resLainnya = $this->actingAs($this->dosen)->get(route('dosen.item.create', [$this->section->id, 'type' => 'lainnya']));
+        $resLainnya->assertOk();
+        $this->assertMatchesRegularExpression('/<div\s+data-sub-category-wrapper\s+hidden/', $resLainnya->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-task-mode-container[^>]*hidden/', $resLainnya->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<section\s+data-unified-time-settings[^>]*hidden/', $resLainnya->getContent());
+        $this->assertMatchesRegularExpression('/<div\s+data-timer-setting-container[^>]*hidden/', $resLainnya->getContent());
+        $this->assertMatchesRegularExpression('/<fieldset\s+data-manual-cpmk-settings[^>]*hidden/', $resLainnya->getContent());
+    }
 }
 
 

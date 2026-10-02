@@ -1432,282 +1432,100 @@ function parseCategory(value) {
     return '';
 }
 
-
-const contentType = document.querySelector('[data-content-type]');
-if (contentType) {
-    const mainCategorySelect = document.querySelector('[data-main-category]');
-    const assessmentTypeSelect = document.querySelector('[data-assessment-type]');
-    const subCategoryWrapper = document.querySelector('[data-sub-category-wrapper]');
-    const moduleContainer = document.querySelector('[data-module-container]');
-    const questionType = document.querySelector('[data-question-type]');
-    const assignmentFields = document.querySelector('[data-assignment-fields]');
-    const materialModeSettings = document.querySelector('[data-material-mode-settings]');
-    const pinVideoOption = document.querySelector('[data-pin-video-option]');
-    const questionBuilder = document.querySelector('[data-question-builder]');
-    const assessmentTitleLabel = document.querySelector('[data-assessment-title-label]');
-    const moduleInput = document.querySelector('#module');
-    const titleInput = document.querySelector('#title');
-    const bodyInput = document.querySelector('#body');
-    const taskModes = document.querySelectorAll('[data-task-mode]');
-    const materialModes = document.querySelectorAll('[data-material-mode]');
-    const codingStepBuilder = document.querySelector('[data-coding-step-builder]');
-    const codingAiSetting = document.querySelector('[data-coding-ai-setting]');
-    const manualCpmkSettings = document.querySelector('[data-manual-cpmk-settings]');
-    let initialized = false;
-
-    const syncContentTypeFromLevels = () => {
-        if (!mainCategorySelect || !contentType) return;
-        const mainVal = mainCategorySelect.value;
-        if (mainVal === 'asesmen') {
-            contentType.value = assessmentTypeSelect?.value || 'tugas';
-            if (subCategoryWrapper) subCategoryWrapper.hidden = false;
-            if (moduleContainer) moduleContainer.classList.add('sm:col-span-2');
-        } else {
-            contentType.value = mainVal || '';
-            if (subCategoryWrapper) subCategoryWrapper.hidden = true;
-            if (moduleContainer) moduleContainer.classList.remove('sm:col-span-2');
-        }
-    };
-
-    const setSectionVisibility = (element, visible) => {
-        if (!element) return;
-        if (visible) {
-            element.hidden = false;
-            if (initialized) {
-                element.style.opacity = '0';
-                element.style.transform = 'translateY(6px)';
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    element.style.opacity = '1';
-                    element.style.transform = 'translateY(0)';
-                }));
-            } else {
-                element.style.opacity = '1';
-                element.style.transform = 'translateY(0)';
-            }
-        } else if (initialized && !element.hidden) {
-            element.style.opacity = '0';
-            element.style.transform = 'translateY(6px)';
-            setTimeout(() => {
-                if (element.style.opacity === '0') element.hidden = true;
-            }, 200);
-        } else {
-            element.hidden = true;
-            element.style.opacity = '0';
-            element.style.transform = 'translateY(6px)';
-        }
-    };
-
-    const sync = () => {
-        const category = parseCategory(contentType.value);
-        let selectedText = '';
-        if (mainCategorySelect?.value === 'asesmen') {
-            selectedText = assessmentTypeSelect?.options[assessmentTypeSelect.selectedIndex]?.text || '';
-        } else {
-            selectedText = mainCategorySelect?.options[mainCategorySelect.selectedIndex]?.text || '';
-        }
-
-        if (assessmentTitleLabel && selectedText) assessmentTitleLabel.textContent = `Susun Soal (${selectedText})`;
-
-        const modeQuizCard = document.querySelector('[data-mode-card="quiz"]');
-        const modeRegularCard = document.querySelector('[data-mode-card="regular"]');
-        const modeCodingCard = document.querySelector('[data-mode-card="coding"]');
-        const modeQuizLabel = document.querySelector('[data-mode-quiz-label]');
-        const modeQuizDesc = document.querySelector('[data-mode-quiz-desc]');
-        const modeRegularLabel = document.querySelector('[data-mode-regular-label]');
-        const modeRegularDesc = document.querySelector('[data-mode-regular-desc]');
-        const taskModeLegend = document.querySelector('[data-task-mode-legend]');
-        const taskModeContainer = document.querySelector('[data-task-mode-container]');
-        const taskModeGrid = document.querySelector('[data-task-mode-grid]');
-
-        // Hanya tugas, uts, dan uas yang membutuhkan pemilihan bentuk pelaksanaan
-        const hasTaskMode = ['tugas', 'uts', 'uas', 'coding'].includes(category);
-        if (taskModeContainer) taskModeContainer.hidden = !hasTaskMode;
-
-        if (category === 'kuis') {
-            const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
-            if (quizRadio) quizRadio.checked = true;
-        } else if (category === 'pbl') {
-            const regRadio = document.querySelector('[data-task-mode][value="regular"]');
-            if (regRadio) regRadio.checked = true;
-        } else if (hasTaskMode) {
-            if (['uts', 'uas'].includes(category)) {
-                if (taskModeLegend) taskModeLegend.textContent = `Bentuk pelaksanaan ${category.toUpperCase()}`;
-                if (taskModeGrid) {
-                    taskModeGrid.hidden = false;
-                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-3';
-                }
-                if (modeQuizCard) modeQuizCard.hidden = false;
-                if (modeQuizLabel) modeQuizLabel.textContent = `Ruang Ujian (${category.toUpperCase()} CBT)`;
-                if (modeQuizDesc) modeQuizDesc.textContent = 'Susun butir soal pilihan ganda, benar/salah, menjodohkan, atau esai.';
-                if (modeRegularCard) modeRegularCard.hidden = false;
-                if (modeRegularLabel) modeRegularLabel.textContent = 'Pengumpulan Berkas / Laporan';
-                if (modeRegularDesc) modeRegularDesc.textContent = 'Mahasiswa mengumpulkan dokumen, laporan, atau tautan.';
-                if (modeCodingCard) modeCodingCard.hidden = false;
-            } else {
-                // tugas / coding
-                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk pelaksanaan tugas';
-                if (taskModeGrid) {
-                    taskModeGrid.hidden = false;
-                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';
-                }
-                if (modeQuizCard) modeQuizCard.hidden = true;
-                if (modeRegularCard) modeRegularCard.hidden = false;
-                if (modeRegularLabel) modeRegularLabel.textContent = 'Tugas biasa';
-                if (modeRegularDesc) modeRegularDesc.textContent = 'Pengumpulan dokumen berkas, laporan, atau tautan.';
-                if (modeCodingCard) modeCodingCard.hidden = false;
-                const currentChecked = document.querySelector('[data-task-mode]:checked')?.value;
-                if (currentChecked === 'quiz') {
-                    const regRadio = document.querySelector('[data-task-mode][value="regular"]');
-                    if (regRadio) regRadio.checked = true;
-                }
-            }
-        }
-
-        const showAssignment = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'pbl', 'lainnya'].includes(category);
-        const showMaterialMode = category === 'materi';
-        const selectedTaskMode = document.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const selectedMaterialMode = document.querySelector('[data-material-mode]:checked')?.value || 'regular';
-        const isCoding = (showAssignment && (category === 'coding' || selectedTaskMode === 'coding'))
-            || (showMaterialMode && selectedMaterialMode === 'coding');
-
-        const isQuiz = (category === 'kuis') || (['uts', 'uas'].includes(category) && selectedTaskMode === 'quiz');
-
-        setSectionVisibility(assignmentFields, showAssignment);
-        setSectionVisibility(codingAiSetting, isCoding);
-        if (codingAiSetting) {
-            codingAiSetting.querySelectorAll('input[name="ai_enabled"]').forEach(inp => {
-                inp.disabled = !isCoding;
-            });
-        }
-        setSectionVisibility(materialModeSettings, showMaterialMode);
-        setSectionVisibility(pinVideoOption, showMaterialMode);
-        if (pinVideoOption) {
-            const pinInput = pinVideoOption.querySelector('input');
-            if (pinInput) pinInput.disabled = !showMaterialMode;
-        }
-
-        // Sinkronisasi seksi waktu terpadu
-        const unifiedTimeSettings = document.querySelector('[data-unified-time-settings]');
-        setSectionVisibility(unifiedTimeSettings, showAssignment);
-        if (unifiedTimeSettings) {
-            const timerContainer = unifiedTimeSettings.querySelector('[data-timer-setting-container]');
-            const allowLateContainer = unifiedTimeSettings.querySelector('[data-allow-late-container]');
-            if (timerContainer) timerContainer.hidden = !isQuiz;
-            if (allowLateContainer) allowLateContainer.hidden = isQuiz;
-        }
-
-        const isQuestionStep = document.querySelector('[data-content-form]')?.dataset.step === 'questions';
-        setSectionVisibility(questionBuilder, isQuiz && isQuestionStep);
-
-        if (questionType) questionType.value = isCoding ? 'coding' : 'uraian';
-        setSectionVisibility(codingStepBuilder, isCoding && isQuestionStep);
-        codingStepBuilder?.querySelectorAll('input,select,textarea').forEach(field => {
-            if (showMaterialMode && (field.dataset.stepField === 'points' || field.dataset.stepField === 'cpmk' || field.closest('[data-coding-target-wrapper]'))) {
-                field.disabled = true;
-                field.required = false;
-            } else {
-                field.disabled = !(isCoding && isQuestionStep);
-            }
-        });
-        const showManualCpmk = ['tugas', 'uts', 'uas', 'pbl'].includes(category) && !isCoding && !isQuiz;
-        if (manualCpmkSettings) {
-            setSectionVisibility(manualCpmkSettings, showManualCpmk);
-            manualCpmkSettings.querySelectorAll('input').forEach(field => {
-                field.disabled = !showManualCpmk;
-            });
-        }
-    };
-
-    let previousType = contentType.value;
-    const resetFormContent = () => {
-        if (customTypeInput) customTypeInput.value = '';
-        document.querySelector('[data-image-remove]')?.click();
-        const altInput = document.querySelector('#image_alt');
-        if (altInput) altInput.value = '';
-        const attachments = document.querySelector('[data-file-input]');
-        if (attachments) {
-            attachments.value = '';
-            attachments.parentElement?.querySelector('[data-file-list]')?.replaceChildren();
-        }
-        const linkInput = document.querySelector('#link');
-        if (linkInput) linkInput.value = '';
-        const newCat = parseCategory(contentType.value);
-        if (newCat === 'kuis') {
-            const quizRadio = document.querySelector('[data-task-mode][value="quiz"]');
-            if (quizRadio) quizRadio.checked = true;
-        } else {
-            const regularTask = document.querySelector('[data-task-mode][value="regular"]');
-            if (regularTask) regularTask.checked = true;
-        }
-        const regularMaterial = document.querySelector('[data-material-mode][value="regular"]');
-        if (regularMaterial) regularMaterial.checked = true;
-        const points = document.querySelector('#points');
-        if (points) points.value = '100';
-    };
-
-    mainCategorySelect?.addEventListener('change', () => {
-        syncContentTypeFromLevels();
-        if (contentType.value !== previousType) {
-            resetFormContent();
-            previousType = contentType.value;
-        }
-        sync();
-    });
-
-    assessmentTypeSelect?.addEventListener('change', () => {
-        syncContentTypeFromLevels();
-        if (contentType.value !== previousType) {
-            resetFormContent();
-            previousType = contentType.value;
-        }
-        sync();
-    });
-
-    contentType.addEventListener('change', () => {
-        if (contentType.value !== previousType) {
-            resetFormContent();
-            previousType = contentType.value;
-        }
-        sync();
-    });
-    contentType.addEventListener('input', sync);
-    customTypeInput?.addEventListener('input', sync);
-    moduleInput?.addEventListener('input', () => {
-        if (titleInput) titleInput.value = moduleInput.value;
-        sync();
-    });
-    titleInput?.addEventListener('input', sync);
-    bodyInput?.addEventListener('input', sync);
-    questionType?.addEventListener('change', sync);
-    taskModes.forEach(mode => mode.addEventListener('change', sync));
-    materialModes.forEach(mode => mode.addEventListener('change', sync));
-    syncContentTypeFromLevels();
-    sync();
-    initialized = true;
-}
-
 const contentForm = document.querySelector('[data-content-form]');
 if (contentForm) {
+    const mainCategorySelect = contentForm.querySelector('[data-main-category]');
+    const assessmentTypeSelect = contentForm.querySelector('[data-assessment-type]');
+    const subCategoryWrapper = contentForm.querySelector('[data-sub-category-wrapper]');
+    const moduleContainer = contentForm.querySelector('[data-module-container]');
     const typeInput = contentForm.querySelector('[data-content-type]');
+    const titleInput = contentForm.querySelector('#title');
+    const moduleInput = contentForm.querySelector('#module');
+    const bodyInput = contentForm.querySelector('#body');
+    const questionType = contentForm.querySelector('[data-question-type]');
+    const pointsInput = contentForm.querySelector('#points');
+
     const setup = contentForm.querySelector('[data-content-setup]');
     const builder = contentForm.querySelector('[data-question-builder]');
+    const assessmentTitleLabel = contentForm.querySelector('[data-assessment-title-label]');
+    const codingStepBuilder = contentForm.querySelector('[data-coding-step-builder]');
+
+    const materialModeSettings = contentForm.querySelector('[data-material-mode-settings]');
+    const materialModes = contentForm.querySelectorAll('[data-material-mode]');
+    const pinVideoOption = contentForm.querySelector('[data-pin-video-option]');
+
+    const taskModeContainer = contentForm.querySelector('[data-task-mode-container]');
+    const taskModeLegend = contentForm.querySelector('[data-task-mode-legend]');
+    const taskModeGrid = contentForm.querySelector('[data-task-mode-grid]');
+    const modeQuizCard = contentForm.querySelector('[data-mode-card="quiz"]');
+    const modeRegularCard = contentForm.querySelector('[data-mode-card="regular"]');
+    const modeCodingCard = contentForm.querySelector('[data-mode-card="coding"]');
+    const modeQuizLabel = contentForm.querySelector('[data-mode-quiz-label]');
+    const modeQuizDesc = contentForm.querySelector('[data-mode-quiz-desc]');
+    const modeRegularLabel = contentForm.querySelector('[data-mode-regular-label]');
+    const modeRegularDesc = contentForm.querySelector('[data-mode-regular-desc]');
+    const taskModes = contentForm.querySelectorAll('[data-task-mode]');
+
     const unifiedTimeSettings = contentForm.querySelector('[data-unified-time-settings]');
-    const legacySettings = contentForm.querySelector('[data-legacy-question-settings]');
+    const timerContainer = contentForm.querySelector('[data-timer-setting-container]');
+    const durationToggle = contentForm.querySelector('[data-duration-toggle]');
+    const durationMode = contentForm.querySelector('#duration_mode');
+    const durationOptions = contentForm.querySelector('[data-duration-options]');
+    const durationInput = contentForm.querySelector('#duration_minutes');
+    const dueSettingContainer = contentForm.querySelector('[data-due-setting-container]');
+    const dueToggle = contentForm.querySelector('[data-due-toggle]');
+    const dueOptions = contentForm.querySelector('[data-due-options]');
+    const dueInput = contentForm.querySelector('#due');
+    const allowLateContainer = contentForm.querySelector('[data-allow-late-container]');
+
+    const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
+    const codingAiSetting = contentForm.querySelector('[data-coding-ai-setting]');
+
     const progress = contentForm.querySelector('[data-content-progress]');
     const nextButton = contentForm.querySelector('[data-next-to-questions]');
     const backButton = contentForm.querySelector('[data-back-to-setup]');
     const submitButton = contentForm.querySelector('[data-submit-content]');
     const formErrorEl = contentForm.querySelector('[data-form-error]');
-    const getStepMode = () => {
-        const cat = parseCategory(typeInput?.value);
-        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const selectedMaterialMode = contentForm.querySelector('[data-material-mode]:checked')?.value || 'regular';
-        const isCoding = (['tugas', 'coding', 'uts', 'uas'].includes(cat) && (cat === 'coding' || selectedTaskMode === 'coding'))
-            || (cat === 'materi' && selectedMaterialMode === 'coding');
+    const step2Label = contentForm.querySelector('[data-step-2-label]');
+    const nextBtnText = contentForm.querySelector('[data-next-btn-text]');
 
-        if (isCoding) return 'coding';
-        if (cat === 'kuis' || (['uts', 'uas'].includes(cat) && selectedTaskMode === 'quiz')) {
-            return 'questions';
+    const getMainCategory = () => mainCategorySelect?.value || '';
+    const isAssessment = () => getMainCategory() === 'asesmen';
+    const getSubCategory = () => isAssessment() ? (assessmentTypeSelect?.value || 'tugas') : '';
+
+    const getEffectiveCategory = () => {
+        if (isAssessment()) {
+            const sub = getSubCategory();
+            const checkedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+            if (sub === 'tugas' && checkedTaskMode === 'coding') {
+                return 'coding';
+            }
+            return sub;
+        }
+        return getMainCategory();
+    };
+
+    const getStepMode = () => {
+        const mainCat = getMainCategory();
+        if (mainCat === 'materi') {
+            const matMode = contentForm.querySelector('[data-material-mode]:checked')?.value || 'regular';
+            return matMode === 'coding' ? 'coding' : 'none';
+        }
+        if (mainCat === 'asesmen') {
+            const subCat = getSubCategory();
+            const taskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+            if (subCat === 'kuis') {
+                return 'questions';
+            }
+            if (['uts', 'uas'].includes(subCat)) {
+                if (taskMode === 'quiz') return 'questions';
+                if (taskMode === 'coding') return 'coding';
+                return 'none';
+            }
+            if (subCat === 'tugas') {
+                return taskMode === 'coding' ? 'coding' : 'none';
+            }
+            return 'none';
         }
         return 'none';
     };
@@ -1752,13 +1570,149 @@ if (contentForm) {
         });
     };
 
-    const showStep = (step) => {
+    const syncDuration = () => {
+        const mainCat = getMainCategory();
+        const subCat = getSubCategory();
+        const isCbt = (mainCat === 'asesmen' && subCat === 'kuis')
+            || (mainCat === 'asesmen' && ['uts', 'uas'].includes(subCat) && contentForm.querySelector('[data-task-mode]:checked')?.value === 'quiz');
+        const enabled = isCbt && !!durationToggle?.checked;
+        if (durationMode) durationMode.value = enabled ? 'enabled' : 'disabled';
+        if (durationOptions) durationOptions.hidden = !durationToggle?.checked;
+        if (durationInput) durationInput.disabled = !enabled;
+    };
+
+    const syncDue = () => {
+        const mainCat = getMainCategory();
+        const hasDueFeature = isAssessment() || mainCat === 'lainnya';
+        const enabled = hasDueFeature && !!dueToggle?.checked;
+        if (dueOptions) dueOptions.hidden = !dueToggle?.checked;
+        if (dueInput) {
+            dueInput.disabled = !enabled;
+            if (!dueToggle?.checked) dueInput.value = '';
+        }
+    };
+
+    const showStep = (step = 'setup') => {
+        const mainCat = getMainCategory();
+        const subCat = getSubCategory();
+        const effCat = getEffectiveCategory();
         const mode = getStepMode();
         const twoStepActive = mode !== 'none';
         if (!twoStepActive) step = 'setup';
         contentForm.dataset.step = step;
-        const questionsStep = step === 'questions';
+        const questionsStep = (step === 'questions');
 
+        // Sync hidden type input
+        if (typeInput) {
+            typeInput.value = effCat || '';
+        }
+
+        // Sub-category wrapper
+        if (subCategoryWrapper) {
+            subCategoryWrapper.hidden = !isAssessment();
+        }
+        if (moduleContainer) {
+            moduleContainer.classList.toggle('sm:col-span-2', isAssessment());
+        }
+
+        // Title label sync
+        let selectedText = '';
+        if (isAssessment()) {
+            selectedText = assessmentTypeSelect?.options[assessmentTypeSelect.selectedIndex]?.text || '';
+        } else {
+            selectedText = mainCategorySelect?.options[mainCategorySelect.selectedIndex]?.text || '';
+        }
+        if (assessmentTitleLabel && selectedText) {
+            assessmentTitleLabel.textContent = `Susun Soal (${selectedText})`;
+        }
+
+        // Material mode settings
+        const showMaterialMode = (mainCat === 'materi');
+        if (materialModeSettings) {
+            materialModeSettings.hidden = !showMaterialMode;
+        }
+        if (pinVideoOption) {
+            pinVideoOption.hidden = !showMaterialMode;
+            const pinInput = pinVideoOption.querySelector('input');
+            if (pinInput) pinInput.disabled = !showMaterialMode;
+        }
+
+        // Task mode container (hanya tugas, uts, uas)
+        const showTaskMode = isAssessment() && ['tugas', 'uts', 'uas'].includes(subCat);
+        if (taskModeContainer) {
+            taskModeContainer.hidden = !showTaskMode;
+        }
+
+        if (showTaskMode) {
+            if (['uts', 'uas'].includes(subCat)) {
+                if (taskModeLegend) taskModeLegend.textContent = `Bentuk pelaksanaan ${subCat.toUpperCase()}`;
+                if (taskModeGrid) {
+                    taskModeGrid.hidden = false;
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-3';
+                }
+                if (modeQuizCard) modeQuizCard.hidden = false;
+                if (modeQuizLabel) modeQuizLabel.textContent = `Ruang Ujian (${subCat.toUpperCase()} CBT)`;
+                if (modeQuizDesc) modeQuizDesc.textContent = 'Susun butir soal pilihan ganda, benar/salah, menjodohkan, atau esai.';
+                if (modeRegularCard) modeRegularCard.hidden = false;
+                if (modeRegularLabel) modeRegularLabel.textContent = 'Pengumpulan Berkas / Laporan';
+                if (modeRegularDesc) modeRegularDesc.textContent = 'Mahasiswa mengumpulkan dokumen, laporan, atau tautan.';
+                if (modeCodingCard) modeCodingCard.hidden = false;
+            } else {
+                // tugas
+                if (taskModeLegend) taskModeLegend.textContent = 'Bentuk pelaksanaan tugas';
+                if (taskModeGrid) {
+                    taskModeGrid.hidden = false;
+                    taskModeGrid.className = 'grid gap-2 grid-cols-1 sm:grid-cols-2';
+                }
+                if (modeQuizCard) modeQuizCard.hidden = true;
+                if (modeRegularCard) modeRegularCard.hidden = false;
+                if (modeRegularLabel) modeRegularLabel.textContent = 'Tugas biasa';
+                if (modeRegularDesc) modeRegularDesc.textContent = 'Pengumpulan dokumen berkas, laporan, atau tautan.';
+                if (modeCodingCard) modeCodingCard.hidden = false;
+
+                const currentChecked = contentForm.querySelector('[data-task-mode]:checked')?.value;
+                if (currentChecked === 'quiz') {
+                    const regRadio = contentForm.querySelector('[data-task-mode][value="regular"]');
+                    if (regRadio) regRadio.checked = true;
+                }
+            }
+        }
+
+        // Coding AI setting
+        const isCoding = (mode === 'coding');
+        if (codingAiSetting) {
+            codingAiSetting.hidden = !isCoding;
+            codingAiSetting.querySelectorAll('input[name="ai_enabled"]').forEach(inp => {
+                inp.disabled = !isCoding;
+            });
+        }
+
+        // Unified time settings
+        const showTimeSettings = isAssessment() || (mainCat === 'lainnya');
+        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const isQuizMode = (subCat === 'kuis') || (['uts', 'uas'].includes(subCat) && selectedTaskMode === 'quiz');
+
+        if (unifiedTimeSettings) {
+            unifiedTimeSettings.hidden = !showTimeSettings;
+            if (timerContainer) timerContainer.hidden = !isQuizMode;
+            if (allowLateContainer) allowLateContainer.hidden = isQuizMode;
+        }
+
+        // Manual CPMK settings (hanya untuk tugas, uts, uas, pbl dalam bentuk berkas/laporan regular)
+        const showManualCpmk = isAssessment() && ['tugas', 'uts', 'uas', 'pbl'].includes(subCat) && !isQuizMode && !isCoding;
+        if (manualCpmkSettings) {
+            manualCpmkSettings.hidden = !showManualCpmk;
+            manualCpmkSettings.querySelectorAll('input, select, button').forEach(field => {
+                field.disabled = !showManualCpmk;
+            });
+        }
+
+        // Question type hidden input
+        if (questionType) {
+            questionType.value = isCoding ? 'coding' : 'uraian';
+        }
+
+        // Setup vs Step 2 views
         if (setup) setup.hidden = questionsStep;
 
         if (builder) {
@@ -1773,56 +1727,36 @@ if (contentForm) {
             });
         }
 
-        const codingBuilder = contentForm.querySelector('[data-coding-step-builder]');
-        if (codingBuilder) {
+        if (codingStepBuilder) {
             const showCoding = questionsStep && mode === 'coding';
-            codingBuilder.hidden = !showCoding;
+            codingStepBuilder.hidden = !showCoding;
             if (showCoding) {
-                codingBuilder.style.opacity = '1';
-                codingBuilder.style.transform = 'translateY(0)';
+                codingStepBuilder.style.opacity = '1';
+                codingStepBuilder.style.transform = 'translateY(0)';
             }
-            codingBuilder.querySelectorAll('input,select,textarea').forEach(field => {
-                field.disabled = !showCoding;
+            codingStepBuilder.querySelectorAll('input,select,textarea').forEach(field => {
+                if (showMaterialMode && (field.dataset.stepField === 'points' || field.dataset.stepField === 'cpmk' || field.closest('[data-coding-target-wrapper]'))) {
+                    field.disabled = true;
+                    field.required = false;
+                } else {
+                    field.disabled = !showCoding;
+                }
             });
         }
 
-        const cat = parseCategory(typeInput?.value);
-        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const isQuizMode = (cat === 'kuis') || (['uts', 'uas'].includes(cat) && selectedTaskMode === 'quiz');
-        const showAssignment = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'pbl', 'lainnya'].includes(cat);
-
-        if (unifiedTimeSettings) {
-            unifiedTimeSettings.hidden = !showAssignment;
-            const timerContainer = unifiedTimeSettings.querySelector('[data-timer-setting-container]');
-            const allowLateContainer = unifiedTimeSettings.querySelector('[data-allow-late-container]');
-            if (timerContainer) timerContainer.hidden = !isQuizMode;
-            if (allowLateContainer) allowLateContainer.hidden = isQuizMode;
-        }
-
-        if (legacySettings) legacySettings.hidden = questionsStep || !showAssignment;
-        const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
-        if (manualCpmkSettings) {
-            const showManualCpmk = ['tugas', 'uts', 'uas', 'pbl'].includes(cat) && mode === 'none' && !questionsStep;
-            manualCpmkSettings.hidden = !showManualCpmk;
-            manualCpmkSettings.querySelectorAll('input').forEach(field => {
-                field.disabled = !showManualCpmk;
-            });
-        }
         syncDue();
         syncDuration();
+
         if (progress) progress.hidden = !twoStepActive;
         if (nextButton) nextButton.hidden = questionsStep || !twoStepActive;
         if (backButton) backButton.hidden = !questionsStep || !twoStepActive;
         if (submitButton) submitButton.hidden = twoStepActive && !questionsStep;
 
-        // Sesuaikan teks label langkah 2 dan tombol next
-        const step2Label = contentForm.querySelector('[data-step-2-label]');
-        const nextBtnText = contentForm.querySelector('[data-next-btn-text]');
         if (step2Label) {
-            step2Label.textContent = cat === 'materi' ? 'Susun materi' : 'Susun soal';
+            step2Label.textContent = mainCat === 'materi' ? 'Susun materi' : 'Susun soal';
         }
         if (nextBtnText) {
-            nextBtnText.textContent = cat === 'materi' ? 'Selanjutnya: Susun materi' : 'Selanjutnya: Susun soal';
+            nextBtnText.textContent = mainCat === 'materi' ? 'Selanjutnya: Susun materi' : 'Selanjutnya: Susun soal';
         }
 
         paintProgress(step);
@@ -1834,48 +1768,93 @@ if (contentForm) {
             if (mode === 'questions' && builder) {
                 const firstInput = builder.querySelector('textarea[data-q-field="prompt"], input, select');
                 firstInput?.focus();
-            } else if (mode === 'coding' && codingBuilder) {
-                const firstInput = codingBuilder.querySelector('input[data-step-field="title"], textarea');
+            } else if (mode === 'coding' && codingStepBuilder) {
+                const firstInput = codingStepBuilder.querySelector('input[data-step-field="title"], textarea');
                 firstInput?.focus();
             }
         }
     };
 
-    typeInput?.addEventListener('change', () => {
+    let previousMain = mainCategorySelect?.value || '';
+    let previousSub = assessmentTypeSelect?.value || '';
+
+    const resetFormContent = () => {
+        document.querySelector('[data-image-remove]')?.click();
+        const altInput = contentForm.querySelector('#image_alt');
+        if (altInput) altInput.value = '';
+        const attachments = contentForm.querySelector('[data-file-input]');
+        if (attachments) {
+            attachments.value = '';
+            attachments.parentElement?.querySelector('[data-file-list]')?.replaceChildren();
+        }
+        const linkInput = contentForm.querySelector('#link');
+        if (linkInput) linkInput.value = '';
+
+        const subCat = getSubCategory();
+        if (isAssessment()) {
+            if (subCat === 'kuis') {
+                const quizRadio = contentForm.querySelector('[data-task-mode][value="quiz"]');
+                if (quizRadio) quizRadio.checked = true;
+            } else {
+                const regRadio = contentForm.querySelector('[data-task-mode][value="regular"]');
+                if (regRadio) regRadio.checked = true;
+            }
+        }
+        const regularMaterial = contentForm.querySelector('[data-material-mode][value="regular"]');
+        if (regularMaterial) regularMaterial.checked = true;
+        if (pointsInput) pointsInput.value = '100';
+    };
+
+    const handleCategoryChange = () => {
+        const curMain = mainCategorySelect?.value || '';
+        const curSub = isAssessment() ? (assessmentTypeSelect?.value || 'tugas') : '';
+        const changedMajor = (curMain !== previousMain) || (isAssessment() && curSub !== previousSub);
+
+        if (changedMajor) {
+            resetFormContent();
+            previousMain = curMain;
+            previousSub = curSub;
+            clearHighlights();
+            showFormError('');
+        }
+
         showStep('setup');
-        clearHighlights();
-        showFormError('');
         if (typeof window.__refreshCodingStepBuilder === 'function') {
             window.__refreshCodingStepBuilder();
         }
-    });
-    typeInput?.addEventListener('input', () => {
-        showStep('setup');
-    });
+    };
 
-    contentForm.querySelectorAll('[data-task-mode], [data-material-mode]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            showStep(contentForm.dataset.step || 'setup');
-            if (typeof window.__refreshCodingStepBuilder === 'function') {
-                window.__refreshCodingStepBuilder();
-            }
-        });
+    mainCategorySelect?.addEventListener('change', handleCategoryChange);
+    assessmentTypeSelect?.addEventListener('change', handleCategoryChange);
+
+    taskModes.forEach(mode => mode.addEventListener('change', () => {
+        showStep(contentForm.dataset.step || 'setup');
+        if (typeof window.__refreshCodingStepBuilder === 'function') {
+            window.__refreshCodingStepBuilder();
+        }
+    }));
+
+    materialModes.forEach(mode => mode.addEventListener('change', () => {
+        showStep(contentForm.dataset.step || 'setup');
+        if (typeof window.__refreshCodingStepBuilder === 'function') {
+            window.__refreshCodingStepBuilder();
+        }
+    }));
+
+    moduleInput?.addEventListener('input', () => {
+        if (titleInput) titleInput.value = moduleInput.value;
     });
 
     nextButton?.addEventListener('click', () => {
         clearHighlights();
         showFormError('');
 
-        const category = parseCategory(typeInput?.value);
-        const moduleInput = contentForm.querySelector('#module');
-        const bodyInput = contentForm.querySelector('#body');
-
         // 1. Jenis Konten
-        if (!typeInput?.value) {
-            typeInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-            typeInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            typeInput?.focus();
-            showFormError('Pilih jenis konten terlebih dahulu.');
+        if (!getMainCategory()) {
+            mainCategorySelect?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            mainCategorySelect?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            mainCategorySelect?.focus();
+            showFormError('Pilih kategori konten terlebih dahulu.');
             return;
         }
 
@@ -1921,42 +1900,16 @@ if (contentForm) {
         });
     });
 
-    const durationToggle = contentForm.querySelector('[data-duration-toggle]');
-    const durationMode = contentForm.querySelector('#duration_mode');
-    const durationOptions = contentForm.querySelector('[data-duration-options]');
-    const durationInput = contentForm.querySelector('#duration_minutes');
-    const syncDuration = () => {
-        const cat = parseCategory(typeInput?.value);
-        const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
-        const isQuizMode = (cat === 'kuis') || (['uts', 'uas'].includes(cat) && selectedTaskMode === 'quiz');
-        const enabled = isQuizMode && !!durationToggle?.checked;
-        if (durationMode) durationMode.value = enabled ? 'enabled' : 'disabled';
-        if (durationOptions) durationOptions.hidden = !durationToggle?.checked;
-        if (durationInput) durationInput.disabled = !enabled;
-    };
     durationToggle?.addEventListener('change', syncDuration);
     contentForm.querySelectorAll('[data-duration-preset]').forEach(button => {
         button.addEventListener('click', () => {
             if (durationInput) durationInput.value = button.dataset.durationPreset;
         });
     });
-    syncDuration();
-
-    const dueToggle = contentForm.querySelector('[data-due-toggle]');
-    const dueOptions = contentForm.querySelector('[data-due-options]');
-    const dueInput = contentForm.querySelector('#due');
-    function syncDue() {
-        const cat = parseCategory(typeInput?.value);
-        const hasDueFeature = ['tugas', 'coding', 'uts', 'uas', 'kuis', 'pbl', 'lainnya'].includes(cat);
-        const enabled = hasDueFeature && !!dueToggle?.checked;
-        if (dueOptions) dueOptions.hidden = !dueToggle?.checked;
-        if (dueInput) {
-            dueInput.disabled = !enabled;
-            if (!dueToggle?.checked) dueInput.value = '';
-        }
-    }
     dueToggle?.addEventListener('change', syncDue);
-    syncDue();
+
+    // Initial render
+    showStep(contentForm.dataset.step || 'setup');
 
     contentForm.addEventListener('submit', (e) => {
         clearHighlights();
@@ -2201,13 +2154,13 @@ if (contentForm) {
             }
         }
 
-        // C. Khusus Tugas Biasa (Bobot CPMK Manual 100%)
-        if (cat === 'tugas' && stepMode === 'none') {
+        // C. Khusus Tugas Biasa & Asesmen Berkas (Bobot CPMK Manual 100%)
+        if (['tugas', 'uts', 'uas', 'pbl'].includes(cat) && stepMode === 'none' && manualCpmkSettings && !manualCpmkSettings.hidden) {
             const manualWeights = [...contentForm.querySelectorAll('[data-manual-cpmk-weight]')].filter(input => !input.disabled);
             if (manualWeights.length > 0) {
                 const sum = manualWeights.reduce((s, input) => s + Number(input.value || 0), 0);
                 if (Math.abs(sum - 100) >= 0.01) {
-                    showFormError(`Total bobot CPMK tugas saat ini ${sum}%. Pastikan tepat 100%.`);
+                    showFormError(`Total bobot CPMK saat ini ${sum}%. Pastikan tepat 100%.`);
                     contentForm.querySelector('[data-manual-weight-total]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     e.preventDefault();
                     return false;
@@ -2246,7 +2199,6 @@ if (contentForm) {
     });
 
     // Dynamic CPMK picker untuk Tugas Biasa (Hanya CPMK yang dipilih yang muncul)
-    const manualCpmkSettings = contentForm.querySelector('[data-manual-cpmk-settings]');
     if (manualCpmkSettings) {
         const picker = manualCpmkSettings.querySelector('[data-cpmk-select-picker]');
         const container = manualCpmkSettings.querySelector('[data-selected-cpmk-container]');

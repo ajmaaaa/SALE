@@ -145,7 +145,7 @@
             $matModeVal = old('material_mode', $item['material_mode'] ?? ((($item['type'] ?? '') === 'materi' && ($item['question_type'] ?? '') === 'coding') ? 'coding' : 'regular'));
         @endphp
 
-        <fieldset data-material-mode-settings hidden>
+        <fieldset data-material-mode-settings @if($mainCategoryVal !== 'materi') hidden @endif>
             <legend class="form-label">Jenis materi</legend>
             <div class="grid gap-2 sm:grid-cols-2">
                 <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs">
@@ -197,7 +197,7 @@
                     <input id="link" name="link" type="url" class="field" value="{{ old('link', $item['link'] ?? '') }}" placeholder="https://">
                 </div>
 
-                <div data-pin-video-option class="rounded-xl border border-line/70 bg-white p-3.5 text-xs space-y-2.5" hidden>
+                <div data-pin-video-option class="rounded-xl border border-line/70 bg-white p-3.5 text-xs space-y-2.5" @if($mainCategoryVal !== 'materi') hidden @endif>
                     <label class="flex cursor-pointer items-start gap-3">
                         <input type="checkbox" name="pin_video" value="1" data-pin-toggle class="mt-0.5 rounded border-line text-brand" @checked(old('pin_video', !empty($item['pin_video'])))>
                         <span class="flex-1">
@@ -221,8 +221,6 @@
             </div>
         </section>
 
-        {{-- Pengaturan Pelaksanaan Tugas / Ujian & Waktu --}}
-        <div data-legacy-question-settings data-assignment-fields class="space-y-5 pt-2 transition-all duration-300 ease-out" hidden>
             <div data-task-mode-container class="rounded-xl border border-line/70 bg-white p-4 space-y-3" @if(!in_array($subCategoryVal, ['tugas', 'uts', 'uas'], true) || $mainCategoryVal !== 'asesmen') hidden @endif>
                 <fieldset>
                     <legend class="form-label" data-task-mode-legend>Bentuk pelaksanaan</legend>
@@ -250,14 +248,14 @@
             </div>
 
             {{-- Pengaturan Waktu & Batas Pengerjaan (Satu Seksi Terpadu - Bebas Duplikasi) --}}
-            <section data-unified-time-settings class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs space-y-4">
+            <section data-unified-time-settings class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs space-y-4" @if(empty($mainCategoryVal) || $mainCategoryVal === 'materi' || $mainCategoryVal === 'pengumuman') hidden @endif>
                 <div class="border-b border-line/60 pb-3">
                     <h3 class="text-sm font-bold text-ink">Pengaturan Waktu &amp; Batas Pengerjaan</h3>
                     <p class="text-xs text-muted">Atur batas durasi ujian hitung mundur dan tenggat akhir pengumpulan.</p>
                 </div>
 
                 {{-- 1. Batas Durasi Pengerjaan (Hanya untuk Kuis & Ujian CBT) --}}
-                <div data-timer-setting-container class="space-y-3" hidden>
+                <div data-timer-setting-container class="space-y-3" @if(!($mainCategoryVal === 'asesmen' && ($subCategoryVal === 'kuis' || (in_array($subCategoryVal, ['uts', 'uas'], true) && $taskModeVal === 'quiz')))) hidden @endif>
                     <input type="hidden" name="duration_mode" id="duration_mode" value="{{ old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) }}">
                     <label class="flex cursor-pointer items-center justify-between gap-4">
                         <span>
@@ -296,7 +294,7 @@
                         <label class="form-label text-xs" for="due">Tanggal dan waktu tenggat</label>
                         <input type="datetime-local" id="due" name="due" class="field text-xs" value="{{ $dueVal }}" @disabled(!$hasDue)>
 
-                        <div data-allow-late-container class="mt-2.5">
+                        <div data-allow-late-container class="mt-2.5" @if($mainCategoryVal === 'asesmen' && ($subCategoryVal === 'kuis' || (in_array($subCategoryVal, ['uts', 'uas'], true) && $taskModeVal === 'quiz'))) hidden @endif>
                             <label class="flex cursor-pointer items-center gap-2 text-xs text-ink">
                                 <input type="hidden" name="allow_late" value="0">
                                 <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
@@ -308,7 +306,7 @@
             </section>
 
             {{-- Pengaturan CPMK dan Bobot Persentase Khusus Tugas Biasa (Hanya munculkan CPMK yang dipilih) --}}
-            <fieldset data-manual-cpmk-settings class="rounded-xl border border-line/70 bg-white p-4 space-y-3" hidden>
+            <fieldset data-manual-cpmk-settings class="rounded-xl border border-line/70 bg-white p-4 space-y-3" @if(!($mainCategoryVal === 'asesmen' && in_array($subCategoryVal, ['tugas', 'uts', 'uas', 'pbl'], true) && $taskModeVal === 'regular')) hidden @endif>
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 pb-3">
                     <div>
                         <legend class="text-sm font-bold text-ink">CPMK dan persentase tugas</legend>
@@ -369,7 +367,6 @@
             @foreach(['file', 'image', 'link', 'text'] as $format)
                 <input type="hidden" name="formats[]" value="{{ $format }}">
             @endforeach
-        </div>
         </div>
 
         {{-- Pengaturan Bantuan AI untuk Pemrograman (Materi & Tugas) --}}
