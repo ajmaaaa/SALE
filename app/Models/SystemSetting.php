@@ -53,11 +53,11 @@ class SystemSetting extends Model
     {
         $storedPath = static::valueFor('app_logo_path');
         if ($storedPath && Storage::disk('public')->exists($storedPath)) {
-            return Storage::disk('public')->url($storedPath);
+            return '/storage/' . ltrim($storedPath, '/');
         }
         $defaultPath = public_path('images/logo-umrah.png');
         if (file_exists($defaultPath)) {
-            return asset('images/logo-umrah.png');
+            return '/images/logo-umrah.png';
         }
         return null;
     }

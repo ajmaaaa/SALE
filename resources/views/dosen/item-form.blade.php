@@ -1,6 +1,21 @@
 @extends('layouts.mahasiswa')
 @php
     $isEdit = $isEdit ?? false;
+    $rawItemType = old('type', $item['type'] ?? request('type', ''));
+    if ($rawItemType === 'coding') {
+        $rawItemType = 'tugas';
+    }
+    $isAssessmentCategory = in_array($rawItemType, ['tugas', 'kuis', 'uts', 'uas', 'pbl'], true);
+    if ($isAssessmentCategory) {
+        $mainCategoryVal = 'asesmen';
+        $subCategoryVal = $rawItemType;
+    } elseif (in_array($rawItemType, ['materi', 'pengumuman', 'lainnya'], true)) {
+        $mainCategoryVal = $rawItemType;
+        $subCategoryVal = 'tugas';
+    } else {
+        $mainCategoryVal = '';
+        $subCategoryVal = 'tugas';
+    }
 @endphp
 @section('header', $isEdit ? 'Edit konten course' : 'Tambah konten course')
 @section('content')
@@ -68,15 +83,34 @@
 
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
-                <label class="form-label" for="type">Jenis konten <span class="text-danger">*</span></label>
-                <select id="type" name="type" class="field" data-content-type required>
-                    <option value="" disabled @selected(!old('type', $item['type'] ?? '') && !request('type'))>Pilih jenis konten</option>
-                    @foreach(['materi' => 'Materi', 'tugas' => 'Tugas', 'kuis' => 'Kuis', 'uts' => 'Ujian Tengah Semester (UTS)', 'uas' => 'Ujian Akhir Semester (UAS)', 'pbl' => 'Project-Based Learning (PBL)', 'pengumuman' => 'Pengumuman', 'lainnya' => 'Lainnya'] as $value => $label)
-                        <option value="{{ $value }}" @selected(old('type', $item['type'] ?? request('type')) === $value || ($value === 'tugas' && old('type', $item['type'] ?? '') === 'coding'))>{{ $label }}</option>
-                    @endforeach
+                <label class="form-label" for="main_category">Kategori utama konten <span class="text-danger">*</span></label>
+                <select id="main_category" class="field" data-main-category required>
+                    <option value="" disabled @selected(empty($mainCategoryVal))>Pilih kategori konten</option>
+                    <option value="materi" @selected($mainCategoryVal === 'materi')>Materi Pembelajaran</option>
+                    <option value="asesmen" @selected($mainCategoryVal === 'asesmen')>Tugas, Ujian &amp; Asesmen (Bernilai OBE)</option>
+                    <option value="pengumuman" @selected($mainCategoryVal === 'pengumuman')>Pengumuman / Informasi</option>
+                    <option value="lainnya" @selected($mainCategoryVal === 'lainnya')>Lainnya (Pengumpulan Non-Akademik / Bebas CPMK)</option>
                 </select>
+                <p class="mt-1 text-[11px] text-muted">
+                    Pilih sifat konten pembelajaran yang ingin Anda buat untuk kelas ini.
+                </p>
             </div>
-            <div>
+
+            <div data-sub-category-wrapper @if($mainCategoryVal !== 'asesmen') hidden @endif>
+                <label class="form-label" for="assessment_type">Komponen penilaian OBE <span class="text-danger">*</span></label>
+                <select id="assessment_type" class="field" data-assessment-type>
+                    <option value="tugas" @selected($subCategoryVal === 'tugas')>Tugas Mandiri / Terstruktur</option>
+                    <option value="kuis" @selected($subCategoryVal === 'kuis')>Kuis</option>
+                    <option value="uts" @selected($subCategoryVal === 'uts')>Ujian Tengah Semester (UTS)</option>
+                    <option value="uas" @selected($subCategoryVal === 'uas')>Ujian Akhir Semester (UAS)</option>
+                    <option value="pbl" @selected($subCategoryVal === 'pbl')>Project-Based Learning (PBL) / Case Method</option>
+                </select>
+                <p class="mt-1 text-[11px] text-muted">
+                    Menentukan pos komponen nilai di RPS dan perhitungan capaian CPMK/CPL.
+                </p>
+            </div>
+
+            <div class="{{ $mainCategoryVal === 'asesmen' ? 'sm:col-span-2' : '' }}" data-module-container>
                 <label class="form-label" for="module">Nama modul / topik <span class="text-danger">*</span></label>
                 <input id="module" name="module" class="field" required maxlength="100" list="modules" value="{{ old('module', $item['module'] ?? '') }}" placeholder="Minggu 3: Tree dan traversal">
                 <datalist id="modules">
@@ -86,6 +120,8 @@
                 </datalist>
             </div>
         </div>
+
+        <input id="type" name="type" type="hidden" data-content-type value="{{ old('type', $item['type'] ?? request('type', '')) }}">
 
         <input id="title" name="title" type="hidden" value="{{ old('title', $item['title'] ?? old('module', $item['module'] ?? '')) }}">
 
@@ -185,68 +221,33 @@
             </div>
         </section>
 
-        {{-- Pengaturan Batas Waktu & Durasi Kuis --}}
-        <section data-quiz-duration-settings class="rounded-xl border border-line/70 bg-white p-4 shadow-xs transition-all duration-300 ease-out" hidden>
-            <input type="hidden" name="duration_mode" id="duration_mode" value="{{ old('duration_mode', 'disabled') }}">
-            <label class="flex cursor-pointer items-center justify-between gap-4">
-                <span>
-                    <span class="block text-sm font-bold text-ink">Pakai batas waktu</span>
-                    <span class="mt-0.5 block text-xs text-muted">Aktifkan timer hitung mundur saat mahasiswa mulai mengerjakan.</span>
-                </span>
-                <input type="checkbox" data-duration-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('duration_mode') === 'enabled')>
-            </label>
-            <div data-duration-options class="mt-4 border-t border-line/60 pt-4" hidden>
-                <label class="form-label" for="duration_minutes">Durasi pengerjaan</label>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input type="number" name="duration_minutes" id="duration_minutes" value="{{ old('duration_minutes', 60) }}" min="1" max="1440" class="field w-24 bg-white py-2 text-xs" aria-label="Durasi menit">
-                    <span class="text-xs font-semibold text-muted">menit</span>
-                    @foreach([15, 30, 60, 90, 120] as $minutes)
-                        <button type="button" data-duration-preset="{{ $minutes }}" class="rounded border border-line/60 bg-canvas px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-slate-200">{{ $minutes }}</button>
-                    @endforeach
-                </div>
-            </div>
-
-            @php
-                $itemType = old('type', $item['type'] ?? '');
-                $itemDue = old('due', $item['due'] ?? '');
-                $hasQuizDue = !empty($itemDue) && in_array($itemType, ['kuis', 'uts', 'uas'], true);
-                $quizDueVal = $hasQuizDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
-            @endphp
-            <div class="mt-4 border-t border-line/60 pt-4">
-                <label class="flex cursor-pointer items-center justify-between gap-4">
-                    <span>
-                        <span class="block text-sm font-bold text-ink">Pakai tenggat kuis</span>
-                        <span class="mt-0.5 block text-xs text-muted">Tentukan batas tanggal dan waktu kuis dapat dikerjakan.</span>
-                    </span>
-                    <input type="checkbox" data-quiz-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked($hasQuizDue)>
-                </label>
-                <div data-quiz-due-options class="mt-4" @if(!$hasQuizDue) hidden @endif>
-                    <label class="form-label" for="quiz_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="quiz_due" name="due" class="field" value="{{ $quizDueVal }}" @disabled(!$hasQuizDue)>
-                </div>
-            </div>
-        </section>
-
-        {{-- Pengaturan Pelaksanaan Tugas / Ujian --}}
-        <div data-legacy-question-settings data-assignment-fields class="space-y-4 pt-2 transition-all duration-300 ease-out" hidden>
-            <div class="grid gap-4 sm:grid-cols-1" data-task-mode-container>
+        {{-- Pengaturan Pelaksanaan Tugas / Ujian & Waktu --}}
+        <div data-legacy-question-settings data-assignment-fields class="space-y-5 pt-2 transition-all duration-300 ease-out" hidden>
+            <div data-task-mode-container class="rounded-xl border border-line/70 bg-white p-4 space-y-3">
                 <fieldset>
                     <legend class="form-label" data-task-mode-legend>Bentuk pelaksanaan</legend>
+
+                    {{-- Info banner khusus Kuis (selalu CBT) dan PBL (selalu laporan proyek) --}}
+                    <div data-task-mode-info class="rounded-lg border border-line/70 bg-slate-50 p-3 text-xs flex items-center gap-2 text-ink" hidden>
+                        <span class="font-semibold" data-task-mode-info-title>Ruang Soal (Kuis CBT)</span>
+                        <span class="text-muted" data-task-mode-info-desc>— Dikerjakan langsung di ruang soal interaktif.</span>
+                    </div>
+
                     <div class="grid gap-2 grid-cols-1 sm:grid-cols-2" data-task-mode-grid>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="quiz" hidden>
                             <input type="radio" name="task_mode" value="quiz" data-task-mode @checked($taskModeVal === 'quiz')>
                             <span class="ml-1 font-semibold text-ink" data-mode-quiz-label>Ruang Ujian (CBT)</span>
-                            <span class="mt-1 block pl-5 text-muted" data-mode-quiz-desc>Susun butir soal pilihan ganda &amp; esai dengan timer ujian.</span>
+                            <span class="mt-1 block pl-5 text-muted" data-mode-quiz-desc>Susun butir soal pilihan ganda, benar/salah, menjodohkan, atau esai.</span>
                         </label>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="regular">
                             <input type="radio" name="task_mode" value="regular" data-task-mode @checked($taskModeVal === 'regular')>
                             <span class="ml-1 font-semibold text-ink" data-mode-regular-label>Tugas biasa</span>
-                            <span class="mt-1 block pl-5 text-muted" data-mode-regular-desc>Pengumpulan dokumen, laporan berkas, atau tautan.</span>
+                            <span class="mt-1 block pl-5 text-muted" data-mode-regular-desc>Pengumpulan dokumen, laporan berkas, teks, atau tautan.</span>
                         </label>
                         <label class="cursor-pointer rounded-lg border border-line/70 bg-white p-3 text-xs" data-mode-card="coding">
                             <input type="radio" name="task_mode" value="coding" data-task-mode @checked($taskModeVal === 'coding')>
                             <span class="ml-1 font-semibold text-ink">Pemrograman</span>
-                            <span class="mt-1 block pl-5 text-muted">Pengerjaan kode di editor dengan bantuan asisten AI.</span>
+                            <span class="mt-1 block pl-5 text-muted">Lembar kerja kode di editor dengan bantuan asisten AI.</span>
                         </label>
                     </div>
                     <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
@@ -254,29 +255,63 @@
                 </fieldset>
             </div>
 
-
-            @php
-                $hasTaskDue = !empty($itemDue) && in_array($itemType, ['tugas', 'coding', 'uts', 'uas', 'pbl', 'lainnya'], true);
-                $taskDueVal = $hasTaskDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
-            @endphp
-            <div class="rounded-xl border border-line/70 bg-white p-4">
-                <label class="flex cursor-pointer items-center justify-between gap-4">
-                    <span>
-                        <span class="block text-sm font-bold text-ink">Pakai tenggat waktu</span>
-                        <span class="mt-0.5 block text-xs text-muted">Aktifkan jika tugas harus dikumpulkan sebelum waktu tertentu.</span>
-                    </span>
-                    <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked($hasTaskDue)>
-                </label>
-                <div data-due-options class="mt-4 border-t border-line/60 pt-4" @if(!$hasTaskDue) hidden @endif>
-                    <label class="form-label" for="task_due">Tanggal dan waktu tenggat</label>
-                    <input type="datetime-local" id="task_due" name="due" class="field" value="{{ $taskDueVal }}" @disabled(!$hasTaskDue)>
-                    <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-ink">
-                        <input type="hidden" name="allow_late" value="0">
-                        <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
-                        Izinkan pengumpulan terlambat
-                    </label>
+            {{-- Pengaturan Waktu & Batas Pengerjaan (Satu Seksi Terpadu - Bebas Duplikasi) --}}
+            <section data-unified-time-settings class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs space-y-4">
+                <div class="border-b border-line/60 pb-3">
+                    <h3 class="text-sm font-bold text-ink">Pengaturan Waktu &amp; Batas Pengerjaan</h3>
+                    <p class="text-xs text-muted">Atur batas durasi ujian hitung mundur dan tenggat akhir pengumpulan.</p>
                 </div>
-            </div>
+
+                {{-- 1. Batas Durasi Pengerjaan (Hanya untuk Kuis & Ujian CBT) --}}
+                <div data-timer-setting-container class="space-y-3" hidden>
+                    <input type="hidden" name="duration_mode" id="duration_mode" value="{{ old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) }}">
+                    <label class="flex cursor-pointer items-center justify-between gap-4">
+                        <span>
+                            <span class="block text-xs font-bold text-ink">Pakai batas durasi ujian (Timer)</span>
+                            <span class="mt-0.5 block text-[11px] text-muted">Aktifkan timer hitung mundur saat mahasiswa mulai membuka lembar ujian CBT.</span>
+                        </span>
+                        <input type="checkbox" data-duration-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) === 'enabled')>
+                    </label>
+                    <div data-duration-options class="border-t border-line/50 pt-3" @if(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) !== 'enabled') hidden @endif>
+                        <label class="form-label text-xs" for="duration_minutes">Durasi pengerjaan</label>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="number" name="duration_minutes" id="duration_minutes" value="{{ old('duration_minutes', $item['duration_minutes'] ?? 60) }}" min="1" max="1440" class="field w-24 bg-white py-1.5 text-xs font-mono font-bold" aria-label="Durasi menit">
+                            <span class="text-xs font-semibold text-muted">menit</span>
+                            @foreach([15, 30, 60, 90, 120] as $minutes)
+                                <button type="button" data-duration-preset="{{ $minutes }}" class="rounded border border-line/60 bg-canvas px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-slate-200">{{ $minutes }} menit</button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                {{-- 2. Tenggat Waktu (Untuk Tugas, Kuis, UTS, UAS, PBL, Lainnya) --}}
+                @php
+                    $itemDue = old('due', $item['due'] ?? '');
+                    $hasDue = !empty($itemDue);
+                    $dueVal = $hasDue ? \Carbon\Carbon::parse($itemDue)->format('Y-m-d\TH:i') : '';
+                @endphp
+                <div data-due-setting-container class="space-y-3">
+                    <label class="flex cursor-pointer items-center justify-between gap-4">
+                        <span>
+                            <span class="block text-xs font-bold text-ink" data-due-label>Pakai tenggat waktu</span>
+                            <span class="mt-0.5 block text-[11px] text-muted" data-due-desc>Tentukan batas akhir tanggal dan waktu pengerjaan / pengumpulan.</span>
+                        </span>
+                        <input type="checkbox" data-due-toggle class="h-4 w-4 rounded border-line text-brand" @checked($hasDue)>
+                    </label>
+                    <div data-due-options class="border-t border-line/50 pt-3" @if(!$hasDue) hidden @endif>
+                        <label class="form-label text-xs" for="due">Tanggal dan waktu tenggat</label>
+                        <input type="datetime-local" id="due" name="due" class="field text-xs" value="{{ $dueVal }}" @disabled(!$hasDue)>
+
+                        <div data-allow-late-container class="mt-2.5">
+                            <label class="flex cursor-pointer items-center gap-2 text-xs text-ink">
+                                <input type="hidden" name="allow_late" value="0">
+                                <input type="checkbox" name="allow_late" value="1" @checked(old('allow_late', $item['allow_late'] ?? '1') == '1') class="rounded border-line text-brand">
+                                Izinkan pengumpulan terlambat (setelah melewati batas tenggat)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {{-- Pengaturan CPMK dan Bobot Persentase Khusus Tugas Biasa (Hanya munculkan CPMK yang dipilih) --}}
             <fieldset data-manual-cpmk-settings class="rounded-xl border border-line/70 bg-white p-4 space-y-3" hidden>

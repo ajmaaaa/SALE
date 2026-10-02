@@ -404,6 +404,27 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $this->assertCount(1, $essayList);
         $this->assertEquals('Jelaskan perbedaan mendasar antara Stack dan Queue!', $essayList->first()['prompt']);
     }
+
+    public function test_create_item_form_has_unified_time_settings_and_no_duplicate_due_inputs(): void
+    {
+        $response = $this->actingAs($this->dosen)
+            ->get(route('dosen.item.create', $this->section->id));
+
+        $response->assertOk();
+        $response->assertSee('data-main-category', false);
+        $response->assertSee('data-assessment-type', false);
+        $response->assertSee('data-unified-time-settings', false);
+        $response->assertSee('data-task-mode-info', false);
+
+        // Pastikan hanya ada tepat SATU input name="due" di seluruh form
+        $content = $response->getContent();
+        $dueMatches = preg_match_all('/name=["\']due["\']/', $content);
+        $this->assertEquals(1, $dueMatches, 'Harus hanya ada tepat 1 input name="due" di form tambah konten');
+
+        // Pastikan tidak ada id="task_due" atau id="quiz_due" yang lama
+        $this->assertStringNotContainsString('id="task_due"', $content);
+        $this->assertStringNotContainsString('id="quiz_due"', $content);
+    }
 }
 
 
