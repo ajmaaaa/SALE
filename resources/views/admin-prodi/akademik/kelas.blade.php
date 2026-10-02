@@ -77,7 +77,7 @@
                         <th class="px-4 py-3 !align-middle">Mata Kuliah &amp; SKS</th>
                         <th class="px-4 py-3 w-48 !align-middle">Dosen Ketua</th>
                         <th class="px-4 py-3 w-40 !align-middle">Dosen Anggota</th>
-                        <th class="px-4 py-3 text-center w-28 !align-middle">Barcode</th>
+                        <th class="px-4 py-3 text-center w-20 !align-middle">QR</th>
                         <th class="px-4 py-3 text-center w-28 !align-middle">Kapasitas</th>
                         <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
                     </tr>
@@ -116,11 +116,11 @@
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
-                            <button type="button" 
-                                    onclick="showBarcodeModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}', '{{ route('kelas.barcode', $cls->id) }}')"
-                                    class="button-secondary text-xs py-1 px-2.5 inline-flex items-center"
-                                    title="Tampilkan Barcode / QR Code">
-                                <svg class="h-3.5 w-3.5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>
+                            <button type="button"
+                                    onclick="showDashboardQrModal('{{ $cls->display_code }}', '{{ addslashes($cls->mataKuliah->name) }}', '{{ $cls->enrollment_code }}', '{{ $cls->enrollment_url }}', '{{ route('kelas.qr', $cls->id) }}')"
+                                    class="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted hover:text-brand hover:bg-canvas transition cursor-pointer"
+                                    title="Tampilkan QR Code">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="2" height="2"/><rect x="18" y="18" width="3" height="3"/></svg>
                             </button>
                         </td>
                         <td class="px-4 py-3.5 text-center !align-middle whitespace-nowrap">
@@ -314,17 +314,15 @@
     </div>
 </div>
 
-<!-- Modal Tampilkan QR Code Kelas -->
-<div id="barcodeModal" onclick="if(event.target === this) closeBarcodeModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
+{{-- Modal QR Code Kelas --}}
+<div id="dashboardQrModal" onclick="if(event.target === this) closeDashboardQrModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
     <div class="surface w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-line max-h-[90vh] overflow-y-auto">
-
-        {{-- Header --}}
         <div class="flex items-start justify-between px-6 pt-6 pb-4">
             <div>
-                <h2 class="text-base font-bold text-ink">QR Code & Akses Kelas</h2>
-                <p id="barcode_mk_subtitle" class="text-xs text-muted mt-0.5"></p>
+                <h2 class="text-base font-bold text-ink">QR Code &amp; Akses Kelas</h2>
+                <p id="dash_qr_subtitle" class="text-xs text-muted mt-0.5"></p>
             </div>
-            <button type="button" onclick="closeBarcodeModal()"
+            <button type="button" onclick="closeDashboardQrModal()"
                     class="text-muted hover:text-ink transition p-1 rounded-lg hover:bg-canvas ml-3 shrink-0"
                     aria-label="Tutup">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -332,42 +330,30 @@
                 </svg>
             </button>
         </div>
-
-        {{-- QR Code --}}
         <div class="flex justify-center px-6 pb-4">
             <div class="p-4 bg-white border border-line rounded-2xl shadow-xs inline-flex">
-                <img id="qr_image" src="" alt="QR Code Akses Kelas" class="h-44 w-44 object-contain">
+                <img id="dash_qr_image" src="" alt="QR Code Akses Kelas" class="h-44 w-44 object-contain">
             </div>
         </div>
-
-        {{-- Kode Akses Kelas --}}
         <div class="text-center px-6 pb-4">
             <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Kode Akses Kelas</p>
-            <p id="modal_enroll_code_display" class="text-3xl font-bold text-ink tracking-[0.15em] font-mono"></p>
+            <p id="dash_qr_code_display" class="text-3xl font-bold text-ink tracking-[0.15em] font-mono"></p>
             <p class="mt-3 text-xs text-muted leading-relaxed max-w-[260px] mx-auto">
                 Mahasiswa dapat memindai QR Code di atas atau memasukkan kode akses kelas untuk bergabung ke kelas ini.
             </p>
         </div>
-
-        {{-- Hidden inputs for copy --}}
-        <input type="hidden" id="modal_enroll_code">
-        <input type="hidden" id="modal_enroll_url">
-
-        {{-- Tombol Aksi --}}
+        <input type="hidden" id="dash_qr_code">
+        <input type="hidden" id="dash_qr_url">
         <div class="flex gap-2 px-6 pb-6">
-            <button type="button" onclick="copyModalCode(this)" id="btnCopyCode"
+            <button type="button" onclick="dashCopyCode(this)" id="dashBtnCopyCode"
                     class="flex-1 button-secondary text-xs py-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <span id="btnCopyCodeText">Salin Kode</span>
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Salin Kode</span>
             </button>
-            <button type="button" onclick="copyModalUrl(this)" id="btnCopyUrl"
+            <button type="button" onclick="dashCopyUrl(this)" id="dashBtnCopyUrl"
                     class="flex-1 button-primary text-xs py-2.5 inline-flex items-center justify-center gap-1.5 cursor-pointer">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-                <span id="btnCopyUrlText">Salin Link</span>
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span>Salin Link</span>
             </button>
         </div>
     </div>
@@ -563,35 +549,30 @@
         document.getElementById('editKelasModal').classList.remove('flex');
     }
 
-    function showBarcodeModal(classCode, mkName, code, url, qrSrc, barcodeSrc) {
-        document.getElementById('barcode_mk_subtitle').textContent = mkName + ' (' + classCode + ')';
-        document.getElementById('modal_enroll_code').value = code;
-        document.getElementById('modal_enroll_url').value = url;
-        document.getElementById('modal_enroll_code_display').textContent = code;
-        document.getElementById('qr_image').src = qrSrc;
-
-        document.getElementById('barcodeModal').classList.remove('hidden');
-        document.getElementById('barcodeModal').classList.add('flex');
+    function showDashboardQrModal(classCode, mkName, code, url, qrSrc) {
+        document.getElementById('dash_qr_subtitle').textContent = mkName + ' (' + classCode + ')';
+        document.getElementById('dash_qr_code_display').textContent = code;
+        document.getElementById('dash_qr_code').value = code;
+        document.getElementById('dash_qr_url').value = url;
+        document.getElementById('dash_qr_image').src = qrSrc;
+        document.getElementById('dashboardQrModal').classList.remove('hidden');
+        document.getElementById('dashboardQrModal').classList.add('flex');
     }
-    function closeBarcodeModal() {
-        document.getElementById('barcodeModal').classList.add('hidden');
-        document.getElementById('barcodeModal').classList.remove('flex');
+    function closeDashboardQrModal() {
+        document.getElementById('dashboardQrModal').classList.add('hidden');
+        document.getElementById('dashboardQrModal').classList.remove('flex');
     }
 
-    async function copyTextToClipboard(text) {
+    async function dashCopyTextToClipboard(text) {
         if (!text) return false;
 
-        // Coba modern Clipboard API jika browser mengizinkan & berada di secure context
         if (navigator.clipboard && window.isSecureContext) {
             try {
                 await navigator.clipboard.writeText(text);
                 return true;
-            } catch (err) {
-                // fall back to execCommand below
-            }
+            } catch (err) {}
         }
 
-        // Fallback untuk HTTP non-secure (misal akses dari HP via IP lokal seperti http://10.70.233.217)
         try {
             const textarea = document.createElement('textarea');
             textarea.value = text;
@@ -630,46 +611,42 @@
         }
     }
 
-    async function copyModalCode(btn) {
-        const code = document.getElementById('modal_enroll_code').value;
-        const targetBtn = btn || document.getElementById('btnCopyCode');
+    async function dashCopyCode(btn) {
+        const code = document.getElementById('dash_qr_code').value;
+        const targetBtn = btn || document.getElementById('dashBtnCopyCode');
         const textSpan = targetBtn ? (targetBtn.querySelector('span') || targetBtn) : null;
         const originalText = textSpan ? textSpan.textContent : 'Salin Kode';
 
-        const success = await copyTextToClipboard(code);
+        const success = await dashCopyTextToClipboard(code);
         if (success && textSpan) {
             textSpan.textContent = 'Tersalin!';
             setTimeout(() => {
                 if (textSpan) textSpan.textContent = originalText;
             }, 1800);
         }
-
-        try {
-            if (typeof window.saleNotice === 'function') {
-                await window.saleNotice({ title: 'Kode kelas tersalin', message: `Kode ${code} sudah disalin ke clipboard.` });
-            }
-        } catch (e) {}
     }
 
-    async function copyModalUrl(btn) {
-        const url = document.getElementById('modal_enroll_url').value;
-        const targetBtn = btn || document.getElementById('btnCopyUrl');
+    async function dashCopyUrl(btn) {
+        const url = document.getElementById('dash_qr_url').value;
+        const targetBtn = btn || document.getElementById('dashBtnCopyUrl');
         const textSpan = targetBtn ? (targetBtn.querySelector('span') || targetBtn) : null;
         const originalText = textSpan ? textSpan.textContent : 'Salin Link';
 
-        const success = await copyTextToClipboard(url);
+        const success = await dashCopyTextToClipboard(url);
         if (success && textSpan) {
             textSpan.textContent = 'Tersalin!';
             setTimeout(() => {
                 if (textSpan) textSpan.textContent = originalText;
             }, 1800);
         }
+    }
 
-        try {
-            if (typeof window.saleNotice === 'function') {
-                await window.saleNotice({ title: 'Tautan kelas tersalin', message: 'Tautan bergabung kelas sudah disalin ke clipboard.' });
-            }
-        } catch (e) {}
+    // Backward-compatibility aliases
+    function showBarcodeModal(classCode, mkName, code, url, qrSrc, barcodeSrc) {
+        showDashboardQrModal(classCode, mkName, code, url, qrSrc);
+    }
+    function closeBarcodeModal() {
+        closeDashboardQrModal();
     }
 </script>
 @endsection

@@ -185,10 +185,11 @@ class AiModelFetcher
         }
 
         return [
-            ['id' => 'gemini-2.5-flash', 'displayName' => 'Gemini 2.5 Flash (gemini-2.5-flash)'],
+            ['id' => 'gemini-3.6-flash', 'displayName' => 'Gemini 3.6 Flash (gemini-3.6-flash)'],
+            ['id' => 'gemini-3.8-flash', 'displayName' => 'Gemini 3.8 Flash (gemini-3.8-flash)'],
+            ['id' => 'gemini-2.0-flash', 'displayName' => 'Gemini 2.0 Flash (gemini-2.0-flash)'],
             ['id' => 'gemini-1.5-flash', 'displayName' => 'Gemini 1.5 Flash (gemini-1.5-flash)'],
             ['id' => 'gemini-1.5-pro', 'displayName' => 'Gemini 1.5 Pro (gemini-1.5-pro)'],
-            ['id' => 'gemini-2.0-flash', 'displayName' => 'Gemini 2.0 Flash (gemini-2.0-flash)'],
         ];
     }
 }

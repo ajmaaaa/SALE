@@ -26,7 +26,10 @@ class AppServiceProvider extends ServiceProvider
 
                 $apiKey = trim((string) \App\Models\SystemSetting::valueFor('ai_api_key', ''));
                 if (filled($apiKey)) {
-                    config(['ai.key' => $apiKey, 'ai.enabled' => true]);
+                    config([
+                        'ai.key' => $apiKey,
+                        'ai.enabled' => true,
+                    ]);
                 }
                 $model = trim((string) \App\Models\SystemSetting::valueFor('ai_model', ''));
                 if (filled($model)) {
@@ -37,7 +40,10 @@ class AppServiceProvider extends ServiceProvider
                 }
                 $quota = \App\Models\SystemSetting::valueFor('ai_token_quota');
                 if ($quota && is_numeric($quota) && (int) $quota > 0) {
-                    config(['ai.daily_tokens' => (int) $quota]);
+                    config([
+                        'ai.daily_tokens' => (int) $quota,
+                        'ai.global_daily_tokens' => (int) $quota,
+                    ]);
                 }
             }
         } catch (\Throwable) {
