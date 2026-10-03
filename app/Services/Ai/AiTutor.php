@@ -196,10 +196,17 @@ TEXT;
             }
         }
 
-        // Conservative reservation: UTF-8 payload bytes plus framing/output allowance.
+        // Reservation: when v2 is active, use ceil(strlen/AI_CHARS_PER_TOKEN) + output + AI_RESERVE_PADDING
         $payloadStr = json_encode($payload, JSON_UNESCAPED_UNICODE);
-        $reserved = strlen($payloadStr) + $output + 2048;
-        $estimatedInputTokens = max(20, (int) round(strlen($payloadStr) / 4));
+        if ($isV2) {
+            $charsPerToken = max(1, (int) config('ai.chars_per_token', 4));
+            $reservePadding = max(0, (int) config('ai.reserve_padding', 256));
+            $estimatedInputTokens = max(20, (int) ceil(strlen($payloadStr) / $charsPerToken));
+            $reserved = $estimatedInputTokens + $output + $reservePadding;
+        } else {
+            $reserved = strlen($payloadStr) + $output + 2048;
+            $estimatedInputTokens = max(20, (int) round(strlen($payloadStr) / 4));
+        }
         $day = now('UTC')->toDateString();
 
         // Rate limiter ringan untuk provider aktif (RateLimiter Laravel, config AI_RPM). Opsional, default mati.
@@ -218,7 +225,7 @@ TEXT;
         $this->adjust($userId, $day, $reserved, true);
         $started = microtime(true);
         $maxAttempts = $isV2 ? 3 : 1;
-        $maxBudgetSeconds = 60.0;
+        $maxBudgetSeconds = $isV2 ? (float) config('ai.total_timeout', 60.0) : 60.0;
         $response = null;
         $lastException = null;
 

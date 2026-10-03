@@ -407,4 +407,50 @@ class AiTutorV2Phase1Test extends TestCase
         $this->assertTrue(Cache::lock('ai:user:'.$user->id, 90)->get());
         Cache::lock('ai:user:'.$user->id)->release();
     }
+
+    public function test_token_reservation_formula_uses_chars_per_token_and_padding_in_v2(): void
+    {
+        config([
+            'ai.v2' => true,
+            'ai.chars_per_token' => 5,
+            'ai.reserve_padding' => 500,
+        ]);
+        $user = $this->student();
+        $day = now('UTC')->toDateString();
+
+        // 429 triggers reservation, failure triggers refund
+        Http::fake([
+            '*' => Http::response(['error' => 'quota exceeded'], 429),
+        ]);
+
+        $response = $this->postJson('/ai/tasks/1', ['question' => 'Tes formula reservasi']);
+        $response->assertStatus(503);
+
+        // Tokens should be fully refunded back to 0 on 429
+        $used = (int) (DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens') ?? 0);
+        $this->assertSame(0, $used);
+    }
+
+    public function test_provider_client_errors_400_401_403_are_not_retried_and_fully_refunded(): void
+    {
+        $user = $this->student();
+        $day = now('UTC')->toDateString();
+
+        foreach ([400, 401, 403] as $status) {
+            Http::fake([
+                '*' => Http::response(['error' => 'Client Error '.$status], $status),
+            ]);
+
+            $response = $this->postJson('/ai/tasks/1', ['question' => 'Error '.$status]);
+
+            $response->assertStatus(503)
+                ->assertHeader('X-AI-Error', AiErrorCode::InternalError->value);
+
+            // 400, 401, 403 must not be retried (sent count must be 1 per request)
+            Http::assertSentCount(1);
+
+            $used = (int) (DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens') ?? 0);
+            $this->assertSame(0, $used, "Tokens were not fully refunded on status {$status}");
+        }
+    }
 }
