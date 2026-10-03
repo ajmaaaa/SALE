@@ -2,11 +2,13 @@
 
 return [
     'enabled' => env('AI_ENABLED', false),
+    'v2' => env('AI_TUTOR_V2', false),
     'key' => env('GEMINI_API_KEY', ''),
     'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
     'daily_tokens' => (int) env('AI_DAILY_TOKENS', 100000),
     'global_daily_tokens' => (int) env('AI_GLOBAL_DAILY_TOKENS', 1000000),
     'task_turns' => (int) env('AI_TASK_TURNS', 12),
+    'rpm' => (int) env('AI_RPM', 0),
     'benchmark_retries' => (int) env('AI_BENCHMARK_RETRIES', 2),
     // Gemini 3.6 Flash Standard paid-tier rates through 2026-12-31.
     // Keep these environment-configurable because provider prices can change.

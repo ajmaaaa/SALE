@@ -32,7 +32,7 @@ Route::get('/', function () {
 });
 
 Route::get('/login', [AuthController::class, 'login'])->name('login');
-Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:5,1')->name('login.post');
+Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:60,1')->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Ganti password wajib — hanya untuk user yang sudah login dengan must_change_password = true
@@ -64,6 +64,7 @@ Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
 Route::get('/mahasiswa/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.item');
 Route::post('/mahasiswa/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.course.discuss');
 Route::get('/course/{course}/item/{item}/code', [AssignmentController::class, 'courseCode'])->whereNumber(['course', 'item'])->middleware('role:mahasiswa,dosen')->name('course.assignment.code');
+Route::get('/mahasiswa/assignment/{assignment}/code', [AssignmentController::class, 'assignmentCode'])->whereNumber('assignment')->middleware('role:mahasiswa,dosen')->name('mahasiswa.assignment.code');
 
 Route::middleware('role:mahasiswa')->group(function () {
     Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::class, 'quizRoom'])->whereNumber(['course', 'item'])->name('mahasiswa.quiz.room');
@@ -201,6 +202,7 @@ Route::post('/ai/login', [AiTutorController::class, 'login'])->middleware('throt
 Route::post('/ai/logout', [AiTutorController::class, 'logout'])->middleware('auth')->name('ai.logout');
 Route::get('/ai/tasks/{assignment}', [AiTutorController::class, 'status'])->middleware('auth')->whereNumber('assignment')->name('ai.status');
 Route::post('/ai/tasks/{assignment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assignment')->name('ai.send');
+Route::post('/ai/tasks/{assignment}/cancel', [AiTutorController::class, 'cancel'])->middleware('auth')->whereNumber('assignment')->name('ai.cancel');
 
 
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
