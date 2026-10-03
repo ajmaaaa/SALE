@@ -133,7 +133,22 @@ TEXT;
         return [$provider, $model, $apiKey, $endpoint];
     }
 
-    protected function call(int $userId, string $system, array $data, int $output, bool $json, string $stage, array $context): string
+    protected ?array $lastUsage = null;
+
+    public function getLastUsage(): ?array
+    {
+        return $this->lastUsage;
+    }
+
+    protected function call(int $userId, string $system, array $data, int $output, bool|array $json, string $stage, array $context): string
+    {
+        $result = $this->sendProviderRequest($userId, $system, $data, $output, $json, $stage, $context);
+        $this->lastUsage = $result['usage'];
+
+        return $result['text'];
+    }
+
+    public function sendProviderRequest(int $userId, string $system, array $data, int $output, bool|array $json, string $stage, array $context): array
     {
         $isV2 = (bool) config('ai.v2', false);
         $this->checkCacheDriver();
@@ -150,13 +165,27 @@ TEXT;
             ];
             if ($json) {
                 $payload['generationConfig']['responseMimeType'] = 'application/json';
-                $payload['generationConfig']['responseSchema'] = ['type' => 'OBJECT', 'properties' => ['allow' => ['type' => 'BOOLEAN']], 'required' => ['allow']];
+                if (is_array($json)) {
+                    $payload['generationConfig']['responseSchema'] = $json;
+                } elseif (in_array($stage, ['gate', 'review'], true)) {
+                    $payload['generationConfig']['responseSchema'] = ['type' => 'OBJECT', 'properties' => ['allow' => ['type' => 'BOOLEAN']], 'required' => ['allow']];
+                }
             }
         } else {
+            $sysPrompt = $system;
+            if ($json) {
+                if (is_array($json)) {
+                    $sysPrompt .= "\nRespond ONLY with a valid JSON object matching this schema: ".json_encode($json, JSON_UNESCAPED_UNICODE);
+                } elseif (in_array($stage, ['gate', 'review'], true)) {
+                    $sysPrompt .= "\nRespond ONLY with a valid JSON object matching: {\"allow\": true|false}";
+                } else {
+                    $sysPrompt .= "\nRespond ONLY with a valid JSON object.";
+                }
+            }
             $payload = [
                 'model' => $model,
                 'messages' => [
-                    ['role' => 'system', 'content' => $system.($json ? "\nRespond ONLY with a valid JSON object matching: {\"allow\": true|false}" : '')],
+                    ['role' => 'system', 'content' => $sysPrompt],
                     ['role' => 'user', 'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)],
                 ],
                 'max_tokens' => $output,
@@ -178,7 +207,10 @@ TEXT;
         if ($isV2 && $rpm > 0) {
             $rpmKey = 'ai:provider:rpm:'.$provider;
             if (RateLimiter::tooManyAttempts($rpmKey, $rpm)) {
-                abort(503, AiErrorCode::ProviderBusy->message(), ['X-AI-Error' => AiErrorCode::ProviderBusy->value]);
+                abort(503, AiErrorCode::ProviderBusy->message(), [
+                    'X-AI-Error' => AiErrorCode::ProviderBusy->value,
+                    'X-AI-Reason' => 'rate_limit',
+                ]);
             }
             RateLimiter::hit($rpmKey, 60);
         }
@@ -266,7 +298,10 @@ TEXT;
                 'elapsed_seconds' => round(microtime(true) - $started, 2),
             ]);
             if ($isV2) {
-                abort(503, AiErrorCode::ProviderBusy->message(), ['X-AI-Error' => AiErrorCode::ProviderBusy->value]);
+                abort(503, AiErrorCode::ProviderBusy->message(), [
+                    'X-AI-Error' => AiErrorCode::ProviderBusy->value,
+                    'X-AI-Reason' => $timeout ? 'timeout' : 'connection_error',
+                ]);
             }
             abort(503, $timeout
                 ? 'Waktu tunggu respons AI habis. Silakan coba lagi sebentar lagi.'
@@ -279,6 +314,7 @@ TEXT;
             $cachedTokens = (int) $response->json('usageMetadata.cachedContentTokenCount', 0);
             $outputTokens = (int) $response->json('usageMetadata.candidatesTokenCount', 0);
             $thinkingTokens = (int) $response->json('usageMetadata.thoughtsTokenCount', 0);
+            $totalTokens = is_int($usage) && $usage > 0 ? $usage : ($inputTokens + $outputTokens + $thinkingTokens);
             $finishReason = $response->json('candidates.0.finishReason');
             $modelVersion = $response->json('modelVersion');
 
@@ -287,36 +323,43 @@ TEXT;
         } else {
             $usage = $response->json('usage.total_tokens');
             $inputTokens = (int) $response->json('usage.prompt_tokens', 0);
-            $cachedTokens = (int) ($response->json('usage.prompt_tokens_details.cached_tokens') ?? 0);
+            $cachedTokens = (int) ($response->json('usage.prompt_tokens_details.cached_tokens')
+                ?? $response->json('usage.prompt_cache_hit_tokens')
+                ?? 0);
             $outputTokens = (int) $response->json('usage.completion_tokens', 0);
-            $thinkingTokens = 0;
+            $thinkingTokens = (int) ($response->json('usage.completion_tokens_details.reasoning_tokens') ?? 0);
+            $totalTokens = is_int($usage) && $usage > 0 ? $usage : ($inputTokens + $outputTokens);
             $finishReason = strtoupper((string) ($response->json('choices.0.finish_reason') ?? 'STOP'));
             $modelVersion = $response->json('model');
 
             $text = (string) ($response->json('choices.0.message.content') ?? '');
         }
 
-        if ($response->successful()) {
-            if (is_int($usage) && $usage > 0) {
-                $this->adjust($userId, $day, $usage - $reserved, false);
+        $isSafetyBlocked = in_array(strtoupper((string) $finishReason), ['SAFETY', 'BLOCKED', 'CONTENT_FILTER', 'RECITATION'], true);
+        $isEmptyText = trim($text) === '';
+        $isCompleted = (in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL', ''], true) || $finishReason === null) && ! $isEmptyText && ! $isSafetyBlocked;
+
+        if ($response->successful() && $isCompleted) {
+            if ($totalTokens > 0) {
+                $this->adjust($userId, $day, $totalTokens - $reserved, false);
             }
         } elseif ($isV2) {
-            // Refund penuh jika panggilan gagal / error provider
+            // Refund penuh jika panggilan gagal / error provider / safety blocked / output kosong
             $this->adjust($userId, $day, -$reserved, false);
         }
 
         $callStatus = ! $response->successful()
-            ? 'provider_error'
-            : (in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL'], true) ? 'completed' : 'incomplete');
+            ? ($response->status() === 429 ? 'rate_limited' : 'provider_error')
+            : ($isSafetyBlocked ? 'blocked_safety' : ($isEmptyText ? 'empty_response' : 'completed'));
 
         $this->recordUsage($userId, $stage, $context, [
             'status' => $callStatus,
-            'usage_source' => ($response->successful() && is_int($usage) && $usage > 0) ? 'confirmed' : ($isV2 ? 'refunded' : 'reserved'),
+            'usage_source' => ($response->successful() && $isCompleted && $totalTokens > 0) ? 'confirmed' : ($isV2 ? 'refunded' : 'reserved'),
             'input_tokens' => $inputTokens,
             'cached_tokens' => $cachedTokens,
             'output_tokens' => $outputTokens,
             'thinking_tokens' => $thinkingTokens,
-            'total_tokens' => $response->successful() && is_int($usage) && $usage > 0 ? $usage : ($isV2 ? 0 : $reserved),
+            'total_tokens' => ($response->successful() && $isCompleted && $totalTokens > 0) ? $totalTokens : ($isV2 ? 0 : $reserved),
             'latency_ms' => $this->elapsedMs($started),
             'finish_reason' => $finishReason,
             'model_version' => $modelVersion,
@@ -327,11 +370,21 @@ TEXT;
         }
 
         if ($isV2) {
+            $reason = match (true) {
+                $response->status() === 429 => 'rate_limit',
+                $response->serverError() => 'server_error',
+                in_array($response->status(), [401, 403], true) => 'auth_error',
+                default => 'bad_request',
+            };
+
             abort_unless($response->successful(), 503, match ($response->status()) {
                 429, 500, 502, 503, 504 => AiErrorCode::ProviderBusy->message(),
                 401, 403 => 'Akses API AI ditolak. Hubungi pengelola untuk memeriksa API key.',
                 default => AiErrorCode::InternalError->message(),
-            }, ['X-AI-Error' => in_array($response->status(), [429, 500, 502, 503, 504], true) ? AiErrorCode::ProviderBusy->value : AiErrorCode::InternalError->value]);
+            }, [
+                'X-AI-Error' => in_array($response->status(), [429, 500, 502, 503, 504], true) ? AiErrorCode::ProviderBusy->value : AiErrorCode::InternalError->value,
+                'X-AI-Reason' => $reason,
+            ]);
         } else {
             abort_unless($response->successful(), 503, match ($response->status()) {
                 400, 404 => 'Konfigurasi model AI bermasalah. Hubungi pengelola.',
@@ -343,17 +396,32 @@ TEXT;
             });
         }
 
-        if (! (in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL', ''], true) || $finishReason === null) || trim($text) === '') {
+        if (! $isCompleted) {
             if ($isV2) {
-                if (is_int($usage) && $usage > 0) {
-                    $this->adjust($userId, $day, -$usage, false);
-                }
+                abort(503, $isSafetyBlocked
+                    ? 'AI tidak menghasilkan jawaban lengkap yang aman ditampilkan.'
+                    : 'AI tidak memberikan jawaban.', [
+                        'X-AI-Error' => AiErrorCode::InternalError->value,
+                        'X-AI-Reason' => $isSafetyBlocked ? 'safety_filter' : 'empty_response',
+                    ]);
             }
             abort_unless(in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL', ''], true) || $finishReason === null, 503, 'AI tidak menghasilkan jawaban lengkap yang aman ditampilkan.');
             abort_if(trim($text) === '', 503, 'AI tidak memberikan jawaban.');
         }
 
-        return $text;
+        return [
+            'text' => $text,
+            'usage' => [
+                'input_tokens' => $inputTokens,
+                'cached_tokens' => $cachedTokens,
+                'output_tokens' => $outputTokens,
+                'thinking_tokens' => $thinkingTokens,
+                'total_tokens' => $totalTokens,
+            ],
+            'finish_reason' => $finishReason,
+            'model' => $model,
+            'provider' => $provider,
+        ];
     }
 
     protected function recordUsage(int $userId, string $stage, array $context, array $usage, string $provider = 'google', string $model = 'gemini-3.6-flash'): void

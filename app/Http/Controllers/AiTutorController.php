@@ -336,7 +336,7 @@ class AiTutorController extends Controller
                     return response()->json([
                         'error' => $errorCode,
                         'message' => $exception->getMessage(),
-                    ], $statusCode);
+                    ], $statusCode, $headers);
                 }
                 throw $exception;
             }

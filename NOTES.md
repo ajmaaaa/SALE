@@ -34,3 +34,20 @@ Dokumen ini mencatat temuan audit teknis di luar cakupan Fase 1 sesuai instruksi
   - **Kelas Arsip (Archived Class)**: Otorisasi saat ini **belum memeriksa** apakah kelas sedang dalam status arsip (`$section->is_archived` atau semester kadaluarsa). Jika kelas telah diarsipkan, mahasiswa yang masih terdaftar tetap bisa memanggil API tutor dan menghabiskan token.
 - **Rencana Tindak Lanjut (Fase 3)**:
   - Di Fase 3 (saat implementasi Policy untuk `ai_threads`), tambahkan aturan eksplisit: kelas arsip bersifat *read-only* (hanya boleh melihat riwayat chat, tidak boleh mengirim pesan baru ke AI).
+
+---
+
+## 3. Hasil Audit Adapter Provider (Fase 2)
+Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan adapter provider yang ada di SALE:
+
+| Fitur / Kemampuan | Google Gemini | OpenAI | DeepSeek |
+|-------------------|---------------|--------|----------|
+| **1. Usage Token Aktual** | Mendukung penuh: `promptTokenCount`, `candidatesTokenCount`, `cachedContentTokenCount`, `thoughtsTokenCount`, `totalTokenCount`. | Mendukung penuh: `prompt_tokens`, `completion_tokens`, `prompt_tokens_details.cached_tokens`, `completion_tokens_details.reasoning_tokens`, `total_tokens`. | Mendukung: `prompt_tokens`, `completion_tokens`, `prompt_cache_hit_tokens`, `reasoning_tokens`, `total_tokens`. |
+| **2. Mode JSON / Structured Output** | Mendukung `responseMimeType: 'application/json'` dan penegakan skema ketat via `responseSchema`. | Mendukung `response_format: {"type": "json_object"}`. Wajib menyertakan kata `"JSON"` pada pesan sistem/instruksi prompt. | Mendukung `response_format: {"type": "json_object"}`. Belum mendukung `responseSchema` ketat di level API; validasi skema tetap harus dilakukan secara deterministik di PHP. |
+| **3. Pembedaan Error & Limit** | Membedakan 429 (`RESOURCE_EXHAUSTED`), 5xx, timeout (cURL 28), dan finishReason `SAFETY`. Catatan: Google API tidak selalu menyertakan header `Retry-After`. | Membedakan 429 (`rate_limit_exceeded` + header `Retry-After`), 5xx, timeout, dan `finish_reason: "content_filter"`. | Membedakan 429 (`rate_limit_error`), 5xx, timeout, dan `finish_reason: "content_filter"`. |
+
+### Catatan Keterbatasan Provider (Tidak Diubah di Fase 2):
+1. **Google Gemini `Retry-After` Header**: Pada respons HTTP 429, Gemini sering tidak mengirimkan header HTTP `Retry-After`. Adapter mengandalkan exponential backoff + random jitter lokal (0.5s, 1.0s, dst.) untuk mengatasi hal ini.
+2. **DeepSeek Response Schema**: DeepSeek belum mendukung argumen schema JSON seperti `responseSchema` di Gemini. Output JSON divalidasi fail-closed di PHP pada Fase 5.
+3. **Provider Lain (Claude / Anthropic)**: Belum tersedia adapter di kode SALE saat ini. Interface pemilihan provider saat ini melayani Google AI, OpenAI, dan DeepSeek. Sesuai PRD, adapter baru dapat ditambahkan mengikuti pola interface yang sama tanpa mengganggu pipeline tutor.
+
