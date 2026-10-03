@@ -171,31 +171,289 @@ if (editorMount && editorSource) {
         import('@codemirror/lang-javascript'),
         import('@codemirror/theme-one-dark'),
         import('@codemirror/state'),
-    ]).then(([cm, langPy, langHtml, langCss, langJs, { oneDark }, { Compartment, EditorState }]) => {
+        import('@codemirror/autocomplete'),
+    ]).then(([cm, langPy, langHtml, langCss, langJs, { oneDark }, { Compartment, EditorState }, { snippetCompletion, completeFromList }]) => {
         const { basicSetup, EditorView } = cm;
-        const { python } = langPy;
-        const { html } = langHtml;
-        const { css } = langCss;
-        const { javascript } = langJs;
+        const { python, pythonLanguage } = langPy;
+        const { html, htmlLanguage } = langHtml;
+        const { css, cssLanguage } = langCss;
+        const { javascript, javascriptLanguage } = langJs;
+
+        const html5Boilerplate = '<!DOCTYPE html>\n<html lang="id">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${1:Dokumen}</title>\n</head>\n<body>\n  ${0}\n</body>\n</html>';
+
+        const htmlSnippets = completeFromList([
+            snippetCompletion(html5Boilerplate, {
+                label: 'html5',
+                detail: 'Template HTML5 Lengkap',
+                type: 'snippet',
+                boost: 99,
+            }),
+            snippetCompletion(html5Boilerplate, {
+                label: 'html:5',
+                detail: 'Template HTML5 Lengkap',
+                type: 'snippet',
+                boost: 98,
+            }),
+            snippetCompletion(html5Boilerplate, {
+                label: 'html',
+                detail: 'Template HTML5 Lengkap',
+                type: 'snippet',
+                boost: 97,
+            }),
+            snippetCompletion(html5Boilerplate, {
+                label: '!',
+                detail: 'Boilerplate HTML5',
+                type: 'snippet',
+                boost: 96,
+            }),
+            snippetCompletion(html5Boilerplate, {
+                label: 'doctype',
+                detail: 'Deklarasi <!DOCTYPE html> & Struktur HTML5',
+                type: 'snippet',
+                boost: 95,
+            }),
+            snippetCompletion('<div class="${1:container}">\n  ${0}\n</div>', {
+                label: 'div',
+                detail: 'Tag <div> dengan class',
+                type: 'snippet',
+            }),
+            snippetCompletion('<main>\n  ${0}\n</main>', {
+                label: 'main',
+                detail: 'Tag semantik <main>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<section class="${1:section}">\n  ${0}\n</section>', {
+                label: 'section',
+                detail: 'Tag semantik <section>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<header>\n  ${0}\n</header>', {
+                label: 'header',
+                detail: 'Tag semantik <header>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<footer>\n  ${0}\n</footer>', {
+                label: 'footer',
+                detail: 'Tag semantik <footer>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<nav>\n  ${0}\n</nav>', {
+                label: 'nav',
+                detail: 'Tag semantik <nav>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<article>\n  ${0}\n</article>', {
+                label: 'article',
+                detail: 'Tag semantik <article>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<p>${1:Teks paragraf}</p>', {
+                label: 'p',
+                detail: 'Tag paragraf <p>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<h1>${1:Judul}</h1>', {
+                label: 'h1',
+                detail: 'Heading <h1>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<h2>${1:Subjudul}</h2>', {
+                label: 'h2',
+                detail: 'Heading <h2>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<h3>${1:Subjudul}</h3>', {
+                label: 'h3',
+                detail: 'Heading <h3>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<a href="${1:#}">${2:Tautan}</a>', {
+                label: 'a',
+                detail: 'Tag <a> anchor link',
+                type: 'snippet',
+            }),
+            snippetCompletion('<img src="${1:gambar.png}" alt="${2:Deskripsi}" width="${3:300}">', {
+                label: 'img',
+                detail: 'Tag gambar <img>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<button type="${1:button}" class="${2:btn}">${3:Klik}</button>', {
+                label: 'button',
+                detail: 'Tag <button>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<form action="${1:#}" method="${2:POST}">\n  ${0}\n</form>', {
+                label: 'form',
+                detail: 'Tag <form>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<input type="${1:text}" name="${2:name}" placeholder="${3:Placeholder}">', {
+                label: 'input',
+                detail: 'Tag <input>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<ul>\n  <li>${1:Item 1}</li>\n  <li>${2:Item 2}</li>\n</ul>', {
+                label: 'ul',
+                detail: 'Daftar tak berurut <ul>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<ol>\n  <li>${1:Langkah 1}</li>\n  <li>${2:Langkah 2}</li>\n</ol>', {
+                label: 'ol',
+                detail: 'Daftar berurut <ol>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<li>${0}</li>', {
+                label: 'li',
+                detail: 'Item daftar <li>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<table border="1">\n  <thead>\n    <tr>\n      <th>${1:Kolom 1}</th>\n      <th>${2:Kolom 2}</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>${3:Data 1}</td>\n      <td>${4:Data 2}</td>\n    </tr>\n  </tbody>\n</table>', {
+                label: 'table',
+                detail: 'Tabel HTML <table>',
+                type: 'snippet',
+            }),
+            snippetCompletion('<link rel="stylesheet" href="${1:style.css}">', {
+                label: 'link:css',
+                detail: 'Tautkan berkas stylesheet CSS',
+                type: 'snippet',
+            }),
+            snippetCompletion('<script src="${1:app.js}"></script>', {
+                label: 'script:src',
+                detail: 'Tag <script> dengan berkas eksternal',
+                type: 'snippet',
+            }),
+            snippetCompletion('<style>\n  ${0}\n</style>', {
+                label: 'style',
+                detail: 'Blok styling CSS internal',
+                type: 'snippet',
+            }),
+            snippetCompletion('<script>\n  ${0}\n</script>', {
+                label: 'script',
+                detail: 'Blok skrip JavaScript inline',
+                type: 'snippet',
+            }),
+        ]);
+
+        const cssSnippets = completeFromList([
+            snippetCompletion('* {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}', {
+                label: 'reset',
+                detail: 'CSS Box-Sizing Reset',
+                type: 'snippet',
+            }),
+            snippetCompletion('display: flex;\njustify-content: center;\nalign-items: center;', {
+                label: 'flex-center',
+                detail: 'Pusatkan elemen dengan Flexbox',
+                type: 'snippet',
+            }),
+            snippetCompletion('display: grid;\ngrid-template-columns: repeat(${1:3}, 1fr);\ngap: ${2:1rem};', {
+                label: 'grid-cols',
+                detail: 'CSS Grid Columns',
+                type: 'snippet',
+            }),
+            snippetCompletion('@media (max-width: ${1:768px}) {\n  ${0}\n}', {
+                label: '@media',
+                detail: 'Media Query Responsif',
+                type: 'snippet',
+            }),
+        ]);
+
+        const jsSnippets = completeFromList([
+            snippetCompletion('console.log(${0});', {
+                label: 'clg',
+                detail: 'console.log(...)',
+                type: 'snippet',
+            }),
+            snippetCompletion('function ${1:namaFungsi}(${2:param}) {\n  ${0}\n}', {
+                label: 'func',
+                detail: 'Definisi Fungsi Standar',
+                type: 'snippet',
+            }),
+            snippetCompletion('const ${1:namaFungsi} = (${2:param}) => {\n  ${0}\n};', {
+                label: 'arrow',
+                detail: 'Arrow Function',
+                type: 'snippet',
+            }),
+            snippetCompletion('document.addEventListener(\'DOMContentLoaded\', () => {\n  ${0}\n});', {
+                label: 'domready',
+                detail: 'Event DOMContentLoaded',
+                type: 'snippet',
+            }),
+            snippetCompletion('${1:element}.addEventListener(\'${2:click}\', (e) => {\n  ${0}\n});', {
+                label: 'addevent',
+                detail: 'addEventListener(...)',
+                type: 'snippet',
+            }),
+            snippetCompletion('fetch(\'${1:/api/data}\')\n  .then(res => res.json())\n  .then(data => {\n    ${0}\n  });', {
+                label: 'fetch',
+                detail: 'Fetch API Request',
+                type: 'snippet',
+            }),
+        ]);
+
+        const pythonSnippets = completeFromList([
+            snippetCompletion('if __name__ == "__main__":\n    ${0:main()}', {
+                label: 'main',
+                detail: 'Python Main Block Entry Point',
+                type: 'snippet',
+            }),
+            snippetCompletion('def ${1:nama_fungsi}(${2:params}):\n    """${3:Docstring}"""\n    ${0:pass}', {
+                label: 'def',
+                detail: 'Definisi Fungsi Python',
+                type: 'snippet',
+            }),
+            snippetCompletion('class ${1:NamaClass}:\n    def __init__(self${2:, args}):\n        ${0:pass}', {
+                label: 'class',
+                detail: 'Definisi Class dengan __init__',
+                type: 'snippet',
+            }),
+            snippetCompletion('for ${1:item} in ${2:iterable}:\n    ${0:pass}', {
+                label: 'for',
+                detail: 'Looping for...in',
+                type: 'snippet',
+            }),
+            snippetCompletion('try:\n    ${1:pass}\nexcept ${2:Exception} as e:\n    ${0:print(f"Error: {e}")}', {
+                label: 'try',
+                detail: 'Blok Try / Except',
+                type: 'snippet',
+            }),
+            snippetCompletion('class Node:\n    def __init__(self, val):\n        self.val = val\n        self.left = None\n        self.right = None\n', {
+                label: 'bst_node',
+                detail: 'Struktur Node Pohon Biner (BST)',
+                type: 'snippet',
+            }),
+        ]);
+
         const modeFor = (name) => {
             const ext = String(name).split('.').pop().toLowerCase();
-            if (ext === 'css') return css();
-            if (ext === 'js') return javascript();
-            if (ext === 'py') return python();
-            return isWeb ? html() : python();
+            if (ext === 'css') return [css(), cssLanguage.data.of({ autocomplete: cssSnippets })];
+            if (ext === 'js') return [javascript(), javascriptLanguage.data.of({ autocomplete: jsSnippets })];
+            if (ext === 'py') return [python(), pythonLanguage.data.of({ autocomplete: pythonSnippets })];
+            if (ext === 'html' || ext === 'htm') return [html(), htmlLanguage.data.of({ autocomplete: htmlSnippets })];
+            return isWeb
+                ? [html(), htmlLanguage.data.of({ autocomplete: htmlSnippets })]
+                : [python(), pythonLanguage.data.of({ autocomplete: pythonSnippets })];
         };
 
         const isLecturer = editorMount.dataset.isLecturer === '1';
         const isReadOnly = editorMount.dataset.readOnly === '1';
-        let files = defaultFiles.map((file) => ({ name: String(file?.name || DEFAULT_FILE_NAME), code: String(file?.code ?? '') }));
+        const hasDuration = editorMount.dataset.hasDuration === '1';
+        let files = defaultFiles.map((file) => {
+            let code = String(file?.code ?? '');
+            if (code.trim() === '# Tulis jawaban Python kamu di sini') code = '';
+            return { name: String(file?.name || DEFAULT_FILE_NAME), code };
+        });
         const draftKey = `sale.code.assignment.${editorMount.dataset.assignmentId}.${editorMount.dataset.codeLanguage || 'python'}`;
-        if (!isLecturer && !isReadOnly) {
+        if (hasDuration && !isLecturer && !isReadOnly) {
             try {
                 const raw = localStorage.getItem(draftKey);
                 if (raw) {
                     const parsed = JSON.parse(raw);
                     if (Array.isArray(parsed) && parsed.length) {
-                        files = parsed.map((file) => ({ name: String(file?.name || DEFAULT_FILE_NAME), code: String(file?.code ?? '') }));
+                        files = parsed.map((file) => {
+                            let code = String(file?.code ?? '');
+                            if (code.trim() === '# Tulis jawaban Python kamu di sini') code = '';
+                            return { name: String(file?.name || DEFAULT_FILE_NAME), code };
+                        });
                     }
                 }
             } catch { /* Storage is optional. */ }
@@ -212,6 +470,12 @@ if (editorMount && editorSource) {
         const fileLanguageBadge = document.querySelector('[data-file-language-badge]');
         document.querySelector('[data-code-submit] button')?.removeAttribute('disabled');
 
+        const defaultStatusText = isLecturer
+            ? 'Mode Peninjauan Berkas Mahasiswa'
+            : (isReadOnly
+                ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)'
+                : (hasDuration ? 'Draf tersimpan di browser ini' : 'Editor siap pakai'));
+
         const flush = () => { if (files[active] && !isReadOnly) files[active].code = editor.state.doc.toString(); };
         const updateCounter = () => {
             const current = files[active]?.code.length ?? 0;
@@ -222,9 +486,7 @@ if (editorMount && editorSource) {
             if (!saveStatus) return;
             saveStatus.textContent = text;
             if (temporary) setTimeout(() => {
-                saveStatus.textContent = isLecturer
-                    ? 'Mode Peninjauan Berkas Mahasiswa'
-                    : (isReadOnly ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)' : 'Draf tersimpan di browser ini');
+                saveStatus.textContent = defaultStatusText;
             }, 2600);
         };
         const persist = () => {
@@ -232,10 +494,14 @@ if (editorMount && editorSource) {
             if (isReadOnly) {
                 if (saveStatus) saveStatus.textContent = 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)';
             } else if (!isLecturer) {
-                try {
-                    localStorage.setItem(draftKey, JSON.stringify(files));
-                    if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
-                } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+                if (hasDuration) {
+                    try {
+                        localStorage.setItem(draftKey, JSON.stringify(files));
+                        if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                    } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+                } else if (saveStatus) {
+                    saveStatus.textContent = 'Editor siap pakai';
+                }
             } else if (saveStatus) {
                 saveStatus.textContent = 'Mode Peninjauan Berkas Mahasiswa';
             }
@@ -255,6 +521,97 @@ if (editorMount && editorSource) {
             return null;
         };
 
+        let editor = null;
+
+        const FILE_ICONS = {
+            py: {
+                label: 'Python',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 8 128 108" aria-hidden="true"><path fill="#3776AB" d="M63.391 1.988c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V67.234c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V15.833c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-1.027-12.866-1.008zM50.037 9.557c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z" transform="translate(0 10.26)"/><path fill="#FFD43B" d="M91.682 28.38v10.966c0 8.5-7.208 15.655-15.426 15.655H51.591c-6.756 0-12.346 5.783-12.346 12.549v23.515c0 6.691 5.818 10.628 12.346 12.547 7.816 2.297 15.312 2.713 24.665 0 6.216-1.801 12.346-5.423 12.346-12.547v-9.412H63.938v-3.138h37.012c7.176 0 9.852-5.005 12.348-12.519 2.578-7.735 2.467-15.174 0-25.096-1.774-7.145-5.161-12.521-12.348-12.521h-9.268zM77.809 87.927c2.561 0 4.634 2.097 4.634 4.692 0 2.602-2.074 4.719-4.634 4.719-2.55 0-4.633-2.117-4.633-4.719 0-2.595 2.083-4.692 4.633-4.692z" transform="translate(0 10.26)"/></svg>',
+            },
+            html: {
+                label: 'HTML',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
+            },
+            htm: {
+                label: 'HTML',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
+            },
+            css: {
+                label: 'CSS',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#1572B6" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"/></svg>',
+            },
+            js: {
+                label: 'JavaScript',
+                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 128 128" aria-hidden="true"><path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/><path fill="#323330" d="M116.347 96.736c-.917-5.711-4.641-10.508-15.672-14.981-3.832-1.761-8.104-3.022-9.377-5.926-.452-1.69-.512-2.642-.226-3.665.821-3.32 4.784-4.355 7.925-3.403 2.023.678 3.938 2.237 5.093 4.724 5.402-3.498 5.391-3.475 9.163-5.879-1.381-2.141-2.118-3.129-3.022-4.045-3.249-3.629-7.676-5.498-14.756-5.355l-3.688.477c-3.534.893-6.902 2.748-8.877 5.235-5.926 6.724-4.236 18.492 2.975 23.335 7.104 5.332 17.54 6.545 18.873 11.531 1.297 6.104-4.486 8.08-10.234 7.378-4.236-.881-6.592-3.034-9.139-6.949-4.688 2.713-4.688 2.713-9.508 5.485 1.143 2.499 2.344 3.63 4.26 5.795 9.068 9.198 31.76 8.746 35.83-5.176.165-.478 1.261-3.666.38-8.581zM69.462 58.943H57.753l-.048 30.272c0 6.438.333 12.34-.714 14.149-1.713 3.558-6.152 3.117-8.175 2.427-2.059-1.012-3.106-2.451-4.319-4.485-.333-.584-.583-1.036-.667-1.071l-9.52 5.83c1.583 3.249 3.915 6.069 6.902 7.901 4.462 2.678 10.459 3.499 16.731 2.059 4.082-1.189 7.604-3.652 9.448-7.401 2.666-4.915 2.094-10.864 2.07-17.444.06-10.735.001-21.468.001-32.237z"/></svg>',
+            },
+        };
+        const FILE_DEFAULT_ICON = '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+        const buildIcon = (name, size = 14) => {
+            const raw = String(name).toLowerCase();
+            if (!raw.includes('.')) {
+                return FILE_DEFAULT_ICON.replace(/@SIZE@/g, String(size));
+            }
+            const key = raw.split('.').pop();
+            const meta = FILE_ICONS[key];
+            return (meta?.icon || FILE_DEFAULT_ICON).replace(/@SIZE@/g, String(size));
+        };
+        const languageBadge = (name) => {
+            const raw = String(name).toLowerCase();
+            const hasExt = raw.includes('.');
+            const key = hasExt ? raw.split('.').pop() : '';
+            const meta = hasExt ? FILE_ICONS[key] : null;
+            const badge = document.createElement('span');
+            badge.dataset.fileLanguage = key || 'file';
+            badge.title = meta?.label || 'Berkas';
+            badge.className = 'flex shrink-0 items-center';
+            badge.innerHTML = buildIcon(name);
+            return badge;
+        };
+
+        const refreshLanguageBadge = () => {
+            if (!files || !files[active]) return;
+            const raw = String(files[active].name).toLowerCase();
+            const hasExt = raw.includes('.');
+            const key = hasExt ? raw.split('.').pop() : '';
+            const meta = hasExt ? FILE_ICONS[key] : null;
+            if (fileLanguageBadge) {
+                fileLanguageBadge.innerHTML = buildIcon(files[active].name, 18);
+                fileLanguageBadge.title = meta?.label || 'Berkas';
+                fileLanguageBadge.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/70';
+                fileLanguageBadge.dataset.fileLanguage = key || 'file';
+            }
+            const insertHtml5Btn = document.querySelector('[data-insert-html5]');
+            if (insertHtml5Btn) {
+                const isHtml = key === 'html' || key === 'htm' || (isWeb && (!hasExt || key === ''));
+                insertHtml5Btn.classList.toggle('hidden', !isHtml || isReadOnly);
+            }
+        };
+
+        const load = (index) => {
+            active = index;
+            if (!editor) return;
+            if (isReadOnly) {
+                editor.dispatch({
+                    effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(false)),
+                });
+            }
+            editor.dispatch({
+                changes: { from: 0, to: editor.state.doc.length, insert: files[active].code },
+                effects: [
+                    compartment.reconfigure(modeFor(files[active].name)),
+                    ...(isReadOnly ? [readOnlyCompartment.reconfigure(EditorState.readOnly.of(true))] : []),
+                ],
+            });
+            if (fileNameEl) fileNameEl.textContent = files[active].name;
+            refreshLanguageBadge();
+            renderTabs();
+        };
+        const select = (index) => {
+            if (index === active) { flush(); return; }
+            flush();
+            load(index);
+        };
+
         const compartment = new Compartment();
         const readOnlyCompartment = new Compartment();
         const editorExtensions = [
@@ -268,10 +625,14 @@ if (editorMount && editorSource) {
                 if (update.docChanged && !isReadOnly) {
                     files[active].code = update.state.doc.toString();
                     if (!isLecturer) {
-                        try {
-                            localStorage.setItem(draftKey, JSON.stringify(files));
-                            if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
-                        } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+                        if (hasDuration) {
+                            try {
+                                localStorage.setItem(draftKey, JSON.stringify(files));
+                                if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                            } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
+                        } else if (saveStatus) {
+                            saveStatus.textContent = 'Editor siap pakai';
+                        }
                     }
                     updateCounter();
                     refreshLanguageBadge();
@@ -282,12 +643,13 @@ if (editorMount && editorSource) {
             editorExtensions.push(EditorView.editable.of(false));
         }
 
-        const editor = new EditorView({
+        editor = new EditorView({
             doc: files[active].code,
             extensions: editorExtensions,
             parent: editorMount,
         });
         updateCounter();
+        refreshLanguageBadge();
 
         window.getWorkbenchCode = () => {
             flush();
@@ -347,88 +709,6 @@ if (editorMount && editorSource) {
                 files[active].code = newCode;
                 updateCounter();
             }
-        };
-
-        const refreshLanguageBadge = () => {
-            const raw = String(files[active].name).toLowerCase();
-            const hasExt = raw.includes('.');
-            const key = hasExt ? raw.split('.').pop() : '';
-            const meta = hasExt ? FILE_ICONS[key] : null;
-            if (fileLanguageBadge) {
-                fileLanguageBadge.innerHTML = buildIcon(files[active].name, 18);
-                fileLanguageBadge.title = meta?.label || 'Berkas';
-                fileLanguageBadge.className = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/70';
-                fileLanguageBadge.dataset.fileLanguage = key || 'file';
-            }
-        };
-
-        const load = (index) => {
-            active = index;
-            if (isReadOnly) {
-                editor.dispatch({
-                    effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(false)),
-                });
-            }
-            editor.dispatch({
-                changes: { from: 0, to: editor.state.doc.length, insert: files[active].code },
-                effects: [
-                    compartment.reconfigure(modeFor(files[active].name)),
-                    ...(isReadOnly ? [readOnlyCompartment.reconfigure(EditorState.readOnly.of(true))] : []),
-                ],
-            });
-            if (fileNameEl) fileNameEl.textContent = files[active].name;
-            refreshLanguageBadge();
-            renderTabs();
-        };
-        const select = (index) => {
-            if (index === active) { flush(); return; }
-            flush();
-            load(index);
-        };
-
-        const FILE_ICONS = {
-            py: {
-                label: 'Python',
-                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 8 128 108" aria-hidden="true"><path fill="#3776AB" d="M63.391 1.988c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V67.234c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V15.833c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-1.027-12.866-1.008zM50.037 9.557c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z" transform="translate(0 10.26)"/><path fill="#FFD43B" d="M91.682 28.38v10.966c0 8.5-7.208 15.655-15.426 15.655H51.591c-6.756 0-12.346 5.783-12.346 12.549v23.515c0 6.691 5.818 10.628 12.346 12.547 7.816 2.297 15.312 2.713 24.665 0 6.216-1.801 12.346-5.423 12.346-12.547v-9.412H63.938v-3.138h37.012c7.176 0 9.852-5.005 12.348-12.519 2.578-7.735 2.467-15.174 0-25.096-1.774-7.145-5.161-12.521-12.348-12.521h-9.268zM77.809 87.927c2.561 0 4.634 2.097 4.634 4.692 0 2.602-2.074 4.719-4.634 4.719-2.55 0-4.633-2.117-4.633-4.719 0-2.595 2.083-4.692 4.633-4.692z" transform="translate(0 10.26)"/></svg>',
-            },
-            html: {
-                label: 'HTML',
-                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
-            },
-            htm: {
-                label: 'HTML',
-                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#E34F26" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"/></svg>',
-            },
-            css: {
-                label: 'CSS',
-                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="#1572B6" d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"/></svg>',
-            },
-            js: {
-                label: 'JavaScript',
-                icon: '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 128 128" aria-hidden="true"><path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/><path fill="#323330" d="M116.347 96.736c-.917-5.711-4.641-10.508-15.672-14.981-3.832-1.761-8.104-3.022-9.377-5.926-.452-1.69-.512-2.642-.226-3.665.821-3.32 4.784-4.355 7.925-3.403 2.023.678 3.938 2.237 5.093 4.724 5.402-3.498 5.391-3.475 9.163-5.879-1.381-2.141-2.118-3.129-3.022-4.045-3.249-3.629-7.676-5.498-14.756-5.355l-3.688.477c-3.534.893-6.902 2.748-8.877 5.235-5.926 6.724-4.236 18.492 2.975 23.335 7.104 5.332 17.54 6.545 18.873 11.531 1.297 6.104-4.486 8.08-10.234 7.378-4.236-.881-6.592-3.034-9.139-6.949-4.688 2.713-4.688 2.713-9.508 5.485 1.143 2.499 2.344 3.63 4.26 5.795 9.068 9.198 31.76 8.746 35.83-5.176.165-.478 1.261-3.666.38-8.581zM69.462 58.943H57.753l-.048 30.272c0 6.438.333 12.34-.714 14.149-1.713 3.558-6.152 3.117-8.175 2.427-2.059-1.012-3.106-2.451-4.319-4.485-.333-.584-.583-1.036-.667-1.071l-9.52 5.83c1.583 3.249 3.915 6.069 6.902 7.901 4.462 2.678 10.459 3.499 16.731 2.059 4.082-1.189 7.604-3.652 9.448-7.401 2.666-4.915 2.094-10.864 2.07-17.444.06-10.735.001-21.468.001-32.237z"/></svg>',
-            },
-        };
-        const FILE_DEFAULT_ICON = '<svg width="@SIZE@" height="@SIZE@" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
-        const buildIcon = (name, size = 14) => {
-            const raw = String(name).toLowerCase();
-            if (!raw.includes('.')) {
-                return FILE_DEFAULT_ICON.replace(/@SIZE@/g, String(size));
-            }
-            const key = raw.split('.').pop();
-            const meta = FILE_ICONS[key];
-            return (meta?.icon || FILE_DEFAULT_ICON).replace(/@SIZE@/g, String(size));
-        };
-        const languageBadge = (name) => {
-            const raw = String(name).toLowerCase();
-            const hasExt = raw.includes('.');
-            const key = hasExt ? raw.split('.').pop() : '';
-            const meta = hasExt ? FILE_ICONS[key] : null;
-            const badge = document.createElement('span');
-            badge.dataset.fileLanguage = key || 'file';
-            badge.title = meta?.label || 'Berkas';
-            badge.className = 'flex shrink-0 items-center';
-            badge.innerHTML = buildIcon(name);
-            return badge;
         };
 
         function renderTabs() {
@@ -609,7 +889,7 @@ if (editorMount && editorSource) {
             if (empty) return;
             const first = editor.state.doc.lineAt(from).number;
             const last = editor.state.doc.lineAt(Math.max(from, to - 1)).number;
-            context = { label: `${files[active].name} · Baris ${first}${last === first ? '' : `–${last}`}`, code: editor.state.sliceDoc(from, to) };
+            context = { label: `${files[active].name} · Baris ${first}${last === first ? '' : `–${last}`}`, code: editor.state.sliceDoc(from, to), line: first };
             document.querySelector('[data-code-context-label]').textContent = context.label;
             document.querySelector('[data-code-context-text]').textContent = context.code;
             document.querySelector('[data-code-context]').hidden = false;
@@ -618,6 +898,39 @@ if (editorMount && editorSource) {
         document.querySelector('[data-remove-context]')?.addEventListener('click', () => {
             context = null;
             document.querySelector('[data-code-context]').hidden = true;
+        });
+        document.querySelector('[data-insert-html5]')?.addEventListener('click', async () => {
+            if (isReadOnly) return;
+            const current = editor.state.doc.toString().trim();
+            if (current.length > 0) {
+                const confirmed = typeof window.saleConfirm === 'function'
+                    ? await window.saleConfirm({
+                        title: 'Sisipkan Template HTML5',
+                        message: 'Kode saat ini di berkas ini akan diganti dengan struktur dasar dokumen HTML5.',
+                        confirmLabel: 'Sisipkan Template',
+                    })
+                    : confirm('Ganti isi berkas ini dengan template dasar HTML5?');
+                if (!confirmed) return;
+            }
+            const template = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dokumen</title>
+</head>
+<body>
+  <h1>Selamat Datang</h1>
+  <p>Mulai tulis konten HTML di sini.</p>
+</body>
+</html>
+`;
+            editor.dispatch({
+                changes: { from: 0, to: editor.state.doc.length, insert: template },
+            });
+            files[active].code = template;
+            persist();
+            editor.focus();
         });
         document.querySelector('[data-code-reset]')?.addEventListener('click', async () => {
             if (!await window.saleConfirm({
@@ -829,8 +1142,19 @@ if (editorMount && editorSource) {
             openTerminal();
             flush();
             const problem = validate();
-            if (problem) return appendOutput(problem, 'stderr');
             const runAsWeb = detectRunAsWeb(testAssignment);
+            const activeFileObj = files[active];
+            const activeFileName = (activeFileObj?.name || '').trim();
+            const lowerActive = activeFileName.toLowerCase();
+            const isUntitled = lowerActive === 'untitled' || lowerActive.startsWith('untitled-') || !lowerActive.includes('.');
+
+            if (isUntitled) {
+                return appendOutput(`Berkas "${activeFileName}" tanpa ekstensi tidak dapat dijalankan. Beri nama berkas dengan ekstensi yang sesuai (.py untuk Python atau .html/.css/.js untuk Web) sebelum menjalankan kode.`, 'stderr');
+            }
+            if (!runAsWeb && !lowerActive.endsWith('.py')) {
+                return appendOutput(`Berkas "${activeFileName}" bukan berkas Python (.py). Beri nama berkas dengan ekstensi .py untuk menjalankannya.`, 'stderr');
+            }
+
             if (!files.some((file) => file.code.trim())) return appendOutput(runAsWeb ? 'Tulis kode HTML/CSS/JS terlebih dahulu.' : 'Tulis kode Python terlebih dahulu.');
             execution = new AbortController();
             setRunBtnState(true);
@@ -910,13 +1234,53 @@ if (editorMount && editorSource) {
         let busy = false;
         let ready = false;
         let thinkingEl = null;
+        const aiStopBtn = document.querySelector('[data-ai-stop-btn]');
+        let currentFetchCtrl = null;
+        let isCancelledByUser = false;
+
+        const cancelAiRequest = () => {
+            if (!busy) return;
+            isCancelledByUser = true;
+            if (currentFetchCtrl) {
+                try {
+                    currentFetchCtrl.abort();
+                } catch (e) {}
+            }
+            removeThinking();
+            bubble('AI Asisten', 'Bantuan AI dibatalkan.', false);
+            if (status) status.textContent = 'Bantuan dibatalkan. Ajukan pertanyaan baru kapan saja.';
+            if (aiStopBtn) {
+                aiStopBtn.classList.add('hidden');
+                aiStopBtn.classList.remove('inline-flex');
+            }
+            if (assistantSubmitBtn) {
+                assistantSubmitBtn.classList.remove('hidden');
+            }
+            busy = false;
+            currentFetchCtrl = null;
+            if (aiForm) {
+                const cancelUrl = aiForm.action.replace(/\/$/, '') + '/cancel';
+                const token = aiForm.querySelector('[name="_token"]')?.value;
+                fetch(cancelUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    }
+                }).catch(() => {});
+            }
+            updateAssistantSubmitVisibility();
+        };
+
+        aiStopBtn?.addEventListener('click', cancelAiRequest);
 
         const showThinking = () => {
             if (thinkingEl) return;
             thinkingEl = document.createElement('article');
-            thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted';
+            thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted max-w-sm';
             thinkingEl.innerHTML = `
-                <span class="font-medium text-slate-600">Mengetik</span>
+                <span class="font-medium text-slate-600">Menyiapkan balasan</span>
                 <span class="inline-flex items-center gap-1 pl-1 py-0.5" aria-hidden="true">
                     <span class="typing-dot"></span>
                     <span class="typing-dot"></span>
@@ -1021,12 +1385,49 @@ if (editorMount && editorSource) {
             messages.append(article);
             messages.scrollTop = messages.scrollHeight;
         };
+        const assistantInput = document.querySelector('#assistant-message');
+        const assistantSubmitBtn = aiForm?.querySelector('button[type="submit"]');
+
+        const updateAssistantSubmitVisibility = () => {
+            if (!assistantSubmitBtn || !assistantInput) return;
+            if (busy) {
+                assistantSubmitBtn.classList.add('hidden');
+                return;
+            }
+            assistantSubmitBtn.classList.remove('hidden');
+            const hasText = assistantInput.value.trim().length > 0;
+            if (hasText) {
+                assistantSubmitBtn.classList.remove('scale-0', 'opacity-0', 'pointer-events-none');
+                assistantSubmitBtn.classList.add('scale-100', 'opacity-100');
+            } else {
+                assistantSubmitBtn.classList.add('scale-0', 'opacity-0', 'pointer-events-none');
+                assistantSubmitBtn.classList.remove('scale-100', 'opacity-100');
+            }
+        };
+
         const updateStatus = async (restore = false) => {
             try {
                 const response = await fetch(aiForm.action, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
                 const data = await response.json();
                 const remTokens = (typeof data.remaining_tokens === 'number') ? data.remaining_tokens : 0;
                 ready = response.ok && data.enabled && remTokens > 0;
+
+                const tokenDisplay = document.querySelector('[data-ai-token-display]');
+                if (tokenDisplay) {
+                    if (typeof data.remaining_tokens === 'number') {
+                        const total = typeof data.total_tokens === 'number' ? data.total_tokens : 500000;
+                        tokenDisplay.textContent = `${data.remaining_tokens.toLocaleString('id-ID')} / ${total.toLocaleString('id-ID')} token`;
+                        if (data.remaining_tokens <= 0) {
+                            tokenDisplay.classList.add('text-rose-600');
+                            tokenDisplay.classList.remove('text-slate-500');
+                        } else {
+                            tokenDisplay.classList.remove('text-rose-600');
+                            tokenDisplay.classList.add('text-slate-500');
+                        }
+                    } else {
+                        tokenDisplay.textContent = 'Token aktif';
+                    }
+                }
 
                 // Tampilkan info reset hanya jika batas kuota token mahasiswa sudah habis
                 if (quotaBar) {
@@ -1064,30 +1465,21 @@ if (editorMount && editorSource) {
                         bubble('AI Asisten', turn.answer || 'Permintaan sebelumnya belum menghasilkan jawaban.', false);
                     });
                 }
-            } catch {
+            } catch (err) {
+                console.error('AI status update error:', err);
                 ready = false;
                 if (status) status.textContent = 'Tidak dapat memuat status AI. Muat ulang halaman.';
+                const tokenDisplay = document.querySelector('[data-ai-token-display]');
+                if (tokenDisplay) {
+                    tokenDisplay.textContent = 'Token aktif';
+                }
             }
             if (assistantSubmitBtn) {
                 assistantSubmitBtn.disabled = busy || !ready;
             }
         };
+
         if (aiForm) updateStatus(true);
-
-        const assistantInput = document.querySelector('#assistant-message');
-        const assistantSubmitBtn = aiForm?.querySelector('button[type="submit"]');
-
-        const updateAssistantSubmitVisibility = () => {
-            if (!assistantSubmitBtn || !assistantInput) return;
-            const hasText = assistantInput.value.trim().length > 0;
-            if (hasText) {
-                assistantSubmitBtn.classList.remove('scale-0', 'opacity-0', 'pointer-events-none');
-                assistantSubmitBtn.classList.add('scale-100', 'opacity-100');
-            } else {
-                assistantSubmitBtn.classList.add('scale-0', 'opacity-0', 'pointer-events-none');
-                assistantSubmitBtn.classList.remove('scale-100', 'opacity-100');
-            }
-        };
 
         assistantInput?.addEventListener('input', updateAssistantSubmitVisibility);
         updateAssistantSubmitVisibility();
@@ -1148,17 +1540,32 @@ if (editorMount && editorSource) {
             removeInitialMsg();
             if (busy || !ready) return;
             const input = document.querySelector('#assistant-message');
-            const question = input.value.trim();
+            const question = input?.value?.trim() || '';
             if (!question || !aiForm.reportValidity()) return;
-            const code = context?.code || '';
-            if (code.length > 4000) {
-                status.textContent = 'Pilih potongan kode maksimal 4.000 karakter.';
-                return;
+            const fullEditorCode = (typeof editor !== 'undefined' && editor?.state?.doc) ? editor.state.doc.toString().slice(0, 8000) : '';
+            const code = context?.code || fullEditorCode;
+            let selectedLine = context?.line || null;
+            if (!selectedLine && typeof editor !== 'undefined' && editor?.state?.selection?.main) {
+                try {
+                    selectedLine = editor.state.doc.lineAt(editor.state.selection.main.from).number;
+                } catch (e) {}
             }
+            const consoleOutput = terminalOutput ? (terminalOutput.innerText || terminalOutput.textContent || '').trim().slice(-2000) : '';
+
             busy = true;
-            aiForm.querySelector('button[type="submit"]').disabled = true;
+            isCancelledByUser = false;
+            currentFetchCtrl = new AbortController();
+            const fetchCtrl = currentFetchCtrl;
+            if (assistantSubmitBtn) {
+                assistantSubmitBtn.classList.add('hidden');
+                assistantSubmitBtn.disabled = true;
+            }
+            if (aiStopBtn) {
+                aiStopBtn.classList.remove('hidden');
+                aiStopBtn.classList.add('inline-flex');
+            }
             const sentContext = context;
-            input.value = '';
+            if (input) input.value = '';
             context = null;
             const codeContextEl = document.querySelector('[data-code-context]');
             if (codeContextEl) codeContextEl.hidden = true;
@@ -1166,27 +1573,56 @@ if (editorMount && editorSource) {
 
             bubble('Anda', question + (sentContext ? `\n${sentContext.label}\n${code}` : ''), true);
             showThinking();
-            status.textContent = 'Memeriksa pertanyaan dan menyiapkan bantuan…';
+            if (status) status.textContent = 'Memeriksa pertanyaan dan menyiapkan bantuan…';
+            const fetchTimeout = setTimeout(() => fetchCtrl.abort(), 65000);
             try {
                 const response = await fetch(aiForm.action, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': aiForm.querySelector('[name="_token"]').value },
-                    body: JSON.stringify({ question, code }),
+                    body: JSON.stringify({
+                        question,
+                        code,
+                        console_output: consoleOutput || null,
+                        selected_line: selectedLine || null,
+                    }),
+                    signal: fetchCtrl.signal,
                 });
+                clearTimeout(fetchTimeout);
+                if (isCancelledByUser) return;
                 const data = await response.json();
                 removeThinking();
                 bubble('AI Asisten', response.ok ? data.answer : (data.message || 'Permintaan tidak dapat diproses.'), false);
-            } catch {
+                const tokenDisplay = document.querySelector('[data-ai-token-display]');
+                if (tokenDisplay && data && typeof data.remaining_tokens === 'number') {
+                    const total = typeof data.total_tokens === 'number' ? data.total_tokens : 500000;
+                    tokenDisplay.textContent = `${data.remaining_tokens.toLocaleString('id-ID')} / ${total.toLocaleString('id-ID')} token`;
+                }
+            } catch (err) {
+                clearTimeout(fetchTimeout);
                 removeThinking();
-                bubble('AI Asisten', 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
+                if (isCancelledByUser) {
+                    // Penanganan pembatalan sudah dieksekusi instan di cancelAiRequest()
+                } else {
+                    const isTimeout = err?.name === 'AbortError';
+                    bubble('AI Asisten', isTimeout ? 'Waktu tunggu balasan AI habis. Silakan tanyakan kembali.' : 'Koneksi terputus. Muat ulang untuk memeriksa riwayat sebelum mengirim kembali.', false);
+                }
             } finally {
                 removeThinking();
+                if (aiStopBtn) {
+                    aiStopBtn.classList.add('hidden');
+                    aiStopBtn.classList.remove('inline-flex');
+                }
+                if (assistantSubmitBtn) {
+                    assistantSubmitBtn.classList.remove('hidden');
+                }
+                currentFetchCtrl = null;
                 busy = false;
                 await updateStatus();
                 updateAssistantSubmitVisibility();
             }
         });
-    }).catch(() => {
+    }).catch((err) => {
+        console.error('CodeMirror load error:', err);
         editorMount.textContent = 'Editor gagal dimuat. Muat ulang halaman untuk mencoba kembali.';
     });
 }
@@ -1196,7 +1632,14 @@ const settingsPanels = [...document.querySelectorAll('[data-settings-panel]')];
 
 if (settingsLinks.length && settingsPanels.length) {
     const activateSettings = (hash) => {
-        const target = settingsPanels.some((panel) => `#${panel.id}` === hash) ? hash : '#profil';
+        let defaultTab = '#profil';
+        if (!hash || hash === '#profil') {
+            const panelWithError = settingsPanels.find((panel) => panel.querySelector('.text-danger, [role="alert"], [aria-invalid="true"]'));
+            if (panelWithError) {
+                defaultTab = `#${panelWithError.id}`;
+            }
+        }
+        const target = settingsPanels.some((panel) => `#${panel.id}` === hash) ? hash : defaultTab;
 
         settingsLinks.forEach((link) => {
             const active = link.hash === target;
@@ -1573,9 +2016,11 @@ if (contentForm) {
     const syncDuration = () => {
         const mainCat = getMainCategory();
         const subCat = getSubCategory();
-        const isCbt = (mainCat === 'asesmen' && subCat === 'kuis')
-            || (mainCat === 'asesmen' && ['uts', 'uas'].includes(subCat) && contentForm.querySelector('[data-task-mode]:checked')?.value === 'quiz');
-        const enabled = isCbt && !!durationToggle?.checked;
+        const taskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
+        const isTimed = (mainCat === 'asesmen' && subCat === 'kuis')
+            || (mainCat === 'asesmen' && ['uts', 'uas'].includes(subCat) && taskMode === 'quiz')
+            || (mainCat === 'asesmen' && taskMode === 'coding');
+        const enabled = isTimed && !!durationToggle?.checked;
         if (durationMode) durationMode.value = enabled ? 'enabled' : 'disabled';
         if (durationOptions) durationOptions.hidden = !durationToggle?.checked;
         if (durationInput) durationInput.disabled = !enabled;
@@ -1691,10 +2136,11 @@ if (contentForm) {
         const showTimeSettings = isAssessment() || (mainCat === 'lainnya');
         const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const isQuizMode = (subCat === 'kuis') || (['uts', 'uas'].includes(subCat) && selectedTaskMode === 'quiz');
+        const isTimedMode = isQuizMode || (isAssessment() && selectedTaskMode === 'coding');
 
         if (unifiedTimeSettings) {
             unifiedTimeSettings.hidden = !showTimeSettings;
-            if (timerContainer) timerContainer.hidden = !isQuizMode;
+            if (timerContainer) timerContainer.hidden = !isTimedMode;
             if (allowLateContainer) allowLateContainer.hidden = isQuizMode;
         }
 
@@ -1889,14 +2335,22 @@ if (contentForm) {
         button.addEventListener('click', () => {
             const panel = contentForm.querySelector(`[data-content-addon-panel="${button.dataset.contentAddon}"]`);
             if (!panel) return;
-            panel.hidden = !panel.hidden;
-            button.setAttribute('aria-expanded', String(!panel.hidden));
+            panel.hidden = false;
+            button.setAttribute('aria-expanded', 'true');
             button.closest('[data-content-addon-menu]')?.removeAttribute('open');
-            if (!panel.hidden) {
-                const input = panel.querySelector('input:not([type="hidden"])');
-                if (['image', 'files'].includes(button.dataset.contentAddon)) input?.click();
-                else input?.focus();
-            }
+            const input = panel.querySelector('input:not([type="hidden"])');
+            if (['image', 'files'].includes(button.dataset.contentAddon)) input?.click();
+            else input?.focus();
+        });
+    });
+
+    contentForm.querySelectorAll('[data-close-content-panel]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.closeContentPanel;
+            const panel = contentForm.querySelector(`[data-content-addon-panel="${target}"]`);
+            if (panel) panel.hidden = true;
+            const menuBtn = contentForm.querySelector(`[data-content-addon="${target}"]`);
+            if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
         });
     });
 
@@ -2614,6 +3068,8 @@ if (codingStepBuilder) {
             removeBtn.setAttribute('aria-label', `Hapus lampiran ${fileName}`);
             removeBtn.addEventListener('click', () => {
                 if (fileInput) fileInput.value = '';
+                const existingAtt = row.querySelector('[data-step-field="existing_attachment"]');
+                if (existingAtt) existingAtt.value = '';
                 if (currentObjUrl) {
                     URL.revokeObjectURL(currentObjUrl);
                     currentObjUrl = null;
@@ -2647,10 +3103,9 @@ if (codingStepBuilder) {
         fileInput?.addEventListener('change', () => {
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                if (file.size > 5 * 1024 * 1024) {
+                if (file.size > 20 * 1024 * 1024) {
                     fileInput.value = '';
-                    filePreview?.replaceChildren();
-                    const message = 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.';
+                    const message = 'File tidak dapat diunggah jika ukurannya lebih dari 20 MB.';
                     if (typeof window.saleNotice === 'function') {
                         window.saleNotice({
                             title: 'Ukuran File Terlalu Besar',
@@ -2663,8 +3118,6 @@ if (codingStepBuilder) {
                     return;
                 }
                 renderFilePreview(file);
-            } else {
-                filePreview?.replaceChildren();
             }
         });
 
@@ -2674,6 +3127,8 @@ if (codingStepBuilder) {
         }
 
         if (data.attachment) {
+            const existingAtt = row.querySelector('[data-step-field="existing_attachment"]');
+            if (existingAtt) existingAtt.value = data.attachment;
             const attName = data.attachment_name || (typeof data.attachment === 'string' && !data.attachment.match(/^[0-9a-f-]{36}$/i) ? data.attachment : 'Berkas Terlampir');
             renderFilePreview({ name: attName, size: data.attachment_size });
         }
@@ -2711,32 +3166,69 @@ if (codingStepBuilder) {
         update();
     });
 
-    // Auto-adjust target count on live typing without enter
+    const setCodingStepCount = (targetCount) => {
+        targetCount = Math.max(1, Math.min(100, parseInt(targetCount, 10) || 1));
+        const currentCount = rows.children.length;
+        if (targetCount > currentCount) {
+            for (let i = currentCount; i < targetCount; i++) {
+                add({}, false);
+            }
+        } else if (targetCount < currentCount) {
+            for (let i = currentCount - 1; i >= targetCount; i--) {
+                rows.children[i]?.remove();
+            }
+        }
+        distributePoints();
+        if (targetCountInput && document.activeElement !== targetCountInput) {
+            targetCountInput.value = targetCount;
+        }
+        if (activeIndex >= rows.children.length) {
+            activeIndex = 0;
+        }
+        update();
+    };
+
     if (targetCountInput) {
         targetCountInput.addEventListener('input', () => {
             const rawVal = targetCountInput.value.replace(/[^0-9]/g, '');
             if (targetCountInput.value !== rawVal) targetCountInput.value = rawVal;
             if (!rawVal) return;
             let num = parseInt(rawVal, 10);
-            if (isNaN(num) || num < 1) num = 1;
             if (num > 100) {
                 num = 100;
                 targetCountInput.value = '100';
             }
-            const current = rows.children.length;
-            if (num > current) {
-                for (let i = current; i < num; i++) {
-                    add({}, false);
-                }
-            } else if (num < current) {
-                for (let i = current - 1; i >= num; i--) {
-                    rows.children[i]?.remove();
-                }
+            if (num >= 1 && num <= 100) {
+                setCodingStepCount(num);
             }
-            distributePoints();
-            update();
+        });
+
+        targetCountInput.addEventListener('change', () => {
+            let num = parseInt(targetCountInput.value, 10);
+            if (isNaN(num) || num < 1) num = 1;
+            if (num > 100) num = 100;
+            targetCountInput.value = num;
+            setCodingStepCount(num);
+        });
+
+        targetCountInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                let num = parseInt(targetCountInput.value, 10) || 1;
+                setCodingStepCount(num);
+            }
         });
     }
+
+    codingStepBuilder.querySelector('[data-apply-coding-count]')?.addEventListener('click', () => {
+        let num = parseInt(targetCountInput?.value, 10) || 1;
+        setCodingStepCount(num);
+    });
+
+    codingStepBuilder.querySelector('[data-auto-distribute-coding-points]')?.addEventListener('click', () => {
+        distributePoints();
+        update();
+    });
 
     let oldSteps = [];
     try {

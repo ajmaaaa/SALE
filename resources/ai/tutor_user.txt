@@ -1,0 +1,16 @@
+<riwayat_{{nonce}}>
+{{history}}
+</riwayat_{{nonce}}>
+
+<data_{{nonce}}>
+<kode_mahasiswa>
+{{code}}
+</kode_mahasiswa>
+<output_konsol_terakhir>
+{{console_output}}
+</output_konsol_terakhir>
+<baris_dipilih>{{selected_line}}</baris_dipilih>
+<pertanyaan>
+{{question}}
+</pertanyaan>
+</data_{{nonce}}>

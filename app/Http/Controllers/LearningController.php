@@ -18,10 +18,12 @@ use App\Models\StudentAssessmentScore;
 use App\Models\Submission;
 use App\Models\SubmissionAnswer;
 use App\Models\User;
-use App\Services\ObeCalculationService;
 use App\Services\DatabaseNotificationService;
+use App\Services\ObeCalculationService;
 use App\Services\QuizGradingService;
 use App\Support\AcademicPreview;
+use App\Support\DosenNavigation;
+use App\Support\LearningPreview;
 use App\Support\LearningPreview as Learning;
 use App\Support\QuizQuestion;
 use Carbon\Carbon;
@@ -93,10 +95,10 @@ class LearningController extends Controller
                     $scoredAssessmentIds = StudentAssessmentScore::where('mahasiswa_id', $user->id)
                         ->where(function ($q) {
                             $q->whereNotNull('score')
-                              ->orWhereIn('status', [
-                                  StudentAssessmentScore::STATUS_FINAL,
-                                  StudentAssessmentScore::STATUS_PUBLISHED,
-                              ]);
+                                ->orWhereIn('status', [
+                                    StudentAssessmentScore::STATUS_FINAL,
+                                    StudentAssessmentScore::STATUS_PUBLISHED,
+                                ]);
                         })
                         ->pluck('assessment_id')
                         ->all();
@@ -179,14 +181,15 @@ class LearningController extends Controller
                     '_sort_key' => $sortKey,
                 ];
             })
-            ->sort(function ($a, $b) {
-                if ($a['_priority'] !== $b['_priority']) {
-                    return $a['_priority'] <=> $b['_priority'];
-                }
-                return $a['_sort_key'] <=> $b['_sort_key'];
-            })
-            ->values()
-            ->all();
+                ->sort(function ($a, $b) {
+                    if ($a['_priority'] !== $b['_priority']) {
+                        return $a['_priority'] <=> $b['_priority'];
+                    }
+
+                    return $a['_sort_key'] <=> $b['_sort_key'];
+                })
+                ->values()
+                ->all();
         } else {
             $courses = [];
         }
@@ -337,6 +340,7 @@ class LearningController extends Controller
                             if ($answer->question_index !== null) {
                                 $res[(string) $answer->question_index] = $answer->earned_score === null ? null : (float) $answer->earned_score;
                             }
+
                             return $res;
                         })
                         ->all(),
@@ -436,10 +440,10 @@ class LearningController extends Controller
             $studentScores = StudentAssessmentScore::where('mahasiswa_id', $user->id)
                 ->where(function ($q) {
                     $q->whereNotNull('score')
-                      ->orWhereIn('status', [
-                          StudentAssessmentScore::STATUS_FINAL,
-                          StudentAssessmentScore::STATUS_PUBLISHED,
-                      ]);
+                        ->orWhereIn('status', [
+                            StudentAssessmentScore::STATUS_FINAL,
+                            StudentAssessmentScore::STATUS_PUBLISHED,
+                        ]);
                 })
                 ->get()
                 ->keyBy('assessment_id');
@@ -549,6 +553,7 @@ class LearningController extends Controller
             if ($request->query('tab') === 'nilai') {
                 $assessmentId = $item['id'];
                 $hasDbScore = isset($studentScores[$assessmentId]) && $studentScores[$assessmentId]->score !== null;
+
                 return $hasDbScore;
             }
 
@@ -647,7 +652,7 @@ class LearningController extends Controller
         }
 
         $data = $request->validate([
-            'title' => 'required|string|max:120',
+            'title' => 'required|string|max:150',
             'code' => 'required|string|max:20',
             'description' => 'required|string|max:2000',
             'lecturer' => 'required|string|max:120',
@@ -687,10 +692,17 @@ class LearningController extends Controller
                 $semester = Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
             }
 
-            $existingCount = ClassSection::where('mata_kuliah_id', $mataKuliah->id)
+            $existingCodes = ClassSection::where('mata_kuliah_id', $mataKuliah->id)
                 ->where('semester_id', $semester?->id)
-                ->count();
-            $sectionCode = chr(65 + $existingCount);
+                ->pluck('section_code')
+                ->map(fn ($c) => strtoupper(trim((string) $c)))
+                ->all();
+
+            $letterAscii = 65;
+            while (in_array(chr($letterAscii), $existingCodes, true) && $letterAscii <= 90) {
+                $letterAscii++;
+            }
+            $sectionCode = chr($letterAscii);
 
             $section = ClassSection::create([
                 'mata_kuliah_id' => $mataKuliah->id,
@@ -728,6 +740,7 @@ class LearningController extends Controller
         return view('dosen.item-form', [
             'course' => Learning::databaseCourse($section),
             'modules' => $section->assessments()->get()->pluck('learning_payload.module')->filter()->unique()->values(),
+            'classMaterials' => $section->assessments()->where('type', 'materi')->orderBy('id')->get(['id', 'name']),
         ]);
     }
 
@@ -806,9 +819,12 @@ class LearningController extends Controller
             $rawCodingSteps = $request->input('coding_steps');
             if (is_array($rawCodingSteps)) {
                 $filteredSteps = array_values(array_filter($rawCodingSteps, function ($step) {
-                    if (! is_array($step)) return false;
+                    if (! is_array($step)) {
+                        return false;
+                    }
                     $title = trim((string) ($step['title'] ?? ''));
                     $body = trim((string) ($step['body'] ?? ''));
+
                     return $title !== '' || $body !== '';
                 }));
 
@@ -826,6 +842,8 @@ class LearningController extends Controller
             'task_mode' => 'nullable|in:regular,coding,quiz',
             'material_mode' => 'nullable|in:regular,coding',
             'ai_enabled' => 'nullable|boolean',
+            'linked_material_ids' => 'nullable|array',
+            'linked_material_ids.*' => 'integer',
             'body' => 'required|string|max:15000', 'due' => 'nullable|date',
             'allow_late' => 'nullable|in:0,1,true,false',
             'link' => 'nullable|url:http,https|max:2000',
@@ -1099,6 +1117,7 @@ class LearningController extends Controller
         $data['ai_enabled'] = $request->has('ai_enabled')
             ? $request->boolean('ai_enabled')
             : ($data['question_type'] === 'coding' && ! in_array($category, ['kuis', 'uts', 'uas'], true));
+        $data['linked_material_ids'] = array_values(array_filter(array_map('intval', (array) $request->input('linked_material_ids', []))));
         $data['formats'] = ! empty($data['formats']) ? $data['formats'] : ['file', 'image', 'link', 'text'];
         $data += ['link' => null, 'due' => null, 'options' => null];
         if (Schema::hasTable('class_sections') && Schema::hasTable('assessments')) {
@@ -1106,10 +1125,12 @@ class LearningController extends Controller
                 $assessmentType = ($category === 'coding') ? 'tugas' : $category;
                 $asmCount = Assessment::where('class_section_id', $section->id)->count();
                 $questionImages = collect($data['questions'] ?? [])->pluck('image')->filter();
+                $stepAttachments = collect($data['coding_steps'] ?? [])->pluck('attachment')->filter();
                 $fileIds = collect($data['attachments'])
                     ->merge($data['option_images'])
                     ->merge([$data['question_image']])
                     ->merge($questionImages)
+                    ->merge($stepAttachments)
                     ->filter()
                     ->unique();
                 $data['file_meta'] = Attachment::whereIn('uuid', $fileIds)->get()
@@ -1159,8 +1180,10 @@ class LearningController extends Controller
 
                     $findCpmk = function ($code) use ($allCpmks) {
                         $normTarget = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim((string) $code))));
+
                         return $allCpmks->first(function ($c) use ($normTarget) {
                             $normC = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($c->code))));
+
                             return $normC === $normTarget;
                         }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $code)->orWhere('code', str_replace(' ', '-', $code))->first() : null);
                     };
@@ -1238,6 +1261,7 @@ class LearningController extends Controller
             'isEdit' => true,
             'assessment' => $assessment,
             'modules' => $section->assessments()->get()->pluck('learning_payload.module')->filter()->unique()->values(),
+            'classMaterials' => $section->assessments()->where('type', 'materi')->orderBy('id')->get(['id', 'name']),
         ]);
     }
 
@@ -1332,9 +1356,12 @@ class LearningController extends Controller
             $rawCodingSteps = $request->input('coding_steps');
             if (is_array($rawCodingSteps)) {
                 $filteredSteps = array_values(array_filter($rawCodingSteps, function ($step) {
-                    if (! is_array($step)) return false;
+                    if (! is_array($step)) {
+                        return false;
+                    }
                     $title = trim((string) ($step['title'] ?? ''));
                     $body = trim((string) ($step['body'] ?? ''));
+
                     return $title !== '' || $body !== '';
                 }));
 
@@ -1396,6 +1423,8 @@ class LearningController extends Controller
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
             'randomize_questions' => 'nullable|boolean',
             'ai_enabled' => 'nullable|boolean',
+            'linked_material_ids' => 'nullable|array',
+            'linked_material_ids.*' => 'integer',
         ]);
 
         $category = $data['type'];
@@ -1409,9 +1438,20 @@ class LearningController extends Controller
         $data['ai_enabled'] = $request->has('ai_enabled')
             ? $request->boolean('ai_enabled')
             : ($existingItem['ai_enabled'] ?? ($data['question_type'] === 'coding'));
+        $data['linked_material_ids'] = $request->has('linked_material_ids')
+            ? array_values(array_filter(array_map('intval', (array) $request->input('linked_material_ids', []))))
+            : ($existingItem['linked_material_ids'] ?? []);
 
+        $keptExisting = $request->input('existing_attachments', null);
         $newAttachments = array_map(fn ($file) => $this->upload($file), $request->file('attachments', []));
-        $data['attachments'] = ! empty($newAttachments) ? $newAttachments : ($existingItem['attachments'] ?? []);
+        if ($keptExisting !== null) {
+            $data['attachments'] = array_values(array_unique(array_merge(
+                array_filter((array) $keptExisting),
+                $newAttachments
+            )));
+        } else {
+            $data['attachments'] = ! empty($newAttachments) ? $newAttachments : ($existingItem['attachments'] ?? []);
+        }
 
         if ($request->hasFile('question_image')) {
             $data['question_image'] = $this->upload($request->file('question_image'));
@@ -1490,9 +1530,12 @@ class LearningController extends Controller
                 }
                 if ($request->hasFile("coding_steps.$index.attachment")) {
                     $step['attachment'] = $this->upload($request->file("coding_steps.$index.attachment"));
+                } elseif (isset($step['existing_attachment'])) {
+                    $step['attachment'] = ! empty($step['existing_attachment']) ? $step['existing_attachment'] : null;
                 } else {
                     $step['attachment'] = $existingItem['coding_steps'][$index]['attachment'] ?? ($step['attachment'] ?? null);
                 }
+                unset($step['existing_attachment']);
                 $step['link'] = $step['link'] ?? null;
             }
             unset($step);
@@ -1613,6 +1656,23 @@ class LearningController extends Controller
             if ($isQuizMode && ! empty($data['due'])) {
                 $data['allow_late'] = false;
             }
+            $fileIds = collect($data['attachments'] ?? [])
+                ->merge([$data['question_image'] ?? null])
+                ->merge(collect($data['questions'] ?? [])->pluck('image'))
+                ->merge(collect($data['coding_steps'] ?? [])->pluck('attachment'))
+                ->filter()
+                ->unique();
+
+            if ($fileIds->isNotEmpty()) {
+                $newMeta = Attachment::whereIn('uuid', $fileIds)->get()
+                    ->mapWithKeys(fn (Attachment $attachment) => [$attachment->uuid => [
+                        'path' => $attachment->path,
+                        'name' => $attachment->name,
+                        'mime' => $attachment->mime,
+                    ]])->all();
+                $data['file_meta'] = array_merge($existingItem['file_meta'] ?? [], $newMeta);
+            }
+
             $databasePayload = array_merge($existingItem, $data);
             unset($databasePayload['id'], $databasePayload['course']);
 
@@ -1625,12 +1685,6 @@ class LearningController extends Controller
                 'allow_late' => $data['allow_late'],
             ]);
 
-            $fileIds = collect($data['attachments'] ?? [])
-                ->merge([$data['question_image'] ?? null])
-                ->merge(collect($data['questions'] ?? [])->pluck('image'))
-                ->merge(collect($data['coding_steps'] ?? [])->pluck('attachment'))
-                ->filter()
-                ->unique();
             if ($fileIds->isNotEmpty()) {
                 Attachment::whereIn('uuid', $fileIds)
                     ->where('user_id', $user->id)
@@ -1653,8 +1707,10 @@ class LearningController extends Controller
 
                 $findCpmk = function ($code) use ($allCpmks) {
                     $normTarget = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim((string) $code))));
+
                     return $allCpmks->first(function ($c) use ($normTarget) {
                         $normC = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($c->code))));
+
                         return $normC === $normTarget;
                     }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $code)->orWhere('code', str_replace(' ', '-', $code))->first() : null);
                 };
@@ -2146,7 +2202,7 @@ class LearningController extends Controller
             return back()->with('notice', 'Batas waktu pengumpulan telah berakhir. Pengampu tidak mengizinkan pengumpulan terlambat sehingga penyerahan tugas tidak dapat dibatalkan.');
         }
 
-        DB::transaction(function () use ($user, $assessment, $item) {
+        DB::transaction(function () use ($user, $item) {
             if (Schema::hasTable('submissions')) {
                 $submission = Submission::where('assessment_id', $item)
                     ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
@@ -2250,8 +2306,8 @@ class LearningController extends Controller
                 $meta = $fileWithAssessment['meta'];
             } else {
                 $sessionMeta = session("learning.files.$file")
-                    ?? \App\Support\LearningPreview::sampleFiles()[$file]
-                    ?? \App\Support\LearningPreview::fileMeta($file)
+                    ?? LearningPreview::sampleFiles()[$file]
+                    ?? LearningPreview::fileMeta($file)
                     ?? null;
                 abort_unless($sessionMeta !== null, 404);
                 $meta = $sessionMeta;
@@ -2319,8 +2375,8 @@ class LearningController extends Controller
             }
 
             $mtime = @filemtime(Storage::disk($disk)->path($path)) ?: 0;
-            $cacheKey = md5($disk . ':' . $path . ':' . $mtime);
-            $targetFile = $cacheDir . '/' . $cacheKey . '.jpg';
+            $cacheKey = md5($disk.':'.$path.':'.$mtime);
+            $targetFile = $cacheDir.'/'.$cacheKey.'.jpg';
 
             if (file_exists($targetFile) && filesize($targetFile) > 0) {
                 return $targetFile;
@@ -2335,7 +2391,7 @@ class LearningController extends Controller
             }
 
             $fullPdfPath = Storage::disk($disk)->path($path);
-            $prefix = $cacheDir . '/' . $cacheKey;
+            $prefix = $cacheDir.'/'.$cacheKey;
 
             $cmd = sprintf(
                 '%s -jpeg -jpegopt quality=85 -singlefile -scale-to 400 %s %s 2>/dev/null',
@@ -2386,6 +2442,7 @@ class LearningController extends Controller
             $assessmentId = Assessment::where(function ($q) use ($attachment) {
                 $q->whereJsonContains('attachments', $attachment->uuid)
                     ->orWhere('attachments', 'like', '%'.$attachment->uuid.'%')
+                    ->orWhere('learning_payload', 'like', '%'.$attachment->uuid.'%')
                     ->orWhere('question_image', $attachment->uuid);
             })->value('id');
         }
@@ -2531,7 +2588,7 @@ class LearningController extends Controller
             ])->render();
 
             $fingerprint = md5(json_encode(
-                collect($notifications)->map(fn ($n) => $n['id'] . ':' . (!empty($n['is_read']) ? '1' : '0'))->all()
+                collect($notifications)->map(fn ($n) => $n['id'].':'.(! empty($n['is_read']) ? '1' : '0'))->all()
             ));
 
             return response()->json([
@@ -2615,7 +2672,7 @@ class LearningController extends Controller
             ])->render();
 
             $fingerprint = md5(json_encode(
-                collect($notifications)->map(fn ($n) => $n['id'] . ':' . (!empty($n['is_read']) ? '1' : '0'))->all()
+                collect($notifications)->map(fn ($n) => $n['id'].':'.(! empty($n['is_read']) ? '1' : '0'))->all()
             ));
 
             return response()->json([
@@ -2673,7 +2730,7 @@ class LearningController extends Controller
 
         $forumUnreadCount = $categoryCounts['diskusi'];
         $pendingTaskCount = $user->hasRole(Role::MAHASISWA) ? $this->notifications->pendingTaskCount($user) : 0;
-        $pendingGradingCount = $user->hasRole(Role::DOSEN) ? \App\Support\DosenNavigation::pendingGradingCount() : 0;
+        $pendingGradingCount = $user->hasRole(Role::DOSEN) ? DosenNavigation::pendingGradingCount() : 0;
 
         $dosenUnreadNotifCount = $user->hasRole(Role::DOSEN)
             ? $this->notifications->unreadCount($user, Role::DOSEN)
@@ -2734,6 +2791,7 @@ class LearningController extends Controller
             if ($this->isInternalUrl($target)) {
                 return redirect($target);
             }
+
             // target tidak valid, kembali ke daftar notifikasi dengan kategori asal
             return $backCategory
                 ? redirect()->route($fallbackRoute, ['category' => $backCategory])

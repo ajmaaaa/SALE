@@ -17,6 +17,8 @@ class AiThread extends Model
         'tokens_used',
         'last_provider',
         'cleared_at',
+        'flagged_for_review',
+        'last_blocked_at',
     ];
 
     protected function casts(): array
@@ -26,6 +28,8 @@ class AiThread extends Model
             'blocked_count' => 'integer',
             'tokens_used' => 'integer',
             'cleared_at' => 'datetime',
+            'flagged_for_review' => 'boolean',
+            'last_blocked_at' => 'datetime',
         ];
     }
 

@@ -10,6 +10,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiTutor;
+use App\Services\Ai\ContextBuilder;
 use App\Services\Ai\GeminiTutor;
 use App\Support\LearningPreview;
 use Illuminate\Http\Request;
@@ -452,7 +453,8 @@ class AiTutorController extends Controller
             RateLimiter::hit($rate, 60);
 
             $useThreads = $isV2 && (bool) config('ai.threads', false);
-            $assessment = $useThreads ? Assessment::with('classSection')->find($assignment) : null;
+            $useContext = $isV2 && (bool) config('ai.context', false);
+            $assessment = ($useThreads || $useContext) ? Assessment::with('classSection')->find($assignment) : null;
             if ($useThreads && $assessment) {
                 $thread = AiThread::firstOrCreate(
                     [
@@ -466,6 +468,22 @@ class AiTutorController extends Controller
                         'tokens_used' => 0,
                     ]
                 );
+
+                // Scope guard cooldown: jika blocked_count >= AI_BLOCK_THRESHOLD (default 5), tolak selama AI_BLOCK_COOLDOWN_SECONDS (default 120s)
+                if ($useContext) {
+                    $blockThreshold = (int) config('ai.block_threshold', 5);
+                    $cooldownSeconds = (int) config('ai.block_cooldown_seconds', 120);
+                    if ($thread->blocked_count >= $blockThreshold && $thread->last_blocked_at !== null) {
+                        $cooldownUntil = $thread->last_blocked_at->copy()->addSeconds($cooldownSeconds);
+                        if (now()->lessThan($cooldownUntil)) {
+                            $retryAfter = max(1, (int) ceil(now()->diffInSeconds($cooldownUntil, true)));
+                            abort(429, 'Terlalu banyak permintaan yang ditolak. Anda perlu jeda '.$retryAfter.' detik sebelum mencoba lagi.', [
+                                'X-AI-Error' => AiErrorCode::BlockedOffTopic->value,
+                                'Retry-After' => (string) $retryAfter,
+                            ]);
+                        }
+                    }
+                }
 
                 $taskTurns = config('ai.task_turns');
                 if (is_numeric($taskTurns)) {
@@ -511,6 +529,33 @@ class AiTutorController extends Controller
                 }
             }
 
+            // ContextBuilder & Input Sanitization
+            $sendQuestion = $input['question'];
+            $sendCode = $input['code'] ?? '';
+            $sendTask = $task;
+
+            if ($useContext) {
+                $contextBuilder = app(ContextBuilder::class);
+                $built = $contextBuilder->build($assessment ?: $task, $input);
+
+                $sendCode = $built['code'];
+                $sendQuestion = $built['question'];
+                if ($built['console_output'] !== '') {
+                    $sendQuestion .= "\n\n[Output Konsol/Traceback]:\n".$built['console_output'];
+                }
+                if ($built['selected_line'] !== '-') {
+                    $sendQuestion .= "\n[Baris Dipilih]: ".$built['selected_line'];
+                }
+
+                $sendTask = (object) [
+                    'id' => $task->id ?? $assignment,
+                    'title' => $built['title'],
+                    'body' => $built['description']
+                        ."\n\nTahapan/instruksi:\n".$built['coding_steps']
+                        ."\n\nMateri kuliah terkait:\n".$built['linked_materials'],
+                ];
+            }
+
             $turnId = null;
             if (! $useThreads) {
                 $turnId = DB::table('ai_turns')->insertGetId([
@@ -525,10 +570,10 @@ class AiTutorController extends Controller
 
             try {
                 if ($isLiveAi) {
-                    $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history, $turnId);
+                    $answer = $tutor->answer($userId, $sendTask, $sendQuestion, $sendCode, $history, $turnId);
                 } else {
-                    $answer = $this->demoAnswer($input['question'], $input['code'] ?? '');
-                    $demoTokens = min(350, max(60, (int) round((strlen($input['question']) + strlen($answer)) / 2)));
+                    $answer = $this->demoAnswer($sendQuestion, $sendCode);
+                    $demoTokens = min(350, max(60, (int) round((strlen($sendQuestion) + strlen($answer)) / 2)));
                     $day = now('UTC')->toDateString();
                     DB::table('ai_usage')->insertOrIgnore(['scope' => 'user:'.$userId, 'day' => $day, 'tokens' => 0]);
                     DB::table('ai_usage')->where('scope', 'user:'.$userId)->where('day', $day)->increment('tokens', $demoTokens);
@@ -562,6 +607,10 @@ class AiTutorController extends Controller
                     $thread->increment('turns');
                     if ($verdict !== AiMessage::VERDICT_OK) {
                         $thread->increment('blocked_count');
+                        $thread->update(['last_blocked_at' => now()]);
+                        if ($thread->blocked_count >= (int) config('ai.block_threshold', 5) && ! $thread->flagged_for_review) {
+                            $thread->update(['flagged_for_review' => true]);
+                        }
                     }
                     if ($totalTokens > 0) {
                         $thread->increment('tokens_used', $totalTokens);

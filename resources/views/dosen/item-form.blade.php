@@ -185,11 +185,44 @@
             </div>
 
             <div class="mt-4 space-y-4">
-                <div data-content-addon-panel="files" hidden>
-                    <label class="form-label" for="attachments">Lampiran</label>
+                <div data-content-addon-panel="files" @if(empty($item['attachments'])) hidden @endif>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="form-label mb-0" for="attachments">Lampiran</label>
+                        <button type="button" data-close-content-panel="files" class="text-xs text-muted hover:text-danger">Tutup</button>
+                    </div>
                     <input id="attachments" name="attachments[]" type="file" multiple data-file-input class="field" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
                     <p class="mt-2 text-xs text-muted">PDF, gambar, video, dokumen, spreadsheet, arsip, dan tautan memakai tampilan lampiran yang seragam. Maksimal 5 berkas, masing-masing 5 MB. Untuk berkas besar disarankan melampirkan tautan/link Google Drive.</p>
-                    <div data-file-list class="mt-3 space-y-2"></div>
+                    <div data-file-list class="mt-3 space-y-2">
+                        @if(!empty($item['attachments']))
+                            @foreach($item['attachments'] as $existingAttUuid)
+                                @php
+                                    $existingMeta = \App\Support\LearningPreview::fileMeta($existingAttUuid);
+                                    $existingName = $existingMeta['name'] ?? 'Berkas Terlampir';
+                                    $existingExt = strtolower(pathinfo($existingName, PATHINFO_EXTENSION) ?: '');
+                                    $existingSize = !empty($existingMeta['size']) ? number_format($existingMeta['size'] / 1048576, 1) . ' MB' : '';
+                                    $isPdf = $existingExt === 'pdf';
+                                    $isWord = in_array($existingExt, ['doc', 'docx']);
+                                    $isSlides = in_array($existingExt, ['ppt', 'pptx']);
+                                    $isImage = in_array($existingExt, ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+                                    $isVideo = in_array($existingExt, ['mp4', 'webm']);
+                                @endphp
+                                <div class="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm border border-line/50" data-existing-file-row>
+                                    <input type="hidden" name="existing_attachments[]" value="{{ $existingAttUuid }}">
+                                    @if($isImage)
+                                        <img src="{{ route('preview.file', ['file' => $existingAttUuid, 'inline' => 1], false) }}" class="h-12 w-12 shrink-0 rounded object-cover border border-line/40">
+                                    @else
+                                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold {{ $isPdf ? 'bg-rose-50 text-rose-700' : ($isWord ? 'bg-blue-50 text-blue-700' : ($isSlides ? 'bg-orange-50 text-orange-700' : ($isVideo ? 'bg-violet-50 text-violet-700' : 'bg-slate-100 text-slate-600'))) }}">
+                                            {{ strtoupper(substr($existingExt ?: 'FILE', 0, 4)) }}
+                                        </span>
+                                    @endif
+                                    <span class="min-w-0 flex-1 break-all text-xs font-medium text-ink">
+                                        {{ $existingName }} @if($existingSize) <span class="text-muted">· {{ $existingSize }}</span> @endif
+                                    </span>
+                                    <button type="button" class="p-2 text-sm text-muted hover:text-danger shrink-0 font-bold" title="Hapus lampiran" onclick="this.closest('[data-existing-file-row]').remove();">×</button>
+                                </div>
+                            @endforeach
+                        @endif
+                    </div>
                 </div>
 
                 <div data-content-addon-panel="link" @if(!old('link', $item['link'] ?? '')) hidden @endif>
@@ -242,6 +275,7 @@
                             <span class="mt-1 block pl-5 text-muted">Lembar kerja kode di editor dengan bantuan asisten AI.</span>
                         </label>
                     </div>
+
                     <input id="question_type" name="question_type" type="hidden" data-question-type value="{{ old('question_type', $item['question_type'] ?? 'uraian') }}">
                     <input type="hidden" id="points" name="points" value="{{ old('points', $item['points'] ?? 100) }}">
                 </fieldset>
@@ -254,13 +288,13 @@
                     <p class="text-xs text-muted">Atur batas durasi ujian hitung mundur dan tenggat akhir pengumpulan.</p>
                 </div>
 
-                {{-- 1. Batas Durasi Pengerjaan (Hanya untuk Kuis & Ujian CBT) --}}
-                <div data-timer-setting-container class="space-y-3" @if(!($mainCategoryVal === 'asesmen' && ($subCategoryVal === 'kuis' || (in_array($subCategoryVal, ['uts', 'uas'], true) && $taskModeVal === 'quiz')))) hidden @endif>
+                {{-- 1. Batas Durasi Pengerjaan (Untuk Kuis, Ujian CBT, dan Tugas Pemrograman) --}}
+                <div data-timer-setting-container class="space-y-3" @if(!($mainCategoryVal === 'asesmen' && ($subCategoryVal === 'kuis' || (in_array($subCategoryVal, ['uts', 'uas'], true) && $taskModeVal === 'quiz') || $taskModeVal === 'coding'))) hidden @endif>
                     <input type="hidden" name="duration_mode" id="duration_mode" value="{{ old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) }}">
                     <label class="flex cursor-pointer items-center justify-between gap-4">
                         <span>
-                            <span class="block text-xs font-bold text-ink">Pakai batas durasi ujian (Timer)</span>
-                            <span class="mt-0.5 block text-[11px] text-muted">Aktifkan timer hitung mundur saat mahasiswa mulai membuka lembar ujian CBT.</span>
+                            <span class="block text-xs font-bold text-ink">Pakai batas durasi pengerjaan (Timer)</span>
+                            <span class="mt-0.5 block text-[11px] text-muted">Aktifkan timer hitung mundur saat mahasiswa mulai membuka lembar pengerjaan.</span>
                         </span>
                         <input type="checkbox" data-duration-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) === 'enabled')>
                     </label>
@@ -383,6 +417,27 @@
                 <input type="hidden" name="ai_enabled" value="0" @if(!$isCodingSelected) disabled @endif>
                 <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal) @if(!$isCodingSelected) disabled @endif>
             </label>
+
+            @php
+                $availableMaterials = $classMaterials ?? \App\Models\Assessment::where('class_section_id', $course['id'])->where('type', 'materi')->orderBy('id')->get(['id', 'name']);
+                $selectedLinkedMaterials = (array) old('linked_material_ids', $item['linked_material_ids'] ?? ($item['learning_payload']['linked_material_ids'] ?? []));
+            @endphp
+            <div class="mt-3.5 pt-3.5 border-t border-line/60 space-y-2">
+                <label class="block text-xs font-bold text-ink">Materi Kuliah Tertaut (RAG AI Asisten)</label>
+                <p class="text-[11px] text-muted">Pilih materi pembelajaran dari kelas ini yang menjadi acuan konteks pengetahuan AI untuk membimbing tugas ini. Jika kosong, sistem otomatis merujuk seluruh materi yang terbit di kelas.</p>
+                @if(!empty($availableMaterials) && count($availableMaterials) > 0)
+                    <div class="grid gap-1.5 sm:grid-cols-2 max-h-48 overflow-y-auto rounded-lg border border-line/60 p-2.5 bg-canvas/30">
+                        @foreach($availableMaterials as $cMat)
+                            <label class="flex items-center gap-2 text-xs text-ink cursor-pointer hover:bg-white p-1 rounded">
+                                <input type="checkbox" name="linked_material_ids[]" value="{{ $cMat->id }}" @checked(in_array($cMat->id, $selectedLinkedMaterials)) class="rounded border-line text-brand">
+                                <span class="truncate">{{ $cMat->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-xs text-muted italic">Belum ada materi pembelajaran yang dibuat pada kelas ini.</p>
+                @endif
+            </div>
         </div>
 
         {{-- Paket Soal Asesmen (Kuis, UTS, UAS) --}}
@@ -607,7 +662,9 @@
                     <div class="flex items-center gap-2">
                         <span class="text-muted font-medium" data-coding-target-label>Target Jumlah Soal (maks. 100):</span>
                         <input type="number" min="1" max="100" value="1" class="field w-16 py-1 px-2 text-center font-bold text-ink text-xs bg-slate-50" data-coding-target-count placeholder="1">
+                        <button type="button" class="button-secondary text-xs py-1 px-2.5 font-medium" data-apply-coding-count>Atur</button>
                     </div>
+                    <button type="button" class="button-secondary text-xs py-1 px-2.5 font-medium" data-auto-distribute-coding-points>Bagi Rata (100 / n)</button>
                 </div>
             </div>
 
@@ -697,6 +754,7 @@
                             {{-- Panel Lampiran Berkas --}}
                             <div data-step-addon-panel="files" hidden>
                                 <label class="form-label text-xs mb-1">Lampiran berkas</label>
+                                <input type="hidden" data-step-field="existing_attachment">
                                 <input type="file" data-step-field="attachment" class="field text-xs py-1.5 bg-white" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
                                 <p class="mt-1 text-[11px] text-muted">Mendukung PDF, dokumen, arsip, gambar, atau video pendukung. Maksimal 20 MB.</p>
                                 <div data-step-file-preview class="mt-2.5 space-y-2"></div>
@@ -714,7 +772,20 @@
                     </div>
                 </section>
             </template>
-            <script type="application/json" data-old-coding-steps>@json(old('coding_steps', $item['coding_steps'] ?? []))</script>
+            @php
+                $oldCodingSteps = old('coding_steps', $item['coding_steps'] ?? []);
+                if (empty($oldCodingSteps) && ($isCodingSelected || ($item['type'] ?? '') === 'coding')) {
+                    $oldCodingSteps = [[
+                        'title' => old('title', $item['title'] ?? ''),
+                        'body' => old('body', $item['body'] ?? ''),
+                        'cpmk' => old('cpmk', $item['cpmk'] ?? ''),
+                        'points' => 100,
+                        'link' => old('link', $item['link'] ?? null),
+                        'attachment' => null,
+                    ]];
+                }
+            @endphp
+            <script type="application/json" data-old-coding-steps>@json($oldCodingSteps)</script>
         </section>
 
         <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', $item['cpmk'] ?? (\App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK')) }}">

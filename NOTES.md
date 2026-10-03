@@ -79,4 +79,22 @@ Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan ad
   - Menyimpan log tanya-jawab pada arsitektur lama V1 sebelum model thread diperkenalkan.
   - **Pencegahan Penulisan Ganda**: Saat sub-flag `AI_THREADS` aktif bersama `AI_TUTOR_V2`, seluruh pencatatan percakapan dialihkan secara eksklusif ke `ai_messages` dan `ai_threads`. Sistem **tidak lagi menulis ganda ke `ai_turns`**, sehingga tidak ada risiko desinkronisasi status atau duplikasi data ketika thread dibersihkan secara lunak (*soft clear*) maupun saat dipangkas (*prune*).
 
+---
+
+## 6. Catatan Fase 4 (ContextBuilder, Template Nonce, & Scope Guard Cooldown)
+- **ContextBuilder**:
+  - Mengambil judul tugas, deskripsi (dibersihkan via `strip_tags`), tipe asesmen, dan langkah pengerjaan (`coding_steps` berisi nomor, judul, CPMK, instruksi).
+  - Mengeliminasi seluruh kunci jawaban (`solution`, `answer_key`), *test cases* tersembunyi/rahasia (`hidden: true`, `secret: true`), dan penanda format solusi.
+  - Mengambil materi kuliah tertaut dari `linked_material_ids` (atau fallback 30 materi terbit jika kosong/null).
+  - Sanitasi kode (maksimal 8.000 karakter), sanitasi traceback konsol (potongan akhir/tail 2.000 karakter), dan sanitasi baris terpilih.
+  - Sanitasi *injection attempts* terhadap tag delimitasi data/riwayat seperti `<data_...>` dan `<riwayat_...>`.
+- **PromptTemplateRenderer**:
+  - Membaca berkas template dari `resources/ai/` (`tutor_system.txt`, `tutor_user.txt`, `hint_levels.txt`, `reviewer.txt`).
+  - Mengganti placeholder menggunakan `strtr()` dan menyisipkan nonce acak kriptografis 16 karakter (`{{NONCE}}`) untuk mencegah pembobolan *guardrails*.
+  - Mengimplementasikan tangga bantuan (*hint ladder*): giliran 1–3 (level 1 / konseptual), giliran 4–7 (level 2 / terarah), giliran 8+ (level 3 / spesifik).
+- **Scope Guard Cooldown**:
+  - Konfigurasi `AI_BLOCK_THRESHOLD` (default 5) dan `AI_BLOCK_COOLDOWN_SECONDS` (default 120s).
+  - Ketika `blocked_count >= 5`, thread otomatis ditandai `flagged_for_review = true` untuk audit dosen.
+  - Setiap permintaan selama durasi cooldown 120 detik langsung ditolak dengan status HTTP 429 (`blocked_off_topic`) beserta header `Retry-After` tanpa memanggil model LLM.
+
 
