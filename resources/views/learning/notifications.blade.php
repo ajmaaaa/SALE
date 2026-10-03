@@ -167,6 +167,10 @@
                     }
                 });
 
+                if (response.status === 401) {
+                    window.location.href = '{{ route('login') }}';
+                    return;
+                }
                 if (!response.ok) return;
                 const data = await response.json();
                 if (!data.success) return;

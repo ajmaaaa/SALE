@@ -121,8 +121,14 @@ class AuthController extends Controller
     private function authenticateUser(Request $request, User $user, string $message)
     {
         $role = $user->role?->name;
+        $intended = $request->session()->pull('url.intended') ?: session('url.intended');
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('last_user_activity', time());
+
+        if ($intended && $intended !== route('login') && $intended !== url('/') && $intended !== url('/login')) {
+            return redirect()->to($intended)->with('notice', $message);
+        }
 
         return $this->redirectForRole($role, $message);
     }

@@ -204,4 +204,21 @@ class StudentProfileSettingsTest extends TestCase
         $response->assertSee('Ganjil 2026/2027');
         $response->assertSee('2 Kelas');
     }
+
+    public function test_support_admin_email_is_placed_in_sidebar_and_not_in_profile_content(): void
+    {
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
+
+        $response = $this->actingAs($this->student)
+            ->get(route('mahasiswa.profile.index'));
+
+        $response->assertOk();
+        // Support email is in the sidebar
+        $response->assertSee('admin.support@univ.ac.id');
+        $response->assertSee('mailto:admin.support@univ.ac.id', false);
+
+        // Verify it is removed from the profile information card section
+        $content = $response->getContent();
+        $this->assertStringNotContainsString('Bantuan &amp; Narahubung:', $content);
+    }
 }

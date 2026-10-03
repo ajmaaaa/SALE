@@ -48,6 +48,7 @@
         $rejectionReason = $rejectionReason ?? null;
         $isLecturerPreview = $isLecturerPreview ?? false;
         $reviewUser = $reviewUser ?? auth()->user();
+        $isArchived = $isArchived ?? (!empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false));
         $courseBackUrl = $isLecturerPreview
             ? route('dosen.course.show', $course['id']).'?tab=tugas'
             : route('mahasiswa.course.show', $course['id']).'?tab=tugas';
@@ -510,7 +511,12 @@
             {{-- Center: Countdown Timer & Tombol Daftar Soal Modal --}}
             <div class="flex items-center gap-2.5">
                 {{-- Countdown Timer --}}
-                @if($durationMinutes)
+                @if($isArchived)
+                    <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded text-xs text-slate-600 border border-slate-200">
+                        <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Kelas Diarsipkan (Read-Only)</span>
+                    </div>
+                @elseif($durationMinutes)
                     <div id="timer-badge" class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono font-bold text-slate-700">
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         <span id="quiz-countdown"
@@ -543,16 +549,31 @@
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
 
-                <button type="button" id="btn-top-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold flex items-center gap-1.5 shadow-xs hidden cursor-pointer" title="Kumpulkan Kuis">
-                    <span>Kumpulkan Kuis</span>
-                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-                </button>
+                @if($isArchived)
+                    <button type="button" id="btn-top-finish" disabled class="button-secondary text-xs py-1.5 px-3.5 font-bold flex items-center gap-1.5 hidden opacity-60 cursor-not-allowed" title="Kelas Diarsipkan (Pengerjaan Ditutup)">
+                        <span>Pengerjaan Ditutup</span>
+                    </button>
+                @else
+                    <button type="button" id="btn-top-finish" class="button-primary text-xs py-1.5 px-3.5 font-bold flex items-center gap-1.5 shadow-xs hidden cursor-pointer" title="Kumpulkan Kuis">
+                        <span>Kumpulkan Kuis</span>
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+                    </button>
+                @endif
             </div>
         </header>
 
         {{-- MAIN EXAM SPLIT WORKBENCH (FULL SCREEN TANPA SIDEBAR) --}}
-        <main class="flex-1 overflow-hidden p-3 sm:p-4">
-            <form id="exam-form" method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" class="h-full">
+        <main class="flex-1 overflow-hidden p-3 sm:p-4 flex flex-col gap-2.5">
+            @if($isArchived)
+                <div class="shrink-0 px-4 py-2 rounded-lg border border-line/80 bg-white text-ink text-xs flex items-center justify-between gap-3 shadow-2xs">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex h-2 w-2 rounded-full bg-slate-400"></span>
+                        <span class="font-medium text-slate-700">Kelas telah diarsipkan. Lembar kuis ini dibuka dalam mode hanya-baca (read-only) dan tidak dapat dikerjakan.</span>
+                    </div>
+                    <a href="{{ $itemBackUrl }}" class="font-semibold text-brand underline hover:text-ink shrink-0">Kembali ke Rincian</a>
+                </div>
+            @endif
+            <form id="exam-form" method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" class="flex-1 min-h-0">
                 @csrf
                 <input type="hidden" name="from_quiz_room" value="1">
 
@@ -649,13 +670,15 @@
                                     $colors = ['#1d4ed8', '#047857', '#b45309', '#6d28d9', '#0f766e', '#be123c', '#4338ca'];
                                 @endphp
 
-                                <div class="h-full flex flex-col">
+                                <div class="h-full flex flex-col @if($isArchived) pointer-events-none select-none opacity-85 @endif">
                                     {{-- Canvas Header Status --}}
                                     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-xs bg-slate-50/50">
                                         <span class="text-slate-600 font-medium">Tarik garis atau klik pasangan di kiri/kanan untuk menghubungkan. Klik pada garis untuk membatalkannya.</span>
                                         <div class="flex items-center gap-3">
                                             <span class="text-slate-500 font-semibold"><span id="match-counter-{{ $qIdx }}">0 dari {{ count($pairs) }}</span> terhubung</span>
-                                            <button type="button" data-reset-lines="{{ $qIdx }}" class="text-xs text-muted hover:text-ink underline font-medium cursor-pointer">Reset Semua Garis</button>
+                                            @if(!$isArchived)
+                                                <button type="button" data-reset-lines="{{ $qIdx }}" class="text-xs text-muted hover:text-ink underline font-medium cursor-pointer">Reset Semua Garis</button>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -671,13 +694,15 @@
                                                     @php
                                                         $isImg = str_starts_with($pair['left'], 'http') || str_starts_with($pair['left'], 'data:image') || str_starts_with($pair['left'], '/');
                                                     @endphp
-                                                    <div class="relative flex items-center justify-between p-3.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition cursor-pointer select-none" data-match-left-card="{{ $pIdx }}">
+                                                    <div class="relative flex items-center justify-between p-3.5 rounded-lg border border-slate-200 bg-white @if(!$isArchived) hover:border-slate-300 transition cursor-pointer @endif select-none" data-match-left-card="{{ $pIdx }}">
                                                         <div class="min-w-0 pr-4 w-full">
                                                             <div class="flex items-center justify-between gap-2 mb-1">
                                                                 <span class="text-[11px] font-semibold text-slate-400">Premis {{ $pIdx + 1 }}</span>
-                                                                <button type="button" data-disconnect-left="{{ $pIdx }}" class="hidden text-[11px] text-muted hover:text-ink font-semibold items-center gap-0.5 cursor-pointer" title="Batalkan / Putuskan sambungan">
-                                                                    ✕ Putuskan
-                                                                </button>
+                                                                @if(!$isArchived)
+                                                                    <button type="button" data-disconnect-left="{{ $pIdx }}" class="hidden text-[11px] text-muted hover:text-ink font-semibold items-center gap-0.5 cursor-pointer" title="Batalkan / Putuskan sambungan">
+                                                                        ✕ Putuskan
+                                                                    </button>
+                                                                @endif
                                                             </div>
                                                             @if($isImg)
                                                                 <div class="flex items-center justify-center p-1 bg-slate-50 rounded border border-slate-100">
@@ -689,6 +714,7 @@
                                                         </div>
 
                                                         <button type="button"
+                                                            @disabled($isArchived)
                                                             data-dot-side="left"
                                                             data-dot-idx="{{ $pIdx }}"
                                                             data-color="{{ $colors[$pIdx % count($colors)] }}"
@@ -720,8 +746,9 @@
                                                     @php
                                                         $isTargetImg = str_starts_with($target['text'], 'http') || str_starts_with($target['text'], 'data:image') || str_starts_with($target['text'], '/');
                                                     @endphp
-                                                    <div class="relative flex items-center p-3.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition cursor-pointer select-none" data-match-right-card="{{ $tIdx }}" data-target-val="{{ $target['id'] }}">
+                                                    <div class="relative flex items-center p-3.5 rounded-lg border border-slate-200 bg-white @if(!$isArchived) hover:border-slate-300 transition cursor-pointer @endif select-none" data-match-right-card="{{ $tIdx }}" data-target-val="{{ $target['id'] }}">
                                                         <button type="button"
+                                                            @disabled($isArchived)
                                                             data-dot-side="right"
                                                             data-dot-idx="{{ $tIdx }}"
                                                             data-color="{{ $colors[$tIdx % count($colors)] }}"
@@ -759,11 +786,12 @@
                                     </div>
                                     <div class="p-6 flex-1 overflow-y-auto [scrollbar-gutter:stable] space-y-3">
                                         @foreach($options as $optIdx => $opt)
-                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
+                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white @if(!$isArchived) hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer @else opacity-90 cursor-not-allowed @endif transition">
                                                 <input type="{{ $isMultiple ? 'checkbox' : 'radio' }}"
                                                     name="question_answers[{{ $q['id'] }}][option_ids][]"
                                                     value="{{ $opt['id'] }}"
-                                                    class="h-4 w-4 text-slate-900 focus:ring-slate-900 rounded"
+                                                    @disabled($isArchived)
+                                                    class="h-4 w-4 text-slate-900 focus:ring-slate-900 rounded disabled:cursor-not-allowed"
                                                     @checked(in_array($opt['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
                                                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-slate-100 font-mono text-xs font-bold text-slate-700">{{ chr(65 + $optIdx) }}</span>
                                                 <span class="text-sm font-medium text-slate-800 leading-relaxed">{{ $opt['text'] }}</span>
@@ -780,8 +808,9 @@
                                     </div>
                                     <div class="p-6 flex-1 flex flex-col justify-start max-w-md mx-auto w-full space-y-3 pt-6">
                                         @foreach($q['option_items'] ?? [] as $option)
-                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer transition">
-                                                <input type="radio" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}" class="h-4 w-4 text-slate-900 focus:ring-slate-900"
+                                            <label class="flex items-center gap-3.5 p-4 rounded-lg border border-slate-200 bg-white @if(!$isArchived) hover:border-slate-300 hover:bg-slate-50/50 cursor-pointer @else opacity-90 cursor-not-allowed @endif transition">
+                                                <input type="radio" name="question_answers[{{ $q['id'] }}][option_ids][]" value="{{ $option['id'] }}" class="h-4 w-4 text-slate-900 focus:ring-slate-900 disabled:cursor-not-allowed"
+                                                    @disabled($isArchived)
                                                     @checked(in_array($option['id'], old('question_answers.'.$q['id'].'.option_ids', $submission['question_answers'][$q['id']]['option_ids'] ?? [])))>
                                                 <span class="text-sm font-bold text-slate-900">{{ $option['text'] }}</span>
                                             </label>
@@ -797,7 +826,10 @@
                                         <span id="essay-word-count-{{ $qIdx }}" class="font-mono text-slate-400">0 kata</span>
                                     </div>
                                     <div class="p-5 flex-1 flex flex-col">
-                                        <textarea data-essay-input="{{ $qIdx }}" name="question_answers[{{ $q['id'] }}][text]" class="flex-1 w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-800 leading-relaxed resize-none focus:outline-none focus:border-slate-800 focus:ring-0" placeholder="Tuliskan jawaban Anda di sini...">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
+                                        <textarea data-essay-input="{{ $qIdx }}" name="question_answers[{{ $q['id'] }}][text]"
+                                            @readonly($isArchived)
+                                            class="flex-1 w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-800 leading-relaxed resize-none focus:outline-none focus:border-slate-800 focus:ring-0 @if($isArchived) bg-slate-50 cursor-not-allowed @endif"
+                                            placeholder="{{ $isArchived ? 'Pengerjaan ditutup (Kelas telah diarsipkan)' : 'Tuliskan jawaban Anda di sini...' }}">{{ old('question_answers.'.$q['id'].'.text', $submission['question_answers'][$q['id']]['text'] ?? '') }}</textarea>
                                     </div>
                                 </div>
                             @endif
@@ -916,6 +948,7 @@
         {{-- SCRIPT ENGINE RUANG UJIAN --}}
         <script>
             document.addEventListener('DOMContentLoaded', () => {
+                const isArchived = {{ $isArchived ? 'true' : 'false' }};
                 const form = document.getElementById('exam-form');
                 const cards = document.querySelectorAll('[data-exam-card]');
                 const totalCards = cards.length;
@@ -974,7 +1007,9 @@
 
                 btnTopPrev?.addEventListener('click', () => setStep(currentStep - 1));
                 btnTopNext?.addEventListener('click', () => setStep(currentStep + 1));
-                btnTopFinish?.addEventListener('click', () => openSubmitModal());
+                btnTopFinish?.addEventListener('click', () => {
+                    if (!isArchived) openSubmitModal();
+                });
 
                 // ==========================================
                 // 2. GRID MODAL CONTROLLER
@@ -1071,14 +1106,22 @@
                     exitModal?.showModal();
                 };
 
-                btnExitExam?.addEventListener('click', openExitModal);
-
-                // Mencegah tombol back di browser / swipe agar tidak langsung keluar tanpa kumpul
-                history.pushState(null, '', window.location.href);
-                window.addEventListener('popstate', () => {
-                    history.pushState(null, '', window.location.href);
+                btnExitExam?.addEventListener('click', () => {
+                    if (isArchived) {
+                        window.location.href = "{{ $itemBackUrl }}";
+                        return;
+                    }
                     openExitModal();
                 });
+
+                if (!isArchived) {
+                    // Mencegah tombol back di browser / swipe agar tidak langsung keluar tanpa kumpul
+                    history.pushState(null, '', window.location.href);
+                    window.addEventListener('popstate', () => {
+                        history.pushState(null, '', window.location.href);
+                        openExitModal();
+                    });
+                }
 
                 modalExitCancelBtn?.addEventListener('click', () => {
                     exitModal?.close();
@@ -1098,7 +1141,7 @@
                 // 5. COUNTDOWN TIMER (PERSISTEN BERJALAN MESKI KELUAR ROOM)
                 // ==========================================
                 const timerEl = document.getElementById('quiz-countdown');
-                if (timerEl) {
+                if (timerEl && !isArchived) {
                     const totalDurationSeconds = Number(timerEl.dataset.duration || 3600);
                     const deadlineKey = `sale.exam.deadline.{{ $item['id'] }}`;
                     const now = Date.now();
@@ -1198,7 +1241,7 @@
                     const leftDots = container.querySelectorAll('[data-dot-side="left"]');
                     const rightDots = container.querySelectorAll('[data-dot-side="right"]');
                     const counterEl = document.getElementById(`match-counter-${qIdx}`);
-                    const resetBtn = container.querySelector(`[data-reset-lines="${qIdx}"]`);
+                    const resetBtn = document.querySelector(`[data-reset-lines="${qIdx}"]`);
 
                     const connections = {};
                     let selectedNode = null; // { side: 'left' | 'right', idx: number } | null

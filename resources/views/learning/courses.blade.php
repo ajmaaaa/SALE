@@ -17,7 +17,33 @@
         </div>
     </header>
 
+    {{-- Tab Navigasi [Kelas Aktif] / [Arsip Kelas] (PRD §6.3) --}}
+    @php
+        $currentTab = $tab ?? 'active';
+        $activeBadge = $activeCount ?? 0;
+        $archivedBadge = $archivedCount ?? 0;
+    @endphp
+    <div class="flex items-center gap-2 border-b border-line/60" role="tablist">
+        <a href="{{ request()->fullUrlWithQuery(['tab' => 'active']) }}"
+           class="px-4 py-2 text-xs font-semibold border-b-2 {{ $currentTab !== 'archived' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }} -mb-px transition flex items-center gap-1.5"
+           aria-selected="{{ $currentTab !== 'archived' ? 'true' : 'false' }}">
+            <span>Kelas Aktif</span>
+            <span class="rounded-full px-1.5 py-0.5 text-[10px] {{ $currentTab !== 'archived' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-600' }} font-bold">
+                {{ $activeBadge }}
+            </span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['tab' => 'archived']) }}"
+           class="px-4 py-2 text-xs font-semibold border-b-2 {{ $currentTab === 'archived' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }} -mb-px transition flex items-center gap-1.5"
+           aria-selected="{{ $currentTab === 'archived' ? 'true' : 'false' }}">
+            <span>Arsip Kelas</span>
+            <span class="rounded-full px-1.5 py-0.5 text-[10px] {{ $currentTab === 'archived' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-600' }} font-bold">
+                {{ $archivedBadge }}
+            </span>
+        </a>
+    </div>
+
     <form class="flex flex-col gap-3 sm:flex-row sm:items-center" action="{{ route(request()->is('dosen*') ? 'dosen.course.index' : 'mahasiswa.course.index') }}" method="GET">
+        <input type="hidden" name="tab" value="{{ $currentTab }}">
         <label class="sr-only" for="course-search">Cari course</label>
         <div class="relative w-full sm:max-w-md">
             <input id="course-search" name="q" type="search" class="field w-full" placeholder="Cari judul, kode, atau dosen..." value="{{ request('q') }}" autocomplete="off">

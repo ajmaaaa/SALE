@@ -68,7 +68,7 @@ TEXT;
         $started = microtime(true);
         $apiKey = (string) (config('ai.key') ?: (\App\Models\SystemSetting::valueFor('ai_api_key') ?? ''));
         $model = (string) (config('ai.model') ?: (\App\Models\SystemSetting::valueFor('ai_model') ?? 'gemini-3.6-flash'));
-        if (in_array($model, ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', ''], true)) {
+        if (empty($model) || preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', $model)) {
             $model = 'gemini-3.6-flash';
         }
 

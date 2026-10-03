@@ -95,18 +95,29 @@ class AiModelFetcher
                     foreach ($raw as $m) {
                         $methods = $m['supportedGenerationMethods'] ?? [];
                         $name = $m['name'] ?? '';
-                        // Filter model yang mendukung generateContent dan bukan TTS/robotics
-                        if (in_array('generateContent', $methods) && str_starts_with($name, 'models/gemini')) {
-                            if (str_contains($name, '-tts') || str_contains($name, '-robotics')) {
-                                continue;
-                            }
-                            $id = str_replace('models/', '', $name);
-                            $displayName = $m['displayName'] ?? ucwords(str_replace('-', ' ', $id));
-                            $models[] = [
-                                'id' => $id,
-                                'displayName' => "{$displayName} ({$id})",
-                            ];
+                        $desc = strtolower(($m['displayName'] ?? '') . ' ' . ($m['description'] ?? ''));
+
+                        // Hanya model yang mendukung generateContent
+                        if (! in_array('generateContent', $methods)) {
+                            continue;
                         }
+
+                        // Hanya model keluarga Gemini & Gemma
+                        if (! preg_match('/^models\/(gemini|gemma)/i', $name)) {
+                            continue;
+                        }
+
+                        // Filter ketat: tolak model gambar, audio, TTS, transkripsi, video, embedding, dll yang tidak menghasilkan teks
+                        if (preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', $name . ' ' . $desc)) {
+                            continue;
+                        }
+
+                        $id = str_replace('models/', '', $name);
+                        $displayName = $m['displayName'] ?? ucwords(str_replace('-', ' ', $id));
+                        $models[] = [
+                            'id' => $id,
+                            'displayName' => "{$displayName} ({$id})",
+                        ];
                     }
                     return $models;
                 }
@@ -122,7 +133,7 @@ class AiModelFetcher
                     foreach ($raw as $m) {
                         $id = $m['id'] ?? '';
                         if (preg_match('/^(gpt|o1|o3|chatgpt)/i', $id)) {
-                            if (preg_match('/(embedding|audio|realtime|transcription|tts|whisper|dall-e)/i', $id)) {
+                            if (preg_match('/(embedding|audio|realtime|transcription|tts|whisper|dall-e|image|video|sora|moderation|davinci|babbage)/i', $id)) {
                                 continue;
                             }
                             $models[] = [

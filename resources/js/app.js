@@ -2187,6 +2187,17 @@ if (contentForm) {
         if (!isQuizMode || !durationToggle?.checked) {
             if (durationInput) durationInput.disabled = true;
         }
+
+        if (stepMode !== 'coding' && codingStepBuilder) {
+            codingStepBuilder.querySelectorAll('input,select,textarea').forEach(f => {
+                f.disabled = true;
+            });
+        }
+        if (stepMode !== 'questions' && builder) {
+            builder.querySelectorAll('input,select,textarea').forEach(f => {
+                f.disabled = true;
+            });
+        }
     });
 
     contentForm.addEventListener('input', (e) => {

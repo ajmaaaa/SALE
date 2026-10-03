@@ -7,12 +7,17 @@ use App\Models\ClassSection;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
+use App\Models\User;
+use App\Services\ClassEnrollmentService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ClassSectionController extends Controller
 {
+    public function __construct(private ClassEnrollmentService $enrollment) {}
+
     /**
      * Halaman 1 — Daftar Kelas Dosen.
      *
@@ -103,5 +108,44 @@ class ClassSectionController extends Controller
             'semesters' => $semesters,
             'selectedSemesterId' => $selectedSemesterId,
         ]);
+    }
+
+    /**
+     * Dosen mengeluarkan mahasiswa dari kelas (PRD Kondisi 3).
+     *
+     * Validasi: alasan wajib, mahasiswa tidak boleh terkunci (is_locked = true),
+     * kelas tidak boleh terarsipkan.
+     */
+    public function kickStudent(Request $request, int $course, int $student): RedirectResponse
+    {
+        $dosen = Auth::guard('web')->user();
+        abort_unless($dosen?->hasRole(Role::DOSEN), 403);
+
+        $section = ClassSection::findOrFail($course);
+        abort_unless($dosen->can('manage', $section), 403, 'Anda tidak memiliki akses ke kelas ini.');
+
+        $mahasiswa = User::findOrFail($student);
+
+        $request->validate([
+            'reason' => ['required', 'string', 'max:255'],
+        ], [
+            'reason.required' => 'Alasan pengeluaran wajib diisi.',
+        ]);
+
+        $result = $this->enrollment->kick($section, $mahasiswa, $dosen, trim($request->input('reason')));
+
+        $message = match ($result) {
+            'kicked' => "Mahasiswa {$mahasiswa->name} berhasil dikeluarkan dari kelas {$section->display_code}.",
+            'locked' => 'Mahasiswa ini telah diverifikasi oleh Admin Prodi dan tidak dapat dikeluarkan.',
+            'not_enrolled' => 'Mahasiswa tidak terdaftar aktif di kelas ini.',
+            'archived' => 'Kelas sudah diarsipkan, tidak dapat melakukan perubahan.',
+            default => 'Tidak dapat memproses permintaan. Coba lagi.',
+        };
+
+        if ($result === 'kicked') {
+            return back()->with('notice', $message);
+        }
+
+        return back()->withErrors(['kick' => $message]);
     }
 }

@@ -270,8 +270,11 @@
                                     </svg>
                                 </button>
                             </div>
-                            <button type="button" id="btn-test-ai-conn" class="button-secondary text-xs font-semibold py-2 px-4 inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs shrink-0 min-h-10">
-                                <span id="btn-ai-label">Save</span>
+                            <button type="button" id="btn-test-ai-conn" class="button-secondary text-xs font-semibold py-2 px-4 inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs shrink-0 min-h-10" title="Uji koneksi ke API dan muat daftar model">
+                                <svg class="h-3.5 w-3.5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                <span id="btn-ai-label">Uji Koneksi</span>
                             </button>
                         </div>
                         <div class="mt-1 flex items-center min-h-4">
@@ -313,11 +316,19 @@
             </div>
         </section>
 
-        {{-- Tombol Aksi Simpan --}}
-        <div class="flex items-center justify-between pt-2">
-            <p class="text-xs text-muted">Seluruh perubahan konfigurasi akan langsung berlaku dan tercatat di activity log.</p>
-            <button type="submit" class="button-primary">
-                Simpan Seluruh Pengaturan
+        {{-- Keterangan Simpan --}}
+        <div class="pt-2 text-xs text-muted pb-16">
+            Seluruh perubahan konfigurasi akan langsung berlaku dan tercatat di riwayat aktivitas sistem.
+        </div>
+
+        {{-- Floating Action Button (Hanya Muncul Saat Ada Perubahan Pengaturan di Form) --}}
+        <div id="sticky-save-bar" class="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 transition-all duration-300 ease-in-out transform translate-y-12 opacity-0 pointer-events-none">
+            <button type="button" id="btn-reset-form" class="button-secondary text-xs py-2 px-3.5 shadow-lg bg-white cursor-pointer">
+                Batalkan
+            </button>
+            <button type="submit" id="btn-save-settings" class="button-primary text-xs py-2 px-4.5 cursor-pointer shadow-lg inline-flex items-center gap-2">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Simpan Perubahan</span>
             </button>
         </div>
     </form>
@@ -423,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+        if (typeof checkFormDirty === 'function') checkFormDirty();
     };
 
 
@@ -517,8 +529,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnTest?.addEventListener('click', async () => {
         btnTest.disabled = true;
-        btnLabel.textContent = 'Menyimpan...';
-        statusText.textContent = 'Memeriksa & menyimpan...';
+        btnLabel.textContent = 'Menguji...';
+        statusText.textContent = 'Memeriksa koneksi & model...';
         statusText.className = 'text-xs text-muted font-medium';
 
         const csrfToken = document.querySelector('input[name="_token"]')?.value;
@@ -550,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 statusText.textContent = data.message || 'Tidak terhubung ke model AI';
-                statusText.className = 'text-xs font-semibold ' + (data.disconnected ? 'text-muted' : 'text-red-600');
+                statusText.className = 'text-xs font-semibold ' + (data.disconnected ? 'text-muted' : 'text-rose-600');
                 if (data.disconnected || !data.success) {
                     isApiSaved = false;
                     setModelSelectState(false, data.disconnected ? 'Kunci API dikosongkan. Masukkan dan simpan API Key untuk memilih model.' : (data.message || 'Kunci API belum disimpan. Simpan API Key terlebih dahulu.'));
@@ -562,18 +574,99 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             isApiSaved = false;
             statusText.textContent = 'Tidak terhubung ke model AI';
-            statusText.className = 'text-xs font-semibold text-red-600';
+            statusText.className = 'text-xs font-semibold text-rose-600';
             setModelSelectState(false, 'Gagal menghubungi server untuk verifikasi kunci API.');
         } finally {
             btnTest.disabled = false;
-            btnLabel.textContent = 'Save';
+            btnLabel.textContent = 'Uji Koneksi';
+            checkFormDirty();
         }
     });
 
+    // =========================================================================
+    // Sticky Save Bar: Muncul hanya ketika ada perubahan data pada form
+    // =========================================================================
     const settingsForm = document.querySelector('form[action="{{ route('admin.settings.store') }}"]');
+    const stickySaveBar = document.getElementById('sticky-save-bar');
+    const btnResetForm = document.getElementById('btn-reset-form');
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+
+    window.resetLogoToInitialState = function () {
+        if (logoInput) logoInput.value = '';
+        if (removeLogoInput) removeLogoInput.value = '0';
+        if (selectedFileInfo) {
+            selectedFileInfo.textContent = '';
+            selectedFileInfo.hidden = true;
+        }
+        if (hasCustomLogoInitially && initialLogoUrl) {
+            if (logoPreviewImg) {
+                logoPreviewImg.src = initialLogoUrl;
+                logoPreviewImg.classList.remove('hidden');
+            }
+            if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+            if (btnRemoveLogo) {
+                btnRemoveLogo.textContent = 'Hapus Logo';
+                btnRemoveLogo.hidden = false;
+            }
+            if (btnChooseLabel) btnChooseLabel.textContent = 'Ganti Logo';
+        } else {
+            if (logoPreviewImg) logoPreviewImg.classList.add('hidden');
+            if (logoPlaceholder) logoPlaceholder.classList.remove('hidden');
+            if (btnRemoveLogo) btnRemoveLogo.hidden = true;
+            if (btnChooseLabel) btnChooseLabel.textContent = 'Pilih Berkas Logo';
+        }
+    };
+
+    function captureFormState() {
+        if (!settingsForm) return '';
+        const elements = settingsForm.elements;
+        const data = [];
+        for (let i = 0; i < elements.length; i++) {
+            const el = elements[i];
+            if (!el.name || (el.type === 'hidden' && el.name === '_token')) continue;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                data.push(el.name + '=' + (el.checked ? '1' : '0'));
+            } else if (el.type === 'file') {
+                data.push(el.name + '=' + (el.files && el.files[0] ? el.files[0].name + ':' + el.files[0].size : ''));
+            } else {
+                data.push(el.name + '=' + el.value);
+            }
+        }
+        return data.join('&');
+    }
+
+    let initialFormState = captureFormState();
+
+    function checkFormDirty() {
+        if (!stickySaveBar) return;
+        const currentState = captureFormState();
+        const isDirty = currentState !== initialFormState;
+        if (isDirty) {
+            stickySaveBar.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+            stickySaveBar.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        } else {
+            stickySaveBar.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+            stickySaveBar.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        }
+    }
+
+    settingsForm?.addEventListener('input', checkFormDirty);
+    settingsForm?.addEventListener('change', checkFormDirty);
+
+    btnResetForm?.addEventListener('click', () => {
+        if (!settingsForm) return;
+        settingsForm.reset();
+        window.resetLogoToInitialState();
+        checkFormDirty();
+    });
+
     settingsForm?.addEventListener('submit', () => {
         if (modelSelect && modelSelect.disabled) {
             modelSelect.disabled = false;
+        }
+        if (btnSaveSettings) {
+            btnSaveSettings.disabled = true;
+            btnSaveSettings.textContent = 'Menyimpan Seluruh Pengaturan...';
         }
     });
 });

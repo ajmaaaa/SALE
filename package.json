@@ -13,7 +13,8 @@
         "prepare:python": "node scripts/prepare-python.mjs",
         "predev": "npm run prepare:python",
         "prerundev": "npm run prepare:python",
-        "prebuild": "npm run prepare:python"
+        "prebuild": "npm run prepare:python",
+        "test:load": "node scripts/load-test.mjs"
     },
     "devDependencies": {
         "@codemirror/lang-css": "^6.3.1",

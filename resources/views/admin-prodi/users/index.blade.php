@@ -282,8 +282,8 @@
 
             <div>
                 <label for="create_password" class="block text-xs font-semibold text-ink mb-1">Kata Sandi (Opsional, minimal 8 karakter)</label>
-                <input type="password" name="password" id="create_password" minlength="8" autocomplete="new-password" placeholder="Kosongkan untuk membuat password acak" class="field text-xs font-semibold">
-                <p class="mt-1 text-[11px] text-muted">Password sementara acak akan ditampilkan sekali setelah akun dibuat.</p>
+                <input type="password" name="password" id="create_password" minlength="8" autocomplete="new-password" placeholder="Kosongkan untuk otomatis menggunakan NIM / NIP" class="field text-xs font-semibold">
+                <p class="mt-1 text-[11px] text-muted">Jika dikosongkan, password otomatis menggunakan NIM atau NIDN/NIP.</p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
@@ -359,7 +359,7 @@
                 <p class="text-muted">Kolom 1: Nomor Identitas (NIM / NIDN)</p>
                 <p class="text-muted">Kolom 2: Nama Lengkap</p>
                 <p class="text-muted">Kolom 3: Email</p>
-                <p class="text-muted">Kolom 4: Password (opsional, minimal 8 karakter; kosong = dibuat acak)</p>
+                <p class="text-muted">Kolom 4: Password (opsional, minimal 8 karakter; kosong = otomatis menggunakan NIM/NIP)</p>
                 <p class="text-muted" id="import_col5_note">Kolom 5: Tahun Masuk / Angkatan (opsional untuk mahasiswa; otomatis jika kosong)</p>
             </div>
 

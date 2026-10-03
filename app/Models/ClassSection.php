@@ -19,13 +19,30 @@ class ClassSection extends Model
         'capacity',
         'enrollment_code',
         'learning_payload',
+        'archived_at',
     ];
 
     protected function casts(): array
     {
         return [
             'learning_payload' => 'array',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    public function scopeNotArchived($query)
+    {
+        return $query->whereNull($query->qualifyColumn('archived_at'));
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull($query->qualifyColumn('archived_at'));
     }
 
     protected static function booted(): void
@@ -72,10 +89,31 @@ class ClassSection extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Peserta AKTIF saja (status enrolled). Mahasiswa yang keluar sendiri atau
+     * dikeluarkan tidak ikut terhitung pada kapasitas, akses, maupun rekap aktif.
+     */
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'class_section_student', 'class_section_id', 'mahasiswa_id')
+            ->withPivotValue('status', 'enrolled')
+            ->withPivot(['kick_count', 'is_locked'])
             ->withTimestamps();
+    }
+
+    /**
+     * Seluruh riwayat peserta (aktif, keluar sendiri, dikeluarkan).
+     */
+    public function enrollmentRecords(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'class_section_student', 'class_section_id', 'mahasiswa_id')
+            ->withPivot(['status', 'kick_count', 'kicked_at', 'kicked_by', 'kick_reason', 'dropped_at', 'is_locked'])
+            ->withTimestamps();
+    }
+
+    public function enrollmentAppeals(): HasMany
+    {
+        return $this->hasMany(ClassEnrollmentAppeal::class);
     }
 
     public function assessments(): HasMany

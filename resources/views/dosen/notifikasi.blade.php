@@ -39,6 +39,15 @@
                     ({{ $categoryCounts['diskusi'] ?? 0 }})
                 </span>
             </a>
+
+            {{-- Sistem --}}
+            <a href="{{ route('dosen.notifications', ['category' => 'sistem']) }}"
+               class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs whitespace-nowrap transition-all {{ $selectedCategory === 'sistem' ? 'bg-[#102f50] text-white font-bold shadow-2xs' : 'bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-200 hover:text-slate-900' }}">
+                <span>Sistem</span>
+                <span data-category-count="sistem" class="text-xs font-bold {{ $selectedCategory === 'sistem' ? 'text-white' : 'text-slate-600' }}">
+                    ({{ $categoryCounts['sistem'] ?? 0 }})
+                </span>
+            </a>
         </nav>
 
         @php
@@ -140,6 +149,10 @@
                     }
                 });
 
+                if (response.status === 401) {
+                    window.location.href = '{{ route('login') }}';
+                    return;
+                }
                 if (!response.ok) return;
                 const data = await response.json();
                 if (!data.success) return;

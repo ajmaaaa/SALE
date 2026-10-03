@@ -149,4 +149,21 @@ class LecturerProfileSettingsTest extends TestCase
         // Total classes should be 2 (1 primary + 1 co-teaching)
         $response->assertSee('2 Kelas');
     }
+
+    public function test_support_admin_email_is_placed_in_sidebar_and_not_in_profile_content(): void
+    {
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
+
+        $response = $this->actingAs($this->lecturer)
+            ->get(route('dosen.profile.index'));
+
+        $response->assertOk();
+        // Support email is in the sidebar
+        $response->assertSee('admin.support@univ.ac.id');
+        $response->assertSee('mailto:admin.support@univ.ac.id', false);
+
+        // Verify it is removed from the profile information card section
+        $content = $response->getContent();
+        $this->assertStringNotContainsString('Bantuan &amp; Narahubung:', $content);
+    }
 }

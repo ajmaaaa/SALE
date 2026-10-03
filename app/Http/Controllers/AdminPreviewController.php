@@ -70,15 +70,24 @@ class AdminPreviewController extends Controller
 
         $backupList = collect();
         $backupDir = self::getBackupDirectory();
-        if (is_dir($backupDir)) {
-            $files = glob($backupDir . '/*.sql');
-            foreach ($files as $f) {
-                $backupList->push([
-                    'filename' => basename($f),
-                    'size' => round(filesize($f) / 1024, 0) . ' KB',
-                    'created_at' => date('d F Y, H:i', filemtime($f)) . ' WIB',
-                    'timestamp' => filemtime($f),
-                ]);
+        $dirsToScan = array_unique([$backupDir, storage_path('app/private/backups'), storage_path('app/backups')]);
+        $seenFiles = [];
+        foreach ($dirsToScan as $d) {
+            if (is_dir($d)) {
+                $files = glob($d . '/*.sql');
+                foreach ($files as $f) {
+                    $bName = basename($f);
+                    if (isset($seenFiles[$bName])) {
+                        continue;
+                    }
+                    $seenFiles[$bName] = true;
+                    $backupList->push([
+                        'filename' => $bName,
+                        'size' => round(filesize($f) / 1024, 0) . ' KB',
+                        'created_at' => date('d F Y, H:i', filemtime($f)) . ' WIB',
+                        'timestamp' => filemtime($f),
+                    ]);
+                }
             }
         }
         $baseline = base_path('sale-2026-09-28.sql');
@@ -316,7 +325,7 @@ class AdminPreviewController extends Controller
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '102F50'],
+                'startColor' => ['rgb' => '15803D'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_LEFT,
@@ -325,6 +334,7 @@ class AdminPreviewController extends Controller
         ];
         $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(26);
+        $sheet->freezePane('A2');
 
         // Auto size columns
         foreach (range('A', 'G') as $col) {
@@ -596,7 +606,7 @@ class AdminPreviewController extends Controller
             ->doesntExist()) {
             return back()->withErrors(['role' => 'Minimal satu administrator harus tetap aktif.']);
         }
-        if ($user->classSectionsTeaching()->exists() || $user->classSectionsAssisting()->exists() || $user->classSectionsEnrolled()->exists()) {
+        if ($user->classSectionsTeaching()->exists() || $user->classSectionsAssisting()->exists() || $user->classSectionEnrollmentRecords()->exists()) {
             return back()->withErrors(['user' => 'Pengguna masih terhubung dengan kelas. Lepaskan relasinya sebelum menghapus akun.']);
         }
         $name = $user->name;
@@ -701,7 +711,17 @@ class AdminPreviewController extends Controller
             'semester' => ['required', 'string', 'max:80'], 'support' => ['required', 'email', 'max:150'],
             'ai_token_quota' => ['nullable', 'integer', 'min:10000'],
             'ai_provider' => ['nullable', 'string', 'max:100'],
-            'ai_model' => ['nullable', 'string', 'max:100'],
+            'ai_model' => [
+                'nullable',
+                'string',
+                'max:100',
+                function ($attribute, $value, $fail) {
+                    if (blank($value)) return;
+                    if (preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', (string) $value)) {
+                        $fail('Model AI yang dipilih (' . $value . ') tidak mendukung luaran teks (text generation) untuk evaluasi dan AI tutor.');
+                    }
+                },
+            ],
             'ai_api_key' => ['nullable', 'string', 'max:255'],
             'maintenance_mode' => ['nullable', Rule::in(['0', '1'])],
             'session_lifetime' => ['nullable', 'integer', 'min:5', 'max:10080'],
@@ -770,6 +790,15 @@ class AdminPreviewController extends Controller
         } else {
             $provider = 'Google AI';
             $envVar = 'GEMINI_API_KEY';
+        }
+
+        if ($model && preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', $model)) {
+            return response()->json([
+                'success' => false,
+                'provider' => $provider,
+                'message' => "Model {$model} tidak mendukung luaran teks (text generation) untuk evaluasi dan AI tutor. Harap pilih model teks seperti gemini-3.6-flash.",
+                'models' => AiModelFetcher::getModels($provider, $inputKey),
+            ], 422);
         }
 
         // Jika form mengirimkan input API Key kosong, simpan status kosong ke database dan kembalikan status tidak terhubung
@@ -1076,7 +1105,7 @@ class AdminPreviewController extends Controller
         $sheet->mergeCells('A1:E1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
         $sheet->getRowDimension(1)->setRowHeight(28);
@@ -1112,7 +1141,7 @@ class AdminPreviewController extends Controller
             ],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '2563EB'],
+                'startColor' => ['rgb' => '15803D'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -1189,7 +1218,7 @@ class AdminPreviewController extends Controller
         $sheet->mergeCells('A1:J1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
         $sheet->getRowDimension(1)->setRowHeight(28);
@@ -1230,7 +1259,7 @@ class AdminPreviewController extends Controller
         $sheet->fromArray([$headers], null, 'A' . $tableHeaderRow);
         $sheet->getStyle("A{$tableHeaderRow}:J{$tableHeaderRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
@@ -1285,8 +1314,8 @@ class AdminPreviewController extends Controller
             $sheet->setCellValue("I{$rowIdx}", "=SUM(I6:I" . ($rowIdx - 1) . ")");
             $sheet->setCellValue("J{$rowIdx}", "=AVERAGE(J6:J" . ($rowIdx - 1) . ")");
             $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->applyFromArray([
-                'font' => ['bold' => true, 'size' => 10],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+                'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '15803D']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DCFCE7']],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '94A3B8']]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
             ]);
@@ -1317,7 +1346,7 @@ class AdminPreviewController extends Controller
         $sheet2->mergeCells('A1:E1');
         $sheet2->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '102F50']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
         $sheet2->getRowDimension(1)->setRowHeight(26);
@@ -1326,11 +1355,12 @@ class AdminPreviewController extends Controller
         $sheet2->fromArray([$headers2], null, 'A3');
         $sheet2->getStyle('A3:E3')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
         $sheet2->getRowDimension(3)->setRowHeight(22);
+        $sheet2->freezePane('A4');
 
         $featureRows = Schema::hasTable('ai_api_calls')
             ? DB::table('ai_api_calls')
@@ -1395,7 +1425,7 @@ class AdminPreviewController extends Controller
             }
             return base_path($trimmed);
         }
-        return storage_path('app/backups');
+        return storage_path('app/private/backups');
     }
 
     public function downloadBackupSql(Request $request): \Symfony\Component\HttpFoundation\Response
@@ -1403,6 +1433,9 @@ class AdminPreviewController extends Controller
         $requested = basename($request->query('file', ''));
         if ($requested) {
             $path = self::getBackupDirectory() . '/' . $requested;
+            if (! file_exists($path) && file_exists(storage_path('app/backups/' . $requested))) {
+                $path = storage_path('app/backups/' . $requested);
+            }
             if (! file_exists($path) && $requested === 'sale-2026-09-28.sql') {
                 $path = base_path('sale-2026-09-28.sql');
             }
@@ -1474,7 +1507,7 @@ class AdminPreviewController extends Controller
     {
         $dir = self::getBackupDirectory();
         if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0700, true);
         }
         $filename = 'sale-backup-' . now()->format('Y-m-d_His') . '.sql';
         $path = $dir . '/' . $filename;
@@ -1535,6 +1568,9 @@ class AdminPreviewController extends Controller
             $filename = basename($request->string('filename'));
             $displayName = $filename;
             $candidate = self::getBackupDirectory() . '/' . $filename;
+            if (! file_exists($candidate) && file_exists(storage_path('app/backups/' . $filename))) {
+                $candidate = storage_path('app/backups/' . $filename);
+            }
             if (! file_exists($candidate) && $filename === 'sale-2026-09-28.sql') {
                 $candidate = base_path('sale-2026-09-28.sql');
             }
@@ -1592,6 +1628,9 @@ class AdminPreviewController extends Controller
 
         $dir = self::getBackupDirectory();
         $target = $dir . '/' . $filename;
+        if (! file_exists($target) && file_exists(storage_path('app/backups/' . $filename))) {
+            $target = storage_path('app/backups/' . $filename);
+        }
         if (! file_exists($target) && $filename === 'sale-2026-09-28.sql') {
             $target = base_path('sale-2026-09-28.sql');
         }
@@ -1610,7 +1649,25 @@ class AdminPreviewController extends Controller
     public function saveBackupSettings(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'backup_path' => ['required', 'string', 'max:255'],
+            'backup_path' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    $normalized = str_replace('\\', '/', trim((string) $value));
+                    $resolved = str_starts_with($normalized, '/') ? $normalized : base_path($normalized);
+                    $publicPath = rtrim(str_replace('\\', '/', public_path()), '/');
+                    $publicStorage = rtrim(str_replace('\\', '/', storage_path('app/public')), '/');
+
+                    if (
+                        str_starts_with($resolved, $publicPath) ||
+                        str_starts_with($resolved, $publicStorage) ||
+                        preg_match('/(^|\/)public(\/|$)/i', $normalized)
+                    ) {
+                        $fail('Path penyimpanan tidak boleh berada di dalam direktori publik demi keamanan berkas cadangan database.');
+                    }
+                },
+            ],
             'backup_schedule' => ['required', Rule::in(['daily', 'weekly', 'monthly', 'manual'])],
             'backup_time' => ['required', 'string', 'max:10'],
         ]);

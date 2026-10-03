@@ -28,6 +28,7 @@
                 @endif
             </nav>
             <h1 class="page-heading">Penetapan CPL &amp; CPMK Program Studi</h1>
+            <p class="page-description">Kelola butir Capaian Pembelajaran Lulusan (CPL) dan Capaian Pembelajaran Mata Kuliah (CPMK) untuk kurikulum program studi.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
         </div>

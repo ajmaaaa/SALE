@@ -384,7 +384,7 @@
     <!-- ── Action Bar ── -->
     <div id="action-bar">
         <div class="left-group">
-            <a href="{{ route('dosen.penilaian.show', $section->id) }}" class="btn">
+            <a href="{{ route('dosen.penilaian.rekap', $section->id) }}" class="btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Kembali ke Penilaian
             </a>

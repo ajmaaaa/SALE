@@ -160,4 +160,55 @@ class AuthLoginTest extends TestCase
         $response->assertSee('id="eye-icon"', false);
         $response->assertSee('id="eye-off-icon"', false);
     }
+
+    public function test_session_expires_after_configured_timeout_and_redirects_on_reload_or_path_access(): void
+    {
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
+
+        $this->post('/login', [
+            'login_id' => 'admin@example.test',
+            'password' => 'password',
+        ])->assertRedirect('/admin/dashboard');
+
+        $this->assertAuthenticated();
+
+        // Akses langsung saat sesi masih aktif berhasil
+        $this->get('/admin/dashboard')->assertOk();
+
+        // Simulasikan pengguna tidak aktif selama 6 menit (melebihi limit 5 menit)
+        session(['last_user_activity' => time() - 360]);
+
+        // Ketika pengguna reload, pindah tab, atau copy path URL ke tab baru
+        $response = $this->get('/admin/dashboard');
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('notice', 'Sesi Anda telah berakhir karena tidak ada aktivitas. Silakan masuk kembali.');
+        $this->assertGuest();
+    }
+
+    public function test_background_poll_does_not_extend_user_inactivity_timer_and_returns_401_when_expired(): void
+    {
+        \App\Models\SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
+
+        $this->post('/login', [
+            'login_id' => 'admin@example.test',
+            'password' => 'password',
+        ]);
+
+        $initialActivity = time() - 100;
+        session(['last_user_activity' => $initialActivity]);
+
+        // Background poll live-status tanpa X-User-Activity tidak boleh memperbarui last_user_activity
+        $pollResponse = $this->getJson(route('live-status'));
+        $pollResponse->assertOk();
+        $this->assertSame($initialActivity, session('last_user_activity'));
+
+        // Jika telah melebihi batas waktu (misal 6 menit), background poll menghasilkan 401 dan logout
+        session(['last_user_activity' => time() - 360]);
+
+        $expiredPoll = $this->getJson(route('live-status'));
+        $expiredPoll->assertStatus(401)
+            ->assertJsonPath('session_expired', true);
+        $this->assertGuest();
+    }
 }

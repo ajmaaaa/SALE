@@ -48,6 +48,28 @@
         </div>
     @else
 
+        {{-- Tab Navigation (PRD §5.6) --}}
+        @php $inactiveCount = isset($inactiveStudents) ? $inactiveStudents->count() : 0; @endphp
+        <div class="flex items-center gap-1 border-b border-line/60 mb-4" role="tablist">
+            <button role="tab"
+                    onclick="showRekapTab('active')"
+                    id="tab-active"
+                    class="px-3 py-2 text-xs font-semibold border-b-2 border-brand text-brand -mb-px transition"
+                    aria-selected="true">
+                Peserta Aktif ({{ count($rows) }})
+            </button>
+            <button role="tab"
+                    onclick="showRekapTab('inactive')"
+                    id="tab-inactive"
+                    class="px-3 py-2 text-xs font-medium border-b-2 border-transparent text-muted hover:text-ink -mb-px transition"
+                    aria-selected="false">
+                Riwayat Mahasiswa Keluar ({{ $inactiveCount }})
+            </button>
+        </div>
+
+        {{-- Panel: Peserta Aktif --}}
+        <div id="rekap-panel-active">
+
         {{-- Tabel utama --}}
         <div class="surface rounded-xl border border-line/60 overflow-hidden shadow-2xs">
             <div class="overflow-x-auto relative" tabindex="0" role="region" aria-label="Rekap capaian CPMK">
@@ -146,6 +168,93 @@
                 </table>
             </div>
         </div>
+        </div>{{-- /rekap-panel-active --}}
+
+        {{-- Panel: Riwayat Mahasiswa Keluar (PRD §5.6) --}}
+        <div id="rekap-panel-inactive" class="hidden">
+            @if(isset($inactiveStudents) && $inactiveStudents->isNotEmpty())
+            <div class="surface rounded-xl border border-line/60 overflow-hidden shadow-2xs">
+                <div class="overflow-x-auto">
+                    <table class="text-xs w-full">
+                        <thead class="bg-canvas/60">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-ink">Nama Mahasiswa</th>
+                                <th class="px-4 py-3 text-left font-semibold text-ink">NIM / Akun</th>
+                                <th class="px-4 py-3 text-left font-semibold text-ink">Status Keluar</th>
+                                <th class="px-4 py-3 text-left font-semibold text-ink">Tanggal Keluar</th>
+                                <th class="px-4 py-3 text-left font-semibold text-ink">Alasan / Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-line/40 bg-white">
+                            @foreach($inactiveStudents as $entry)
+                            <tr class="hover:bg-canvas/20">
+                                <td class="px-4 py-3 font-medium text-ink">{{ $entry['student']->name }}</td>
+                                <td class="px-4 py-3 font-mono text-muted">{{ $entry['student']->number ?? $entry['student']->email ?? '-' }}</td>
+                                <td class="px-4 py-3">
+                                    @if($entry['status'] === 'kicked')
+                                        <span class="inline-flex items-center rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700">
+                                            Dikeluarkan
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                            Keluar Sendiri
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-muted whitespace-nowrap">{{ $entry['left_at']?->format('d M Y H:i') ?? '-' }}</td>
+                                <td class="px-4 py-3 text-muted">
+                                    @if($entry['reason'])
+                                        <span>{{ $entry['reason'] }}</span>
+                                        @if($entry['kicked_by_name'])
+                                            <span class="text-[11px] text-muted"> (oleh {{ $entry['kicked_by_name'] }})</span>
+                                        @endif
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @else
+            <div class="surface rounded-xl border border-line/60 p-8 text-center text-muted text-xs">
+                Tidak ada riwayat mahasiswa yang keluar atau dikeluarkan pada kelas ini.
+            </div>
+            @endif
+        </div>{{-- /rekap-panel-inactive --}}
+
     @endif
 </div>
+
+<script>
+function showRekapTab(tab) {
+    const isActive = tab === 'active';
+    const panelActive = document.getElementById('rekap-panel-active');
+    const panelInactive = document.getElementById('rekap-panel-inactive');
+    const tabActive = document.getElementById('tab-active');
+    const tabInactive = document.getElementById('tab-inactive');
+
+    if (panelActive) panelActive.classList.toggle('hidden', !isActive);
+    if (panelInactive) panelInactive.classList.toggle('hidden', isActive);
+
+    if (tabActive) {
+        tabActive.classList.toggle('border-brand', isActive);
+        tabActive.classList.toggle('text-brand', isActive);
+        tabActive.classList.toggle('font-semibold', isActive);
+        tabActive.classList.toggle('border-transparent', !isActive);
+        tabActive.classList.toggle('text-muted', !isActive);
+        tabActive.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    }
+    if (tabInactive) {
+        tabInactive.classList.toggle('border-brand', !isActive);
+        tabInactive.classList.toggle('text-brand', !isActive);
+        tabInactive.classList.toggle('font-semibold', !isActive);
+        tabInactive.classList.toggle('border-transparent', isActive);
+        tabInactive.classList.toggle('text-muted', isActive);
+        tabInactive.setAttribute('aria-selected', !isActive ? 'true' : 'false');
+    }
+}
+</script>
 @endsection

@@ -168,6 +168,8 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
     Route::put('/profil/notifikasi', [App\Http\Controllers\Dosen\ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications');
     Route::post('/profil/photo', [App\Http\Controllers\Dosen\ProfileController::class, 'uploadPhoto'])->name('profile.photo');
     Route::delete('/profil/photo', [App\Http\Controllers\Dosen\ProfileController::class, 'deletePhoto'])->name('profile.photo.destroy');
+    // PRD-CLASS-LIFECYCLE-MANAGEMENT — Rute Dosen (§6.2)
+    Route::post('/course/{course}/students/{student}/kick', [ClassSectionController::class, 'kickStudent'])->whereNumber(['course', 'student'])->name('course.students.kick');
 });
 
 Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
@@ -204,6 +206,10 @@ Route::post('/ai/tasks/{assignment}', [AiTutorController::class, 'send'])->middl
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
 Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.post');
 Route::post('/join-kelas-langsung', [EnrollmentController::class, 'joinDirect'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.direct');
+
+// PRD-CLASS-LIFECYCLE-MANAGEMENT — Rute Mahasiswa (§6.1)
+Route::post('/mahasiswa/course/{course}/leave', [EnrollmentController::class, 'leave'])->whereNumber('course')->middleware('role:mahasiswa')->name('mahasiswa.course.leave');
+Route::post('/mahasiswa/course/{course}/appeal', [EnrollmentController::class, 'submitAppeal'])->whereNumber('course')->middleware('role:mahasiswa')->name('mahasiswa.course.appeal');
 Route::get('/kelas/{section}/qr', [AkademikProdiController::class, 'qrCode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.qr');
 Route::get('/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->middleware('role:dosen,admin_prodi,admin')->name('kelas.barcode');
 
@@ -238,6 +244,14 @@ Route::prefix('admin-prodi')->name('admin-prodi.')->middleware(['admin_prodi.aut
     Route::post('/akademik/kelas/{section}/regenerate-code', [AkademikProdiController::class, 'regenerateCode'])->name('akademik.kelas.regenerate-code');
     Route::get('/akademik/kelas/{section}/qr', [AkademikProdiController::class, 'qrCode'])->name('akademik.kelas.qr');
     Route::get('/akademik/kelas/{section}/barcode', [AkademikProdiController::class, 'barcode'])->name('akademik.kelas.barcode');
+    // PRD-CLASS-LIFECYCLE-MANAGEMENT — Rute Admin Prodi (§6.3)
+    Route::post('/akademik/kelas/{section}/archive', [AkademikProdiController::class, 'archiveKelas'])->name('akademik.kelas.archive');
+    Route::post('/akademik/kelas/{section}/unarchive', [AkademikProdiController::class, 'unarchiveKelas'])->name('akademik.kelas.unarchive');
+    Route::post('/akademik/semester/{semester}/archive-classes', [AkademikProdiController::class, 'archiveClassesBySemester'])->whereNumber('semester')->name('akademik.semester.archive-classes');
+    Route::get('/akademik/verifikasi-peserta', [AkademikProdiController::class, 'verifikasiPesertaIndex'])->name('akademik.verifikasi-peserta');
+    Route::get('/akademik/verifikasi-peserta/{appeal}/attachment', [AkademikProdiController::class, 'appealAttachment'])->name('akademik.verifikasi-peserta.attachment');
+    Route::post('/akademik/verifikasi-peserta/{appeal}/approve', [AkademikProdiController::class, 'approveAppeal'])->name('akademik.verifikasi-peserta.approve');
+    Route::post('/akademik/verifikasi-peserta/{appeal}/reject', [AkademikProdiController::class, 'rejectAppeal'])->name('akademik.verifikasi-peserta.reject');
 
     Route::get('/pengguna', [UserProdiController::class, 'index'])->name('users.index');
     Route::get('/pengguna/export', [UserProdiController::class, 'export'])->name('users.export');

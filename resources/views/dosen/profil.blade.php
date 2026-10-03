@@ -111,24 +111,6 @@
                     <div><dt class="text-sm text-muted">Kelas diampu</dt><dd class="mt-1 font-semibold text-ink">{{ $totalClasses ?? ($user ? $user->totalClassSectionsTeachingCount() : 0) }} Kelas</dd></div>
                     <div><dt class="text-sm text-muted">Status</dt><dd class="mt-1 font-semibold text-ink">Aktif</dd></div>
                 </dl>
-
-                @if($supportEmail = \App\Models\SystemSetting::valueFor('support'))
-                <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-2.5">
-                        <svg class="h-4.5 w-4.5 text-muted shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                            <polyline points="22,6 12,13 2,6"/>
-                        </svg>
-                        <div class="text-sm">
-                            <span class="text-muted">Bantuan &amp; Narahubung:</span>
-                            <a href="mailto:{{ $supportEmail }}" class="ml-1 font-semibold text-brand hover:underline">{{ $supportEmail }}</a>
-                        </div>
-                    </div>
-                    <a href="mailto:{{ $supportEmail }}" class="button-secondary min-h-0 px-3.5 py-1.5 text-xs font-semibold">
-                        Hubungi Admin
-                    </a>
-                </div>
-                @endif
             </section>
 
             <section data-settings-panel id="keamanan" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-keamanan" tabindex="0">

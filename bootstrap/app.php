@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceSessionTimeout;
 use App\Http\Middleware\EnsureAdminProdiAuth;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\ForcePasswordChange;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
+        $middleware->appendToGroup('web', EnforceSessionTimeout::class);
         $middleware->appendToGroup('web', ForcePasswordChange::class);
         $middleware->alias([
             'admin_prodi.auth' => EnsureAdminProdiAuth::class,

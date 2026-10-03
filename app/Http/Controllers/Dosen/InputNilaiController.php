@@ -64,15 +64,21 @@ class InputNilaiController extends Controller
 
             $syncData = [];
             if (! empty($rawQuestions)) {
-                $cpmkCounts = array_count_values(array_filter(array_column($rawQuestions, 'cpmk')));
-                $totalQ = max(1, count($rawQuestions));
+                $cpmkPoints = [];
+                foreach ($rawQuestions as $q) {
+                    $c = $q['cpmk'] ?? ($q['cpmk_code'] ?? '');
+                    if ($c) {
+                        $cpmkPoints[$c] = ($cpmkPoints[$c] ?? 0.0) + (float) ((isset($q['points']) && (float) $q['points'] > 0) ? $q['points'] : 100.0);
+                    }
+                }
+                $totalPoints = array_sum($cpmkPoints) ?: 1.0;
                 $accumulated = 0.0;
-                $itemsLeft = count($cpmkCounts);
-                foreach ($cpmkCounts as $code => $cnt) {
+                $itemsLeft = count($cpmkPoints);
+                foreach ($cpmkPoints as $code => $pts) {
                     $itemsLeft--;
                     $cpmkModel = $findCpmk($code);
                     if ($cpmkModel) {
-                        $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($cnt / $totalQ) * 100, 2);
+                        $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($pts / $totalPoints) * 100, 2);
                         $accumulated += $w;
                         $syncData[$cpmkModel->id] = ['weight' => $w];
                     }
@@ -826,6 +832,7 @@ class InputNilaiController extends Controller
     {
         $this->authorizeOwnership($section);
         $this->authorizeAssessmentBelongsToSection($section, $assessment);
+        abort_if($section->isArchived(), 403, 'Kelas ini telah diarsipkan dan berstatus read-only. Pengubahan nilai tidak diizinkan.');
 
         $cpmks = $assessment->cpmks()->orderBy('code')->get();
         $enrolledIds = $section->students()->pluck('users.id');
@@ -961,7 +968,7 @@ class InputNilaiController extends Controller
             ],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '4472C4'],
+                'startColor' => ['rgb' => '15803D'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_LEFT,

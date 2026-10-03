@@ -7,6 +7,7 @@ use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
+use App\Services\ClassEnrollmentService;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -22,13 +23,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ObeExcelExportService
 {
     // ── Palet Warna Standar OBE, File Referensi Rekap_OBE_CPMK101 & Desain Eksekutif ──
-    private const COLOR_BANNER_GREEN     = 'FF92D050'; // Fresh Olive-Green banner (#92D050 - identik file contoh)
+    private const COLOR_BANNER_GREEN     = 'FF15803D'; // Emerald Green banner
     private const COLOR_ACCENT_YELLOW    = 'FFFFFF00'; // Canary Yellow strip (#FFFF00 - garis aksen kuning)
     private const COLOR_HIGHLIGHT_YELLOW = 'FFFFFF00'; // Canary Yellow highlight (#FFFF00 - identik file contoh)
-    private const COLOR_BANNER_ORANGE    = 'FFF79646'; // Warm Tangerine Orange (#F79646 - identik file contoh)
+    private const COLOR_BANNER_ORANGE    = 'FF15803D'; // Emerald Green banner
     private const COLOR_HEADER_BLACK     = 'FF000000'; // Pure Black text for official header title
-    private const COLOR_DARK_CHARCOAL    = 'FF1E293B'; // Slate-800 for dark accents/KPI banner
-    private const COLOR_TABLE_HEADER_BG  = 'FFF1F5F9'; // Slate-100 crisp table header
+    private const COLOR_DARK_CHARCOAL    = 'FF15803D'; // Emerald Green for KPI banner
+    private const COLOR_TABLE_HEADER_BG  = 'FF15803D'; // Emerald-700 green table header
     private const COLOR_ZEBRA_BG         = 'FFF8FAFC'; // Slate-50 zebra stripe
     private const COLOR_CAPAIAN_BG       = 'FFFEF9C3'; // Soft Warm Pastel Yellow for Nilai Capaian highlight
     private const COLOR_CAPAIAN_TEXT     = 'FF713F12'; // Warm Dark Amber/Brown for Nilai Capaian text
@@ -67,15 +68,37 @@ class ObeExcelExportService
         if ($cpmkId !== null) {
             $targetCpmk = $cpmks->firstWhere('id', $cpmkId) ?? $cpmks->first();
             if ($targetCpmk) {
+                // Sheet 1: Capaian Evaluasi CPMK
                 $sheet = $spreadsheet->createSheet();
                 $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
                 $this->buildCpmkSheet($sheet, $section, $targetCpmk, $students, $cpmkWeights);
+
+                // Sheet 2: Pembobotan CPMK
+                $weightSheet = $spreadsheet->createSheet();
+                $weightSheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+                $this->buildCpmkWeightSheet($weightSheet, $section, $targetCpmk, $cpmkWeights);
+
+                // Sheet 3: Riwayat Peserta Non-Aktif (PRD §5.6)
+                $inactiveSheet = $spreadsheet->createSheet();
+                $this->buildInactiveStudentsSheet($inactiveSheet, $section, $cpmks);
+
+                $spreadsheet->setActiveSheetIndex(0);
                 $filename = 'Rekap_OBE_' . $targetCpmk->code . '_' . date('Y-m-d') . '.xlsx';
             } else {
                 $targetCpmk = $cpmks->first();
                 $sheet = $spreadsheet->createSheet();
                 $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
                 $this->buildCpmkSheet($sheet, $section, $targetCpmk, $students, $cpmkWeights);
+
+                $weightSheet = $spreadsheet->createSheet();
+                $weightSheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+                $this->buildCpmkWeightSheet($weightSheet, $section, $targetCpmk, $cpmkWeights);
+
+                // Sheet 3: Riwayat Peserta Non-Aktif (PRD §5.6)
+                $inactiveSheet = $spreadsheet->createSheet();
+                $this->buildInactiveStudentsSheet($inactiveSheet, $section, $cpmks);
+
+                $spreadsheet->setActiveSheetIndex(0);
                 $filename = 'Rekap_OBE_CPMK_' . ($section->mataKuliah?->code ?? 'MK') . '_' . date('Y-m-d') . '.xlsx';
             }
         } else {
@@ -85,12 +108,20 @@ class ObeExcelExportService
             $matrixSheet->getTabColor()->setARGB(self::COLOR_DARK_CHARCOAL);
             $this->buildMatrixSheet($matrixSheet, $section, $cpmks, $assessments, $students);
 
-            // Sheet 2+: Sheet masing-masing CPMK (persis desain Rekap_OBE_CPMK101)
+            // Sheet 2: Pembobotan Seluruh CPMK
+            $weightSheet = $spreadsheet->createSheet();
+            $this->buildCpmkSummaryWeightSheet($weightSheet, $section, $cpmks, $cpmkWeights);
+
+            // Sheet 3+: Sheet evaluasi masing-masing CPMK
             foreach ($cpmks as $cpmk) {
                 $cpmkSheet = $spreadsheet->createSheet();
                 $cpmkSheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
                 $this->buildCpmkSheet($cpmkSheet, $section, $cpmk, $students, $cpmkWeights);
             }
+
+            // Sheet N: Riwayat Peserta Non-Aktif (PRD §5.6)
+            $inactiveSheet = $spreadsheet->createSheet();
+            $this->buildInactiveStudentsSheet($inactiveSheet, $section, $cpmks);
 
             $spreadsheet->setActiveSheetIndex(0);
             $mkCode = $section->mataKuliah?->code ?? 'MK';
@@ -114,7 +145,7 @@ class ObeExcelExportService
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Nilai & CPMK');
-        $sheet->getTabColor()->setARGB('FF10B981'); // Emerald
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
         $sheet->setShowGridlines(true);
 
         $numCols = 3 + $cpmks->count() + 5;
@@ -123,58 +154,14 @@ class ObeExcelExportService
         // 1. Kop Surat Resmi
         $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Nilai Akhir & Capaian CPMK Mahasiswa', $numCols);
 
-        // 2. Banner Hijau: Pembobotan CPMK
-        $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN CAPAIAN PEMBELAJARAN MATA KULIAH (CPMK)');
-        $this->styleBannerGreen($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(23);
-
-        $currRow++;
-        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-
-        $currRow++;
-        // Header Bobot CPMK
-        $sheet->setCellValue("A{$currRow}", 'Kode CPMK');
-        $sheet->mergeCells("B{$currRow}:E{$currRow}");
-        $sheet->setCellValue("B{$currRow}", 'Deskripsi Capaian Pembelajaran');
-        $sheet->setCellValue("F{$currRow}", 'Ambang Minimum');
-        $sheet->setCellValue("{$lastColLetter}{$currRow}", 'Bobot Akhir (%)');
-        $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(22);
-
-        foreach ($cpmks as $idx => $cpmk) {
-            $currRow++;
-            $w = $cpmkWeights[$cpmk->id] ?? 0;
-            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
-
-            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpmk->code), DataType::TYPE_STRING);
-            $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '-'), DataType::TYPE_STRING);
-            $sheet->setCellValue("F{$currRow}", '≥ ' . (int) ($cpmk->threshold ?: 60));
-            $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
-
-            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
-            $sheet->getStyle("F{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFont()->setBold(true);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
-
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
-            $sheet->getStyle("A{$currRow}:F{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
-            $sheet->getRowDimension($currRow)->setRowHeight(20);
-        }
-
-        $currRow++;
-        $sheet->getRowDimension($currRow)->setRowHeight(10); // Blank spacer
-        $currRow++;
-
-        // 3. Banner Oranye: Data Hasil Evaluasi Mahasiswa
+        // 2. Banner Hijau: Data Hasil Evaluasi Mahasiswa
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'DATA HASIL EVALUASI & CAPAIAN MAHASISWA');
         $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
 
         $currRow++;
 
@@ -212,6 +199,7 @@ class ObeExcelExportService
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
+        $sheet->freezePane('A' . ($currRow + 1));
 
         // Data Rows
         $finalScores = [];
@@ -386,6 +374,16 @@ class ObeExcelExportService
         $this->applyExplicitColumnWidths($sheet, $widths);
         $this->setupPageAndPrint($sheet);
 
+        // ── Sheet 2: Pembobotan CPMK ──
+        $sheetWeights = $spreadsheet->createSheet();
+        $this->buildCpmkSummaryWeightSheet($sheetWeights, $section, $cpmks, $cpmkWeights);
+
+        // ── Sheet 3: Riwayat Peserta Non-Aktif (PRD §5.6) ──
+        $sheetInactive = $spreadsheet->createSheet();
+        $this->buildInactiveStudentsSheet($sheetInactive, $section, $cpmks);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
         $filename = 'Rekap_OBE_Nilai_Akhir_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
@@ -406,7 +404,7 @@ class ObeExcelExportService
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Capaian CPL');
-        $sheet->getTabColor()->setARGB('FFF59E0B'); // Amber/Gold
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
         $sheet->setShowGridlines(true);
 
         $numCols = 3 + ($cpls->count() * 2);
@@ -414,53 +412,14 @@ class ObeExcelExportService
 
         $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Capaian Pembelajaran Lulusan (CPL)', $numCols);
 
-        // Banner Hijau: Informasi CPL
-        $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'CAPAIAN PEMBELAJARAN LULUSAN (CPL) YANG DIBEBANKAN');
-        $this->styleBannerGreen($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(23);
-
-        $currRow++;
-        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-
-        $currRow++;
-        $sheet->setCellValue("A{$currRow}", 'Kode CPL');
-        $sheet->mergeCells("B{$currRow}:E{$currRow}");
-        $sheet->setCellValue("B{$currRow}", 'Deskripsi Capaian Pembelajaran Lulusan');
-        $sheet->setCellValue("{$lastColLetter}{$currRow}", 'Target Minimum (0-100)');
-        $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(22);
-
-        foreach ($cpls as $idx => $cpl) {
-            $currRow++;
-            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
-
-            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpl->code), DataType::TYPE_STRING);
-            $sheet->mergeCells("B{$currRow}:E{$currRow}");
-            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpl->description ?? $cpl->name ?? '-'), DataType::TYPE_STRING);
-            $sheet->setCellValue("{$lastColLetter}{$currRow}", (int) ($cpl->target_score ?? 65));
-
-            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFont()->setBold(true);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
-
-            $sheet->getStyle("A{$currRow}:E{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
-            $sheet->getRowDimension($currRow)->setRowHeight(20);
-        }
-
-        $currRow++;
-        $sheet->getRowDimension($currRow)->setRowHeight(10); // Spacer
-        $currRow++;
-
-        // Banner Oranye: Data Capaian CPL Mahasiswa
+        // Banner Hijau: Data Capaian CPL Mahasiswa
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'DATA CAPAIAN CPL MAHASISWA');
         $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
 
         $currRow++;
 
@@ -481,6 +440,7 @@ class ObeExcelExportService
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
+        $sheet->freezePane('A' . ($currRow + 1));
 
         // Data Rows
         $cplPassCounts = [];
@@ -591,6 +551,12 @@ class ObeExcelExportService
         $this->applyExplicitColumnWidths($sheet, $widths);
         $this->setupPageAndPrint($sheet);
 
+        // ── Sheet 2: Informasi CPL ──
+        $sheetCplInfo = $spreadsheet->createSheet();
+        $this->buildCplInfoSheet($sheetCplInfo, $section, $cpls);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
         $filename = 'Rekap_OBE_CPL_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
@@ -610,7 +576,7 @@ class ObeExcelExportService
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Nilai per Asesmen');
-        $sheet->getTabColor()->setARGB('FFF97316'); // Orange
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
         $sheet->setShowGridlines(true);
 
         $numCols = 3 + $assessments->count();
@@ -618,56 +584,14 @@ class ObeExcelExportService
 
         $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Nilai per Komponen Asesmen', $numCols);
 
-        // Banner Hijau: Komponen Asesmen
-        $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'KOMPONEN ASESMEN & BOBOT PENILAIAN');
-        $this->styleBannerGreen($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(23);
-
-        $currRow++;
-        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-
-        $currRow++;
-        $sheet->setCellValue("A{$currRow}", 'Kode Asesmen');
-        $sheet->mergeCells("B{$currRow}:D{$currRow}");
-        $sheet->setCellValue("B{$currRow}", 'Nama Instrumen Asesmen');
-        $sheet->setCellValue("E{$currRow}", 'Jenis Evaluasi');
-        $sheet->setCellValue("{$lastColLetter}{$currRow}", 'Bobot Nilai (%)');
-        $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(22);
-
-        foreach ($assessments as $idx => $asmt) {
-            $currRow++;
-            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
-
-            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($asmt->code ?: $asmt->name), DataType::TYPE_STRING);
-            $sheet->mergeCells("B{$currRow}:D{$currRow}");
-            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
-            $sheet->setCellValue("E{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
-            $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format((float) $asmt->final_weight, 1), '0'), '.') . '%');
-
-            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
-            $sheet->getStyle("E{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFont()->setBold(true);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
-
-            $sheet->getStyle("A{$currRow}:E{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
-            $sheet->getRowDimension($currRow)->setRowHeight(20);
-        }
-
-        $currRow++;
-        $sheet->getRowDimension($currRow)->setRowHeight(10); // Spacer
-        $currRow++;
-
-        // Banner Oranye: Daftar Nilai Mahasiswa
+        // Banner Hijau: Daftar Nilai Komponen Asesmen Mahasiswa
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'DAFTAR NILAI KOMPONEN ASESMEN MAHASISWA');
         $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
 
         $currRow++;
 
@@ -686,6 +610,7 @@ class ObeExcelExportService
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
+        $sheet->freezePane('A' . ($currRow + 1));
 
         // Data Rows
         $asmtScoreSums = [];
@@ -759,6 +684,12 @@ class ObeExcelExportService
         $this->applyExplicitColumnWidths($sheet, $widths);
         $this->setupPageAndPrint($sheet);
 
+        // ── Sheet 2: Komponen Asesmen ──
+        $sheetAsmtInfo = $spreadsheet->createSheet();
+        $this->buildAssessmentInfoSheet($sheetAsmtInfo, $section, $assessments);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
         $filename = 'Rekap_OBE_Asesmen_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
@@ -794,69 +725,14 @@ class ObeExcelExportService
         // ── 1. KOP SURAT RESMI ──
         $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Penilaian Capaian ' . $cpmk->code, $numCols);
 
-        // ── 2. BANNER HIJAU PEMBOBOTAN (#92D050 - persis referensi) ──
-        $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN NILAI ASESMEN ' . $cpmk->code);
-        $this->styleBannerGreen($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->getRowDimension($currRow)->setRowHeight(23);
-
-        $currRow++;
-        // Strip pemisah kuning (#FFFF00)
-        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
-
-        $currRow++;
-        // Bobot CPMK terhadap total bobot MK
-        $cpmkWeightVal = $cpmkWeights[$cpmk->id] ?? 0;
-        $sheet->mergeCells("A{$currRow}:{$penultimateLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", "Bobot {$cpmk->code} terhadap total jumlah seluruh CPMK:");
-        $sheet->getStyle("A{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true);
-        $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle("A{$currRow}:{$penultimateLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
-
-        $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format($cpmkWeightVal, 1), '0'), '.') . '%');
-        $sheet->getStyle("{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10.5)->setBold(true);
-        $sheet->getStyle("{$lastColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle("{$lastColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
-        $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
-        $sheet->getRowDimension($currRow)->setRowHeight(21);
-
-        // Baris rincian bobot per penilaian (UTS, Kuis, dsb.)
-        $pIdx = 1;
-        $splitColLetter = Coordinate::stringFromColumnIndex(4);
-        foreach ($measuringAssessments as $asmt) {
-            $currRow++;
-            $effWeight = $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk);
-            $rowBg = ($pIdx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
-
-            $sheet->mergeCells("A{$currRow}:C{$currRow}");
-            $sheet->setCellValue("A{$currRow}", "Bobot Penilaian-{$pIdx}");
-            $sheet->getStyle("A{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
-            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-
-            $sheet->mergeCells("{$splitColLetter}{$currRow}:{$penultimateLetter}{$currRow}");
-            $sheet->setCellValueExplicit("{$splitColLetter}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
-            $sheet->getStyle("{$splitColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
-            $sheet->getStyle("{$splitColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-
-            $sheet->setCellValue("{$lastColLetter}{$currRow}", rtrim(rtrim(number_format($effWeight, 1), '0'), '.') . '%');
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true);
-            $sheet->getStyle("{$lastColLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
-
-            $sheet->getStyle("A{$currRow}:{$penultimateLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
-            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
-            $sheet->getRowDimension($currRow)->setRowHeight(20);
-            $pIdx++;
-        }
-
-        $currRow++;
-        $sheet->getRowDimension($currRow)->setRowHeight(10); // Spacer
-        $currRow++;
-
-        // ── 3. BANNER ORANYE ASESMEN CAPAIAN (#F79646 - persis referensi) ──
+        // ── 2. BANNER ORANYE ASESMEN CAPAIAN (#F79646 - persis referensi) ──
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'ASESMEN CAPAIAN PEMBELAJARAN ' . $cpmk->code);
         $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
 
         $currRow++;
 
@@ -881,6 +757,7 @@ class ObeExcelExportService
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(30);
+        $sheet->freezePane('A' . ($currRow + 1));
 
         // Data Rows
         $threshold = (float) ($cpmk->threshold ?: 60);
@@ -1146,6 +1023,7 @@ class ObeExcelExportService
         $this->styleTableHeader($sheet, "A{$h1Row}:{$lastColLetter}{$h2Row}");
         $sheet->getRowDimension($h1Row)->setRowHeight(24);
         $sheet->getRowDimension($h2Row)->setRowHeight(28);
+        $sheet->freezePane('A' . ($h2Row + 1));
 
         // Data Rows
         $matrixSums = [];
@@ -1284,6 +1162,318 @@ class ObeExcelExportService
     }
 
     /**
+     * Membangun Sheet Pembobotan untuk satu CPMK spesifik.
+     */
+    private function buildCpmkWeightSheet(
+        Worksheet $sheet,
+        ClassSection $section,
+        Cpmk $cpmk,
+        Collection|array $cpmkWeights
+    ): void {
+        $sheet->setTitle(substr('Bobot ' . $cpmk->code, 0, 31));
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+        $sheet->setShowGridlines(true);
+
+        $measuringAssessments = $section->gradableAssessments()
+            ->whereHas('cpmks', fn ($q) => $q->where('cpmks.id', $cpmk->id))
+            ->with('cpmks')
+            ->orderBy('code')
+            ->get();
+
+        $numCols = 4;
+        $currRow = $this->applyKopSurat($sheet, $section, 'Pembobotan Nilai Asesmen ' . $cpmk->code, $numCols);
+
+        $sheet->mergeCells("A{$currRow}:D{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN NILAI ASESMEN ' . $cpmk->code);
+        $this->styleBannerGreen($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:D{$currRow}");
+
+        $currRow++;
+        $sheet->setCellValue("A{$currRow}", 'No');
+        $sheet->setCellValue("B{$currRow}", 'Nama Instrumen Asesmen');
+        $sheet->setCellValue("C{$currRow}", 'Jenis Evaluasi');
+        $sheet->setCellValue("D{$currRow}", 'Bobot Efektif Terhadap ' . $cpmk->code . ' (%)');
+        $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(26);
+        $sheet->freezePane('A' . ($currRow + 1));
+
+        $pIdx = 1;
+        $totalEffWeight = 0;
+        foreach ($measuringAssessments as $asmt) {
+            $currRow++;
+            $effWeight = $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk);
+            $totalEffWeight += $effWeight;
+            $rowBg = ($pIdx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
+
+            $sheet->setCellValue("A{$currRow}", $pIdx);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($effWeight, 1), '0'), '.') . '%');
+
+            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+            $sheet->getStyle("C{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("D{$currRow}")->getFont()->setBold(true);
+            $sheet->getStyle("D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
+
+            $sheet->getStyle("A{$currRow}:C{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->thinBorderArray());
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
+            $sheet->getRowDimension($currRow)->setRowHeight(22);
+            $pIdx++;
+        }
+
+        // Summary row
+        $currRow++;
+        $cpmkWeightVal = $cpmkWeights[$cpmk->id] ?? 0;
+        $sheet->mergeCells("A{$currRow}:C{$currRow}");
+        $sheet->setCellValue("A{$currRow}", "TOTAL BOBOT KONTRIBUSI {$cpmk->code} (TERHADAP MK)");
+        $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($cpmkWeightVal, 1), '0'), '.') . '%');
+        $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+
+        $this->appendSignBlock($sheet, $section, $currRow, 4);
+
+        $this->applyExplicitColumnWidths($sheet, [
+            'A' => 8.0,
+            'B' => 45.0,
+            'C' => 22.0,
+            'D' => 24.0,
+        ]);
+        $this->setupPageAndPrint($sheet);
+    }
+
+    /**
+     * Membangun Sheet Ringkasan Pembobotan untuk Seluruh CPMK.
+     */
+    private function buildCpmkSummaryWeightSheet(
+        Worksheet $sheet,
+        ClassSection $section,
+        Collection $cpmks,
+        Collection|array $cpmkWeights
+    ): void {
+        $sheet->setTitle('Pembobotan CPMK');
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+        $sheet->setShowGridlines(true);
+
+        $numCols = 4;
+        $currRow = $this->applyKopSurat($sheet, $section, 'Pembobotan Capaian Pembelajaran Mata Kuliah (CPMK)', $numCols);
+
+        $sheet->mergeCells("A{$currRow}:D{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN CAPAIAN PEMBELAJARAN MATA KULIAH (CPMK)');
+        $this->styleBannerGreen($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:D{$currRow}");
+
+        $currRow++;
+        $sheet->setCellValue("A{$currRow}", 'Kode CPMK');
+        $sheet->setCellValue("B{$currRow}", 'Deskripsi Capaian Pembelajaran');
+        $sheet->setCellValue("C{$currRow}", 'Ambang Minimum');
+        $sheet->setCellValue("D{$currRow}", 'Bobot Akhir (%)');
+        $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+        $sheet->freezePane('A' . ($currRow + 1));
+
+        $totalW = 0;
+        foreach ($cpmks as $idx => $cpmk) {
+            $currRow++;
+            $w = $cpmkWeights[$cpmk->id] ?? 0;
+            $totalW += $w;
+            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
+
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpmk->code), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$currRow}", '≥ ' . (int) ($cpmk->threshold ?: 60));
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
+
+            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+            $sheet->getStyle("C{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("D{$currRow}")->getFont()->setBold(true);
+            $sheet->getStyle("D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
+
+            $sheet->getStyle("A{$currRow}:C{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->thinBorderArray());
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
+            $sheet->getRowDimension($currRow)->setRowHeight(22);
+        }
+
+        // Total
+        $currRow++;
+        $sheet->mergeCells("A{$currRow}:C{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'TOTAL BOBOT CPMK');
+        $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalW, 1), '0'), '.') . '%');
+        $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+
+        $this->appendSignBlock($sheet, $section, $currRow, 4);
+
+        $this->applyExplicitColumnWidths($sheet, [
+            'A' => 16.0,
+            'B' => 60.0,
+            'C' => 20.0,
+            'D' => 18.0,
+        ]);
+        $this->setupPageAndPrint($sheet);
+    }
+
+    /**
+     * Membangun Sheet Informasi & Target Minimum Capaian Pembelajaran Lulusan (CPL).
+     */
+    private function buildCplInfoSheet(
+        Worksheet $sheet,
+        ClassSection $section,
+        Collection $cpls
+    ): void {
+        $sheet->setTitle('Informasi CPL');
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+        $sheet->setShowGridlines(true);
+
+        $numCols = 3;
+        $currRow = $this->applyKopSurat($sheet, $section, 'Daftar Capaian Pembelajaran Lulusan (CPL) Yang Dibebankan', $numCols);
+
+        $sheet->mergeCells("A{$currRow}:C{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'CAPAIAN PEMBELAJARAN LULUSAN (CPL) YANG DIBEBANKAN');
+        $this->styleBannerGreen($sheet, "A{$currRow}:C{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:C{$currRow}");
+
+        $currRow++;
+        $sheet->setCellValue("A{$currRow}", 'Kode CPL');
+        $sheet->setCellValue("B{$currRow}", 'Deskripsi Capaian Pembelajaran Lulusan');
+        $sheet->setCellValue("C{$currRow}", 'Target Minimum (0-100)');
+        $this->styleTableHeader($sheet, "A{$currRow}:C{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+        $sheet->freezePane('A' . ($currRow + 1));
+
+        foreach ($cpls as $idx => $cpl) {
+            $currRow++;
+            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
+
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpl->code), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpl->description ?? $cpl->name ?? '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$currRow}", (int) ($cpl->target_score ?? 65));
+
+            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+            $sheet->getStyle("C{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$currRow}")->getFont()->setBold(true);
+            $sheet->getStyle("C{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
+
+            $sheet->getStyle("A{$currRow}:B{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
+            $sheet->getStyle("A{$currRow}:C{$currRow}")->applyFromArray($this->thinBorderArray());
+            $sheet->getStyle("A{$currRow}:C{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
+            $sheet->getRowDimension($currRow)->setRowHeight(22);
+        }
+
+        $this->appendSignBlock($sheet, $section, $currRow, 3);
+
+        $this->applyExplicitColumnWidths($sheet, [
+            'A' => 16.0,
+            'B' => 65.0,
+            'C' => 24.0,
+        ]);
+        $this->setupPageAndPrint($sheet);
+    }
+
+    /**
+     * Membangun Sheet Informasi Komponen Asesmen & Bobot Penilaian.
+     */
+    private function buildAssessmentInfoSheet(
+        Worksheet $sheet,
+        ClassSection $section,
+        Collection $assessments
+    ): void {
+        $sheet->setTitle('Komponen Asesmen');
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
+        $sheet->setShowGridlines(true);
+
+        $numCols = 4;
+        $currRow = $this->applyKopSurat($sheet, $section, 'Daftar Komponen Asesmen & Bobot Penilaian', $numCols);
+
+        $sheet->mergeCells("A{$currRow}:D{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'KOMPONEN ASESMEN & BOBOT PENILAIAN');
+        $this->styleBannerGreen($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:D{$currRow}");
+
+        $currRow++;
+        $sheet->setCellValue("A{$currRow}", 'Kode Asesmen');
+        $sheet->setCellValue("B{$currRow}", 'Nama Instrumen Asesmen');
+        $sheet->setCellValue("C{$currRow}", 'Jenis Evaluasi');
+        $sheet->setCellValue("D{$currRow}", 'Bobot Nilai (%)');
+        $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+        $sheet->freezePane('A' . ($currRow + 1));
+
+        $totalWeight = 0;
+        foreach ($assessments as $idx => $asmt) {
+            $currRow++;
+            $w = (float) $asmt->final_weight;
+            $totalWeight += $w;
+            $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
+
+            $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($asmt->code ?: $asmt->name), DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
+
+            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+            $sheet->getStyle("C{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("D{$currRow}")->getFont()->setBold(true);
+            $sheet->getStyle("D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_HIGHLIGHT_YELLOW);
+
+            $sheet->getStyle("A{$currRow}:C{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->thinBorderArray());
+            $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
+            $sheet->getRowDimension($currRow)->setRowHeight(22);
+        }
+
+        // Summary row
+        $currRow++;
+        $sheet->mergeCells("A{$currRow}:C{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'TOTAL BOBOT ASESMEN');
+        $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalWeight, 1), '0'), '.') . '%');
+        $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
+        $sheet->getStyle("A{$currRow}:D{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getRowDimension($currRow)->setRowHeight(24);
+
+        $this->appendSignBlock($sheet, $section, $currRow, 4);
+
+        $this->applyExplicitColumnWidths($sheet, [
+            'A' => 18.0,
+            'B' => 45.0,
+            'C' => 22.0,
+            'D' => 18.0,
+        ]);
+        $this->setupPageAndPrint($sheet);
+    }
+
+    /**
      * Tulis Kop Surat Resmi pada bagian atas Worksheet dengan tata letak kartu metadata terpadu.
      * Mengembalikan nomor baris berikutnya yang siap diisi konten.
      */
@@ -1408,13 +1598,13 @@ class ObeExcelExportService
     private function styleBannerGreen(Worksheet $sheet, string $cellRange): void
     {
         $sheet->getStyle($cellRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_BANNER_GREEN);
-        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10.5)->setBold(true)->getColor()->setARGB('FF000000');
+        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10.5)->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($cellRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle($cellRange)->applyFromArray([
             'borders' => [
                 'outline' => [
                     'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['argb' => 'FF65A30D'],
+                    'color' => ['argb' => 'FF15803D'],
                 ],
             ],
         ]);
@@ -1437,13 +1627,13 @@ class ObeExcelExportService
     private function styleBannerOrange(Worksheet $sheet, string $cellRange): void
     {
         $sheet->getStyle($cellRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_BANNER_ORANGE);
-        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10.5)->setBold(true)->getColor()->setARGB('FF000000');
+        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10.5)->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($cellRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle($cellRange)->applyFromArray([
             'borders' => [
                 'outline' => [
                     'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['argb' => 'FFEA580C'],
+                    'color' => ['argb' => 'FF15803D'],
                 ],
             ],
         ]);
@@ -1454,7 +1644,7 @@ class ObeExcelExportService
      */
     private function styleTableHeader(Worksheet $sheet, string $cellRange): void
     {
-        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FF0F172A');
+        $sheet->getStyle($cellRange)->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($cellRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $sheet->getStyle($cellRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
         $sheet->getStyle($cellRange)->applyFromArray($this->thinBorderArray());
@@ -1710,6 +1900,125 @@ class ObeExcelExportService
         }
 
         return $string;
+    }
+
+    /**
+     * Sheet Dokumentasi Riwayat Peserta Non-Aktif (Keluar / Dikeluarkan) — PRD §5.6.
+     */
+    private function buildInactiveStudentsSheet(
+        Worksheet $sheet,
+        ClassSection $section,
+        Collection $cpmks
+    ): void {
+        $sheet->setTitle('Riwayat Peserta Non-Aktif');
+        $sheet->getTabColor()->setARGB(self::COLOR_BANNER_ORANGE);
+        $sheet->setShowGridlines(true);
+
+        $inactiveEntries = app(ClassEnrollmentService::class)->inactiveStudentsWithRecords($section);
+
+        $numCols = 6 + $cpmks->count() + 1; // No, NIM, Nama, Status, Tanggal Keluar, Alasan, [CPMKs...], Nilai Akhir
+        $lastColLetter = Coordinate::stringFromColumnIndex($numCols);
+
+        $currRow = $this->applyKopSurat($sheet, $section, 'Dokumentasi Riwayat Peserta Non-Aktif (Keluar / Dikeluarkan)', $numCols);
+
+        $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
+        $sheet->setCellValue("A{$currRow}", 'DOKUMENTASI RIWAYAT PESERTA NON-AKTIF KELAS');
+        $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(23);
+
+        $currRow++;
+        $this->styleAccentStrip($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
+
+        $currRow++;
+        // Table Header
+        $sheet->setCellValue("A{$currRow}", 'No');
+        $sheet->setCellValue("B{$currRow}", 'NIM');
+        $sheet->setCellValue("C{$currRow}", 'Nama Mahasiswa');
+        $sheet->setCellValue("D{$currRow}", 'Status');
+        $sheet->setCellValue("E{$currRow}", 'Tanggal Keluar');
+        $sheet->setCellValue("F{$currRow}", 'Alasan / Dikeluarkan Oleh');
+
+        $colIdx = 7;
+        foreach ($cpmks as $cpmk) {
+            $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+            $sheet->setCellValue("{$colLetter}{$currRow}", $cpmk->code);
+            $colIdx++;
+        }
+
+        $finalCol = Coordinate::stringFromColumnIndex($colIdx);
+        $sheet->setCellValue("{$finalCol}{$currRow}", "Nilai Akhir\nSebelum Keluar");
+
+        $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
+        $sheet->getRowDimension($currRow)->setRowHeight(28);
+
+        if ($inactiveEntries->isEmpty()) {
+            $currRow++;
+            $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
+            $sheet->setCellValue("A{$currRow}", 'Tidak ada riwayat mahasiswa yang keluar atau dikeluarkan pada kelas ini.');
+            $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
+            $sheet->getRowDimension($currRow)->setRowHeight(24);
+        } else {
+            foreach ($inactiveEntries as $idx => $entry) {
+                $currRow++;
+                $student = $entry['student'];
+                $cpmkScores = $this->obe->cpmkScoresFor($cpmks, $student->id, $section->id);
+                $final = $this->obe->finalScore($section, $student->id);
+
+                $rowBg = ($idx % 2 === 0) ? 'FFFFFFFF' : self::COLOR_ZEBRA_BG;
+
+                $sheet->setCellValue("A{$currRow}", $idx + 1);
+                $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($student->nim_nidn ?? ''), DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit("C{$currRow}", $this->sanitizeSpreadsheetText($student->name), DataType::TYPE_STRING);
+                $sheet->setCellValue("D{$currRow}", $entry['status_label']);
+                $sheet->setCellValue("E{$currRow}", $entry['left_at'] ? $entry['left_at']->format('d/m/Y') : '-');
+                $reasonText = $entry['reason'] ?? '-';
+                if (! empty($entry['kicked_by_name'])) {
+                    $reasonText .= " (oleh {$entry['kicked_by_name']})";
+                }
+                $sheet->setCellValue("F{$currRow}", $reasonText);
+
+                $cIdx = 7;
+                foreach ($cpmks as $cpmk) {
+                    $colLetter = Coordinate::stringFromColumnIndex($cIdx);
+                    $sc = $cpmkScores[$cpmk->id] ?? null;
+                    $sheet->setCellValue("{$colLetter}{$currRow}", $sc !== null ? number_format($sc, 1) : '-');
+                    $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $cIdx++;
+                }
+
+                $sheet->setCellValue("{$finalCol}{$currRow}", $final['score'] !== null ? number_format($final['score'], 2) : '-');
+                $sheet->getStyle("{$finalCol}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->getFont()->setName('Times New Roman')->setSize(10);
+                $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("C{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+                $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("E{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("A{$currRow}:C{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($rowBg);
+                $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->applyFromArray($this->thinBorderArray());
+                $sheet->getRowDimension($currRow)->setRowHeight(22);
+            }
+        }
+
+        $widths = [
+            'A' => 6.0,
+            'B' => 18.0,
+            'C' => 30.0,
+            'D' => 16.0,
+            'E' => 16.0,
+            'F' => 32.0,
+        ];
+        $cIdx = 7;
+        foreach ($cpmks as $cpmk) {
+            $widths[Coordinate::stringFromColumnIndex($cIdx)] = 12.0;
+            $cIdx++;
+        }
+        $widths[Coordinate::stringFromColumnIndex($cIdx)] = 18.0;
+
+        $this->applyExplicitColumnWidths($sheet, $widths);
+        $this->setupPageAndPrint($sheet);
     }
 
     private function downloadSpreadsheet(Spreadsheet $spreadsheet, string $filename): StreamedResponse

@@ -79,7 +79,7 @@
                         <th class="px-4 py-3 w-40 !align-middle">Dosen Anggota</th>
                         <th class="px-4 py-3 text-center w-20 !align-middle">QR</th>
                         <th class="px-4 py-3 text-center w-28 !align-middle">Kapasitas</th>
-                        <th class="px-4 py-3 text-right w-32 !align-middle">Aksi</th>
+                        <th class="px-4 py-3 text-right w-64 !align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line/60">
@@ -130,13 +130,32 @@
                             <div class="inline-flex items-center justify-end gap-1.5">
                                 <button type="button" 
                                         onclick="openEditKelasModal({{ $cls->id }}, '{{ $cls->section_code }}', {{ $cls->capacity ?? 'null' }}, {{ $cls->dosen_id ?? 'null' }}, {{ json_encode($cls->dosenAnggota->isNotEmpty() ? $cls->dosenAnggota->pluck('id')->values()->all() : ($cls->dosen_pendamping_id ? [(int) $cls->dosen_pendamping_id] : [])) }})"
-                                        class="button-secondary text-xs py-1 px-2.5">
+                                        class="button-secondary text-xs py-1.5 w-20 inline-flex items-center justify-center text-center">
                                     Ubah
                                 </button>
-                                <form action="{{ route('admin-prodi.akademik.kelas.destroy', $cls->id) }}" method="POST" data-confirm="Hapus kelas {{ $cls->display_code }}?" data-confirm-title="Hapus kelas" data-confirm-label="Hapus" class="inline">
+                                @if($cls->isArchived())
+                                    <form action="{{ route('admin-prodi.akademik.kelas.unarchive', $cls->id) }}" method="POST" class="inline-block m-0 p-0">
+                                        @csrf
+                                        <button type="submit" class="button-secondary text-xs py-1.5 w-20 inline-flex items-center justify-center text-center text-ink hover:text-ink hover:bg-canvas border border-line">
+                                            Buka Arsip
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('admin-prodi.akademik.kelas.archive', $cls->id) }}" method="POST"
+                                          data-confirm="Arsipkan kelas {{ $cls->display_code }}? Kelas yang diarsipkan tidak menerima peserta baru."
+                                          data-confirm-title="Arsipkan Kelas"
+                                          data-confirm-label="Arsipkan"
+                                          class="inline-block m-0 p-0">
+                                        @csrf
+                                        <button type="submit" class="button-secondary text-xs py-1.5 w-20 inline-flex items-center justify-center text-center text-ink hover:text-ink hover:bg-canvas border border-line">
+                                            Arsipkan
+                                        </button>
+                                    </form>
+                                @endif
+                                <form action="{{ route('admin-prodi.akademik.kelas.destroy', $cls->id) }}" method="POST" data-confirm="Hapus kelas {{ $cls->display_code }}?" data-confirm-title="Hapus kelas" data-confirm-label="Hapus" class="inline-block m-0 p-0">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="button-secondary text-xs py-1 px-2.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line">
+                                    <button type="submit" class="button-secondary text-xs py-1.5 w-20 inline-flex items-center justify-center text-center text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line">
                                         Hapus
                                     </button>
                                 </form>

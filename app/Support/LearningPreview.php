@@ -281,6 +281,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'id' => $section->id,
             'code' => $section->display_code,
             'title' => $section->mataKuliah->name,
+            'is_archived' => $section->isArchived(),
             'lecturer' => $section->dosen?->name ?? 'Belum ditetapkan',
             'dosen_ketua' => $section->dosen?->name ?? 'Belum ditetapkan',
             'dosen_wakil' => $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty() ? $section->dosenAnggota->pluck('name')->join(', ') : $section->dosenPendamping?->name,

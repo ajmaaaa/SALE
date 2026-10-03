@@ -171,9 +171,23 @@ class User extends Authenticatable
         })->count();
     }
 
+    /**
+     * Kelas yang sedang diikuti secara aktif (status enrolled).
+     */
     public function classSectionsEnrolled(): BelongsToMany
     {
         return $this->belongsToMany(ClassSection::class, 'class_section_student', 'mahasiswa_id', 'class_section_id')
+            ->withPivotValue('status', 'enrolled')
+            ->withTimestamps();
+    }
+
+    /**
+     * Seluruh riwayat keanggotaan kelas (aktif, keluar sendiri, dikeluarkan).
+     */
+    public function classSectionEnrollmentRecords(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassSection::class, 'class_section_student', 'mahasiswa_id', 'class_section_id')
+            ->withPivot(['status', 'kick_count', 'kicked_at', 'kick_reason', 'dropped_at', 'is_locked'])
             ->withTimestamps();
     }
 

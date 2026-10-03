@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Assessment;
+use App\Models\ClassEnrollmentAppeal;
 use App\Models\ClassSection;
 use App\Models\Message;
 use App\Models\Role;
@@ -12,16 +13,21 @@ use App\Models\User;
 use App\Models\UserNotificationState;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DatabaseNotificationService
 {
     public function forUser(User $user, ?string $workspaceRole = null): array
     {
-        $workspaceRole ??= request()->is('dosen*') ? Role::DOSEN : Role::MAHASISWA;
-        $notifications = $workspaceRole === Role::DOSEN && $user->hasRole(Role::DOSEN)
-            ? $this->lecturerNotifications($user)
-            : $this->studentNotifications($user);
+        $workspaceRole ??= request()->is('dosen*') ? Role::DOSEN : ((request()->is('admin*') || request()->is('admin-prodi*')) ? Role::ADMIN_PRODI : Role::MAHASISWA);
+        if ($workspaceRole === Role::DOSEN && $user->hasRole(Role::DOSEN)) {
+            $notifications = $this->lecturerNotifications($user);
+        } elseif (($workspaceRole === Role::ADMIN_PRODI || $workspaceRole === Role::ADMIN) && ($user->hasRole(Role::ADMIN_PRODI) || $user->hasRole(Role::ADMIN))) {
+            $notifications = $this->adminProdiNotifications($user);
+        } else {
+            $notifications = $this->studentNotifications($user);
+        }
 
         $states = UserNotificationState::query()
             ->where('user_id', $user->id)
@@ -266,6 +272,85 @@ class DatabaseNotificationService
             $this->appendDiscussionNotification($notifications, $user, $section);
         }
 
+        // PRD-CLASS-LIFECYCLE-MANAGEMENT §7: Dosen Kick Mahasiswa
+        $kickedRows = DB::table('class_section_student')
+            ->where('mahasiswa_id', $user->id)
+            ->where('status', 'kicked')
+            ->get();
+
+        if ($kickedRows->isNotEmpty()) {
+            $kickedSections = ClassSection::with(['mataKuliah', 'dosen'])
+                ->whereIn('id', $kickedRows->pluck('class_section_id')->unique())
+                ->get()
+                ->keyBy('id');
+
+            foreach ($kickedRows as $row) {
+                $section = $kickedSections->get($row->class_section_id);
+                if (! $section) {
+                    continue;
+                }
+                $kickerName = $section->dosen?->name ?? 'Dosen Pengampu';
+                $reason = $row->kick_reason ? " Alasan: {$row->kick_reason}." : '';
+                $eventAt = $row->kicked_at ?? $row->updated_at;
+                $joinUrl = $section->enrollment_code
+                    ? route('mahasiswa.join-kelas', $section->enrollment_code, false)
+                    : route('mahasiswa.course.index', [], false);
+                $actionLabel = $row->kick_count >= 2 ? 'Ajukan Verifikasi' : 'Daftar Ulang';
+
+                $notifications[] = $this->notification(
+                    "kicked_{$section->id}_{$row->kick_count}",
+                    "Dikeluarkan dari Kelas: {$section->display_code}",
+                    "Anda telah dikeluarkan dari kelas {$section->mataKuliah?->name} ({$section->display_code}) oleh {$kickerName}.{$reason}",
+                    $eventAt,
+                    'alert',
+                    $joinUrl,
+                    $actionLabel,
+                    'sistem',
+                    $section->id
+                );
+            }
+        }
+
+        // PRD-CLASS-LIFECYCLE-MANAGEMENT §7: Banding Disetujui / Ditolak
+        $appeals = ClassEnrollmentAppeal::with(['classSection.mataKuliah'])
+            ->where('mahasiswa_id', $user->id)
+            ->whereIn('status', [ClassEnrollmentAppeal::STATUS_APPROVED, ClassEnrollmentAppeal::STATUS_REJECTED])
+            ->get();
+
+        foreach ($appeals as $appeal) {
+            $section = $appeal->classSection;
+            $mkName = $section?->mataKuliah?->name ?? 'Mata Kuliah';
+            $code = $section?->display_code ?? '';
+            $eventAt = $appeal->reviewed_at ?? $appeal->updated_at;
+
+            if ($appeal->status === ClassEnrollmentAppeal::STATUS_APPROVED) {
+                $notifications[] = $this->notification(
+                    "appeal_approved_{$appeal->id}",
+                    "Verifikasi Disetujui: {$code}",
+                    "Permohonan verifikasi peserta Anda untuk kelas {$mkName} ({$code}) telah disetujui oleh Admin Prodi.",
+                    $eventAt,
+                    'check',
+                    $section ? route('mahasiswa.course.show', $section->id, false) : route('mahasiswa.course.index', [], false),
+                    'Buka Kelas',
+                    'sistem',
+                    $section?->id ?? 0
+                );
+            } else {
+                $notes = $appeal->admin_notes ? " Catatan: {$appeal->admin_notes}." : '';
+                $notifications[] = $this->notification(
+                    "appeal_rejected_{$appeal->id}",
+                    "Verifikasi Ditolak: {$code}",
+                    "Permohonan verifikasi peserta Anda untuk kelas {$mkName} ({$code}) ditolak.{$notes}",
+                    $eventAt,
+                    'alert',
+                    route('mahasiswa.course.index', [], false),
+                    'Daftar Kelas',
+                    'sistem',
+                    $section?->id ?? 0
+                );
+            }
+        }
+
         $notifications = array_merge($notifications, $this->systemNotifications());
 
         return $notifications;
@@ -312,6 +397,78 @@ class DatabaseNotificationService
 
         foreach ($sections as $section) {
             $this->appendDiscussionNotification($notifications, $user, $section);
+        }
+
+        // PRD-CLASS-LIFECYCLE-MANAGEMENT §7: Mahasiswa Re-join pasca Kick 1
+        if ($sectionIds->isNotEmpty()) {
+            $rejoinedRows = DB::table('class_section_student')
+                ->whereIn('class_section_id', $sectionIds)
+                ->where('status', 'enrolled')
+                ->where('kick_count', '>', 0)
+                ->whereNotNull('kicked_at')
+                ->get();
+
+            if ($rejoinedRows->isNotEmpty()) {
+                $students = User::whereIn('id', $rejoinedRows->pluck('mahasiswa_id')->unique())->get()->keyBy('id');
+                foreach ($rejoinedRows as $row) {
+                    $student = $students->get($row->mahasiswa_id);
+                    $section = $sections->firstWhere('id', $row->class_section_id);
+                    if (! $student || ! $section) {
+                        continue;
+                    }
+
+                    $eventAt = $row->updated_at ?? $row->kicked_at;
+                    $studentNumber = $student->number ? " ({$student->number})" : '';
+                    $notifications[] = $this->notification(
+                        "rejoin_{$section->id}_{$student->id}_{$row->kick_count}",
+                        "Peserta Masuk Kembali: {$section->display_code}",
+                        "Mahasiswa {$student->name}{$studentNumber} yang sebelumnya Anda keluarkan telah bergabung kembali ke kelas {$section->display_code}.",
+                        $eventAt,
+                        'alert',
+                        route('dosen.course.show', $section->id, false),
+                        'Lihat Kelas',
+                        'sistem',
+                        $section->id
+                    );
+                }
+            }
+        }
+
+        return $notifications;
+    }
+
+    private function adminProdiNotifications(User $user): array
+    {
+        $prodiId = (int) ($user->managing_prodi_id ?: $user->prodi_id);
+
+        $pendingAppeals = ClassEnrollmentAppeal::query()
+            ->where('status', ClassEnrollmentAppeal::STATUS_PENDING)
+            ->with(['mahasiswa', 'classSection.mataKuliah'])
+            ->when(! $user->hasRole(Role::ADMIN) && $prodiId > 0, function ($query) use ($prodiId) {
+                $query->whereHas('classSection.mataKuliah', fn ($mk) => $mk->where('prodi_id', $prodiId));
+            })
+            ->latest('id')
+            ->get();
+
+        $notifications = [];
+        foreach ($pendingAppeals as $appeal) {
+            $student = $appeal->mahasiswa;
+            $section = $appeal->classSection;
+            $code = $section?->display_code ?? '-';
+            $studentName = $student?->name ?? 'Mahasiswa';
+            $studentNumber = $student?->number ? " ({$student->number})" : '';
+
+            $notifications[] = $this->notification(
+                "appeal_pending_{$appeal->id}",
+                "Permohonan Verifikasi Peserta: {$code}",
+                "Mahasiswa {$studentName}{$studentNumber} mengajukan verifikasi untuk kelas {$code}.",
+                $appeal->created_at,
+                'alert',
+                route('admin-prodi.akademik.verifikasi-peserta', [], false),
+                'Tinjau Permohonan',
+                'sistem',
+                $section?->id ?? 0
+            );
         }
 
         return $notifications;

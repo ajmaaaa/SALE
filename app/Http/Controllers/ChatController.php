@@ -178,6 +178,13 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'error' => 'Anda tidak terdaftar pada kelas ini.'], 403);
         }
 
+        if (Schema::hasTable('class_sections')) {
+            $section = ClassSection::find($course);
+            if ($section?->isArchived()) {
+                return response()->json(['success' => false, 'error' => 'Kelas telah diarsipkan. Diskusi dinonaktifkan.'], 403);
+            }
+        }
+
         $room = $this->ensureRoomAndMembership($course, $user);
 
         $message = Message::create([
@@ -262,6 +269,13 @@ class ChatController extends Controller
 
         Gate::forUser($user)->authorize('pin', $message);
 
+        if ($message->room?->course_id) {
+            $section = ClassSection::find($message->room->course_id);
+            if ($section?->isArchived()) {
+                return response()->json(['success' => false, 'error' => 'Kelas telah diarsipkan.'], 403);
+            }
+        }
+
         $message->update([
             'is_pinned' => ! $message->is_pinned,
         ]);
@@ -291,6 +305,13 @@ class ChatController extends Controller
         }
 
         Gate::forUser($user)->authorize('delete', $message);
+
+        if ($message->room?->course_id) {
+            $section = ClassSection::find($message->room->course_id);
+            if ($section?->isArchived()) {
+                return response()->json(['success' => false, 'error' => 'Kelas telah diarsipkan.'], 403);
+            }
+        }
 
         $roomId = $message->room_id;
         $messageId = $message->id;

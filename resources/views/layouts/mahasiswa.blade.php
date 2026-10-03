@@ -43,6 +43,9 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
                 @php
                     $sidebarProdi = auth()->user()?->managingProdi ?? auth()->user()?->prodi;
+                    $pendingAppealCount = \App\Models\ClassEnrollmentAppeal::where('status', \App\Models\ClassEnrollmentAppeal::STATUS_PENDING)
+                        ->when($sidebarProdi, fn ($q) => $q->whereHas('classSection.mataKuliah', fn ($mk) => $mk->where('prodi_id', $sidebarProdi->id)))
+                        ->count();
                 @endphp
                 @if($sidebarProdi)
                     <p class="mt-1.5 text-sm font-semibold text-ink truncate" title="{{ $sidebarProdi->name }}">
@@ -70,6 +73,13 @@
                 <a href="{{ route('admin-prodi.akademik.kelas') }}" @if(request()->routeIs('admin-prodi.akademik.kelas*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.kelas*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Kelas &amp; Dosen Pengampu
+                </a>
+                <a href="{{ route('admin-prodi.akademik.verifikasi-peserta') }}" @if(request()->routeIs('admin-prodi.akademik.verifikasi-peserta*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.akademik.verifikasi-peserta*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
+                    <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span class="min-w-0 flex-1">Verifikasi Peserta</span>
+                    @if($pendingAppealCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white" aria-label="{{ $pendingAppealCount }} permohonan menunggu verifikasi">{{ $pendingAppealCount > 99 ? '99+' : $pendingAppealCount }}</span>
+                    @endif
                 </a>
                 <a href="{{ route('admin-prodi.laporan.index') }}" @if(request()->routeIs('admin-prodi.laporan.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('admin-prodi.laporan.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
@@ -119,7 +129,7 @@
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isPenilaianActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 14l2 2 4-4"/></svg>
                     <span class="min-w-0 flex-1">Penilaian</span>
-                    <span id="sidebar-dosen-grading-badge" data-badge="dosen-grading" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingGradingCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 99 ? '99+' : $pendingGradingCount }}</span>
+                    <span id="sidebar-dosen-grading-badge" data-badge="dosen-grading" style="{{ $pendingGradingCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingGradingCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingGradingCount }} kelas belum selesai dinilai">{{ $pendingGradingCount > 0 ? ($pendingGradingCount > 99 ? '99+' : $pendingGradingCount) : '' }}</span>
                 </a>
 
                 <a href="{{ route('dosen.rekap.index') }}" 
@@ -146,7 +156,7 @@
                 <a href="{{ route('dosen.notifications') }}" @if($isDosenNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isDosenNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
-                    <span id="sidebar-dosen-notif-badge" data-badge="dosen-notif" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $dosenUnreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $dosenUnreadNotifCount }} notifikasi belum dibaca">{{ $dosenUnreadNotifCount > 99 ? '99+' : $dosenUnreadNotifCount }}</span>
+                    <span id="sidebar-dosen-notif-badge" data-badge="dosen-notif" style="{{ $dosenUnreadNotifCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $dosenUnreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $dosenUnreadNotifCount }} notifikasi belum dibaca">{{ $dosenUnreadNotifCount > 0 ? ($dosenUnreadNotifCount > 99 ? '99+' : $dosenUnreadNotifCount) : '' }}</span>
                 </a>
                 <a href="{{ route('dosen.profile.index') }}" @if(request()->routeIs('dosen.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
@@ -181,12 +191,12 @@
                 <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
                     <span class="min-w-0 flex-1">Forum Diskusi</span>
-                    <span id="sidebar-mhs-forum-badge" data-badge="mhs-forum" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $forumUnreadCount > 0 ? '' : 'hidden' }}" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 99 ? '99+' : $forumUnreadCount }}</span>
+                    <span id="sidebar-mhs-forum-badge" data-badge="mhs-forum" style="{{ $forumUnreadCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $forumUnreadCount > 0 ? '' : 'hidden' }}" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 0 ? ($forumUnreadCount > 99 ? '99+' : $forumUnreadCount) : '' }}</span>
                 </a>
                 <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     <span class="min-w-0 flex-1">Tugas &amp; Kuis</span>
-                    <span id="sidebar-mhs-task-badge" data-badge="mhs-task" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingTaskCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingTaskCount }} tugas dan kuis belum dikerjakan">{{ $pendingTaskCount > 99 ? '99+' : $pendingTaskCount }}</span>
+                    <span id="sidebar-mhs-task-badge" data-badge="mhs-task" style="{{ $pendingTaskCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $pendingTaskCount > 0 ? '' : 'hidden' }}" aria-label="{{ $pendingTaskCount }} tugas dan kuis belum dikerjakan">{{ $pendingTaskCount > 0 ? ($pendingTaskCount > 99 ? '99+' : $pendingTaskCount) : '' }}</span>
                 </a>
             </div>
 
@@ -198,7 +208,7 @@
                 <a href="{{ route('mahasiswa.notifications') }}" @if($isNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
-                    <span id="sidebar-mhs-notif-badge" data-badge="mhs-notif" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $unreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}</span>
+                    <span id="sidebar-mhs-notif-badge" data-badge="mhs-notif" style="{{ $unreadNotifCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $unreadNotifCount > 0 ? '' : 'hidden' }}" aria-label="{{ $unreadNotifCount }} notifikasi belum dibaca">{{ $unreadNotifCount > 0 ? ($unreadNotifCount > 99 ? '99+' : $unreadNotifCount) : '' }}</span>
                 </a>
                 <a href="{{ route('mahasiswa.profile.index') }}" @if(request()->routeIs('mahasiswa.profile.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.profile.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
@@ -206,6 +216,26 @@
                 </a>
             </div>
         </nav>
+        @endif
+
+        @php
+            $sidebarSupportEmail = \App\Models\SystemSetting::valueFor('support');
+        @endphp
+        @if($sidebarSupportEmail)
+        <div class="border-t border-line/70 p-3 bg-canvas/40 shrink-0">
+            <a href="mailto:{{ $sidebarSupportEmail }}" class="group flex items-center gap-2.5 rounded-lg p-2 transition hover:bg-white hover:shadow-xs" title="Hubungi Admin: {{ $sidebarSupportEmail }}">
+                <svg class="h-5 w-5 shrink-0 text-muted transition group-hover:text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <div class="min-w-0 flex-1">
+                    <span class="block text-[10px] font-semibold uppercase tracking-wider text-muted group-hover:text-ink leading-tight">Hubungi Admin</span>
+                    <span class="block truncate text-xs font-semibold text-brand leading-snug">
+                        {{ $sidebarSupportEmail }}
+                    </span>
+                </div>
+            </a>
+        </div>
         @endif
     </aside>
 
@@ -483,10 +513,13 @@
                 if (num > 0) {
                     el.textContent = num > 99 ? '99+' : num;
                     el.classList.remove('hidden');
+                    el.style.setProperty('display', 'inline-flex');
                     el.setAttribute('aria-label', `${num} ${singularLabel}`);
                 } else {
-                    el.textContent = '0';
+                    el.textContent = '';
                     el.classList.add('hidden');
+                    el.style.setProperty('display', 'none', 'important');
+                    el.removeAttribute('aria-label');
                 }
             }
 
@@ -519,16 +552,31 @@
                 applyLiveStatus(e.detail);
             });
 
+            let userInteracted = false;
+            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
+                window.addEventListener(evt, function() {
+                    userInteracted = true;
+                }, { passive: true, capture: true });
+            });
+
             async function pollLiveStatus() {
                 if (document.visibilityState !== 'visible') return;
 
+                const headers = {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                };
+                if (userInteracted) {
+                    headers['X-User-Activity'] = '1';
+                    userInteracted = false;
+                }
+
                 try {
-                    const res = await fetch('{{ route('live-status') }}', {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    });
+                    const res = await fetch('{{ route('live-status') }}', { headers: headers });
+                    if (res.status === 401) {
+                        window.location.href = '{{ route('login') }}';
+                        return;
+                    }
                     if (!res.ok) return;
                     const data = await res.json();
                     if (!data.success) return;

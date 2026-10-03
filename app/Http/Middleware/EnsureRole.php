@@ -40,6 +40,14 @@ class EnsureRole
                     return redirect()->route('dosen.course.show', $courseId);
                 }
             }
+
+            if ($user->hasRole('admin_prodi') && $request->routeIs('mahasiswa.join-kelas*')) {
+                return redirect()->route('admin-prodi.akademik.kelas')->with('notice', 'Tautan pendaftaran ini diperuntukkan bagi mahasiswa atau dosen.');
+            }
+
+            if ($user->hasRole('admin') && $request->routeIs('mahasiswa.join-kelas*')) {
+                return redirect()->route('admin.page', 'dashboard')->with('notice', 'Tautan pendaftaran ini diperuntukkan bagi mahasiswa atau dosen.');
+            }
         }
 
         abort_unless(

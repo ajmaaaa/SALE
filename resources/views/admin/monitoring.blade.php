@@ -146,7 +146,7 @@
                 @endif
 
                 @php
-                    $currentPath = $settings['backup_path'] ?? 'storage/app/backups';
+                    $currentPath = $settings['backup_path'] ?? 'storage/app/private/backups';
                     $currentSched = $settings['backup_schedule'] ?? 'daily';
                     $currentTime = $settings['backup_time'] ?? '02:00';
                     $schedLabel = match($currentSched) {
@@ -214,8 +214,11 @@
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div>
                                 <label class="form-label text-xs" for="backup_path">Path Penyimpanan di Server</label>
-                                <input type="text" name="backup_path" id="backup_path" required value="{{ old('backup_path', $currentPath) }}" class="field font-mono text-xs" placeholder="storage/app/backups">
-                                <p class="mt-1 text-[11px] text-muted">Contoh: storage/app/backups atau path absolut</p>
+                                <input type="text" name="backup_path" id="backup_path" required value="{{ old('backup_path', $currentPath) }}" class="field font-mono text-xs @error('backup_path') border-rose-500 @enderror" placeholder="storage/app/private/backups">
+                                <p class="mt-1 text-[11px] text-muted">Folder privat server (tertutup dari akses luar/browser). Default: storage/app/private/backups</p>
+                                @error('backup_path')
+                                    <p class="mt-1 text-[11px] font-semibold text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
                                 <label class="form-label text-xs" for="backup_schedule">Frekuensi Backup Otomatis</label>
@@ -276,6 +279,10 @@
                         'Accept': 'application/json'
                     }
                 });
+                if (res.status === 401) {
+                    window.location.href = '{{ route('login') }}';
+                    return;
+                }
                 if (!res.ok) return;
                 const data = await res.json();
                 if (!data.success) return;

@@ -170,6 +170,25 @@ class AdminAiExportAndMonitoringTest extends TestCase
         ]);
     }
 
+    public function test_admin_cannot_save_backup_path_pointing_to_public_directory(): void
+    {
+        $response = $this->actingAs($this->admin)->post('/admin/monitoring/backup/settings', [
+            'backup_path' => 'public/backups',
+            'backup_schedule' => 'daily',
+            'backup_time' => '02:00',
+        ]);
+
+        $response->assertSessionHasErrors('backup_path');
+
+        $responsePublicStorage = $this->actingAs($this->admin)->post('/admin/monitoring/backup/settings', [
+            'backup_path' => 'storage/app/public/backups',
+            'backup_schedule' => 'daily',
+            'backup_time' => '02:00',
+        ]);
+
+        $responsePublicStorage->assertSessionHasErrors('backup_path');
+    }
+
     public function test_admin_can_delete_backup(): void
     {
         // Create dummy backup file
@@ -270,5 +289,32 @@ class AdminAiExportAndMonitoringTest extends TestCase
         $this->assertNull(SystemSetting::valueFor('app_logo_path'));
         Storage::disk('public')->assertMissing($savedPath);
         $this->assertFalse(SystemSetting::hasCustomLogo());
+    }
+
+    public function test_admin_settings_rejects_unsupported_non_text_ai_models(): void
+    {
+        $payload = [
+            'institution' => 'Universitas Maritim Raja Ali Haji',
+            'semester' => 'Ganjil 2026/2027',
+            'support' => 'admin@umrah.ac.id',
+            'ai_model' => 'gemini-2.5-flash-image',
+        ];
+
+        $response = $this->actingAs($this->admin)->post('/admin/pengaturan', $payload);
+
+        $response->assertSessionHasErrors('ai_model');
+    }
+
+    public function test_admin_test_ai_connection_rejects_non_text_model(): void
+    {
+        $response = $this->actingAs($this->admin)->postJson('/admin/pengaturan/test-ai', [
+            'ai_provider' => 'Google AI',
+            'ai_model' => 'gemini-3.1-flash-image',
+            'ai_api_key' => 'dummy-key',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('success', false);
+        $this->assertStringContainsString('tidak mendukung luaran teks', $response->json('message'));
     }
 }

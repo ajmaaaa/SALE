@@ -88,6 +88,7 @@
     $studentScore = $studentScore ?? null;
     $codingScoreUrl = $codingScoreUrl ?? null;
     $isSubmitted = (!$isLecturer && !$isMaterial && !empty($submission?->submitted_at));
+    $isArchived = !empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false);
     $aiEnabled = ($isLecturer || $isSubmitted) ? false : (bool) ($item['ai_enabled'] ?? true);
     $storedLanguage = $item['language'] ?? 'python';
     $requestedLanguage = request()->query('language');
@@ -228,15 +229,31 @@
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         <span>Meninjau: <strong class="text-ink font-semibold">{{ $reviewStudent->name }}</strong> ({{ $reviewStudent->nim_nidn ?? '-' }})</span>
                     </div>
-                @elseif($submission && $submission->submitted_at)
-                    <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium" title="Diserahkan pada {{ $submission->submitted_at->translatedFormat('d M Y, H:i') }}">
-                        <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-                        <span class="font-medium text-ink">Tersimpan di Database</span>
-                    </div>
+                @elseif(! $isLecturer)
+                    @if($submission && $submission->submitted_at)
+                        <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium" title="Diserahkan pada {{ $submission->submitted_at->translatedFormat('d M Y, H:i') }}">
+                            <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span class="font-medium text-ink">Tersimpan di Database</span>
+                        </div>
+                    @endif
                     @if($studentScore !== null)
-                        <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold" title="Nilai Asesmen">
-                            <span class="text-slate-500 font-normal">Nilai:</span>
-                            <span class="font-mono font-bold text-ink">{{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100</span>
+                        @php
+                            $cpmkThreshold = 65.0;
+                            if (isset($assessment) && $assessment && ($assessment->relationLoaded('cpmks') ? $assessment->cpmks->isNotEmpty() : $assessment->cpmks()->exists())) {
+                                $cpmkThreshold = (float) $assessment->cpmks->avg('threshold');
+                            } elseif (!empty($item['cpmk'])) {
+                                $cpmkObj = \App\Models\Cpmk::where('code', $item['cpmk'])->first();
+                                if ($cpmkObj && $cpmkObj->threshold !== null) {
+                                    $cpmkThreshold = (float) $cpmkObj->threshold;
+                                }
+                            }
+                            $maxPoints = (float)($item['points'] ?? 100);
+                            $scorePct = $maxPoints > 0 ? (((float)$studentScore / $maxPoints) * 100) : (float)$studentScore;
+                            $isScorePassed = $scorePct >= $cpmkThreshold;
+                        @endphp
+                        <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md {{ $isScorePassed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-700' }} border text-xs font-semibold" title="Nilai Asesmen (Ambang Batas CPMK: {{ $cpmkThreshold }}%)">
+                            <span class="font-normal opacity-80">Nilai:</span>
+                            <span class="font-mono font-bold">{{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100</span>
                         </div>
                     @endif
                 @endif
@@ -273,6 +290,10 @@
                         <div id="status-submitted-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold select-none {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Tugas coding telah diserahkan dan tidak dapat diubah lagi">
                             <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                             <span>Tugas Sudah Diserahkan</span>
+                        </div>
+                    @elseif($isArchived)
+                        <div id="status-archived-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium select-none {{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-flex;' }}" title="Kelas telah diarsipkan. Pengumpulan tugas ditutup.">
+                            <span>Kelas Diarsipkan</span>
                         </div>
                     @else
                         <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-block;' }}">
@@ -595,7 +616,7 @@
                         <p class="text-xs text-muted mt-0.5">Nilai langsung per butir soal</p>
                     </div>
                     @if($studentScore !== null)
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold {{ (!empty($isScorePassed)) ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200' }} border" title="Ambang Batas CPMK: {{ $cpmkThreshold ?? 65 }}%">
                             Total: {{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100
                         </span>
                     @endif

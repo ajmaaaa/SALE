@@ -56,6 +56,27 @@ class AcademicPreview
             }
         }
 
+        if (empty($cpmkList)) {
+            if (Schema::hasTable('cpmks') && ($allCpmks = \App\Models\Cpmk::with('cpls')->orderBy('code')->get())->isNotEmpty()) {
+                $cpmkList = [];
+                foreach ($allCpmks as $cm) {
+                    $linkedCplCodes = $cm->cpls->pluck('code')->all();
+                    $cplCode = ! empty($linkedCplCodes) ? implode(', ', $linkedCplCodes) : 'CPL-01';
+                    $cpmkList[] = [
+                        'code' => $cm->code,
+                        'cpl' => $cplCode,
+                        'description' => $cm->description,
+                        'threshold' => (float) ($cm->threshold ?? 65),
+                    ];
+                }
+            } else {
+                $cpmkList = [
+                    ['code' => 'CPMK-01', 'cpl' => 'CPL-01', 'description' => 'Mampu menganalisis konsep dasar.', 'threshold' => 65],
+                    ['code' => 'CPMK-02', 'cpl' => 'CPL-02', 'description' => 'Mampu menerapkan konsep dalam praktik.', 'threshold' => 65],
+                ];
+            }
+        }
+
         $config = [
             'cpl' => $cplList ?? [],
             'cpmk' => $cpmkList ?? [],

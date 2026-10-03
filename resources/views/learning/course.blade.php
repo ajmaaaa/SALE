@@ -39,21 +39,28 @@
     $enrolledStudents = $enrolledStudents ?? [];
     $courseMembers = $courseMembers ?? collect();
     if (isset($classSection)) {
-        $classSection->loadMissing(['students', 'dosen', 'dosenPendamping']);
+        $classSection->loadMissing(['students', 'dosen', 'dosenPendamping', 'dosenAnggota']);
         $enrolledStudents = $classSection->students->map(fn($user) => [
+            'id' => $user->id,
             'name' => $user->name,
             'number' => $user->nim_nidn ?? $user->email,
             'role' => 'mahasiswa',
             'avatar_url' => $user->profile_photo_url,
+            'is_locked' => (bool) ($user->pivot->is_locked ?? false),
         ])->values()->all();
-        $courseMembers = collect([$classSection->dosen, $classSection->dosenPendamping])
+        $lecturers = collect([$classSection->dosen, $classSection->dosenPendamping])
+            ->concat($classSection->dosenAnggota ?? [])
             ->filter()
+            ->unique('id')
             ->map(fn($user) => [
+                'id' => $user->id,
                 'name' => $user->name,
                 'number' => $user->nim_nidn ?? $user->email,
                 'role' => 'dosen',
                 'avatar_url' => $user->profile_photo_url,
-            ])
+                'is_locked' => false,
+            ]);
+        $courseMembers = $lecturers
             ->concat($enrolledStudents)
             ->values();
     }
@@ -97,6 +104,10 @@
                         <span class="leading-4">{{ $course['sks'] ?? '3 SKS' }}</span>
                         <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
                         <span class="leading-4">{{ $course['semester'] ?? 'Semester Ganjil 2026/2027' }}</span>
+                        @if($classSection?->isArchived())
+                            <span class="h-3 w-px self-center bg-line" aria-hidden="true"></span>
+                            <span class="leading-4 text-slate-500 font-medium">Kelas diarsipkan (read-only)</span>
+                        @endif
                     </div>
                     <h1 class="page-heading mt-2">{{ $course['title'] }}</h1>
                     <p class="mt-1 text-sm text-muted">
@@ -118,9 +129,26 @@
                     </button>
 
                     @if($role === 'dosen')
-                        <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary text-xs py-1.5 px-3 font-semibold shadow-2xs">
-                            + Tambah Konten
-                        </a>
+                        @if(! ($classSection?->isArchived() ?? false))
+                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-primary text-xs py-1.5 px-3 font-semibold shadow-2xs">
+                                + Tambah Konten
+                            </a>
+                        @endif
+                    @else
+                        {{-- Tombol Keluar Kelas (PRD §5.3) — mahasiswa bisa keluar meski kelas diarsipkan --}}
+                        @php
+                            $userId = auth()->id();
+                            $hasGrades = isset($classSection) && \Illuminate\Support\Facades\DB::table('student_assessment_scores')
+                                ->join('assessments', 'assessments.id', '=', 'student_assessment_scores.assessment_id')
+                                ->where('student_assessment_scores.mahasiswa_id', $userId)
+                                ->where('assessments.class_section_id', $classSection->id)
+                                ->exists();
+                        @endphp
+                        <button type="button"
+                                onclick="document.getElementById('leave-kelas-modal-{{ $course['id'] }}').showModal()"
+                                class="button-secondary text-xs font-semibold py-1.5 px-3">
+                            Keluar Kelas
+                        </button>
                     @endif
                 </div>
             </header>
@@ -235,6 +263,7 @@
                                         </a>
 
                                         @if($isDosen)
+                                            @if(! ($classSection?->isArchived() ?? false))
                                             {{-- Dosen: Hanya Icon Edit & Hapus, posisi tengah-tengah secara vertikal menyesuaikan teks --}}
                                             <div class="flex items-center gap-1.5 shrink-0 self-center">
                                                 <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit materi" aria-label="Edit materi">
@@ -248,6 +277,7 @@
                                                     </button>
                                                 </form>
                                             </div>
+                                            @endif
                                         @else
                                             <div class="flex items-center shrink-0 self-center">
                                                 <a href="{{ $materialUrl }}" class="text-xs font-semibold text-brand hover:underline leading-snug whitespace-nowrap">
@@ -311,6 +341,7 @@
                                         </a>
 
                                         @if($isDosen)
+                                            @if(! ($classSection?->isArchived() ?? false))
                                             {{-- Dosen: Hanya Icon Edit & Hapus, posisi tengah-tengah secara vertikal menyesuaikan teks --}}
                                             <div class="flex items-center gap-1.5 shrink-0 self-center">
                                                 <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit tugas" aria-label="Edit tugas">
@@ -324,11 +355,14 @@
                                                     </button>
                                                 </form>
                                             </div>
+                                            @endif
                                         @else
                                             <div class="flex items-center shrink-0 self-center">
                                                 <a href="{{ $itemUrl }}" class="text-xs font-semibold leading-snug whitespace-nowrap hover:underline @if($hasSubmission) text-emerald-700 @elseif($isPast) text-rose-600 @else text-brand @endif">
                                                     @if($hasSubmission)
                                                         Sudah dikerjakan
+                                                    @elseif($classSection?->isArchived())
+                                                        Lihat Tugas
                                                     @elseif($isPast)
                                                         Terlambat
                                                     @else
@@ -488,7 +522,7 @@
                                 <time datetime="{{ $msgDateKey }}" class="shrink-0 text-[10px] font-medium text-muted">{{ $msgDateLabel }}</time>
                                 <span class="h-px flex-1 bg-line/70"></span>
                             </div>
-                            @php($previousMessageDate = $msgDateKey)
+                            @php $previousMessageDate = $msgDateKey; @endphp
                         @endif
                         <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
                             <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible p-3 {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
@@ -517,6 +551,7 @@
                                                     </span>
                                                 @endif
                                             @endif
+                                            @if(! ($classSection?->isArchived() ?? false))
                                             <details class="chat-action-details relative ml-auto shrink-0">
                                                 <summary class="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-muted hover:bg-white/80 hover:text-ink [&::-webkit-details-marker]:hidden" aria-label="Aksi pesan">
                                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
@@ -531,6 +566,7 @@
                                                     @endif
                                                 </div>
                                             </details>
+                                            @endif
                                         </div>
 
                                         {{-- Kutipan Balasan (Reply Quote Bubble) --}}
@@ -565,44 +601,52 @@
                     @endforelse
                 </div>
 
-                {{-- Area Input Pesan dengan Preview Reply & Dropdown Mention --}}
-                <div class="relative shrink-0 pt-1 border-t border-line/50 space-y-1.5">
-                    {{-- Preview Balasan Pesan --}}
-                    <div id="reply-preview-bar" class="hidden rounded-t-xl border border-b-0 border-[#b9c0ca] bg-slate-50 px-3 py-2 text-xs flex items-center justify-between gap-2 border-l-4 !border-l-brand animate-fadeIn">
-                        <div class="min-w-0 flex-1 flex items-center gap-2">
-                            <svg class="h-3.5 w-3.5 text-brand shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                            <div class="min-w-0 truncate">
-                                <span class="text-slate-500">Membalas ke:</span>
-                                <strong id="reply-author-label" class="font-bold text-ink"></strong>
-                                <span id="reply-content-excerpt" class="text-muted ml-1 truncate"></span>
-                            </div>
+                @if($classSection?->isArchived())
+                    <div class="shrink-0 pt-3 border-t border-line/50">
+                        <div class="rounded-xl border border-line/60 bg-canvas/40 p-3.5 text-center text-xs text-muted">
+                            Forum diskusi ditutup karena kelas telah diarsipkan.
                         </div>
-                        <button type="button" onclick="cancelReplyMode()" class="text-slate-400 hover:text-rose-600 transition shrink-0 p-1" title="Batalkan balasan" aria-label="Batalkan balasan">
-                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
                     </div>
-
-                    {{-- Dropdown Autocomplete @Mention --}}
-                    <div id="mention-dropdown" class="hidden absolute bottom-full left-0 mb-1 z-30 w-64 max-h-48 overflow-y-auto rounded-xl border border-line/80 bg-white p-1 shadow-lg divide-y divide-line/30">
-                    </div>
-
-                    {{-- Form Input Pesan --}}
-                    <form id="course-discuss-form" method="post" action="{{ route($isDosen ? 'dosen.course.discuss.class' : 'mahasiswa.course.discuss.class', $course['id']) }}" class="space-y-1">
-                        @csrf
-                        <input type="hidden" name="reply_to_message_id" id="reply_to_message_id" value="">
-                        <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
-                            <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
-                            <textarea maxlength="3000" name="message" id="course_discuss_message" rows="2" required class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tulis pesan... Ketik @ untuk mention dosen / teman"></textarea>
-                            <div class="absolute right-2 bottom-2 flex items-center">
-                                <button id="course-discuss-submit-btn" type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg inline-flex items-center justify-center transition-all duration-150 transform shrink-0 shadow-xs hover:scale-105 active:scale-95 disabled:opacity-30" title="Kirim pesan (Enter)" aria-label="Kirim pesan">
-                                    <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                                    </svg>
-                                </button>
+                @else
+                    {{-- Area Input Pesan dengan Preview Reply & Dropdown Mention --}}
+                    <div class="relative shrink-0 pt-1 border-t border-line/50 space-y-1.5">
+                        {{-- Preview Balasan Pesan --}}
+                        <div id="reply-preview-bar" class="hidden rounded-t-xl border border-b-0 border-[#b9c0ca] bg-slate-50 px-3 py-2 text-xs flex items-center justify-between gap-2 border-l-4 !border-l-brand animate-fadeIn">
+                            <div class="min-w-0 flex-1 flex items-center gap-2">
+                                <svg class="h-3.5 w-3.5 text-brand shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                                <div class="min-w-0 truncate">
+                                    <span class="text-slate-500">Membalas ke:</span>
+                                    <strong id="reply-author-label" class="font-bold text-ink"></strong>
+                                    <span id="reply-content-excerpt" class="text-muted ml-1 truncate"></span>
+                                </div>
                             </div>
+                            <button type="button" onclick="cancelReplyMode()" class="text-slate-400 hover:text-rose-600 transition shrink-0 p-1" title="Batalkan balasan" aria-label="Batalkan balasan">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
                         </div>
-                    </form>
-                </div>
+
+                        {{-- Dropdown Autocomplete @Mention --}}
+                        <div id="mention-dropdown" class="hidden absolute bottom-full left-0 mb-1 z-30 w-64 max-h-48 overflow-y-auto rounded-xl border border-line/80 bg-white p-1 shadow-lg divide-y divide-line/30">
+                        </div>
+
+                        {{-- Form Input Pesan --}}
+                        <form id="course-discuss-form" method="post" action="{{ route($isDosen ? 'dosen.course.discuss.class' : 'mahasiswa.course.discuss.class', $course['id']) }}" class="space-y-1">
+                            @csrf
+                            <input type="hidden" name="reply_to_message_id" id="reply_to_message_id" value="">
+                            <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
+                                <label for="course_discuss_message" class="sr-only">Tulis Pesan Diskusi Kelas</label>
+                                <textarea maxlength="3000" name="message" id="course_discuss_message" rows="2" required class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tulis pesan... Ketik @ untuk mention dosen / teman"></textarea>
+                                <div class="absolute right-2 bottom-2 flex items-center">
+                                    <button id="course-discuss-submit-btn" type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg inline-flex items-center justify-center transition-all duration-150 transform shrink-0 shadow-xs hover:scale-105 active:scale-95 disabled:opacity-30" title="Kirim pesan (Enter)" aria-label="Kirim pesan">
+                                        <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                @endif
             </section>
         </aside>
     </div>
@@ -1305,7 +1349,7 @@
         </div>
         <div class="p-5 overflow-y-auto divide-y divide-line/40 flex-1">
             @forelse($courseMembers as $student)
-                <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                <div class="group py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
                         @if(!empty($student['avatar_url']))
                             <img src="{{ $student['avatar_url'] }}" alt="{{ $student['name'] }}" class="h-8 w-8 shrink-0 rounded-full border border-line/70 object-cover object-top">
@@ -1319,7 +1363,21 @@
                             <p class="text-[11px] text-muted truncate font-mono">{{ $student['number'] }}</p>
                         </div>
                     </div>
-                    <span class="text-xs font-semibold text-muted shrink-0">{{ ucfirst($student['role']) }}</span>
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        {{-- Tombol Keluarkan (PRD §5.4) — hanya untuk Dosen & hanya untuk mahasiswa & kelas tidak diarsipkan --}}
+                        @if($role === 'dosen' && ($student['role'] ?? '') === 'mahasiswa' && ! ($classSection?->isArchived() ?? false) && !empty($student['id']))
+                            @if(!empty($student['is_locked']))
+                                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium text-slate-400">Diverifikasi Admin</span>
+                            @else
+                                <button type="button"
+                                        onclick="document.getElementById('kick-modal-{{ $student['id'] }}').showModal()"
+                                        class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-xs font-medium text-rose-600 hover:underline cursor-pointer">
+                                    Keluarkan
+                                </button>
+                            @endif
+                        @endif
+                        <span class="text-xs font-semibold text-muted">{{ ucfirst($student['role']) }}</span>
+                    </div>
                 </div>
             @empty
                 <div class="text-center py-6 space-y-1">
@@ -1335,4 +1393,77 @@
         if (e.target === this) this.close();
     });
 </script>
+
+{{-- Modal Keluar Kelas (PRD §5.3) — hanya tampil untuk Mahasiswa & jika kelas aktif --}}
+@if($role === 'mahasiswa' && isset($classSection) && ! $classSection->isArchived())
+@php
+    $userId2 = auth()->id();
+    $hasGradesForModal = \Illuminate\Support\Facades\DB::table('student_assessment_scores')
+        ->join('assessments', 'assessments.id', '=', 'student_assessment_scores.assessment_id')
+        ->where('student_assessment_scores.mahasiswa_id', $userId2)
+        ->where('assessments.class_section_id', $classSection->id)
+        ->exists();
+@endphp
+<dialog id="leave-kelas-modal-{{ $course['id'] }}" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-sm w-[calc(100%-2rem)] overflow-hidden">
+    <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30">
+        <h3 class="font-bold text-ink text-sm">Keluar dari Kelas?</h3>
+        <button type="button" onclick="document.getElementById('leave-kelas-modal-{{ $course['id'] }}').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+    <div class="p-5 space-y-4">
+        @if($hasGradesForModal)
+            <p class="text-sm text-ink">Anda sudah memiliki riwayat tugas dan nilai di kelas ini. Jika keluar, data nilai Anda akan tetap tersimpan di riwayat arsip kelas namun Anda tidak dapat lagi mengikuti aktivitas perkuliahan.</p>
+        @else
+            <p class="text-sm text-ink">Apakah Anda yakin ingin keluar dari kelas ini? Data pendaftaran Anda akan dihapus.</p>
+        @endif
+        <div class="flex justify-end gap-2">
+            <button type="button" onclick="document.getElementById('leave-kelas-modal-{{ $course['id'] }}').close()" class="button-secondary text-xs py-1.5 px-3">Batal</button>
+            <form action="{{ route('mahasiswa.course.leave', $classSection->id) }}" method="POST">
+                @csrf
+                <button type="submit" class="button-secondary text-xs py-1.5 px-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line">
+                    Keluar Kelas
+                </button>
+            </form>
+        </div>
+    </div>
+</dialog>
+<script>
+    document.getElementById('leave-kelas-modal-{{ $course['id'] }}')?.addEventListener('click', function(e) {
+        if (e.target === this) this.close();
+    });
+</script>
+@endif
+
+{{-- Kick modals (PRD §5.4) — satu per mahasiswa, hanya untuk Dosen & kelas aktif --}}
+@if($role === 'dosen' && isset($classSection) && ! $classSection->isArchived())
+    @foreach($courseMembers as $student)
+        @if(($student['role'] ?? '') === 'mahasiswa' && empty($student['is_locked']) && !empty($student['id']))
+        <dialog id="kick-modal-{{ $student['id'] }}" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-sm w-[calc(100%-2rem)] overflow-hidden">
+            <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30">
+                <h3 class="font-bold text-ink text-sm">Keluarkan Mahasiswa</h3>
+                <button type="button" onclick="document.getElementById('kick-modal-{{ $student['id'] }}').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-sm text-ink">Keluarkan <strong>{{ $student['name'] }}</strong> dari kelas ini?</p>
+                <form action="{{ route('dosen.course.students.kick', [$classSection->id, $student['id']]) }}" method="POST">
+                    @csrf
+                    <div class="space-y-2">
+                        <label class="block text-xs font-medium text-ink">Alasan Pengeluaran <span class="text-rose-500">*</span></label>
+                        <textarea name="reason" rows="2" required placeholder="Mahasiswa tidak terdaftar pada KRS resmi kelas ini" class="w-full rounded-lg border border-line px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                        <button type="button" onclick="document.getElementById('kick-modal-{{ $student['id'] }}').close()" class="button-secondary text-xs py-1.5 px-3">Batal</button>
+                        <button type="submit" class="button-secondary text-xs py-1.5 px-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-line">Keluarkan</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+        @endif
+    @endforeach
+@endif
+
 @endsection
+

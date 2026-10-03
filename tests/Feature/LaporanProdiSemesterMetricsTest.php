@@ -237,20 +237,21 @@ class LaporanProdiSemesterMetricsTest extends TestCase
         file_put_contents($tempFile, $excelResponse->streamedContent());
 
         $spreadsheet = IOFactory::load($tempFile);
-        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Sheet 1: Ringkasan Metrik
+        $sheetMetrics = $spreadsheet->getSheet(0);
+        $this->assertSame('Ringkasan Metrik', $sheetMetrics->getTitle());
+        $this->assertSame('Total Dosen Pengampu', $sheetMetrics->getCell('B7')->getValue());
+        $this->assertSame('3 Orang', $sheetMetrics->getCell('C7')->getValue(), 'Dosen pengampu di Excel harus 3 Orang.');
+        $this->assertSame('Total Mahasiswa Terdaftar (Aktif)', $sheetMetrics->getCell('B8')->getValue());
+        $this->assertSame('3 Orang', $sheetMetrics->getCell('C8')->getValue(), 'Mahasiswa terdaftar aktif di Excel harus 3 Orang.');
+        $this->assertSame('Total Kelas Perkuliahan Aktif', $sheetMetrics->getCell('B9')->getValue());
+        $this->assertSame('3 Kelas', $sheetMetrics->getCell('C9')->getValue());
 
-        // Check Metric summary rows
-        $this->assertSame('Total Dosen Pengampu', $sheet->getCell('A8')->getValue());
-        $this->assertSame('3 Orang', $sheet->getCell('B8')->getValue(), 'Dosen pengampu di Excel harus 3 Orang.');
-
-        $this->assertSame('Total Mahasiswa Terdaftar (Aktif)', $sheet->getCell('A9')->getValue());
-        $this->assertSame('3 Orang', $sheet->getCell('B9')->getValue(), 'Mahasiswa terdaftar aktif di Excel harus 3 Orang.');
-
-        // Check Total row at bottom of class table:
-        // Table starts at row 17 (Class A), 18 (Class B), 19 (Class C), Total at row 20
-        $this->assertSame('TOTAL', $sheet->getCell('A20')->getValue());
-        $this->assertEquals(3, $sheet->getCell('H20')->getValue(), 'Total Mahasiswa di baris TOTAL Excel harus 3 (unik, tanpa duplikasi).');
-        $this->assertSame('3 Kelas', $sheet->getCell('J20')->getValue());
+        // Sheet 2: Rincian Kelas
+        $sheetClasses = $spreadsheet->getSheet(1);
+        $this->assertSame('Rincian Kelas', $sheetClasses->getTitle());
+        $this->assertSame('RATA-RATA NILAI MAHASISWA', $sheetClasses->getCell('A10')->getValue());
 
         @unlink($tempFile);
     }

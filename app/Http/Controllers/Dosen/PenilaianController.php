@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
+use App\Services\ClassEnrollmentService;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,10 @@ use Illuminate\View\View;
 
 class PenilaianController extends Controller
 {
-    public function __construct(private ObeCalculationService $obe) {}
+    public function __construct(
+        private ObeCalculationService $obe,
+        private ClassEnrollmentService $enrollment,
+    ) {}
 
     /**
      * Dashboard Penilaian Kelas — langsung mengarah ke Daftar Asesmen.
@@ -236,16 +240,18 @@ class PenilaianController extends Controller
         }
 
         return view('dosen.rekap', [
-            'section'         => $this->withHeaderCounts($section, null, $cpmks),
-            'cpmks'           => $cpmks,
-            'cpmkWeights'     => $cpmkWeights,
-            'totalCpmkWeight' => $totalCpmkWeight,
-            'columns'         => $columns,
-            'rows'            => $rows,
-            'cpmkAggregates'  => $cpmkAggregates,
-            'asmtAggregates'  => $asmtAggregates,
-            'cellAverages'    => $cellAverages,
-            'obe'             => $this->obe,
+            'section'          => $this->withHeaderCounts($section, null, $cpmks),
+            'cpmks'            => $cpmks,
+            'cpmkWeights'      => $cpmkWeights,
+            'totalCpmkWeight'  => $totalCpmkWeight,
+            'columns'          => $columns,
+            'rows'             => $rows,
+            'cpmkAggregates'   => $cpmkAggregates,
+            'asmtAggregates'   => $asmtAggregates,
+            'cellAverages'     => $cellAverages,
+            'obe'              => $this->obe,
+            // PRD §5.6 — mahasiswa non-aktif yang memiliki riwayat nilai
+            'inactiveStudents' => $this->enrollment->inactiveStudentsWithRecords($section),
         ]);
     }
 

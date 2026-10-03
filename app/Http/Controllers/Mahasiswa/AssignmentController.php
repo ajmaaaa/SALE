@@ -75,9 +75,9 @@ class AssignmentController extends Controller
                 if ($reviewStudent) {
                     $codingScoreUrl = route('dosen.penilaian.asesmen.student.coding_scores', [$section->id, $assessment->id, $reviewStudent->id]);
 
-                    if (Schema::hasTable('assessment_scores')) {
+                    if (Schema::hasTable('student_assessment_scores')) {
                         $studentScoreRec = StudentAssessmentScore::where('assessment_id', $assessment->id)
-                            ->where('user_id', $reviewStudent->id)
+                            ->where('mahasiswa_id', $reviewStudent->id)
                             ->first();
                         $studentScore = $studentScoreRec?->score;
                     }
@@ -126,9 +126,9 @@ class AssignmentController extends Controller
                     ->first();
             }
 
-            if (!$isMaterial && $user && Schema::hasTable('assessment_scores')) {
+            if (!$isMaterial && $user && Schema::hasTable('student_assessment_scores')) {
                 $studentScoreRec = StudentAssessmentScore::where('assessment_id', $assessment->id)
-                    ->where('user_id', $user->id)
+                    ->where('mahasiswa_id', $user->id)
                     ->first();
                 $studentScore = $studentScoreRec?->score;
             }
