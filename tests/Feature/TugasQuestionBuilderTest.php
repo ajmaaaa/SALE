@@ -103,6 +103,8 @@ class TugasQuestionBuilderTest extends TestCase
         $response->assertSee('data-coding-step-tabs', false);
         $response->assertSee('Susun Soal (Pemrograman)');
         $response->assertSee('data-cpmk-select-picker', false);
+        $response->assertSee('data-apply-coding-count', false);
+        $response->assertSee('data-auto-distribute-coding-points', false);
 
         // 3. Tombol navigasi stepper
         $response->assertSee('data-content-progress', false);
@@ -950,6 +952,84 @@ class TugasQuestionBuilderTest extends TestCase
         $quizRoomResponse = $this->actingAs($student)->get(route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]));
         $quizRoomResponse->assertRedirect(route('mahasiswa.course.item', [$this->section->id, $quiz->id]));
         $quizRoomResponse->assertSessionHas('notice', 'Soal kuis belum tersedia.');
+    }
+
+    public function test_legacy_coding_assessment_prefills_step_and_allows_editing_multiple_steps_with_cpmk(): void
+    {
+        // 1. Buat tugas pemrograman lama tanpa array coding_steps di payload (seperti Assessment 69)
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'PRAK-LEGACY',
+            'name' => 'Praktikum Algoritma Legacy',
+            'type' => 'coding',
+            'final_weight' => 10,
+            'status' => 'published',
+            'learning_payload' => [
+                'title' => 'Praktikum Algoritma Legacy',
+                'type' => 'coding',
+                'module' => 'Modul 1: Algoritma',
+                'body' => 'Selesaikan implementasi algoritma pencarian.',
+                'language' => 'python',
+                'ai_enabled' => true,
+                'cpmk' => $this->cpmk1->code,
+                'points' => 100,
+            ],
+        ]);
+
+        // 2. Akses halaman edit oleh dosen
+        $editResponse = $this->actingAs($this->dosen)->get(route('dosen.item.edit', [
+            'course' => $this->section->id,
+            'item' => $assessment->id,
+        ]));
+        $editResponse->assertOk();
+
+        // Verifikasi bahwa data lama (judul, instruksi, CPMK, poin) ter-prefill ke dalam data-old-coding-steps
+        $editResponse->assertSee('Praktikum Algoritma Legacy');
+        $editResponse->assertSee('Selesaikan implementasi algoritma pencarian.');
+        $editResponse->assertSee($this->cpmk1->code);
+        $editResponse->assertSee('data-apply-coding-count', false);
+        $editResponse->assertSee('data-auto-distribute-coding-points', false);
+
+        // 3. Simpan perubahan dengan 2 butir soal dan CPMK berbeda
+        $updatePayload = [
+            'type' => 'coding',
+            'task_mode' => 'coding',
+            'question_type' => 'coding',
+            'title' => 'Praktikum Algoritma Multi-Soal',
+            'module' => 'Modul 1: Algoritma',
+            'body' => 'Instruksi umum praktikum.',
+            'coding_steps' => [
+                [
+                    'title' => 'Soal 1: Binary Search',
+                    'body' => 'Implementasikan binary search.',
+                    'cpmk' => $this->cpmk1->code,
+                    'points' => 50,
+                ],
+                [
+                    'title' => 'Soal 2: Linear Search',
+                    'body' => 'Implementasikan linear search.',
+                    'cpmk' => $this->cpmk2->code,
+                    'points' => 50,
+                ],
+            ],
+        ];
+
+        $updateResponse = $this->actingAs($this->dosen)->put(
+            route('dosen.item.update', ['course' => $this->section->id, 'item' => $assessment->id]),
+            $updatePayload
+        );
+
+        $updateResponse->assertRedirect(route('dosen.course.item', [$this->section->id, $assessment->id]))
+            ->assertSessionHasNoErrors();
+
+        $assessment->refresh();
+        $this->assertCount(2, $assessment->learning_payload['coding_steps']);
+        $this->assertSame('Soal 1: Binary Search', $assessment->learning_payload['coding_steps'][0]['title']);
+        $this->assertSame($this->cpmk1->code, $assessment->learning_payload['coding_steps'][0]['cpmk']);
+        $this->assertSame(50, $assessment->learning_payload['coding_steps'][0]['points']);
+        $this->assertSame('Soal 2: Linear Search', $assessment->learning_payload['coding_steps'][1]['title']);
+        $this->assertSame($this->cpmk2->code, $assessment->learning_payload['coding_steps'][1]['cpmk']);
+        $this->assertSame(50, $assessment->learning_payload['coding_steps'][1]['points']);
     }
 }
 

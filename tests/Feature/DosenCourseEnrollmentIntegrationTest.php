@@ -129,8 +129,8 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
             ->assertSee('Tambahkan Saya');
 
         $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code))
-            ->assertOk()
-            ->assertSee('berhasil bergabung sebagai Dosen Pendamping');
+            ->assertRedirect(route('dosen.course.show', $section->id))
+            ->assertSessionHas('notice');
 
         $this->assertSame($joiningDosen->id, $section->fresh()->dosen_pendamping_id);
 
@@ -308,8 +308,8 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
             ->assertSee('Belum ada kelas.');
 
         $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code))
-            ->assertOk()
-            ->assertSee('berhasil bergabung sebagai Dosen Ketua');
+            ->assertRedirect(route('dosen.course.show', $section->id))
+            ->assertSessionHas('notice');
 
         $this->assertSame($dosen->id, $section->fresh()->dosen_id);
         $this->get(route('dosen.dashboard'))->assertOk()->assertSee('Kelas Kosong');
@@ -331,7 +331,8 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
             ->assertDontSee('Kelas Kosong')
             ->assertSee('Belum ada kelas.');
 
-        $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code))->assertOk();
+        $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code))
+            ->assertRedirect(route('mahasiswa.course.show', $section->id));
         $this->get(route('mahasiswa.course.index'))
             ->assertOk()
             ->assertSee('Kelas Kosong');

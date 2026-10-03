@@ -211,4 +211,53 @@ class AuthLoginTest extends TestCase
             ->assertJsonPath('session_expired', true);
         $this->assertGuest();
     }
+
+    public function test_wrong_password_five_times_locks_account_for_five_hours_without_deactivating_user(): void
+    {
+        $user = User::where('email', 'budi@example.test')->firstOrFail();
+        $this->assertTrue($user->is_active);
+
+        // Percobaan salah 1 sampai 4
+        for ($i = 1; $i <= 4; $i++) {
+            $res = $this->post('/login', [
+                'login_id' => 'budi@example.test',
+                'password' => 'wrongpass' . $i,
+            ]);
+            $res->assertSessionHasErrors(['login_id', 'password']);
+            $this->assertGuest();
+        }
+
+        // Percobaan salah ke-5
+        $res5 = $this->post('/login', [
+            'login_id' => 'budi@example.test',
+            'password' => 'wrongpass5',
+        ]);
+        $res5->assertSessionHasErrors(['login_id', 'password']);
+        $this->assertGuest();
+        $errorMsg = session('errors')->get('login_id')[0];
+        $this->assertStringContainsString('lebih dari 5 kali', $errorMsg);
+        $this->assertStringContainsString('admin prodi', $errorMsg);
+
+        // Akun tetap aktif di DB (tidak diblokir permanen / ganti password admin)
+        $this->assertTrue($user->fresh()->is_active);
+
+        // Percobaan ke-6 terkunci meskipun mencoba dengan password benar
+        $res6 = $this->post('/login', [
+            'login_id' => $user->nim_nidn ?: 'budi@example.test',
+            'password' => 'password',
+        ]);
+        $res6->assertSessionHasErrors(['login_id', 'password']);
+        $this->assertGuest();
+
+        // Majukan waktu 5 jam (18.001 detik)
+        $this->travel(18001)->seconds();
+
+        // Setelah 5 jam, pengguna dapat mencoba login kembali dengan password benar
+        $resUnlock = $this->post('/login', [
+            'login_id' => 'budi@example.test',
+            'password' => 'password',
+        ]);
+        $resUnlock->assertRedirect('/dosen/dashboard');
+        $this->assertAuthenticated();
+    }
 }

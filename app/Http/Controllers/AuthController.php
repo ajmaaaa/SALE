@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
@@ -101,12 +102,42 @@ class AuthController extends Controller
                 ->onlyInput('login_id');
         }
 
-        if (! Hash::check($credentials['password'], $user->password)) {
-            $msg = 'Kata sandi yang Anda masukkan salah.';
+        // Kunci akun selama 5 jam (18.000 detik) jika salah kata sandi lebih dari 5 kali
+        $throttleKey = 'login:password_failures:user:'.$user->id;
+        $maxAttempts = 5;
+        $lockoutSeconds = 5 * 3600; // 5 jam = 18.000 detik
+
+        if (RateLimiter::tooManyAttempts($throttleKey, $maxAttempts)) {
+            $secondsRemaining = RateLimiter::availableIn($throttleKey);
+            $hours = ceil($secondsRemaining / 3600);
+            $timeText = $hours > 1 ? "{$hours} jam lagi" : ($secondsRemaining > 60 ? ceil($secondsRemaining / 60) . ' menit lagi' : 'beberapa saat lagi');
+            $msg = "Terlalu banyak percobaan kata sandi yang salah (lebih dari 5 kali). Akun Anda terkunci sementara dan dapat dicoba lagi {$timeText}. Silakan hubungi admin prodi untuk kendala password bermasalah.";
+
             return back()
                 ->withErrors(['login_id' => $msg, 'password' => $msg])
                 ->onlyInput('login_id');
         }
+
+        if (! Hash::check($credentials['password'], $user->password)) {
+            RateLimiter::hit($throttleKey, $lockoutSeconds);
+            $attempts = RateLimiter::attempts($throttleKey);
+
+            if ($attempts >= $maxAttempts) {
+                $secondsRemaining = RateLimiter::availableIn($throttleKey);
+                $hours = ceil($secondsRemaining / 3600);
+                $timeText = $hours > 1 ? "{$hours} jam lagi" : ($secondsRemaining > 60 ? ceil($secondsRemaining / 60) . ' menit lagi' : 'beberapa saat lagi');
+                $msg = "Terlalu banyak percobaan kata sandi yang salah (lebih dari 5 kali). Akun Anda terkunci sementara dan dapat dicoba lagi {$timeText}. Silakan hubungi admin prodi untuk kendala password bermasalah.";
+            } else {
+                $remaining = $maxAttempts - $attempts;
+                $msg = "Kata sandi yang Anda masukkan salah. Sisa {$remaining} kali percobaan sebelum akun dibatasi selama 5 jam.";
+            }
+
+            return back()
+                ->withErrors(['login_id' => $msg, 'password' => $msg])
+                ->onlyInput('login_id');
+        }
+
+        RateLimiter::clear($throttleKey);
 
         $role = $user->role?->name;
         abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'], true), 403, 'Akun belum memiliki peran yang didukung.');

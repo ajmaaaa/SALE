@@ -329,7 +329,8 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $questionImage = $payload['question_image'] ?? null;
         $optionImages = array_values(array_filter($payload['option_images'] ?? []));
         $questionImages = array_filter(array_column($payload['questions'] ?? [], 'image'));
-        $excludeUuids = array_values(array_filter(array_merge([$questionImage], $optionImages, $questionImages)));
+        $stepAttachments = array_filter(array_column($payload['coding_steps'] ?? [], 'attachment'));
+        $excludeUuids = array_values(array_filter(array_merge([$questionImage], $optionImages, $questionImages, $stepAttachments)));
 
         $currentAtts = $payload['attachments'] ?? [];
         // Sumber 1: tabel attachments DB yang terhubung ke assessment ini
@@ -351,19 +352,36 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $filemetaUuids)));
         }
 
-        if (empty($payload['coding_steps']) && ! empty($payload['questions'])) {
-            $codingQuestions = array_filter($payload['questions'], fn($q) => ($q['type'] ?? '') === 'coding');
-            if (! empty($codingQuestions)) {
-                $payload['coding_steps'] = array_values(array_map(function($q) use ($payload) {
-                    return [
-                        'title' => $q['prompt'] ?? 'Soal Pemrograman',
-                        'body' => $q['body'] ?? $payload['body'] ?? '',
-                        'cpmk' => $q['cpmk'] ?? null,
-                        'points' => $q['points'] ?? 100,
-                        'link' => null,
+        $isCoding = $type === 'coding'
+            || (($payload['task_mode'] ?? null) === 'coding')
+            || (($payload['question_type'] ?? null) === 'coding');
+
+        if (empty($payload['coding_steps'])) {
+            if (! empty($payload['questions'])) {
+                $codingQuestions = array_filter($payload['questions'], fn($q) => ($q['type'] ?? '') === 'coding');
+                if (! empty($codingQuestions)) {
+                    $payload['coding_steps'] = array_values(array_map(function($q) use ($payload) {
+                        return [
+                            'title' => $q['prompt'] ?? 'Soal Pemrograman',
+                            'body' => $q['body'] ?? $payload['body'] ?? '',
+                            'cpmk' => $q['cpmk'] ?? null,
+                            'points' => $q['points'] ?? 100,
+                            'link' => null,
+                            'attachment' => null,
+                        ];
+                    }, $codingQuestions));
+                }
+            } elseif ($isCoding) {
+                $payload['coding_steps'] = [
+                    [
+                        'title' => $payload['title'] ?? $assessment->name ?? 'Soal Pemrograman',
+                        'body' => $payload['body'] ?? $assessment->description ?? '',
+                        'cpmk' => $payload['cpmk'] ?? $assessment->cpmk ?? null,
+                        'points' => (int) ($payload['points'] ?? 100),
+                        'link' => $payload['link'] ?? null,
                         'attachment' => null,
-                    ];
-                }, $codingQuestions));
+                    ]
+                ];
             }
         }
 
@@ -396,6 +414,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'body' => $body,
             'points' => $payload['points'] ?? 100,
             'due' => $due,
+            'attachments' => $currentAtts,
             'allow_late' => (bool) $assessment->allow_late,
             'published_at' => $publishedAt ? \Carbon\Carbon::parse($publishedAt)->toIso8601String() : null,
             'published_at_formatted' => $publishedAtFormatted,
@@ -1111,6 +1130,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                         'path' => $att->path,
                         'name' => $att->name,
                         'mime' => $att->mime ?: self::guessMimeType($att->name),
+                        'size' => $att->size,
                     ];
                 }
             }

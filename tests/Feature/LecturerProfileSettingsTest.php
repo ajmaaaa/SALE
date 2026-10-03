@@ -58,6 +58,47 @@ class LecturerProfileSettingsTest extends TestCase
             ->assertSessionHas('status', 'password-updated');
 
         $this->assertTrue(Hash::check('Updatedpass456!', $this->lecturer->fresh()->password));
+
+        // Verifikasi login dengan password baru berhasil
+        $this->post('/logout');
+        $this->assertGuest();
+
+        // Login dengan password lama harus ditolak
+        $failLogin = $this->post('/login', [
+            'login_id' => $this->lecturer->email,
+            'password' => 'Currentpass123!',
+        ]);
+        $failLogin->assertSessionHasErrors(['login_id', 'password']);
+        $this->assertGuest();
+
+        // Login dengan password baru harus sukses
+        $successLogin = $this->post('/login', [
+            'login_id' => $this->lecturer->email,
+            'password' => 'Updatedpass456!',
+        ]);
+        $successLogin->assertRedirect('/dosen/dashboard');
+        $this->assertAuthenticatedAs($this->lecturer);
+    }
+
+    public function test_lecturer_password_update_fails_with_wrong_current_password_or_mismatched_confirmation(): void
+    {
+        // 1. Password saat ini salah
+        $resWrong = $this->actingAs($this->lecturer)
+            ->put(route('dosen.profile.password'), [
+                'current_password' => 'Wrongpass999!',
+                'new_password' => 'Newpass123!',
+                'new_password_confirmation' => 'Newpass123!',
+            ]);
+        $resWrong->assertSessionHasErrors('current_password');
+
+        // 2. Konfirmasi password tidak cocok
+        $resMismatch = $this->actingAs($this->lecturer)
+            ->put(route('dosen.profile.password'), [
+                'current_password' => 'Currentpass123!',
+                'new_password' => 'Newpass123!',
+                'new_password_confirmation' => 'Differentpass123!',
+            ]);
+        $resMismatch->assertSessionHasErrors('new_password');
     }
 
     public function test_notification_preferences_persist_checked_and_unchecked_values(): void

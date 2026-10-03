@@ -25,6 +25,17 @@
     display: none !important;
 }
 
+/* Hilangkan ikon mata native bawaan browser (seperti Microsoft Edge, IE, Chrome) agar tidak muncul ganda (double eye icon) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
 @keyframes typing-bounce {
     0%, 80%, 100% {
         transform: translateY(0);

@@ -164,4 +164,11 @@
         </div>
     </div>
 </div>
+@if($errors->has('current_password') || $errors->has('new_password') || session('status') === 'password-updated')
+    <script>
+        if (!window.location.hash || window.location.hash === '#profil') {
+            window.location.hash = '#keamanan';
+        }
+    </script>
+@endif
 @endsection

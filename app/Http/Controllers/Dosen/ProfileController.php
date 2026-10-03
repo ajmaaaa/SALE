@@ -56,6 +56,12 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
             'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        ], [
+            'current_password.required' => 'Kata sandi saat ini wajib diisi.',
+            'current_password.current_password' => 'Kata sandi saat ini yang Anda masukkan salah.',
+            'new_password.required' => 'Kata sandi baru wajib diisi.',
+            'new_password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
+            'new_password.min' => 'Kata sandi baru minimal 8 karakter.',
         ]);
 
         $user->forceFill(['password' => $validated['new_password']])->save();

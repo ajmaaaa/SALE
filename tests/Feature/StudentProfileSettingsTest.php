@@ -62,6 +62,47 @@ class StudentProfileSettingsTest extends TestCase
             ->assertSessionHas('status', 'password-updated');
 
         $this->assertTrue(Hash::check('Updatedpass456!', $this->student->fresh()->password));
+
+        // Verifikasi login dengan password baru berhasil
+        $this->post('/logout');
+        $this->assertGuest();
+
+        // Login dengan password lama harus ditolak
+        $failLogin = $this->post('/login', [
+            'login_id' => $this->student->email,
+            'password' => 'Currentpass123!',
+        ]);
+        $failLogin->assertSessionHasErrors(['login_id', 'password']);
+        $this->assertGuest();
+
+        // Login dengan password baru harus sukses
+        $successLogin = $this->post('/login', [
+            'login_id' => $this->student->email,
+            'password' => 'Updatedpass456!',
+        ]);
+        $successLogin->assertRedirect('/mahasiswa/dashboard');
+        $this->assertAuthenticatedAs($this->student);
+    }
+
+    public function test_student_password_update_fails_with_wrong_current_password_or_mismatched_confirmation(): void
+    {
+        // 1. Password saat ini salah
+        $resWrong = $this->actingAs($this->student)
+            ->put(route('mahasiswa.profile.password'), [
+                'current_password' => 'Wrongpass999!',
+                'new_password' => 'Newpass123!',
+                'new_password_confirmation' => 'Newpass123!',
+            ]);
+        $resWrong->assertSessionHasErrors('current_password');
+
+        // 2. Konfirmasi password tidak cocok
+        $resMismatch = $this->actingAs($this->student)
+            ->put(route('mahasiswa.profile.password'), [
+                'current_password' => 'Currentpass123!',
+                'new_password' => 'Newpass123!',
+                'new_password_confirmation' => 'Differentpass123!',
+            ]);
+        $resMismatch->assertSessionHasErrors('new_password');
     }
 
     public function test_preferences_save_unchecked_values_without_removing_other_preferences(): void

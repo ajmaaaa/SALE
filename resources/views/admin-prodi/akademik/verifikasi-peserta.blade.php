@@ -40,7 +40,7 @@
                         <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Kelas &amp; Dosen</th>
                         <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Alasan Dosen</th>
                         <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Pembelaan Mahasiswa</th>
-                        <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Berkas KRS</th>
+                        <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Berkas Bukti</th>
                         <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Waktu Pengajuan</th>
                         <th class="px-4 py-3 text-left font-semibold text-ink text-xs">Status</th>
                         <th class="px-4 py-3 text-right font-semibold text-ink text-xs">Aksi</th>
@@ -68,12 +68,12 @@
                         </td>
                         <td class="px-4 py-3 align-middle whitespace-nowrap">
                             @if($appeal->attachment_path)
-                                <a href="{{ route('admin-prodi.akademik.verifikasi-peserta.attachment', $appeal->id) }}"
-                                   target="_blank"
-                                   class="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                                <button type="button"
+                                        onclick="document.getElementById('preview-bukti-modal-{{ $appeal->id }}').showModal()"
+                                        class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1.5 font-medium text-brand hover:text-brand-dark cursor-pointer shadow-2xs">
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    Lihat KRS
-                                </a>
+                                    <span>Lihat KRS</span>
+                                </button>
                             @else
                                 <span class="text-xs text-muted">—</span>
                             @endif
@@ -165,7 +165,7 @@
                     <label for="admin_notes_{{ $appeal->id }}" class="block text-xs font-semibold text-ink mb-1">
                         Alasan Penolakan <span class="text-rose-500">*</span>
                     </label>
-                    <textarea id="admin_notes_{{ $appeal->id }}" name="admin_notes" rows="3" required placeholder="Tuliskan alasan penolakan permohonan verifikasi ini (misal: Berkas KRS tidak valid atau tidak terdaftar resmi)..." class="field w-full text-xs resize-none"></textarea>
+                    <textarea id="admin_notes_{{ $appeal->id }}" name="admin_notes" rows="3" required placeholder="Tuliskan alasan penolakan permohonan verifikasi ini (misal: Berkas bukti tidak valid atau tidak terdaftar resmi)..." class="field w-full text-xs resize-none"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 pt-1">
                     <button type="button" onclick="document.getElementById('reject-modal-{{ $appeal->id }}').close()" class="button-secondary text-xs py-2 px-4 cursor-pointer">
@@ -178,9 +178,79 @@
             </form>
         </dialog>
         @endif
+
+        {{-- Modal Tinjau Berkas Bukti Mahasiswa (Mirip Lembar Jawaban Penilaian) --}}
+        @if($appeal->attachment_path)
+        <dialog id="preview-bukti-modal-{{ $appeal->id }}" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-3xl w-[calc(100%-2rem)] max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30 shrink-0">
+                <div>
+                    <h3 class="text-sm font-bold text-ink">Tinjau Bukti Permohonan Verifikasi</h3>
+                    <p class="text-xs text-muted mt-0.5">{{ $appeal->mahasiswa->name ?? 'Mahasiswa' }} · {{ $appeal->classSection->display_code ?? '-' }} ({{ $appeal->classSection->mataKuliah->name ?? '-' }})</p>
+                </div>
+                <button type="button" onclick="document.getElementById('preview-bukti-modal-{{ $appeal->id }}').close()" class="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup modal">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+                {{-- Info Ringkasan --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl border border-line/70 bg-canvas/40">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted block mb-1">Alasan Dikeluarkan Dosen:</span>
+                        <p class="text-xs text-ink font-medium bg-white p-2.5 rounded-lg border border-line/60 leading-relaxed">{{ $appeal->kick_reason ?: 'Tidak ada catatan spesifik dari dosen.' }}</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted block mb-1">Pembelaan Mahasiswa:</span>
+                        <p class="text-xs text-ink font-medium bg-white p-2.5 rounded-lg border border-line/60 leading-relaxed">{{ $appeal->student_notes }}</p>
+                    </div>
+                </div>
+
+                {{-- Pratinjau Berkas Bukti --}}
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-ink">Berkas Bukti Terlampir:</span>
+                        <a href="{{ route('admin-prodi.akademik.verifikasi-peserta.attachment', $appeal->id) }}" target="_blank" class="button-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1.5 text-brand hover:underline font-semibold shadow-2xs">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            <span>Buka di Tab Baru</span>
+                        </a>
+                    </div>
+                    @php
+                        $ext = strtolower(pathinfo($appeal->attachment_path, PATHINFO_EXTENSION));
+                        $isImg = in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif']);
+                    @endphp
+                    <div class="rounded-xl border border-line bg-canvas/20 p-2 overflow-hidden flex items-center justify-center min-h-[300px]">
+                        @if($isImg)
+                            <img src="{{ route('admin-prodi.akademik.verifikasi-peserta.attachment', $appeal->id) }}" alt="Pratinjau Bukti" class="max-h-[55vh] max-w-full rounded-lg object-contain shadow-xs">
+                        @else
+                            <iframe src="{{ route('admin-prodi.akademik.verifikasi-peserta.attachment', $appeal->id) }}" class="w-full h-[55vh] rounded-lg border-0 bg-white"></iframe>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-3.5 border-t border-line/60 bg-canvas/30 flex items-center justify-between shrink-0">
+                <span class="text-xs text-muted">Waktu Pengajuan: {{ $appeal->created_at->format('d M Y H:i') }}</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="document.getElementById('preview-bukti-modal-{{ $appeal->id }}').close()" class="button-secondary text-xs py-1.5 px-3.5 cursor-pointer">
+                        Tutup
+                    </button>
+                    @if($appeal->status === 'pending')
+                        <form action="{{ route('admin-prodi.akademik.verifikasi-peserta.approve', $appeal->id) }}" method="POST"
+                              data-confirm="Setujui permohonan {{ $appeal->mahasiswa->name ?? 'mahasiswa' }} untuk kelas {{ $appeal->classSection->display_code ?? '' }}?"
+                              data-confirm-title="Setujui Verifikasi"
+                              data-confirm-label="Setujui"
+                              class="inline">
+                            @csrf
+                            <button type="submit" class="button-primary text-xs py-1.5 px-3.5 cursor-pointer">
+                                Setujui
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        </dialog>
+        @endif
     @endforeach
     <script>
-        document.querySelectorAll('dialog[id^="reject-modal-"]').forEach(dialog => {
+        document.querySelectorAll('dialog[id^="reject-modal-"], dialog[id^="preview-bukti-modal-"]').forEach(dialog => {
             dialog.addEventListener('click', function(e) {
                 if (e.target === this) this.close();
             });

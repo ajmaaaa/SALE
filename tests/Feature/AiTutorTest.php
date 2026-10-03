@@ -302,4 +302,20 @@ class AiTutorTest extends TestCase
         $this->from('/ai/tasks/1')->post('/ai/logout', ['assignment' => 1])
             ->assertRedirect('/mahasiswa/assignment/1/code');
     }
+
+    public function test_cancel_ai_request_releases_lock(): void
+    {
+        $user = $this->student();
+        $lock = Cache::lock('ai:user:'.$user->id, 180);
+        $this->assertTrue($lock->get());
+
+        // Call cancel endpoint
+        $response = $this->actingAs($user)->postJson('/ai/tasks/1/cancel');
+        $response->assertOk()->assertJson(['cancelled' => true]);
+
+        // Lock should now be acquirable again immediately
+        $newLock = Cache::lock('ai:user:'.$user->id, 60);
+        $this->assertTrue($newLock->get());
+        $newLock->release();
+    }
 }

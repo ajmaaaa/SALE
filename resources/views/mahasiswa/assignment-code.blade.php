@@ -147,9 +147,7 @@
                 'title' => $item['title'] ?? 'Praktikum Coding',
                 'cpmk' => $item['cpmk'] ?? 'CPMK-01',
                 'body' => $item['body'] ?? 'Lengkapi tugas pemrograman berikut.',
-                'code' => $language === 'web'
-                    ? '<!DOCTYPE html><html><body><h1>Halo SALE</h1></body></html>'
-                    : '# Tulis jawaban Python kamu di sini',
+                'code' => $item['code'] ?? '',
             ]
         ];
     }
@@ -195,10 +193,10 @@
             'code' => $materialSteps[0]['code'] ?? 'class Node:',
         ]];
     } else {
-        $defaultFiles = [['name' => 'untitled', 'code' => '# Tulis jawaban Python kamu di sini']];
+        $defaultFiles = [['name' => 'untitled', 'code' => $materialSteps[0]['code'] ?? '']];
     }
 @endphp
-    @if($hasSavedSubmission && !$isLecturer && !$isSubmitted)
+    @if(!empty($item['duration_enabled']) && !$isMaterial && $hasSavedSubmission && !$isLecturer && !$isSubmitted)
         <script>
             try {
                 const draftKey = `sale.code.assignment.{{ $item['id'] }}.{{ $language }}`;
@@ -260,8 +258,23 @@
 
             </div>
 
-            {{-- Center: Tombol Daftar Bagian (Grid Popover Trigger) --}}
+            {{-- Center: Tombol Daftar Bagian (Grid Popover Trigger) & Countdown Timer --}}
             <div class="flex items-center gap-2">
+                @if(!empty($item['duration_enabled']) && !$isMaterial)
+                    @if(!$isLecturer && !$isSubmitted && !$isArchived)
+                        <div id="code-timer-badge" class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono font-bold text-slate-700">
+                            <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <span id="code-countdown"
+                                  data-duration="{{ ((int)($item['duration_minutes'] ?? 60)) * 60 }}">00:00</span>
+                        </div>
+                    @elseif($isLecturer)
+                        <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs text-slate-600">
+                            <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <span>Timer: {{ (int)($item['duration_minutes'] ?? 60) }} mnt</span>
+                        </div>
+                    @endif
+                @endif
+
                 <button type="button" id="btn-open-material-modal" class="button-secondary text-xs py-1.5 px-3 font-bold flex items-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-800 shadow-2xs cursor-pointer" title="Buka Daftar Bagian Materi">
                     <svg class="h-3.5 w-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                     <span>Daftar Bagian (<span id="header-cur-step">1</span>/{{ $totalSteps }})</span>
@@ -506,10 +519,6 @@
                 {{-- Footer Panel Kiri --}}
                 <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400 shrink-0">
                     <span id="panel-step-counter-bottom">Bagian 1 dari {{ $totalSteps }}</span>
-                    <span class="text-muted font-medium flex items-center gap-1">
-                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-                        Editor siap pakai
-                    </span>
                 </div>
             </section>
 
@@ -529,6 +538,10 @@
 
                         {{-- Action Buttons (Kanan): Tanyakan Baris | Terminal (Icon) | Play (Icon) --}}
                         <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                            <button type="button" data-insert-html5 hidden class="h-8 !min-h-0 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#b9c0ca] bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition hover:border-ink shadow-2xs leading-none" title="Sisipkan Template Dasar HTML5">
+                                <svg class="h-3.5 w-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l2 16 6 2 6-2 2-16z"/></svg>
+                                <span>+ Template HTML5</span>
+                            </button>
                             @if($aiEnabled)
                                 <button type="button" data-mention-code disabled class="h-8 !min-h-0 px-3 inline-flex items-center justify-center rounded-lg border border-[#b9c0ca] bg-white text-xs font-semibold text-ink transition hover:border-ink hover:bg-slate-50 disabled:opacity-40 shadow-2xs leading-none" title="Tanyakan baris kode terpilih ke AI Asisten">
                                     Tanyakan Baris
@@ -546,9 +559,9 @@
                     </div>
 
                     <textarea data-code-files-json class="hidden" aria-hidden="true">@json($defaultFiles)</textarea>
-                    <div data-code-editor data-assignment-id="{{ $item['id'] }}" data-runtime-url="{{ asset('vendor/pyodide') }}/" data-code-language="{{ $language }}" data-max-files="5" data-max-file-chars="8000" data-max-total-chars="20000" @if($isLecturer) data-is-lecturer="1" @endif @if($isSubmitted) data-read-only="1" data-is-submitted="1" @endif class="code-editor flex-1 h-full overflow-auto bg-[#282c34]" aria-label="Editor kode {{ $language === 'web' ? 'HTML/CSS/JS' : 'Python' }}"></div>
+                    <div data-code-editor data-assignment-id="{{ $item['id'] }}" data-runtime-url="{{ asset('vendor/pyodide') }}/" data-code-language="{{ $language }}" data-has-duration="{{ (!empty($item['duration_enabled']) && !$isMaterial) ? '1' : '0' }}" data-max-files="5" data-max-file-chars="8000" data-max-total-chars="20000" @if($isLecturer) data-is-lecturer="1" @endif @if($isSubmitted) data-read-only="1" data-is-submitted="1" @endif class="code-editor flex-1 h-full overflow-auto bg-[#282c34]" aria-label="Editor kode {{ $language === 'web' ? 'HTML/CSS/JS' : 'Python' }}"></div>
                     <div class="flex items-center justify-between gap-3 px-3 py-1.5 bg-[#20242b] text-[11px] text-[#aeb8c4]">
-                        <span data-code-save-status>{{ $isLecturer ? 'Mode Peninjauan Berkas Mahasiswa' : ($isSubmitted ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)' : 'Draf tersimpan di browser') }}</span>
+                        <span data-code-save-status>{{ $isLecturer ? 'Mode Peninjauan Berkas Mahasiswa' : ($isSubmitted ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)' : (!empty($item['duration_enabled']) && !$isMaterial ? 'Draf tersimpan di browser' : 'Editor siap pakai')) }}</span>
                         <span class="flex items-center gap-3">
                             <span data-chars-count></span>
                             <span>UTF-8, 4 Spasi</span>
@@ -725,8 +738,9 @@
 
             {{-- PANEL 3 (KANAN): AI Asisten ("ai assitennya di kanan") --}}
             <aside id="panel-ai" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none" style="width: var(--workbench-right-width, 340px); min-width: 260px; max-width: 600px;" aria-labelledby="assistant-heading">
-                <div class="border-b border-line/60 p-4 bg-white">
+                <div class="border-b border-line/60 px-4 py-3 bg-white flex items-center justify-between gap-2">
                     <h2 id="assistant-heading" class="text-sm font-bold text-ink">AI Asisten</h2>
+                    <span data-ai-token-display class="text-xs text-slate-500 tabular-nums shrink-0" title="Sisa Kuota Token AI Akun Anda">Memuat token...</span>
                 </div>
 
                 @if (isset($errors) && $errors->has('ai'))
@@ -782,13 +796,17 @@
                     <div class="relative rounded-xl border border-[#b9c0ca] bg-white transition-all focus-within:border-brand focus-within:ring-1 focus-within:ring-brand shadow-2xs">
                         <label for="assistant-message" class="sr-only">Pertanyaan untuk AI Asisten</label>
                         <textarea required maxlength="2000" id="assistant-message" rows="2" class="w-full bg-transparent border-0 p-2.5 pr-10 pb-7 text-xs text-ink placeholder:text-[#737b86] resize-none outline-none focus:outline-none focus:ring-0 leading-relaxed block" placeholder="Tanyakan petunjuk konsep kode..."></textarea>
-                        <div class="absolute right-2 bottom-2 flex items-center">
+                        <div class="absolute right-2 bottom-2 flex items-center gap-1.5 z-10">
+                            <button type="button" data-ai-stop-btn class="h-7 w-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-white hidden items-center justify-center shadow-xs transition cursor-pointer shrink-0" title="Hentikan balasan AI" aria-label="Hentikan balasan">
+                                <svg class="h-3 w-3 fill-current" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+                            </button>
                             <button disabled type="submit" class="button-primary h-7 w-7 !p-0 !min-h-0 rounded-lg disabled:opacity-30 inline-flex items-center justify-center transition-all duration-150 transform scale-0 opacity-0 pointer-events-none shrink-0 shadow-xs" title="Kirim pertanyaan ke AI Asisten (Enter)" aria-label="Kirim pertanyaan">
                                 <svg class="h-3.5 w-3.5 fill-current text-white -mr-0.5 -mt-0.5" viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                 </svg>
                             </button>
                         </div>
+                        <span data-ai-status class="sr-only" aria-live="polite">Siap</span>
                     </div>
                 </form>
             </aside>
@@ -1087,6 +1105,8 @@
             modalCodingConfirmBtn?.addEventListener('click', () => {
                 modalCodingConfirmBtn.disabled = true;
                 modalCodingConfirmBtn.textContent = 'Menyerahkan...';
+                localStorage.removeItem(`sale.code.deadline.{{ $item['id'] }}`);
+                localStorage.removeItem(`sale.code.assignment.{{ $item['id'] }}.{{ $language }}`);
                 const allFiles = window.getAllWorkbenchFiles();
                 const ansInput = document.querySelector('[data-code-answer]');
                 if (ansInput && allFiles.length > 0) {
@@ -1109,6 +1129,66 @@
                     gridModal?.close();
                 });
             });
+
+            // Countdown timer jika batas durasi waktu diaktifkan
+            const codeTimerEl = document.getElementById('code-countdown');
+            if (codeTimerEl && !isMaterialItem && !{{ $isLecturer ? 'true' : 'false' }} && !{{ $isSubmitted ? 'true' : 'false' }} && !{{ $isArchived ? 'true' : 'false' }}) {
+                const totalDurationSeconds = Number(codeTimerEl.dataset.duration || 3600);
+                const deadlineKey = `sale.code.deadline.{{ $item['id'] }}`;
+                const now = Date.now();
+                let deadline = localStorage.getItem(deadlineKey);
+
+                if (!deadline || isNaN(Number(deadline))) {
+                    deadline = now + (totalDurationSeconds * 1000);
+                    localStorage.setItem(deadlineKey, String(deadline));
+                } else {
+                    deadline = Number(deadline);
+                }
+
+                const formatTime = (seconds) => {
+                    const m = Math.floor(seconds / 60);
+                    const s = seconds % 60;
+                    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                };
+
+                let hasTriggeredEnd = false;
+
+                const updateCodeTimer = async () => {
+                    const currentNow = Date.now();
+                    const remainingSeconds = Math.max(0, Math.floor((deadline - currentNow) / 1000));
+                    codeTimerEl.textContent = formatTime(remainingSeconds);
+
+                    if (remainingSeconds <= 300) {
+                        const badge = document.getElementById('code-timer-badge');
+                        if (badge) {
+                            badge.classList.add('text-danger', 'font-bold');
+                        }
+                    }
+
+                    if (remainingSeconds <= 0) {
+                        clearInterval(codeTimerInterval);
+                        localStorage.removeItem(deadlineKey);
+                        localStorage.removeItem(`sale.code.assignment.{{ $item['id'] }}.{{ $language }}`);
+                        if (!hasTriggeredEnd) {
+                            hasTriggeredEnd = true;
+                            if (typeof window.saleNotice === 'function') {
+                                await window.saleNotice({ title: 'Waktu pengerjaan berakhir', message: 'Jawaban kode Anda akan otomatis dikumpulkan.' });
+                            } else {
+                                alert('Waktu pengerjaan berakhir. Jawaban kode Anda akan otomatis dikumpulkan.');
+                            }
+                            const allFiles = window.getAllWorkbenchFiles();
+                            const ansInput = document.querySelector('[data-code-answer]');
+                            if (ansInput && allFiles.length > 0) {
+                                ansInput.value = JSON.stringify(allFiles);
+                            }
+                            formCodeSubmit?.submit();
+                        }
+                    }
+                };
+
+                updateCodeTimer();
+                const codeTimerInterval = setInterval(updateCodeTimer, 1000);
+            }
         });
     </script>
 </body>

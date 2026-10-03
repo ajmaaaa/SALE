@@ -21,6 +21,12 @@ class AssignmentController extends Controller
         return view('mahasiswa.assignment');
     }
 
+    public function assignmentCode(int $assignment): View|RedirectResponse
+    {
+        $assessment = Assessment::findOrFail($assignment);
+        return $this->courseCode($assessment->class_section_id, $assignment);
+    }
+
     public function courseCode(int $course, int $item): View|RedirectResponse
     {
         $user = auth()->user();

@@ -487,9 +487,8 @@ class AdminProdiManagementTest extends TestCase
         $this->assertFalse($section->students()->where('users.id', $rina->id)->exists());
 
         $response = $this->post(route('mahasiswa.join-kelas.post', 'ALGO201A'));
-        $response->assertStatus(200);
-        $response->assertSee('Pendaftaran Berhasil');
-        $response->assertSee('IF201-A');
+        $response->assertRedirect(route('mahasiswa.course.show', $section->id));
+        $response->assertSessionHas('notice');
 
         // Pastikan mahasiswa sudah terdaftar di database pivot
         $this->assertTrue($section->students()->where('users.id', $rina->id)->exists());
@@ -808,8 +807,8 @@ class AdminProdiManagementTest extends TestCase
 
         // Mahasiswa join kelas via kode
         $joinResponse = $this->post(route('mahasiswa.join-kelas.post', $section->enrollment_code));
-        $joinResponse->assertStatus(200);
-        $joinResponse->assertSee('Pendaftaran Berhasil');
+        $joinResponse->assertRedirect(route('mahasiswa.course.show', $section->id));
+        $joinResponse->assertSessionHas('notice');
 
         // Setelah join, kelas tersebut langsung muncul di Dashboard Mahasiswa
         $dashAfter = $this->get(route('mahasiswa.dashboard'));

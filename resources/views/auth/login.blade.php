@@ -7,6 +7,18 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Masuk | SALE - Smart Academic Learning Ecosystem</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        /* Mencegah icon mata ganda dari native browser (Microsoft Edge & WebKit) */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#0e2740] via-[#12385b] to-[#1c5384] font-sans antialiased text-white flex flex-col justify-between items-center p-6 sm:p-10 relative overflow-x-hidden select-none">
 
@@ -101,7 +113,7 @@
                                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
-                            <svg id="eye-off-icon" class="h-4 w-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <svg id="eye-off-icon" class="h-4 w-4 hidden" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
                                 <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
                                 <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
@@ -139,6 +151,8 @@
                     if (eyeIcon && eyeOffIcon) {
                         eyeIcon.classList.toggle('hidden', isPassword);
                         eyeOffIcon.classList.toggle('hidden', !isPassword);
+                        eyeIcon.style.display = isPassword ? 'none' : 'block';
+                        eyeOffIcon.style.display = isPassword ? 'block' : 'none';
                     }
                     toggleBtn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
                 });

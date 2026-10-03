@@ -62,6 +62,13 @@ class ForcedPasswordChangeTest extends TestCase
             'role_id' => $role->id,
             'must_change_password' => true,
         ]);
+        $dosenRole = Role::create(['name' => Role::DOSEN, 'label' => 'Dosen']);
+        $dosen = User::factory()->create([
+            'email' => 'budi@example.test',
+            'role_id' => $dosenRole->id,
+            'password' => 'password',
+            'must_change_password' => false,
+        ]);
 
         $this->actingAs($user)->get(route('login'))->assertOk();
 
@@ -70,8 +77,7 @@ class ForcedPasswordChangeTest extends TestCase
             'password' => 'password',
         ])->assertRedirect(route('dosen.dashboard'));
 
-        $this->assertSame('dosen', session('auth_user.role'));
-        $this->assertGuest();
+        $this->assertAuthenticatedAs($dosen);
     }
 
     public function test_password_change_page_uses_sale_layout_and_eight_character_rule(): void
