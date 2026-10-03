@@ -203,7 +203,11 @@ Route::post('/ai/logout', [AiTutorController::class, 'logout'])->middleware('aut
 Route::get('/ai/tasks/{assignment}', [AiTutorController::class, 'status'])->middleware('auth')->whereNumber('assignment')->name('ai.status');
 Route::post('/ai/tasks/{assignment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assignment')->name('ai.send');
 Route::post('/ai/tasks/{assignment}/cancel', [AiTutorController::class, 'cancel'])->middleware('auth')->whereNumber('assignment')->name('ai.cancel');
-
+Route::get('/ai/tasks/{assignment}/thread', [AiTutorController::class, 'thread'])->middleware('auth')->whereNumber('assignment')->name('ai.thread');
+Route::delete('/ai/tasks/{assignment}/thread', [AiTutorController::class, 'destroyThread'])->middleware('auth')->whereNumber('assignment')->name('ai.thread.destroy');
+Route::get('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'thread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread');
+Route::delete('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'destroyThread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread.destroy');
+Route::post('/ai/tutor/{assessment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.send');
 
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
 Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.post');

@@ -77,6 +77,11 @@ class Assessment extends Model
         return $this->hasMany(StudentAssessmentScore::class);
     }
 
+    public function aiThreads(): HasMany
+    {
+        return $this->hasMany(AiThread::class);
+    }
+
     public function scopeGradable($query)
     {
         return $query->whereNotIn('type', ['materi', 'pengumuman', 'lainnya']);

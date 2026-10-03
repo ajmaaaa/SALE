@@ -51,3 +51,15 @@ Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan ad
 2. **DeepSeek Response Schema**: DeepSeek belum mendukung argumen schema JSON seperti `responseSchema` di Gemini. Output JSON divalidasi fail-closed di PHP pada Fase 5.
 3. **Provider Lain (Claude / Anthropic)**: Belum tersedia adapter di kode SALE saat ini. Interface pemilihan provider saat ini melayani Google AI, OpenAI, dan DeepSeek. Sesuai PRD, adapter baru dapat ditambahkan mengikuti pola interface yang sama tanpa mengganggu pipeline tutor.
 
+---
+
+## 4. Catatan Fase 3 & Observasi untuk Fase 4
+- **Status Kebijakan Kelas Arsip & Enrollment**:
+  - Telah selesai diimplementasikan pada Fase 3 di [`app/Policies/AiThreadPolicy.php`](file:///home/ajmaaa/Projects/SALE/app/Policies/AiThreadPolicy.php) dan [`app/Http/Controllers/AiTutorController.php`](file:///home/ajmaaa/Projects/SALE/app/Http/Controllers/AiTutorController.php).
+  - Mahasiswa kicked/dropped ditolak (403), kelas arsip berstatus *read-only* (GET thread/status 200, POST message 403).
+- **History Server & Thread**:
+  - `ai_threads` dan `ai_messages` aktif. History client dan `class_section_id` diabaikan, riwayat dimuat dari DB (maks 8 pesan, 1.500 karakter/pesan, assistant ditolak diganti `[permintaan ditolak]`).
+- **Observasi untuk Fase 4**:
+  - Saat ini konteks RAG materi di `AiTutorController` masih mengambil 5 materi pertama secara naif (`orderBy('id')->limit(5)`). Pada Fase 4, ini akan digantikan penuh oleh `ContextBuilder` (judul, langkah coding, materi tertaut dari `learning_payload.linked_material_ids`, fallback 30 materi ringkas, filter data sensitif/solusi, dan console traceback).
+
+

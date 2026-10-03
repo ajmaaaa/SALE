@@ -126,6 +126,11 @@ class ClassSection extends Model
         return $this->hasMany(Assessment::class)->whereNotIn('type', ['materi', 'pengumuman', 'lainnya']);
     }
 
+    public function aiThreads(): HasMany
+    {
+        return $this->hasMany(AiThread::class);
+    }
+
     /**
      * Convenience accessor for a human-readable label, e.g. "IF204-A".
      */

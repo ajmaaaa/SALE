@@ -109,7 +109,7 @@ class User extends Authenticatable
         }
 
         $yearDiff = $startYear - (int) $this->angkatan;
-        $termOffset = ($semester->term === 2 || str_contains(strtolower((string) ($semester->name . ' ' . $semester->code)), 'genap')) ? 2 : 1;
+        $termOffset = ($semester->term === 2 || str_contains(strtolower((string) ($semester->name.' '.$semester->code)), 'genap')) ? 2 : 1;
 
         $calculated = ($yearDiff * 2) + $termOffset;
 
@@ -208,5 +208,10 @@ class User extends Authenticatable
             $builder->whereHas('role', fn ($roleQuery) => $roleQuery->where('name', $roleName))
                 ->orWhereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $roleName));
         });
+    }
+
+    public function aiThreads(): HasMany
+    {
+        return $this->hasMany(AiThread::class);
     }
 }

@@ -1,11 +1,18 @@
 <?php
 
+use App\Http\Controllers\AdminPreviewController;
+use App\Models\AiThread;
+use App\Models\ClassSection;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\Ai\GeminiEvaluationBenchmark;
+use App\Services\QuizGradingService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -15,7 +22,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('sale:backfill-quiz-scores', function () {
-    $result = app(\App\Services\QuizGradingService::class)->backfillAutomaticScores();
+    $result = app(QuizGradingService::class)->backfillAutomaticScores();
     $this->info("Backfill selesai: {$result['submissions']} submission, {$result['automatic_answers']} jawaban otomatis, {$result['pending_essays']} esai menunggu dosen.");
 
     return 0;
@@ -255,12 +262,12 @@ Artisan::command('ai:benchmark {file=docs/samples/ai-evaluation-benchmark.json} 
 })->purpose('Compare compact and detailed AI grading using labeled essay/code samples');
 
 Artisan::command('sale:backup', function () {
-    $dir = \App\Http\Controllers\AdminPreviewController::getBackupDirectory();
+    $dir = AdminPreviewController::getBackupDirectory();
     if (! is_dir($dir)) {
         mkdir($dir, 0700, true);
     }
-    $filename = 'sale-backup-' . now()->format('Y-m-d_His') . '.sql';
-    $path = $dir . '/' . $filename;
+    $filename = 'sale-backup-'.now()->format('Y-m-d_His').'.sql';
+    $path = $dir.'/'.$filename;
 
     $driver = DB::connection()->getDriverName();
     if ($driver === 'mysql') {
@@ -289,6 +296,7 @@ Artisan::command('sale:backup', function () {
             exec($cmd, $out, $code);
             if ($code === 0 && file_exists($path) && filesize($path) > 0) {
                 $this->info("Backup database tersimpan: {$path}");
+
                 return 0;
             }
         }
@@ -298,19 +306,21 @@ Artisan::command('sale:backup', function () {
     if (file_exists($fallbackFile)) {
         copy($fallbackFile, $path);
         $this->info("Backup database tersimpan (arsip): {$path}");
+
         return 0;
     }
 
-    file_put_contents($path, "-- SALE Database Backup\n-- " . now()->toIso8601String() . "\n");
+    file_put_contents($path, "-- SALE Database Backup\n-- ".now()->toIso8601String()."\n");
     $this->info("Backup tersimpan: {$path}");
+
     return 0;
 })->purpose('Simpan cadangan database secara otomatis ke storage server');
 
-\Illuminate\Support\Facades\Schedule::command('sale:backup')
+Schedule::command('sale:backup')
     ->dailyAt('02:00')
     ->when(function () {
         try {
-            $freq = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'backup_schedule')->value('value') ?? 'daily';
+            $freq = DB::table('system_settings')->where('key', 'backup_schedule')->value('value') ?? 'daily';
             if ($freq === 'manual') {
                 return false;
             }
@@ -320,29 +330,30 @@ Artisan::command('sale:backup', function () {
             if ($freq === 'monthly') {
                 return now()->day === 1;
             }
+
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return true;
         }
     });
 
 Artisan::command('sale:seed-students {count=40}', function () {
     $count = (int) $this->argument('count');
-    $mhsRole = \App\Models\Role::firstOrCreate(['name' => \App\Models\Role::MAHASISWA], ['label' => 'Mahasiswa']);
-    $firstSection = \App\Models\ClassSection::first();
+    $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+    $firstSection = ClassSection::first();
 
     $this->info("Membuat/memverifikasi {$count} akun mahasiswa untuk pengujian performa...");
     $bar = $this->output->createProgressBar($count);
     $bar->start();
 
     for ($i = 1; $i <= $count; $i++) {
-        $nim = '2401' . str_pad((string) $i, 4, '0', STR_PAD_LEFT);
-        $user = \App\Models\User::firstOrCreate(
+        $nim = '2401'.str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+        $user = User::firstOrCreate(
             ['nim_nidn' => $nim],
             [
                 'name' => "Mahasiswa Uji {$i}",
                 'email' => "mhs{$i}@student.sale.local",
-                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'password' => Hash::make('password123'),
                 'role_id' => $mhsRole->id,
                 'is_active' => true,
             ]
@@ -365,3 +376,28 @@ Artisan::command('sale:seed-students {count=40}', function () {
     return 0;
 })->purpose('Seed akun mahasiswa pengujian beban/concurrency');
 
+Artisan::command('ai:prune-threads {--days= : Jumlah hari retensi thread (default dari config AI_THREAD_RETENTION_DAYS)}', function () {
+    $days = (int) ($this->option('days') ?: config('ai.thread_retention_days', 180));
+    if ($days < 1) {
+        $this->error('Jumlah hari retensi harus lebih besar dari 0.');
+
+        return 1;
+    }
+
+    if (! Schema::hasTable('ai_threads')) {
+        $this->error('Tabel ai_threads belum tersedia.');
+
+        return 1;
+    }
+
+    $cutoff = now()->subDays($days);
+    $count = AiThread::where('updated_at', '<', $cutoff)->delete();
+
+    $this->info("Berhasil membersihkan {$count} AI thread yang lebih lama dari {$days} hari (sebelum {$cutoff->toDateString()}).");
+
+    return 0;
+})->purpose('Membersihkan thread AI yang telah melewati batas retensi');
+
+Artisan::command('ai:clean-threads {--days= : Jumlah hari retensi thread}', function () {
+    return $this->call('ai:prune-threads', ['--days' => $this->option('days')]);
+})->purpose('Alias untuk ai:prune-threads');

@@ -8,6 +8,8 @@ return [
     'daily_tokens' => (int) env('AI_DAILY_TOKENS', 100000),
     'global_daily_tokens' => (int) env('AI_GLOBAL_DAILY_TOKENS', 1000000),
     'task_turns' => (int) env('AI_TASK_TURNS', 12),
+    'history_messages' => (int) env('AI_HISTORY_MESSAGES', 8),
+    'thread_retention_days' => (int) env('AI_THREAD_RETENTION_DAYS', 180),
     'rpm' => (int) env('AI_RPM', 0),
     'benchmark_retries' => (int) env('AI_BENCHMARK_RETRIES', 2),
     // Gemini 3.6 Flash Standard paid-tier rates through 2026-12-31.

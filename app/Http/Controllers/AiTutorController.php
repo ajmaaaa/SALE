@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiMessage;
+use App\Models\AiThread;
 use App\Models\Assessment;
 use App\Models\Role;
 use App\Models\SystemSetting;
@@ -90,7 +92,7 @@ class AiTutorController extends Controller
         return url("/mahasiswa/assignment/{$assignmentId}/code");
     }
 
-    private function task(Request $request, int $assignment): object
+    private function task(Request $request, int $assignment, bool $isWrite = false): object
     {
         abort_unless($request->user(), 401, 'Masuk dengan akun AI terlebih dahulu.');
 
@@ -98,7 +100,7 @@ class AiTutorController extends Controller
         $task = DB::table('ai_tasks')->where('id', $assignment)->first();
         abort_unless($content || $task, 404, 'Konten coding tidak ditemukan pada database.');
         if ($content && ! empty($content['assessment'])) {
-            $this->authorizeAssessment($content['assessment'], $request->user());
+            $this->authorizeAssessment($content['assessment'], $request->user(), $isWrite);
         }
 
         // Pastikan status ai_tasks sinkron dengan pengaturan ai_enabled pada konten
@@ -168,11 +170,14 @@ class AiTutorController extends Controller
             ]);
         }
 
-        abort_unless(
-            ! Schema::hasTable('ai_access') || DB::table('ai_access')->where('user_id', $request->user()->id)->where('task_id', $assignment)->exists(),
-            403,
-            'Akun ini belum mendapat akses AI untuk tugas ini.'
-        );
+        $isV2 = (bool) config('ai.v2', false);
+        if (! $isV2) {
+            abort_unless(
+                ! Schema::hasTable('ai_access') || DB::table('ai_access')->where('user_id', $request->user()->id)->where('task_id', $assignment)->exists(),
+                403,
+                'Akun ini belum mendapat akses AI untuk tugas ini.'
+            );
+        }
 
         abort_unless($task && $task->enabled, 403, 'AI Asisten dinonaktifkan oleh dosen pengampu.');
 
@@ -185,7 +190,9 @@ class AiTutorController extends Controller
         if ($assessment) {
             $item = $assessment->learning_payload ?? [];
             $type = $item['type'] ?? $assessment->type;
-            $eligible = $type === 'coding'
+            $isV2 = (bool) config('ai.v2', false);
+            $eligible = ($isV2 && in_array($assessment->type, ['tugas', 'materi'], true))
+                || $type === 'coding'
                 || ($type === 'materi' && ($item['material_mode'] ?? null) === 'coding')
                 || (($item['task_mode'] ?? null) === 'coding')
                 || (($item['question_type'] ?? null) === 'coding')
@@ -215,25 +222,80 @@ class AiTutorController extends Controller
         return null;
     }
 
-    private function authorizeAssessment(Assessment $assessment, $user): void
+    private function authorizeAssessment(Assessment $assessment, $user, bool $isWrite = false): void
     {
         $section = $assessment->classSection;
-        abort_unless($section && $user, 403);
+        abort_unless($section && $user, 403, 'Akses ditolak.');
 
-        $allowed = $user->hasRole(Role::DOSEN)
-            ? $user->can('manage', $section)
-            : ($user->hasRole(Role::MAHASISWA)
-                && $section->students()->where('users.id', $user->id)->exists()
-                && $assessment->status === Assessment::STATUS_PUBLISHED);
+        $isV2 = (bool) config('ai.v2', false);
 
-        abort_unless($allowed, 403, 'Anda tidak memiliki akses ke konten ini.');
+        // In v2, archived classes are read-only: students and lecturers cannot send new messages
+        if ($isV2 && $isWrite && $section->isArchived()) {
+            abort(403, 'Kelas ini telah diarsipkan. Anda hanya dapat melihat riwayat percakapan.');
+        }
+
+        if ($user->hasRole(Role::DOSEN)) {
+            abort_unless($user->can('manage', $section), 403, 'Anda tidak memiliki akses ke kelas ini.');
+
+            return;
+        }
+
+        // Student active enrollment check (status = enrolled, excludes kicked and dropped)
+        $isEnrolled = $section->students()->where('users.id', $user->id)->exists();
+
+        // In v2, if class is archived and reading: allowed for students who were enrolled in this class
+        if ($isV2 && ! $isWrite && $section->isArchived()) {
+            $wasEnrolled = $section->enrollmentRecords()
+                ->where('users.id', $user->id)
+                ->wherePivot('status', 'enrolled')
+                ->exists();
+            abort_unless($wasEnrolled, 403, 'Anda tidak memiliki akses ke konten ini.');
+
+            return;
+        }
+
+        // Standard student access: must be actively enrolled (not kicked/dropped) and assessment published
+        abort_unless(
+            $isEnrolled && $assessment->status === Assessment::STATUS_PUBLISHED,
+            403,
+            'Anda tidak terdaftar aktif di kelas ini atau konten belum dipublikasikan.'
+        );
     }
 
     public function status(Request $request, int $assignment)
     {
-        $task = $this->task($request, $assignment);
-        $turns = DB::table('ai_turns')->where('user_id', $request->user()->id)->where('task_id', $task->id)->orderBy('id')->get(['question', 'answer', 'status']);
-        $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$request->user()->id)->where('day', now('UTC')->toDateString())->value('tokens');
+        $task = $this->task($request, $assignment, false);
+        $user = $request->user();
+        $isV2 = (bool) config('ai.v2', false);
+
+        $assessment = Assessment::with('classSection')->find($assignment);
+        $thread = ($isV2 && $assessment)
+            ? AiThread::where('user_id', $user->id)->where('assessment_id', $assessment->id)->first()
+            : null;
+
+        if ($isV2 && $thread) {
+            $messages = AiMessage::where('thread_id', $thread->id)->orderBy('id')->get();
+            $turns = [];
+            $currentQ = null;
+            foreach ($messages as $msg) {
+                if ($msg->role === AiMessage::ROLE_USER) {
+                    $currentQ = $msg->content;
+                } elseif ($msg->role === AiMessage::ROLE_ASSISTANT) {
+                    $turns[] = (object) [
+                        'question' => $currentQ ?? '',
+                        'answer' => $msg->content,
+                        'status' => $msg->verdict === AiMessage::VERDICT_OK ? 'answered' : 'refused',
+                    ];
+                    $currentQ = null;
+                }
+            }
+            $turnsCount = $thread->turns;
+        } else {
+            $turns = DB::table('ai_turns')->where('user_id', $user->id)->where('task_id', $task->id)->orderBy('id')->get(['question', 'answer', 'status']);
+            $turnsCount = $turns->count();
+        }
+
+        $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', now('UTC')->toDateString())->value('tokens');
 
         $dailyTokens = (int) (config('ai.daily_tokens') ?: (SystemSetting::valueFor('ai_token_quota') ?? 500000));
         $remainingTokens = max(0, $dailyTokens - $used);
@@ -247,31 +309,112 @@ class AiTutorController extends Controller
         return response()->json([
             'enabled' => $isLiveAi || $isDemo,
             'remaining_tokens' => $remainingTokens,
-            'remaining_turns' => is_numeric($taskTurns) ? max(0, (int) $taskTurns - $turns->count()) : null,
+            'remaining_turns' => is_numeric($taskTurns) ? max(0, (int) $taskTurns - $turnsCount) : null,
             'total_tokens' => $dailyTokens,
             'used_tokens' => $used,
             'reset_at' => now('UTC')->addDay()->startOfDay()->toIso8601String(),
             'reset_time_wib' => '07.00 WIB',
             'history' => $turns,
             'demo_mode' => $isDemo,
+            'thread' => $thread,
+        ]);
+    }
+
+    public function thread(Request $request, int $assignment)
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Masuk dengan akun AI terlebih dahulu.');
+
+        $assessment = Assessment::with('classSection')->find($assignment);
+        abort_unless($assessment, 404, 'Asesmen tidak ditemukan.');
+
+        $this->authorizeAssessment($assessment, $user, false);
+
+        $thread = AiThread::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->first();
+
+        if (! $thread) {
+            return response()->json([
+                'thread' => null,
+                'messages' => [],
+                'history' => [],
+            ]);
+        }
+
+        $messages = AiMessage::where('thread_id', $thread->id)->orderBy('id')->get();
+
+        $history = [];
+        $currentUserMsg = null;
+        foreach ($messages as $msg) {
+            if ($msg->role === AiMessage::ROLE_USER) {
+                $currentUserMsg = $msg;
+            } elseif ($msg->role === AiMessage::ROLE_ASSISTANT) {
+                $history[] = [
+                    'question' => $currentUserMsg?->content ?? '',
+                    'answer' => $msg->content,
+                    'verdict' => $msg->verdict,
+                    'status' => $msg->verdict === AiMessage::VERDICT_OK ? 'answered' : 'refused',
+                ];
+                $currentUserMsg = null;
+            }
+        }
+
+        return response()->json([
+            'thread' => $thread,
+            'messages' => $messages,
+            'history' => $history,
+        ]);
+    }
+
+    public function destroyThread(Request $request, int $assignment)
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Masuk dengan akun AI terlebih dahulu.');
+
+        $assessment = Assessment::with('classSection')->find($assignment);
+        abort_unless($assessment, 404, 'Asesmen tidak ditemukan.');
+
+        $thread = AiThread::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->first();
+
+        abort_unless($thread, 404, 'Thread percakapan AI tidak ditemukan.');
+        abort_unless((int) $thread->user_id === (int) $user->id, 403, 'Anda hanya dapat menghapus thread milik Anda sendiri.');
+
+        $thread->delete();
+
+        return response()->json([
+            'deleted' => true,
+            'message' => 'Thread percakapan AI berhasil dihapus.',
         ]);
     }
 
     public function send(Request $request, int $assignment, AiTutor $tutor)
     {
-        $task = $this->task($request, $assignment);
+        $task = $this->task($request, $assignment, true);
 
         $apiKey = (string) (config('ai.key') ?: (SystemSetting::valueFor('ai_api_key') ?? ''));
         $isLiveAi = filled($apiKey);
         $isDemo = ! $isLiveAi && app()->environment('local');
 
         abort_unless($isLiveAi || $isDemo, 503, 'AI belum diaktifkan oleh pengelola.');
-        $input = $request->validate(['question' => 'required|string|max:2000', 'code' => 'nullable|string|max:4000']);
+
+        // Server is single source of truth: strictly accept only allowed fields; never trust history or class_section_id from client
+        $input = $request->validate([
+            'question' => 'required|string|max:2000',
+            'code' => 'nullable|string|max:4000',
+            'console_output' => 'nullable|string|max:2000',
+            'selected_line' => 'nullable|integer',
+        ]);
         $userId = $request->user()->id;
         $isV2 = (bool) config('ai.v2', false);
 
         $lock = null;
         $lockAcquired = false;
+        $thread = null;
+        $userMessage = null;
+
         try {
             // Validasi kuota token harian: batasan HANYA berdasarkan sisa token, bukan jumlah turn/permintaan
             $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$userId)->where('day', now('UTC')->toDateString())->value('tokens');
@@ -288,13 +431,71 @@ class AiTutorController extends Controller
             abort_if(RateLimiter::tooManyAttempts($rate, 10), 429, 'Pertanyaan terlalu cepat. Tunggu beberapa detik sebelum mengirim lagi.');
             RateLimiter::hit($rate, 60);
 
-            $history = DB::table('ai_turns')->where('user_id', $userId)->where('task_id', $task->id)->orderBy('id')->get(['question', 'code', 'answer', 'status'])->map(fn ($row) => (array) $row)->all();
-            $taskTurns = config('ai.task_turns');
-            if (is_numeric($taskTurns)) {
-                abort_if(count($history) >= (int) $taskTurns, 429, $isV2 ? AiErrorCode::TurnLimit->message() : 'Batas bantuan untuk tugas ini sudah tercapai. Lanjutkan percobaanmu atau diskusikan dengan dosen.', ['X-AI-Error' => AiErrorCode::TurnLimit->value]);
+            $assessment = $isV2 ? Assessment::with('classSection')->find($assignment) : null;
+            if ($isV2 && $assessment) {
+                $thread = AiThread::firstOrCreate(
+                    [
+                        'user_id' => $userId,
+                        'assessment_id' => $assessment->id,
+                    ],
+                    [
+                        'class_section_id' => $assessment->class_section_id,
+                        'turns' => 0,
+                        'blocked_count' => 0,
+                        'tokens_used' => 0,
+                    ]
+                );
+
+                $taskTurns = config('ai.task_turns');
+                if (is_numeric($taskTurns)) {
+                    abort_if($thread->turns >= (int) $taskTurns, 429, AiErrorCode::TurnLimit->message(), ['X-AI-Error' => AiErrorCode::TurnLimit->value]);
+                }
+
+                // History HANYA dari DB: muat AI_HISTORY_MESSAGES (default 8) pesan terakhir
+                $historyLimit = (int) config('ai.history_messages', 8);
+                $dbMessages = AiMessage::where('thread_id', $thread->id)
+                    ->orderBy('id', 'desc')
+                    ->limit($historyLimit)
+                    ->get()
+                    ->reverse()
+                    ->values();
+
+                $history = $dbMessages->map(function (AiMessage $msg) {
+                    $isBlockedAssistant = $msg->role === AiMessage::ROLE_ASSISTANT && $msg->verdict !== AiMessage::VERDICT_OK;
+                    $content = $isBlockedAssistant
+                        ? '[permintaan ditolak]'
+                        : Str::limit((string) $msg->content, 1500, '');
+
+                    return [
+                        'role' => $msg->role,
+                        'content' => $content,
+                    ];
+                })->all();
+
+                // Simpan pesan user ke database
+                $userMessage = AiMessage::create([
+                    'thread_id' => $thread->id,
+                    'role' => AiMessage::ROLE_USER,
+                    'content' => $input['question'],
+                    'verdict' => AiMessage::VERDICT_OK,
+                    'tokens_in' => 0,
+                    'tokens_out' => 0,
+                ]);
+            } else {
+                $history = DB::table('ai_turns')->where('user_id', $userId)->where('task_id', $task->id)->orderBy('id')->get(['question', 'code', 'answer', 'status'])->map(fn ($row) => (array) $row)->all();
+                $taskTurns = config('ai.task_turns');
+                if (is_numeric($taskTurns)) {
+                    abort_if(count($history) >= (int) $taskTurns, 429, $isV2 ? AiErrorCode::TurnLimit->message() : 'Batas bantuan untuk tugas ini sudah tercapai. Lanjutkan percobaanmu atau diskusikan dengan dosen.', ['X-AI-Error' => AiErrorCode::TurnLimit->value]);
+                }
             }
 
-            $id = DB::table('ai_turns')->insertGetId(['user_id' => $userId, 'task_id' => $task->id, 'question' => $input['question'], 'code' => $input['code'] ?? '']);
+            $id = DB::table('ai_turns')->insertGetId([
+                'user_id' => $userId,
+                'task_id' => $task->id,
+                'question' => $input['question'],
+                'code' => $input['code'] ?? '',
+            ]);
+
             try {
                 if ($isLiveAi) {
                     $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history, $id);
@@ -305,8 +506,34 @@ class AiTutorController extends Controller
                     DB::table('ai_usage')->insertOrIgnore(['scope' => 'user:'.$userId, 'day' => $day, 'tokens' => 0]);
                     DB::table('ai_usage')->where('scope', 'user:'.$userId)->where('day', $day)->increment('tokens', $demoTokens);
                 }
+
                 $isRefusal = $answer === GeminiTutor::REFUSAL || ($isV2 && $answer === AiErrorCode::BlockedAsksSolution->message());
                 DB::table('ai_turns')->where('id', $id)->update(['answer' => $answer, 'status' => $isRefusal ? 'refused' : 'answered']);
+
+                if ($isV2 && $thread) {
+                    $verdict = AiMessage::VERDICT_OK;
+                    if ($answer === GeminiTutor::REFUSAL || $answer === AiErrorCode::BlockedAsksSolution->message()) {
+                        $verdict = AiMessage::VERDICT_ASKS_SOLUTION;
+                    } elseif ($answer === AiErrorCode::BlockedOffTopic->message()) {
+                        $verdict = AiMessage::VERDICT_OFF_TOPIC;
+                    }
+
+                    AiMessage::create([
+                        'thread_id' => $thread->id,
+                        'role' => AiMessage::ROLE_ASSISTANT,
+                        'content' => $answer,
+                        'verdict' => $verdict,
+                        'tokens_in' => 0,
+                        'tokens_out' => 0,
+                    ]);
+
+                    $thread->increment('turns');
+                    if ($verdict !== AiMessage::VERDICT_OK) {
+                        $thread->increment('blocked_count');
+                    }
+                    [$provider] = $tutor->resolveProviderAndModel();
+                    $thread->update(['last_provider' => $provider]);
+                }
             } catch (\Throwable $exception) {
                 $status = ($exception instanceof HttpExceptionInterface && $exception->getStatusCode() === 499) ? 'cancelled' : 'failed';
                 DB::table('ai_turns')->where('id', $id)->update(['status' => $status]);
