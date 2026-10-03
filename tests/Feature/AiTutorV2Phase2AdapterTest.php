@@ -283,12 +283,12 @@ class AiTutorV2Phase2AdapterTest extends TestCase
         ]);
     }
 
-    public function test_error_distinction_safety_filter_returns_safety_reason_and_refunds_tokens(): void
+    public function test_safety_filter_with_usage_charges_actual_tokens_and_adjusts_reservation(): void
     {
         $user = $this->student();
         $day = now('UTC')->toDateString();
 
-        // Gemini mengembalikan finishReason SAFETY dengan balasan kosong
+        // Gemini mengembalikan finishReason SAFETY dengan balasan kosong tetapi mencatat usage
         Http::fake([
             '*' => Http::response([
                 'candidates' => [['finishReason' => 'SAFETY', 'content' => ['parts' => []]]],
@@ -308,21 +308,50 @@ class AiTutorV2Phase2AdapterTest extends TestCase
         $this->assertDatabaseHas('ai_api_calls', [
             'status' => 'blocked_safety',
             'finish_reason' => 'SAFETY',
-            'usage_source' => 'refunded',
-            'total_tokens' => 0,
+            'usage_source' => 'confirmed',
+            'total_tokens' => 45,
         ]);
 
-        // Token yang direservasi harus di-refund penuh
+        // Token ditagih sesuai usage riil provider (45 token)
         $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens');
-        $this->assertSame(0, $used);
+        $this->assertSame(45, $used);
     }
 
-    public function test_error_distinction_empty_response_returns_empty_response_reason(): void
+    public function test_safety_filter_without_usage_refunds_tokens_in_full(): void
     {
         $user = $this->student();
         $day = now('UTC')->toDateString();
 
-        // OpenAI mengembalikan 200 tetapi konten teks kosong
+        // Gemini mengembalikan finishReason SAFETY tanpa data token usage
+        Http::fake([
+            '*' => Http::response([
+                'candidates' => [['finishReason' => 'SAFETY', 'content' => ['parts' => []]]],
+                'usageMetadata' => ['totalTokenCount' => 0],
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/ai/tasks/1', ['question' => 'Pertanyaan tidak aman tanpa token']);
+        $response->assertStatus(503)
+            ->assertHeader('X-AI-Error', AiErrorCode::InternalError->value)
+            ->assertHeader('X-AI-Reason', 'safety_filter');
+
+        $this->assertDatabaseHas('ai_api_calls', [
+            'status' => 'blocked_safety',
+            'finish_reason' => 'SAFETY',
+            'usage_source' => 'refunded',
+            'total_tokens' => 0,
+        ]);
+
+        $used = (int) (DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens') ?? 0);
+        $this->assertSame(0, $used);
+    }
+
+    public function test_empty_response_with_usage_charges_actual_tokens_and_adjusts_reservation(): void
+    {
+        $user = $this->student();
+        $day = now('UTC')->toDateString();
+
+        // OpenAI mengembalikan 200 tetapi konten teks kosong dengan usage tercatat
         SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'OpenAI']);
         SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => 'test-openai-key']);
 
@@ -344,11 +373,41 @@ class AiTutorV2Phase2AdapterTest extends TestCase
 
         $this->assertDatabaseHas('ai_api_calls', [
             'status' => 'empty_response',
+            'usage_source' => 'confirmed',
+            'total_tokens' => 20,
+        ]);
+
+        $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens');
+        $this->assertSame(20, $used);
+    }
+
+    public function test_empty_response_without_usage_refunds_tokens_in_full(): void
+    {
+        $user = $this->student();
+        $day = now('UTC')->toDateString();
+
+        SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'OpenAI']);
+        SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => 'test-openai-key']);
+
+        Http::fake([
+            '*' => Http::response([
+                'choices' => [['finish_reason' => 'stop', 'message' => ['content' => '   ']]],
+                'usage' => ['total_tokens' => 0],
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/ai/tasks/1', ['question' => 'Pertanyaan']);
+        $response->assertStatus(503)
+            ->assertHeader('X-AI-Error', AiErrorCode::InternalError->value)
+            ->assertHeader('X-AI-Reason', 'empty_response');
+
+        $this->assertDatabaseHas('ai_api_calls', [
+            'status' => 'empty_response',
             'usage_source' => 'refunded',
             'total_tokens' => 0,
         ]);
 
-        $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens');
+        $used = (int) (DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens') ?? 0);
         $this->assertSame(0, $used);
     }
 

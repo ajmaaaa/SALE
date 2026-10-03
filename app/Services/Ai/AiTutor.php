@@ -346,12 +346,17 @@ TEXT;
         $isEmptyText = trim($text) === '';
         $isCompleted = (in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL', ''], true) || $finishReason === null) && ! $isEmptyText && ! $isSafetyBlocked;
 
-        if ($response->successful() && $isCompleted) {
+        if ($response->successful()) {
             if ($totalTokens > 0) {
+                // Provider berhasil memproses dan mengembalikan usage aktual:
+                // Tagih token sesuai usage riil dan sesuaikan selisih reservasi (baik complete, safety filter, maupun empty response)
                 $this->adjust($userId, $day, $totalTokens - $reserved, false);
+            } elseif ($isV2) {
+                // Provider sukses tetapi tidak mengembalikan data usage: refund penuh reservasi
+                $this->adjust($userId, $day, -$reserved, false);
             }
         } elseif ($isV2) {
-            // Refund penuh jika panggilan gagal / error provider / safety blocked / output kosong
+            // Error sebelum respons / kegagalan provider (429, 5xx, client error, timeout): refund penuh
             $this->adjust($userId, $day, -$reserved, false);
         }
 
@@ -361,12 +366,12 @@ TEXT;
 
         $this->recordUsage($userId, $stage, $context, [
             'status' => $callStatus,
-            'usage_source' => ($response->successful() && $isCompleted && $totalTokens > 0) ? 'confirmed' : ($isV2 ? 'refunded' : 'reserved'),
+            'usage_source' => ($response->successful() && $totalTokens > 0) ? 'confirmed' : ($isV2 ? 'refunded' : 'reserved'),
             'input_tokens' => $inputTokens,
             'cached_tokens' => $cachedTokens,
             'output_tokens' => $outputTokens,
             'thinking_tokens' => $thinkingTokens,
-            'total_tokens' => ($response->successful() && $isCompleted && $totalTokens > 0) ? $totalTokens : ($isV2 ? 0 : $reserved),
+            'total_tokens' => ($response->successful() && $totalTokens > 0) ? $totalTokens : ($isV2 ? 0 : $reserved),
             'latency_ms' => $this->elapsedMs($started),
             'finish_reason' => $finishReason,
             'model_version' => $modelVersion,

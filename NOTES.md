@@ -62,4 +62,21 @@ Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan ad
 - **Observasi untuk Fase 4**:
   - Saat ini konteks RAG materi di `AiTutorController` masih mengambil 5 materi pertama secara naif (`orderBy('id')->limit(5)`). Pada Fase 4, ini akan digantikan penuh oleh `ContextBuilder` (judul, langkah coding, materi tertaut dari `learning_payload.linked_material_ids`, fallback 30 materi ringkas, filter data sensitif/solusi, dan console traceback).
 
+---
+
+## 5. Pemisahan Peran Tabel AI Tutor & Pencegahan Inkonsistensi Sinkronisasi (Fase 3b)
+- **Peran Tabel `ai_tasks`**:
+  - Menyimpan metadata definisi tugas praktikum (`id`, `title`, `body`, `enabled`) yang disinkronkan dari data `Assessment` (atau mock demo/preview).
+  - Berfungsi murni sebagai referensi silabus/instruksi tugas dan target relasi otorisasi.
+  - **TIDAK PERNAH** menyimpan riwayat percakapan, pesan mahasiswa, atau giliran dialog.
+- **Peran Tabel `ai_threads`**:
+  - Menyimpan sesi percakapan per `(user_id, assessment_id, class_section_id)` beserta metrik agregat: `turns`, `blocked_count`, `tokens_used`, `last_provider`, dan `cleared_at`.
+  - Berfungsi sebagai kontainer percakapan dan sumber kebenaran untuk batas giliran (`AI_TASK_TURNS`), hitungan penolakan (`blocked_count`), dan status pembersihan tampilan (`cleared_at`).
+- **Peran Tabel `ai_messages`**:
+  - Menyimpan detail tiap pesan percakapan (`thread_id`, `role`, `content`, `verdict`, `tokens_in`, `tokens_out`, `created_at`).
+  - Berfungsi sebagai sumber riwayat percakapan (server-side history) untuk perakitan prompt dan tampilan antarmuka.
+- **Peran Tabel `ai_turns` (Legacy V1)**:
+  - Menyimpan log tanya-jawab pada arsitektur lama V1 sebelum model thread diperkenalkan.
+  - **Pencegahan Penulisan Ganda**: Saat sub-flag `AI_THREADS` aktif bersama `AI_TUTOR_V2`, seluruh pencatatan percakapan dialihkan secara eksklusif ke `ai_messages` dan `ai_threads`. Sistem **tidak lagi menulis ganda ke `ai_turns`**, sehingga tidak ada risiko desinkronisasi status atau duplikasi data ketika thread dibersihkan secara lunak (*soft clear*) maupun saat dipangkas (*prune*).
+
 

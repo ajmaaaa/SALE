@@ -34,6 +34,7 @@ class AiTutorV2Phase3ThreadTest extends TestCase
             'ai.key' => 'test-secret',
             'ai.daily_tokens' => 100000,
             'ai.global_daily_tokens' => 1000000,
+            'ai.threads' => true,
             'ai.history_messages' => 8,
             'ai.thread_retention_days' => 180,
         ]);
@@ -457,7 +458,7 @@ class AiTutorV2Phase3ThreadTest extends TestCase
         $this->assertEquals(AiMessage::VERDICT_ASKS_SOLUTION, $assistantMsg->verdict);
     }
 
-    public function test_student_can_delete_own_thread(): void
+    public function test_student_can_soft_clear_own_thread_hiding_messages_but_preserving_metrics(): void
     {
         $env = $this->createEnvironment();
         $student = $env['student'];
@@ -473,11 +474,106 @@ class AiTutorV2Phase3ThreadTest extends TestCase
         $this->assertDatabaseCount('ai_messages', 2);
 
         $delRes = $this->actingAs($student)->deleteJson("/ai/tasks/{$assessment->id}/thread");
-        $delRes->assertOk()->assertJson(['deleted' => true]);
+        $delRes->assertOk()->assertJson([
+            'cleared' => true,
+            'message' => 'Tampilan percakapan AI berhasil dibersihkan.',
+        ]);
 
-        // Thread and messages must be cascaded and deleted
+        // Thread and messages are NOT deleted from DB (soft clear)
+        $this->assertDatabaseCount('ai_threads', 1);
+        $this->assertDatabaseCount('ai_messages', 2);
+
+        $thread = AiThread::first();
+        $this->assertNotNull($thread->cleared_at);
+        $this->assertEquals(1, $thread->turns);
+
+        // GET thread endpoint hides cleared messages
+        $getRes = $this->actingAs($student)->getJson("/ai/tasks/{$assessment->id}/thread");
+        $getRes->assertOk()
+            ->assertJsonCount(0, 'messages')
+            ->assertJsonCount(0, 'history');
+
+        // GET status endpoint hides cleared turns but preserves remaining_turns based on thread->turns
+        $statusRes = $this->actingAs($student)->getJson("/ai/tasks/{$assessment->id}");
+        $statusRes->assertOk()
+            ->assertJsonCount(0, 'history')
+            ->assertJsonPath('remaining_turns', (int) config('ai.task_turns', 12) - 1);
+    }
+
+    public function test_thread_clearing_does_not_reset_turn_limit(): void
+    {
+        config(['ai.task_turns' => 2]);
+        $env = $this->createEnvironment();
+        $student = $env['student'];
+        $assessment = $env['assessment'];
+
+        $this->fakeGateAndReview('Jawaban 1');
+        $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", ['question' => 'Q1'])->assertOk();
+
+        $this->fakeGateAndReview('Jawaban 2');
+        $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", ['question' => 'Q2'])->assertOk();
+
+        // 2 turns used = limit reached
+        $this->actingAs($student)->deleteJson("/ai/tasks/{$assessment->id}/thread")->assertOk();
+
+        // Attempting to send another question must fail with 429 TurnLimit even after clearing thread
+        $res = $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", ['question' => 'Q3']);
+        $res->assertStatus(429)
+            ->assertJson([
+                'error' => AiErrorCode::TurnLimit->value,
+                'message' => AiErrorCode::TurnLimit->message(),
+            ]);
+    }
+
+    public function test_prompt_history_is_maintained_after_soft_clear(): void
+    {
+        $env = $this->createEnvironment();
+        $student = $env['student'];
+        $assessment = $env['assessment'];
+
+        $this->fakeGateAndReview('Jawaban pertama');
+        $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", [
+            'question' => 'Pertanyaan awal yang penting',
+        ])->assertOk();
+
+        // Mahasiswa membersihkan tampilan chat
+        $this->actingAs($student)->deleteJson("/ai/tasks/{$assessment->id}/thread")->assertOk();
+
+        $this->fakeGateAndReview('Jawaban kedua');
+        $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", [
+            'question' => 'Pertanyaan kedua',
+        ])->assertOk();
+
+        // Prompt yang dikirim ke LLM harus tetap mengandung "Pertanyaan awal yang penting"
+        Http::assertSent(function (HttpClientRequest $req) {
+            $body = $req->body();
+
+            return str_contains($body, 'Pertanyaan awal yang penting');
+        });
+    }
+
+    public function test_legacy_path_is_used_when_ai_threads_is_false(): void
+    {
+        config(['ai.threads' => false]);
+        $env = $this->createEnvironment();
+        $student = $env['student'];
+        $assessment = $env['assessment'];
+
+        $this->fakeGateAndReview('Jawaban legacy');
+        $this->actingAs($student)->postJson("/ai/tasks/{$assessment->id}", [
+            'question' => 'Pertanyaan legacy',
+        ])->assertOk();
+
+        // ai_threads dan ai_messages tidak dibuat
         $this->assertDatabaseCount('ai_threads', 0);
         $this->assertDatabaseCount('ai_messages', 0);
+
+        // ai_turns dibuat
+        $this->assertDatabaseHas('ai_turns', [
+            'user_id' => $student->id,
+            'question' => 'Pertanyaan legacy',
+            'status' => 'answered',
+        ]);
     }
 
     public function test_artisan_prune_threads_removes_old_threads_based_on_retention(): void

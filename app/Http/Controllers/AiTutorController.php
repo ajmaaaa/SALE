@@ -267,14 +267,19 @@ class AiTutorController extends Controller
         $task = $this->task($request, $assignment, false);
         $user = $request->user();
         $isV2 = (bool) config('ai.v2', false);
+        $useThreads = $isV2 && (bool) config('ai.threads', false);
 
         $assessment = Assessment::with('classSection')->find($assignment);
-        $thread = ($isV2 && $assessment)
+        $thread = ($useThreads && $assessment)
             ? AiThread::where('user_id', $user->id)->where('assessment_id', $assessment->id)->first()
             : null;
 
-        if ($isV2 && $thread) {
-            $messages = AiMessage::where('thread_id', $thread->id)->orderBy('id')->get();
+        if ($useThreads && $thread) {
+            $msgQuery = AiMessage::where('thread_id', $thread->id)->orderBy('id');
+            if ($thread->cleared_at) {
+                $msgQuery->where('created_at', '>', $thread->cleared_at);
+            }
+            $messages = $msgQuery->get();
             $turns = [];
             $currentQ = null;
             foreach ($messages as $msg) {
@@ -330,6 +335,15 @@ class AiTutorController extends Controller
 
         $this->authorizeAssessment($assessment, $user, false);
 
+        $useThreads = (bool) (config('ai.v2') && config('ai.threads'));
+        if (! $useThreads) {
+            return response()->json([
+                'thread' => null,
+                'messages' => [],
+                'history' => [],
+            ]);
+        }
+
         $thread = AiThread::where('user_id', $user->id)
             ->where('assessment_id', $assessment->id)
             ->first();
@@ -342,7 +356,11 @@ class AiTutorController extends Controller
             ]);
         }
 
-        $messages = AiMessage::where('thread_id', $thread->id)->orderBy('id')->get();
+        $msgQuery = AiMessage::where('thread_id', $thread->id)->orderBy('id');
+        if ($thread->cleared_at) {
+            $msgQuery->where('created_at', '>', $thread->cleared_at);
+        }
+        $messages = $msgQuery->get();
 
         $history = [];
         $currentUserMsg = null;
@@ -382,11 +400,13 @@ class AiTutorController extends Controller
         abort_unless($thread, 404, 'Thread percakapan AI tidak ditemukan.');
         abort_unless((int) $thread->user_id === (int) $user->id, 403, 'Anda hanya dapat menghapus thread milik Anda sendiri.');
 
-        $thread->delete();
+        // Soft clear: sembunyikan percakapan dari tampilan mahasiswa, tetapi turns, blocked_count, tokens_used, dan prompt history tetap dipertahankan
+        $thread->update(['cleared_at' => now()]);
 
         return response()->json([
+            'cleared' => true,
             'deleted' => true,
-            'message' => 'Thread percakapan AI berhasil dihapus.',
+            'message' => 'Tampilan percakapan AI berhasil dibersihkan.',
         ]);
     }
 
@@ -431,8 +451,9 @@ class AiTutorController extends Controller
             abort_if(RateLimiter::tooManyAttempts($rate, 10), 429, 'Pertanyaan terlalu cepat. Tunggu beberapa detik sebelum mengirim lagi.');
             RateLimiter::hit($rate, 60);
 
-            $assessment = $isV2 ? Assessment::with('classSection')->find($assignment) : null;
-            if ($isV2 && $assessment) {
+            $useThreads = $isV2 && (bool) config('ai.threads', false);
+            $assessment = $useThreads ? Assessment::with('classSection')->find($assignment) : null;
+            if ($useThreads && $assessment) {
                 $thread = AiThread::firstOrCreate(
                     [
                         'user_id' => $userId,
@@ -452,6 +473,7 @@ class AiTutorController extends Controller
                 }
 
                 // History HANYA dari DB: muat AI_HISTORY_MESSAGES (default 8) pesan terakhir
+                // Prompt tetap menggunakan seluruh riwayat pesan (tidak dipotong oleh cleared_at)
                 $historyLimit = (int) config('ai.history_messages', 8);
                 $dbMessages = AiMessage::where('thread_id', $thread->id)
                     ->orderBy('id', 'desc')
@@ -489,16 +511,21 @@ class AiTutorController extends Controller
                 }
             }
 
-            $id = DB::table('ai_turns')->insertGetId([
-                'user_id' => $userId,
-                'task_id' => $task->id,
-                'question' => $input['question'],
-                'code' => $input['code'] ?? '',
-            ]);
+            $turnId = null;
+            if (! $useThreads) {
+                $turnId = DB::table('ai_turns')->insertGetId([
+                    'user_id' => $userId,
+                    'task_id' => $task->id,
+                    'question' => $input['question'],
+                    'code' => $input['code'] ?? '',
+                ]);
+            } else {
+                $turnId = $userMessage->id;
+            }
 
             try {
                 if ($isLiveAi) {
-                    $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history, $id);
+                    $answer = $tutor->answer($userId, $task, $input['question'], $input['code'] ?? '', $history, $turnId);
                 } else {
                     $answer = $this->demoAnswer($input['question'], $input['code'] ?? '');
                     $demoTokens = min(350, max(60, (int) round((strlen($input['question']) + strlen($answer)) / 2)));
@@ -508,9 +535,9 @@ class AiTutorController extends Controller
                 }
 
                 $isRefusal = $answer === GeminiTutor::REFUSAL || ($isV2 && $answer === AiErrorCode::BlockedAsksSolution->message());
-                DB::table('ai_turns')->where('id', $id)->update(['answer' => $answer, 'status' => $isRefusal ? 'refused' : 'answered']);
-
-                if ($isV2 && $thread) {
+                if (! $useThreads) {
+                    DB::table('ai_turns')->where('id', $turnId)->update(['answer' => $answer, 'status' => $isRefusal ? 'refused' : 'answered']);
+                } else {
                     $verdict = AiMessage::VERDICT_OK;
                     if ($answer === GeminiTutor::REFUSAL || $answer === AiErrorCode::BlockedAsksSolution->message()) {
                         $verdict = AiMessage::VERDICT_ASKS_SOLUTION;
@@ -518,25 +545,41 @@ class AiTutorController extends Controller
                         $verdict = AiMessage::VERDICT_OFF_TOPIC;
                     }
 
+                    $lastUsage = $tutor->getLastUsage() ?? [];
+                    $tokensIn = (int) ($lastUsage['input_tokens'] ?? 0);
+                    $tokensOut = (int) ($lastUsage['output_tokens'] ?? 0);
+                    $totalTokens = (int) ($lastUsage['total_tokens'] ?? ($tokensIn + $tokensOut));
+
                     AiMessage::create([
                         'thread_id' => $thread->id,
                         'role' => AiMessage::ROLE_ASSISTANT,
                         'content' => $answer,
                         'verdict' => $verdict,
-                        'tokens_in' => 0,
-                        'tokens_out' => 0,
+                        'tokens_in' => $tokensIn,
+                        'tokens_out' => $tokensOut,
                     ]);
 
                     $thread->increment('turns');
                     if ($verdict !== AiMessage::VERDICT_OK) {
                         $thread->increment('blocked_count');
                     }
+                    if ($totalTokens > 0) {
+                        $thread->increment('tokens_used', $totalTokens);
+                    }
                     [$provider] = $tutor->resolveProviderAndModel();
                     $thread->update(['last_provider' => $provider]);
                 }
             } catch (\Throwable $exception) {
-                $status = ($exception instanceof HttpExceptionInterface && $exception->getStatusCode() === 499) ? 'cancelled' : 'failed';
-                DB::table('ai_turns')->where('id', $id)->update(['status' => $status]);
+                if (! $useThreads) {
+                    $status = ($exception instanceof HttpExceptionInterface && $exception->getStatusCode() === 499) ? 'cancelled' : 'failed';
+                    if ($turnId) {
+                        DB::table('ai_turns')->where('id', $turnId)->update(['status' => $status]);
+                    }
+                } else {
+                    if ($userMessage) {
+                        $userMessage->update(['verdict' => AiMessage::VERDICT_ERROR]);
+                    }
+                }
                 throw $exception;
             }
 

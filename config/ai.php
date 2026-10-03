@@ -8,6 +8,7 @@ return [
     'daily_tokens' => (int) env('AI_DAILY_TOKENS', 100000),
     'global_daily_tokens' => (int) env('AI_GLOBAL_DAILY_TOKENS', 1000000),
     'task_turns' => (int) env('AI_TASK_TURNS', 12),
+    'threads' => (bool) env('AI_THREADS', false),
     'history_messages' => (int) env('AI_HISTORY_MESSAGES', 8),
     'thread_retention_days' => (int) env('AI_THREAD_RETENTION_DAYS', 180),
     'total_timeout' => (int) env('AI_TOTAL_TIMEOUT', 60),

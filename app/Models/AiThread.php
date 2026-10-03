@@ -16,6 +16,7 @@ class AiThread extends Model
         'blocked_count',
         'tokens_used',
         'last_provider',
+        'cleared_at',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class AiThread extends Model
             'turns' => 'integer',
             'blocked_count' => 'integer',
             'tokens_used' => 'integer',
+            'cleared_at' => 'datetime',
         ];
     }
 
