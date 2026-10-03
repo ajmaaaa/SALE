@@ -312,6 +312,10 @@ TEXT;
 
     protected function checkCancelled(int $userId, ?int $reserved = null, ?int $estimatedInputTokens = null, ?string $day = null): void
     {
+        if ($userId <= 0) {
+            return;
+        }
+
         if (Cache::get('ai:cancelled:'.$userId) || (function_exists('connection_aborted') && connection_aborted())) {
             if ($reserved !== null && $estimatedInputTokens !== null && $day !== null && config('ai.v2')) {
                 $refund = max(0, $reserved - $estimatedInputTokens);
@@ -703,7 +707,7 @@ TEXT;
     {
         $this->usageRecorder->record([
             ...$context,
-            'user_id' => $userId,
+            'user_id' => $userId > 0 ? $userId : null,
             'feature' => 'tutor',
             'stage' => $stage,
             'provider' => $provider === 'google' ? 'gemini' : $provider,
@@ -718,7 +722,7 @@ TEXT;
 
     protected function adjust(int $userId, string $day, int $delta, bool $check): void
     {
-        if ($delta === 0) {
+        if ($userId <= 0 || $delta === 0) {
             return;
         }
 

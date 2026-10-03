@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminProdi\KurikulumController;
 use App\Http\Controllers\AdminProdi\LaporanProdiController;
 use App\Http\Controllers\AdminProdi\ProdiManagementController;
 use App\Http\Controllers\AdminProdi\UserProdiController;
+use App\Http\Controllers\AiEvalController;
 use App\Http\Controllers\AiTutorController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
@@ -208,6 +209,7 @@ Route::delete('/ai/tasks/{assignment}/thread', [AiTutorController::class, 'destr
 Route::get('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'thread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread');
 Route::delete('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'destroyThread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread.destroy');
 Route::post('/ai/tutor/{assessment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.send');
+Route::post('/internal/ai-eval', [AiEvalController::class, 'evaluate'])->name('ai.internal.eval');
 
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
 Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.post');

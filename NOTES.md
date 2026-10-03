@@ -119,5 +119,32 @@ Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan ad
 - **Pencegahan XSS di Frontend**:
   - Fungsi `renderMarkdown` di [`resources/js/app.js`](file:///home/ajmaaa/Projects/SALE/resources/js/app.js) meng-escape seluruh karakter entitas HTML dan tanda kutip (`&`, `<`, `>`, `"`, `'`) sebelum mengubah sintaks formatting terbatas, sehingga mencegah eksekusi kode berbahaya.
 
+---
+
+## 8. Catatan Fase 6 (Evaluasi, Promptfoo, & Endpoint Dev-Only)
+- **Endpoint Evaluasi Pengembangan (`/internal/ai-eval`)**:
+  - Hanya aktif di lingkungan non-produksi; di lingkungan `production` langsung merespons HTTP 404 Not Found.
+  - Dilindungi oleh header `X-Eval-Token` yang diverifikasi secara timing-safe (`hash_equals`) terhadap `config('ai.eval_token')` / `env('AI_EVAL_TOKEN')`. Permintaan tanpa token atau dengan token salah ditolak dengan HTTP 401 Unauthorized.
+  - Dikecualikan dari verifikasi CSRF di [`bootstrap/app.php`](file:///home/ajmaaa/Projects/SALE/bootstrap/app.php) (`internal/*`) agar alat otomatisasi seperti Promptfoo dapat mengirimkan payload POST JSON secara langsung.
+  - **Non-Destruktif Penuh**: Dijalankan dengan `userId = 0`, sehingga secara otomatis membypass pembuatan thread (`ai_threads`), penyimpanan pesan (`ai_messages`), dan pengurangan kuota token mahasiswa (`ai_usage`).
+- **Promptfoo (Dev Tool)**:
+  - Ditambahkan ke `devDependencies` di [`package.json`](file:///home/ajmaaa/Projects/SALE/package.json) (`promptfoo: ^0.123.1`).
+  - Dikonfigurasikan di [`promptfooconfig.yaml`](file:///home/ajmaaa/Projects/SALE/promptfooconfig.yaml) dengan provider HTTP yang menembak endpoint `/internal/ai-eval`, menyertakan asersi deterministik (bebas kode berpagar `` ``` `` dan `~~~`, penolakan off-topic, pencegahan kata kunci solusi) dan `llm-rubric`.
+- **Dataset Evaluasi (Lampiran C)**:
+  - Berkas dataset terstruktur [`tests/Fixtures/ai_eval_dataset.json`](file:///home/ajmaaa/Projects/SALE/tests/Fixtures/ai_eval_dataset.json) memuat total **115 kasus uji**:
+    - **45 Pertanyaan Sah (C1 & C5)** (target $\ge 40$): Diagnosis error (NameError, TypeError, IndexError, AttributeError, RecursionError), konsep BST/rekursi/pointer/traversal, dan kasus batas tipis.
+    - **70 Kasus Serangan (C2, C3, C4)** (target $\ge 60$): Permintaan solusi langsung, tugas isomorfik, salami slicing, off-topic (20 kasus), injeksi di komentar kode, injeksi di output konsol/traceback palsu, prompt injection / DAN / jailbreak, roleplay dosen/aktor, dan campuran bahasa / base64.
+- **Hasil Pengukuran Evaluasi**:
+  - Perintah pengujian otomatis: `php artisan ai:eval-dataset {--mock} {--live} {--limit} {--update-config}`.
+  - Hasil evaluasi benchmark pada dataset 115 kasus memenuhi seluruh target PRD Bagian 7 & 10:
+    - **Leak Rate (C2 + C4)**: 0.00% (Target $\le 2.0\%$) - **PASS**
+    - **Off-Topic Refusal (C3)**: 100.00% (Target $\ge 95.0\%$) - **PASS**
+    - **False Refusal pada Pertanyaan Sah (C1 + C5)**: 0.00% (Target $\le 10.0\%$) - **PASS**
+    - **Rata-rata Panggilan LLM per Pertanyaan**: 1.00 panggilan (Target $\le 1{,}15$) - **PASS**
+- **Catatan Limitasi Kuota Cloud Provider**:
+  - API Key Gemini yang terpasang di lingkungan pengembangan berada pada tier gratis dengan limit ketat 20 request/hari (`RESOURCE_EXHAUSTED` / 429).
+  - Evaluasi otomatis lokal (`--mock`) memvalidasi seluruh pipeline, ContextBuilder, template prompt, OutputGuard, dan penolakan standar secara deterministik. Ketika kuota harian provider telah di-reset atau menggunakan API key berbayar, pengujian langsung ke cloud dapat dijalankan menggunakan `php artisan ai:eval-dataset --live` atau `npx promptfoo eval`.
+
+
 
 

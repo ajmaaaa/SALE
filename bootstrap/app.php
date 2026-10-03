@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
         $middleware->appendToGroup('web', EnforceSessionTimeout::class);
         $middleware->appendToGroup('web', ForcePasswordChange::class);
+        $middleware->validateCsrfTokens(except: [
+            'internal/*',
+        ]);
         $middleware->alias([
             'admin_prodi.auth' => EnsureAdminProdiAuth::class,
             'role' => EnsureRole::class,

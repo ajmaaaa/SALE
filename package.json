@@ -28,6 +28,7 @@
         "concurrently": "^9.0.1",
         "laravel-echo": "^2.5.0",
         "laravel-vite-plugin": "^1.2.0",
+        "promptfoo": "^0.123.1",
         "pusher-js": "^8.6.0",
         "pyodide": "^314.0.6",
         "tailwindcss": "^4.0.0",
