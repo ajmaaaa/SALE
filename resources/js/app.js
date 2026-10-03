@@ -1300,8 +1300,8 @@ if (editorMount && editorSource) {
 
         /** Minimal markdown renderer for AI responses: bold, italic, inline-code, code-block, unordered lists. */
         const renderMarkdown = (text) => {
-            // Escape HTML entities first to prevent XSS
-            const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            // Escape HTML entities and quotes to prevent XSS
+            const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             const lines = text.split('\n');
             let html = '';
             let inCode = false;

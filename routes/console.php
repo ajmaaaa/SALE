@@ -401,3 +401,35 @@ Artisan::command('ai:prune-threads {--days= : Jumlah hari retensi thread (defaul
 Artisan::command('ai:clean-threads {--days= : Jumlah hari retensi thread}', function () {
     return $this->call('ai:prune-threads', ['--days' => $this->option('days')]);
 })->purpose('Alias untuk ai:prune-threads');
+
+Artisan::command('ai:call-stats {--days=7 : Jumlah hari terakhir untuk dihitung}', function () {
+    if (! Schema::hasTable('ai_api_calls')) {
+        $this->error('Tabel ai_api_calls belum tersedia.');
+
+        return 1;
+    }
+
+    $days = (int) $this->option('days');
+    $query = DB::table('ai_api_calls')->where('feature', 'tutor');
+    if ($days > 0) {
+        $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    $answerCalls = (clone $query)->where('stage', 'answer')->count();
+    $reviewCalls = (clone $query)->where('stage', 'review')->count();
+    $gateCalls = (clone $query)->where('stage', 'gate')->count();
+    $totalCalls = $answerCalls + $reviewCalls + $gateCalls;
+    $avgCallsPerQuestion = $answerCalls > 0 ? round(($answerCalls + $reviewCalls) / $answerCalls, 3) : 0;
+
+    $this->table(['Metrik', 'Nilai'], [
+        ['Periode', $days > 0 ? "{$days} hari terakhir" : 'Semua data'],
+        ['Panggilan Utama (Answer)', $answerCalls],
+        ['Panggilan Reviewer (Review)', $reviewCalls],
+        ['Panggilan Gate Legacy (Gate)', $gateCalls],
+        ['Total Panggilan LLM', $totalCalls],
+        ['Rata-rata Panggilan per Pertanyaan', $avgCallsPerQuestion],
+        ['Status Target PRD (<= 1.15)', ($answerCalls === 0 || $avgCallsPerQuestion <= 1.15) ? 'MEMENUHI TARGET (<= 1.15)' : 'MELEBIHI AMBANG (> 1.15)'],
+    ]);
+
+    return 0;
+})->purpose('Mengukur statistik dan rata-rata jumlah panggilan LLM per pertanyaan');

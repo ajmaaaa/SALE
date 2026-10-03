@@ -23,6 +23,7 @@ class AiUsageRecorder
 
             DB::table('ai_api_calls')->insert([
                 'turn_id' => $context['turn_id'] ?? null,
+                'thread_id' => $context['thread_id'] ?? null,
                 'user_id' => $context['user_id'] ?? null,
                 'task_id' => $context['task_id'] ?? null,
                 'feature' => $context['feature'] ?? 'tutor',

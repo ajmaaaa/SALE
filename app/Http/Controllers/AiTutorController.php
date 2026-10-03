@@ -565,31 +565,43 @@ class AiTutorController extends Controller
                     'code' => $input['code'] ?? '',
                 ]);
             } else {
-                $turnId = $userMessage->id;
+                $turnId = null;
             }
 
             try {
+                $finalVerdict = AiMessage::VERDICT_OK;
                 if ($isLiveAi) {
-                    $answer = $tutor->answer($userId, $sendTask, $sendQuestion, $sendCode, $history, $turnId);
+                    $useSingleCall = $isV2 && (bool) config('ai.single_call', false);
+                    if ($useSingleCall) {
+                        $contextBuilder = app(ContextBuilder::class);
+                        $builtContext = $useContext ? ($built ?? $contextBuilder->build($assessment ?: $task, $input)) : $contextBuilder->build($assessment ?: $task, $input);
+                        $turnsCount = $thread ? $thread->turns : count($history);
+                        $singleResult = $tutor->answerSingleCall($userId, $sendTask, $builtContext, $history, $turnsCount, $turnId, $thread?->id);
+                        $answer = $singleResult['reply'];
+                        $finalVerdict = $singleResult['verdict'];
+                    } else {
+                        $answer = $tutor->answer($userId, $sendTask, $sendQuestion, $sendCode, $history, $turnId);
+                        if ($answer === GeminiTutor::REFUSAL || $answer === AiErrorCode::BlockedAsksSolution->message()) {
+                            $finalVerdict = AiMessage::VERDICT_ASKS_SOLUTION;
+                        } elseif ($answer === AiErrorCode::BlockedOffTopic->message()) {
+                            $finalVerdict = AiMessage::VERDICT_OFF_TOPIC;
+                        }
+                    }
                 } else {
                     $answer = $this->demoAnswer($sendQuestion, $sendCode);
+                    if ($answer === GeminiTutor::REFUSAL) {
+                        $finalVerdict = AiMessage::VERDICT_ASKS_SOLUTION;
+                    }
                     $demoTokens = min(350, max(60, (int) round((strlen($sendQuestion) + strlen($answer)) / 2)));
                     $day = now('UTC')->toDateString();
                     DB::table('ai_usage')->insertOrIgnore(['scope' => 'user:'.$userId, 'day' => $day, 'tokens' => 0]);
                     DB::table('ai_usage')->where('scope', 'user:'.$userId)->where('day', $day)->increment('tokens', $demoTokens);
                 }
 
-                $isRefusal = $answer === GeminiTutor::REFUSAL || ($isV2 && $answer === AiErrorCode::BlockedAsksSolution->message());
                 if (! $useThreads) {
+                    $isRefusal = $finalVerdict !== AiMessage::VERDICT_OK;
                     DB::table('ai_turns')->where('id', $turnId)->update(['answer' => $answer, 'status' => $isRefusal ? 'refused' : 'answered']);
                 } else {
-                    $verdict = AiMessage::VERDICT_OK;
-                    if ($answer === GeminiTutor::REFUSAL || $answer === AiErrorCode::BlockedAsksSolution->message()) {
-                        $verdict = AiMessage::VERDICT_ASKS_SOLUTION;
-                    } elseif ($answer === AiErrorCode::BlockedOffTopic->message()) {
-                        $verdict = AiMessage::VERDICT_OFF_TOPIC;
-                    }
-
                     $lastUsage = $tutor->getLastUsage() ?? [];
                     $tokensIn = (int) ($lastUsage['input_tokens'] ?? 0);
                     $tokensOut = (int) ($lastUsage['output_tokens'] ?? 0);
@@ -599,13 +611,13 @@ class AiTutorController extends Controller
                         'thread_id' => $thread->id,
                         'role' => AiMessage::ROLE_ASSISTANT,
                         'content' => $answer,
-                        'verdict' => $verdict,
+                        'verdict' => $finalVerdict,
                         'tokens_in' => $tokensIn,
                         'tokens_out' => $tokensOut,
                     ]);
 
                     $thread->increment('turns');
-                    if ($verdict !== AiMessage::VERDICT_OK) {
+                    if ($finalVerdict !== AiMessage::VERDICT_OK) {
                         $thread->increment('blocked_count');
                         $thread->update(['last_blocked_at' => now()]);
                         if ($thread->blocked_count >= (int) config('ai.block_threshold', 5) && ! $thread->flagged_for_review) {

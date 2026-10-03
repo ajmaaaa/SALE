@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Models\AiMessage;
 use App\Models\SystemSetting;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -38,6 +39,18 @@ TEXT;
 
     public function answer(int $userId, object $task, string $question, string $code, array $history, ?int $turnId = null): string
     {
+        $isV2 = (bool) config('ai.v2', false);
+        $useSingleCall = $isV2 && (bool) config('ai.single_call', false);
+
+        if ($useSingleCall) {
+            $contextBuilder = app(ContextBuilder::class);
+            $builtContext = $contextBuilder->build($task, ['question' => $question, 'code' => $code]);
+            $turns = count($history);
+            $result = $this->answerSingleCall($userId, $task, $builtContext, $history, $turns, $turnId);
+
+            return $result['reply'];
+        }
+
         $this->checkCancelled($userId);
         $data = ['task' => ['title' => $task->title, 'body' => $task->body], 'history' => $history, 'question' => $question, 'code' => $code];
         $context = ['turn_id' => $turnId, 'task_id' => $task->id ?? null];
@@ -54,6 +67,247 @@ TEXT;
         $refusal = config('ai.v2') ? AiErrorCode::BlockedAsksSolution->message() : static::REFUSAL;
 
         return json_decode($review, true) === ['allow' => true] ? $candidate : $refusal;
+    }
+
+    /**
+     * Single-call structured pipeline: 1 LLM call with OutputGuard and fallback reviewer.
+     *
+     * @return array{reply: string, verdict: string, hint_level: int, raw_reply: string, reviewed: bool, guard_reason?: string, reviewer_reason?: string}
+     */
+    public function answerSingleCall(
+        int $userId,
+        object $task,
+        array $builtContext,
+        array $history,
+        int $turns = 0,
+        ?int $turnId = null,
+        ?int $threadId = null
+    ): array {
+        $this->checkCancelled($userId);
+
+        $renderer = app(PromptTemplateRenderer::class);
+        $rendered = $renderer->render($builtContext, $history, $turns);
+        $systemPrompt = $rendered['system'];
+        $userPrompt = $rendered['user'];
+        $expectedHintLevel = $rendered['hint_level'];
+
+        $maxOutput = (int) config('ai.max_output_tokens', 500);
+        $schema = [
+            'type' => 'OBJECT',
+            'properties' => [
+                'verdict' => ['type' => 'STRING', 'enum' => ['ok', 'off_topic', 'asks_solution', 'injection']],
+                'hint_level' => ['type' => 'INTEGER'],
+                'reply' => ['type' => 'STRING'],
+            ],
+            'required' => ['verdict', 'reply'],
+        ];
+        $callContext = ['turn_id' => $turnId, 'task_id' => $task->id ?? null, 'thread_id' => $threadId];
+
+        // Panggilan utama ke provider model
+        $res = $this->sendProviderRequest(
+            $userId,
+            $systemPrompt,
+            $userPrompt,
+            $maxOutput,
+            $schema,
+            'answer',
+            $callContext
+        );
+
+        $parsed = $this->parseModelJsonResponse($res['text']);
+
+        // Fail-closed retry 1x jika parsing JSON awal gagal
+        if ($parsed === null) {
+            $this->checkCancelled($userId);
+            $retrySystem = $systemPrompt."\n\nCRITICAL: Respon sebelumnya bukan JSON valid. Balas HANYA dengan satu objek JSON valid tanpa teks lain: {\"verdict\":\"ok|off_topic|asks_solution|injection\",\"hint_level\":1|2|3,\"reply\":\"...\"}";
+            $retryRes = $this->sendProviderRequest(
+                $userId,
+                $retrySystem,
+                $userPrompt,
+                $maxOutput,
+                $schema,
+                'answer',
+                $callContext
+            );
+            $parsed = $this->parseModelJsonResponse($retryRes['text']);
+
+            if ($parsed === null) {
+                // Fail-closed: 2x invalid JSON dianggap internal_error
+                abort(503, AiErrorCode::InternalError->message(), [
+                    'X-AI-Error' => AiErrorCode::InternalError->value,
+                    'X-AI-Reason' => 'invalid_json_schema',
+                ]);
+            }
+        }
+
+        $verdict = $parsed['verdict'];
+        $candidateReply = $parsed['reply'];
+        $hintLevel = $parsed['hint_level'] ?: $expectedHintLevel;
+
+        // Jika model mengembalikan verdict selain ok: abaikan reply dari model, kirim pesan penolakan standar
+        if ($verdict !== 'ok') {
+            $refusal = match ($verdict) {
+                'off_topic' => AiErrorCode::BlockedOffTopic->message(),
+                'asks_solution', 'injection' => AiErrorCode::BlockedAsksSolution->message(),
+                default => AiErrorCode::BlockedAsksSolution->message(),
+            };
+
+            return [
+                'reply' => $refusal,
+                'verdict' => $verdict,
+                'hint_level' => $hintLevel,
+                'raw_reply' => $candidateReply,
+                'reviewed' => false,
+            ];
+        }
+
+        // OutputGuard deterministik di PHP untuk verdict ok
+        $outputGuard = app(OutputGuard::class);
+        $referenceSolution = $builtContext['reference_solution'] ?? null;
+        $guardResult = $outputGuard->check($candidateReply, $referenceSolution);
+
+        if ($guardResult->isReject()) {
+            return [
+                'reply' => AiErrorCode::BlockedAsksSolution->message(),
+                'verdict' => AiMessage::VERDICT_BLOCKED_OUTPUT,
+                'hint_level' => $hintLevel,
+                'raw_reply' => $candidateReply,
+                'reviewed' => false,
+                'guard_reason' => $guardResult->reason,
+            ];
+        }
+
+        if ($guardResult->isDoubtful()) {
+            // Reviewer LLM dipanggil HANYA saat OutputGuard ragu
+            $this->checkCancelled($userId);
+            $reviewResult = $this->callReviewer($userId, $task, $builtContext, $candidateReply, $callContext);
+
+            if ($reviewResult['result'] !== 'safe') {
+                // Reviewer fail-closed: leak atau parse gagal -> buang jawaban dan kirim penolakan standar
+                return [
+                    'reply' => AiErrorCode::BlockedAsksSolution->message(),
+                    'verdict' => AiMessage::VERDICT_BLOCKED_OUTPUT,
+                    'hint_level' => $hintLevel,
+                    'raw_reply' => $candidateReply,
+                    'reviewed' => true,
+                    'reviewer_reason' => $reviewResult['reason'],
+                ];
+            }
+
+            return [
+                'reply' => $candidateReply,
+                'verdict' => AiMessage::VERDICT_OK,
+                'hint_level' => $hintLevel,
+                'raw_reply' => $candidateReply,
+                'reviewed' => true,
+            ];
+        }
+
+        // OutputGuard aman (SAFE)
+        return [
+            'reply' => $candidateReply,
+            'verdict' => AiMessage::VERDICT_OK,
+            'hint_level' => $hintLevel,
+            'raw_reply' => $candidateReply,
+            'reviewed' => false,
+        ];
+    }
+
+    /**
+     * Fallback independent reviewer LLM using resources/ai/reviewer.txt.
+     *
+     * @return array{result: 'safe'|'leak', reason: string}
+     */
+    public function callReviewer(int $userId, object $task, array $builtContext, string $candidateReply, array $callContext): array
+    {
+        $renderer = app(PromptTemplateRenderer::class);
+        $title = $task->title ?? ($builtContext['title'] ?? 'Tugas');
+        $steps = $builtContext['coding_steps'] ?? '';
+        $reviewerPrompt = $renderer->renderReviewer($title, $steps, $candidateReply);
+
+        $schema = [
+            'type' => 'OBJECT',
+            'properties' => [
+                'result' => ['type' => 'STRING', 'enum' => ['safe', 'leak']],
+                'reason' => ['type' => 'STRING'],
+            ],
+            'required' => ['result'],
+        ];
+
+        try {
+            $userMsg = 'Audit the candidate reply provided in the system prompt. Return JSON: {"result":"safe|leak","reason":"<one sentence>"}';
+            $res = $this->sendProviderRequest(
+                $userId,
+                $reviewerPrompt,
+                $userMsg,
+                200,
+                $schema,
+                'review',
+                $callContext
+            );
+
+            $clean = trim($res['text']);
+            if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $clean, $m)) {
+                $clean = trim($m[1]);
+            }
+            if (preg_match('/\{[\s\S]*\}/', $clean, $m)) {
+                $clean = $m[0];
+            }
+            $json = json_decode($clean, true);
+            if (is_array($json) && isset($json['result'])) {
+                $resVal = strtolower(trim((string) $json['result']));
+                if (in_array($resVal, ['safe', 'leak'], true)) {
+                    return [
+                        'result' => $resVal,
+                        'reason' => (string) ($json['reason'] ?? ''),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Reviewer call failed, failing closed: '.$e->getMessage());
+        }
+
+        return [
+            'result' => 'leak',
+            'reason' => 'reviewer_failed_or_invalid_json',
+        ];
+    }
+
+    /**
+     * Parse and validate model JSON output in PHP.
+     *
+     * @return array{verdict: string, hint_level: int, reply: string}|null
+     */
+    public function parseModelJsonResponse(string $text): ?array
+    {
+        $clean = trim($text);
+        if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $clean, $m)) {
+            $clean = trim($m[1]);
+        }
+        if (preg_match('/\{[\s\S]*\}/', $clean, $m)) {
+            $clean = $m[0];
+        }
+
+        try {
+            $data = json_decode($clean, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! is_array($data) || ! isset($data['verdict'])) {
+            return null;
+        }
+
+        $verdict = strtolower(trim((string) $data['verdict']));
+        if (! in_array($verdict, ['ok', 'off_topic', 'asks_solution', 'injection'], true)) {
+            return null;
+        }
+
+        return [
+            'verdict' => $verdict,
+            'hint_level' => (int) ($data['hint_level'] ?? 1),
+            'reply' => (string) ($data['reply'] ?? ''),
+        ];
     }
 
     protected function checkCancelled(int $userId, ?int $reserved = null, ?int $estimatedInputTokens = null, ?string $day = null): void
@@ -140,7 +394,7 @@ TEXT;
         return $this->lastUsage;
     }
 
-    protected function call(int $userId, string $system, array $data, int $output, bool|array $json, string $stage, array $context): string
+    protected function call(int $userId, string $system, array|string $data, int $output, bool|array $json, string $stage, array $context): string
     {
         $result = $this->sendProviderRequest($userId, $system, $data, $output, $json, $stage, $context);
         $this->lastUsage = $result['usage'];
@@ -148,16 +402,25 @@ TEXT;
         return $result['text'];
     }
 
-    public function sendProviderRequest(int $userId, string $system, array $data, int $output, bool|array $json, string $stage, array $context): array
+    public function sendProviderRequest(int $userId, string $system, array|string $data, int $output, bool|array $json, string $stage, array $context): array
     {
         $isV2 = (bool) config('ai.v2', false);
         $this->checkCacheDriver();
         [$provider, $model, $apiKey, $endpoint] = $this->resolveProviderAndModel();
 
+        if ($stage === 'review' && filled(config('ai.reviewer_model'))) {
+            $model = (string) config('ai.reviewer_model');
+            if ($provider === 'google') {
+                $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($model).':generateContent';
+            }
+        }
+
+        $userText = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
         if ($provider === 'google') {
             $payload = [
                 'systemInstruction' => ['parts' => [['text' => $system]]],
-                'contents' => [['role' => 'user', 'parts' => [['text' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)]]]],
+                'contents' => [['role' => 'user', 'parts' => [['text' => $userText]]]],
                 'generationConfig' => [
                     'maxOutputTokens' => $output,
                     'thinkingConfig' => ['thinkingBudget' => 0],
@@ -186,7 +449,7 @@ TEXT;
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => $sysPrompt],
-                    ['role' => 'user', 'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)],
+                    ['role' => 'user', 'content' => $userText],
                 ],
                 'max_tokens' => $output,
                 'temperature' => 0.5,

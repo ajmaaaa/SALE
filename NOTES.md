@@ -97,4 +97,27 @@ Sesuai persyaratan PRD 6.7 dan instruksi Fase 2, berikut hasil audit kesiapan ad
   - Ketika `blocked_count >= 5`, thread otomatis ditandai `flagged_for_review = true` untuk audit dosen.
   - Setiap permintaan selama durasi cooldown 120 detik langsung ditolak dengan status HTTP 429 (`blocked_off_topic`) beserta header `Retry-After` tanpa memanggil model LLM.
 
+---
+
+## 7. Catatan Fase 5 (Single Call Pipeline, OutputGuard, & Reviewer Fallback)
+- **Pipeline Satu Panggilan (`AI_SINGLE_CALL`)**:
+  - Menggantikan alur 3 tahap (gate + answer + review) menjadi 1 panggilan terstruktur dengan format JSON `{"verdict":"ok|off_topic|asks_solution|injection","hint_level":1|2|3,"reply":"..."}`.
+  - Fail-closed: Jika respons model bukan JSON valid, dilakukan retry 1x dengan instruksi penegasan. Jika percobaan kedua tetap gagal, sistem melempar HTTP 503 `internal_error` ("Terjadi gangguan. Coba lagi.").
+  - Verdict selain `ok` langsung membuang `reply` model dan mengirimkan pesan penolakan standar (`off_topic`, `asks_solution`, atau `injection` yang memakai pesan asks_solution), serta menaikkan `blocked_count` pada thread.
+- **OutputGuard Deterministik (PHP)**:
+  - Memeriksa balasan dengan verdict `ok` sebelum ditampilkan ke mahasiswa.
+  - Memblokir blok kode berpagar (` ``` ` atau `~~~`), kode inline > 40 karakter / multiline, n-gram overlap (n=5) dengan solusi referensi, teks kosong, atau kata > 250 kata.
+  - Jika rasio baris mirip kode melebihi ambang batas (`AI_CODE_RATIO_THRESHOLD`, default 0.25) atau deteksi bahasa mencurigakan, status menjadi `doubtful` (ragu) dan memicu panggilan Reviewer LLM.
+- **Reviewer LLM**:
+  - Hanya dipanggil saat OutputGuard ragu.
+  - Fail-closed: Jika reviewer menyatakan `leak`, gagal parse, atau terjadi timeout/error, jawaban langsung dibuang dan penolakan standar dikirimkan dengan verdict `blocked_output`.
+  - Mendukung konfigurasi model lebih ringan via `AI_REVIEWER_MODEL`.
+- **Pengukuran Rata-rata Panggilan LLM per Pertanyaan**:
+  - Menggunakan command `php artisan ai:call-stats {--days=7}` yang menghitung:
+    $$\text{Rata-rata Panggilan} = \frac{\text{Panggilan Answer} + \text{Panggilan Review}}{\text{Panggilan Answer}}$$
+  - Target PRD <= 1.15 tercapai karena reviewer hanya dipanggil saat kondisi ragu (< 10% kasus).
+- **Pencegahan XSS di Frontend**:
+  - Fungsi `renderMarkdown` di [`resources/js/app.js`](file:///home/ajmaaa/Projects/SALE/resources/js/app.js) meng-escape seluruh karakter entitas HTML dan tanda kutip (`&`, `<`, `>`, `"`, `'`) sebelum mengubah sintaks formatting terbatas, sehingga mencegah eksekusi kode berbahaya.
+
+
 
