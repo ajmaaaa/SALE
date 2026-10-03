@@ -332,6 +332,8 @@ class AdminProdiManagementTest extends TestCase
         ]));
         $mkViewResponse->assertOk()
             ->assertSee('Pilih Butir CPMK yang Diampu (Multiple Choice)')
+            ->assertDontSee('CPMK tanpa pemetaan CPL')
+            ->assertDontSee('mk_create_orphan_card')
             ->assertSee('cpmk_ids[]');
     }
 
@@ -430,7 +432,8 @@ class AdminProdiManagementTest extends TestCase
         // 3. Impor CSV Massal Mahasiswa
         $csvContent = "NIM,Nama Mahasiswa,Email Mahasiswa,Password\n"
             ."231011405001,Rina Kurnia,rina@student.test,password1234\n"
-            ."231011405002,Dimas Anggara,dimas@student.test,\n";
+            ."231011405002,Dimas Anggara,dimas@student.test,\n"
+            ."231011405003,Saya Test,saya@test,\n";
 
         $file = UploadedFile::fake()->createWithContent('import_students.csv', $csvContent);
 
@@ -442,10 +445,14 @@ class AdminProdiManagementTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('users', ['email' => 'rina@student.test']);
         $this->assertDatabaseHas('users', ['email' => 'dimas@student.test']);
+        $this->assertDatabaseHas('users', ['email' => 'saya@test']);
         $this->assertDatabaseHas('users', ['email' => 'rina@student.test', 'must_change_password' => true]);
         $temporaryCredentials = $response->getSession()->get('temporary_credentials');
-        $this->assertCount(1, $temporaryCredentials);
+        $this->assertCount(2, $temporaryCredentials);
         $this->assertSame('dimas@student.test', $temporaryCredentials[0]['email']);
+        $this->assertSame('231011405002', $temporaryCredentials[0]['password']);
+        $this->assertSame('saya@test', $temporaryCredentials[1]['email']);
+        $this->assertSame('231011405003', $temporaryCredentials[1]['password']);
         $this->assertTrue(Hash::check(
             $temporaryCredentials[0]['password'],
             User::where('email', 'dimas@student.test')->firstOrFail()->password
@@ -566,7 +573,8 @@ class AdminProdiManagementTest extends TestCase
         $sheet = $spreadsheet->getActiveSheet();
         $this->assertSame('LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI', $sheet->getCell('A1')->getValue());
         $this->assertStringContainsString('Teknik Informatika', (string) $sheet->getCell('A2')->getValue());
-        $this->assertSame('IF204', $sheet->getCell('B15')->getValue() ?? $sheet->getCell('B17')->getValue());
+        $sheetClasses = $spreadsheet->getSheet(1);
+        $this->assertSame('IF204', $sheetClasses->getCell('B7')->getValue());
         @unlink($tempFile);
     }
 
@@ -591,9 +599,8 @@ class AdminProdiManagementTest extends TestCase
 
         $created = User::where('email', $payload['email'])->firstOrFail();
         $notice = (string) $response->getSession()->get('notice');
-        $this->assertMatchesRegularExpression('/Password sementara: (\S{16}) /', $notice);
-        preg_match('/Password sementara: (\S{16}) /', $notice, $matches);
-        $this->assertTrue(Hash::check($matches[1], $created->password));
+        $this->assertStringContainsString('Password default: 231011409099', $notice);
+        $this->assertTrue(Hash::check('231011409099', $created->password));
         $this->assertFalse(Hash::check('password123', $created->password));
         $this->assertTrue($created->must_change_password);
 

@@ -11,8 +11,9 @@
     $hasMultiQuestions = !empty($item['questions']);
     $taskMode = $item['task_mode'] ?? null;
     $isDedicatedQuiz = ($taskMode === 'quiz')
-        || ($item['type'] === 'kuis' && $taskMode !== 'regular' && $taskMode !== 'coding')
-        || (in_array($item['type'], ['uts', 'uas'], true) && $taskMode !== 'regular' && $taskMode !== 'coding' && !empty($item['questions']));
+        || ($item['type'] === 'kuis' && $taskMode !== 'coding')
+        || (($item['component'] ?? '') === 'kuis' && $taskMode !== 'coding')
+        || (in_array($item['type'], ['uts', 'uas'], true) && $taskMode !== 'coding' && !empty($item['questions']));
     $isCodingMaterial = $item['type'] === 'materi' && ($item['material_mode'] ?? null) === 'coding';
     $isCodingTask = in_array($item['type'], ['coding'], true)
         || ($item['task_mode'] ?? null) === 'coding'
@@ -58,9 +59,30 @@
     $hasDbGrade = $dbScore && $dbScore->score !== null;
     $isGraded = $hasDbGrade;
     $scoreValue = $hasDbGrade ? (float)$dbScore->score : null;
+
+    $cpmkThreshold = 65.0;
+    if (!empty($item['cpmk_threshold'])) {
+        $cpmkThreshold = (float) $item['cpmk_threshold'];
+    } elseif (!empty($item['id']) && \Illuminate\Support\Facades\Schema::hasTable('assessments')) {
+        $assessmentModel = \App\Models\Assessment::with('cpmks')->find($item['id']);
+        if ($assessmentModel && $assessmentModel->cpmks->isNotEmpty()) {
+            $cpmkThreshold = (float) $assessmentModel->cpmks->avg('threshold');
+        } elseif (!empty($item['cpmk'])) {
+            $cpmkObj = \App\Models\Cpmk::where('code', $item['cpmk'])->first();
+            if ($cpmkObj && $cpmkObj->threshold !== null) {
+                $cpmkThreshold = (float) $cpmkObj->threshold;
+            }
+        }
+    }
+    $maxItemPoints = (float)($item['points'] ?? 100);
+    $scorePct = ($scoreValue !== null && $maxItemPoints > 0) ? (($scoreValue / $maxItemPoints) * 100) : ($scoreValue ?? 0);
+    $isScorePassed = $scoreValue !== null && ($scorePct >= $cpmkThreshold);
+    $scoreColorClass = $isScorePassed ? 'text-emerald-600' : 'text-rose-600';
+    $scoreBadgeClass = $isScorePassed ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200';
+
     $isSubmitted = !empty($submission) || $isGraded;
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
-    $allowLate = ($isTask && !$isDedicatedQuiz) ? true : ($item['allow_late'] ?? true);
+    $allowLate = (bool) ($item['allow_late'] ?? true);
     $studentAttempt = null;
     if (auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('assessment_attempts')) {
         $studentAttempt = \App\Models\AssessmentAttempt::where('assessment_id', $item['id'])
@@ -75,6 +97,7 @@
     $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
     $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
     $courseBackUrl = $courseBaseUrl . '?tab=' . $targetTab;
+    $isArchived = !empty($course['is_archived']) || (!empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false));
 @endphp
 
 <div class="space-y-6">
@@ -123,7 +146,7 @@
                 <section class="surface p-6 sm:p-7 flex flex-col flex-1">
                     <div class="flex items-center justify-between gap-4">
                         <h2 class="section-heading">{{ $item['type'] === 'materi' ? 'Materi Pembelajaran' : 'Petunjuk Pengerjaan' }}</h2>
-                        @if($isLecturer)
+                        @if($isLecturer && !$isArchived)
                             <div class="flex items-center gap-1.5 shrink-0" aria-label="Aksi konten">
                                 <a href="{{ route('dosen.item.edit', [$course['id'], $item['id']]) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-brand hover:text-brand transition shadow-2xs" title="Edit konten" aria-label="Edit konten">
                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -163,7 +186,7 @@
                                     @if(!$isLecturer && $scoreValue !== null)
                                         <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-2">
                                             <span class="text-xs text-muted font-medium">Nilai Kuis:</span>
-                                            <span class="text-sm font-bold text-emerald-600 font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
+                                            <span class="text-sm font-bold {{ $scoreColorClass }} font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
                                             @if($submission)
                                                 <span class="text-xs text-slate-300">·</span>
                                                 <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
@@ -184,8 +207,12 @@
                                             {{-- Tombol Lihat Jawaban dihapus; gunakan "Lihat dan Nilai Mahasiswa" di halaman penilaian --}}
                                         @elseif($isGraded || $submission)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
+                                        @elseif(empty($item['questions']) || !empty($item['questions_empty']))
+                                            <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed" title="Soal belum tersedia">Mulai Kerjakan Kuis</button>
+                                        @elseif($isArchived)
+                                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Lembar Kuis (Read-Only)</a>
                                         @elseif($isLocked || $isAttemptRejected)
-                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Kuis Ditutup</button>
+                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed">Kerjakan</button>
                                         @else
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
                                         @endif
@@ -221,7 +248,7 @@
                                         @if($scoreValue !== null)
                                             <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-2">
                                                 <span class="text-xs text-muted font-medium">Nilai Tugas:</span>
-                                                <span class="text-sm font-bold text-emerald-600 font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
+                                                <span class="text-sm font-bold {{ $scoreColorClass }} font-mono">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }} Poin</span>
                                                 @if($submission)
                                                     <span class="text-xs text-slate-300">·</span>
                                                     <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
@@ -711,11 +738,13 @@
                         </div>
                     @endif
 
-                    <div class="space-y-2 pt-2 border-t border-line/60">
-                        <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
-                            + Tambah Konten / Soal Baru
-                        </a>
-                    </div>
+                    @if(!$isArchived)
+                        <div class="space-y-2 pt-2 border-t border-line/60">
+                            <a href="{{ route('dosen.item.create', $course['id']) }}" class="button-secondary w-full py-2 text-xs font-semibold text-center block">
+                                + Tambah Konten / Soal Baru
+                            </a>
+                        </div>
+                    @endif
                 </aside>
             @elseif($isTask && !$isDedicatedQuiz && !$isCodingTask)
                 {{-- Student Submission Panel (Google Classroom Style for Tugas, PBL, etc.) --}}
@@ -724,8 +753,8 @@
                         <h2 class="text-sm font-bold text-ink">{{ $item['type'] === 'lainnya' ? 'Pengumpulan Anda' : 'Tugas Anda' }}</h2>
                         @if($isGraded)
                             <div class="text-right">
-                                <span class="whitespace-nowrap text-sm font-bold text-emerald-600">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }}</span>
-                                <span class="block text-[11px] font-semibold text-emerald-600">Sudah dinilai</span>
+                                <span class="whitespace-nowrap text-sm font-bold {{ $scoreColorClass }}">{{ number_format($scoreValue, 0) }}/{{ $item['points'] ?? 100 }}</span>
+                                <span class="block text-[11px] font-semibold {{ $scoreColorClass }}">{{ $isScorePassed ? 'Sudah dinilai (Tuntas)' : 'Sudah dinilai (Di bawah ambang)' }}</span>
                             </div>
                         @elseif($submission)
                             @php
@@ -829,7 +858,7 @@
                     </div>
 
                     {{-- Action Button: + Tambah atau buat --}}
-                    @if(!$isLocked && !$submission && !$isGraded)
+                    @if(!$isLocked && !$submission && !$isGraded && !$isArchived)
                         <div class="relative" data-add-work-dropdown>
                             <button type="button" data-toggle-dropdown class="button-secondary w-full py-2 text-xs font-semibold flex items-center justify-center gap-2">
                                 <span class="text-sm font-bold text-brand">+</span> Tambah atau buat
@@ -857,7 +886,7 @@
                     <input type="hidden" name="link" data-submission-link value="{{ old('link') }}">
 
                     {{-- Optional text answer area --}}
-                    @if(!$submission && !$isLocked && !$isGraded)
+                    @if(!$submission && !$isLocked && !$isGraded && !$isArchived)
                         <div data-text-answer-box hidden class="space-y-1 pt-1">
                             <div class="flex items-center justify-between">
                                 <label class="form-label text-[11px] mb-0" for="answer_field">Jawaban Teks</label>
@@ -874,7 +903,7 @@
                                 Sudah Dinilai
                             </button>
                         @elseif($submission)
-                            @if($isPast && !$allowLate)
+                            @if(($isPast && !$allowLate) || $isArchived)
                                 <button type="button" disabled class="button-secondary bg-slate-100 text-slate-600 w-full py-2.5 text-xs font-semibold cursor-default">
                                     Sudah Diserahkan
                                 </button>
@@ -883,6 +912,10 @@
                                     Batalkan Serahkan
                                 </button>
                             @endif
+                        @elseif($isArchived)
+                            <div class="rounded-lg border border-line bg-canvas/60 p-3 text-center">
+                                <p class="text-xs font-medium text-muted">Kelas telah diarsipkan. Pengumpulan tugas ditutup.</p>
+                            </div>
                         @elseif($isLocked)
                             <button type="button" disabled class="button-secondary w-full py-2.5 text-xs font-semibold opacity-60 cursor-not-allowed">
                                 Pengumpulan Ditutup
@@ -900,7 +933,7 @@
     </form>
     @endunless
 
-    @if($submission && (!$isPast || $allowLate) && !$isGraded)
+    @if($submission && (!$isPast || $allowLate) && !$isGraded && !$isArchived)
         <form id="cancel-submission-form" action="{{ route('mahasiswa.course.submission.cancel', [$course['id'], $item['id']]) }}" method="POST" class="hidden">
             @csrf
         </form>

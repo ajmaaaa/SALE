@@ -257,7 +257,7 @@ Artisan::command('ai:benchmark {file=docs/samples/ai-evaluation-benchmark.json} 
 Artisan::command('sale:backup', function () {
     $dir = \App\Http\Controllers\AdminPreviewController::getBackupDirectory();
     if (! is_dir($dir)) {
-        mkdir($dir, 0755, true);
+        mkdir($dir, 0700, true);
     }
     $filename = 'sale-backup-' . now()->format('Y-m-d_His') . '.sql';
     $path = $dir . '/' . $filename;
@@ -325,4 +325,43 @@ Artisan::command('sale:backup', function () {
             return true;
         }
     });
+
+Artisan::command('sale:seed-students {count=40}', function () {
+    $count = (int) $this->argument('count');
+    $mhsRole = \App\Models\Role::firstOrCreate(['name' => \App\Models\Role::MAHASISWA], ['label' => 'Mahasiswa']);
+    $firstSection = \App\Models\ClassSection::first();
+
+    $this->info("Membuat/memverifikasi {$count} akun mahasiswa untuk pengujian performa...");
+    $bar = $this->output->createProgressBar($count);
+    $bar->start();
+
+    for ($i = 1; $i <= $count; $i++) {
+        $nim = '2401' . str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+        $user = \App\Models\User::firstOrCreate(
+            ['nim_nidn' => $nim],
+            [
+                'name' => "Mahasiswa Uji {$i}",
+                'email' => "mhs{$i}@student.sale.local",
+                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'role_id' => $mhsRole->id,
+                'is_active' => true,
+            ]
+        );
+
+        if ($firstSection && ! $firstSection->students()->where('mahasiswa_id', $user->id)->exists()) {
+            if (! $firstSection->capacity || $firstSection->students()->count() < $firstSection->capacity) {
+                $firstSection->students()->attach($user->id);
+            }
+        }
+        $bar->advance();
+    }
+    $bar->finish();
+    $this->newLine();
+    $this->info("Berhasil! {$count} akun mahasiswa siap digunakan dengan password: password123");
+    if ($firstSection) {
+        $this->info("Mahasiswa telah didaftarkan ke kelas: {$firstSection->section_code}");
+    }
+
+    return 0;
+})->purpose('Seed akun mahasiswa pengujian beban/concurrency');
 

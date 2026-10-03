@@ -6,7 +6,7 @@
 @section('content')
 <div class="max-w-2xl mx-auto py-8">
     <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-4">
-        <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route('mahasiswa.dashboard') }}">
+        <a class="flex items-center gap-1.5 font-medium text-slate-500 hover:text-brand transition" href="{{ route(($isDosen ?? false) ? 'dosen.dashboard' : 'mahasiswa.dashboard') }}">
             <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
             <span>Dashboard</span>
         </a>
@@ -17,8 +17,8 @@
     </nav>
     <div class="surface p-8 space-y-6">
         <div class="text-center space-y-2">
-            <div class="h-16 w-16 rounded-full bg-brand/10 text-brand flex items-center justify-center mx-auto">
-                <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <div class="flex items-center justify-center mx-auto text-slate-700 py-1">
+                <svg class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                     <circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -28,6 +28,8 @@
             <h1 class="page-heading text-xl">
                 @if($alreadyEnrolled)
                     Anda Sudah Terdaftar
+                @elseif($isKicked ?? false)
+                    Daftar Ulang Kelas
                 @else
                     Konfirmasi Pendaftaran Kelas
                 @endif
@@ -35,6 +37,8 @@
             <p class="text-sm text-muted">
                 @if($alreadyEnrolled)
                     Anda sudah terdaftar di kelas ini. Tidak ada tindakan yang diperlukan.
+                @elseif($isKicked ?? false)
+                    Anda sebelumnya dikeluarkan dari kelas ini. Silakan periksa pesan dosen di bawah sebelum mendaftar ulang.
                 @elseif($isDosen ?? false)
                     Anda akan ditambahkan ke slot Dosen Ketua atau Dosen Pendamping yang masih tersedia.
                 @else
@@ -42,6 +46,32 @@
                 @endif
             </p>
         </div>
+
+        @if($isKicked ?? false)
+            {{-- Card Riwayat & Pesan Pengeluaran Dosen --}}
+            <div class="rounded-xl border border-line bg-canvas/60 p-4 text-left text-xs space-y-2.5">
+                <div class="flex items-center gap-2 font-semibold text-ink">
+                    <svg class="h-4 w-4 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span>Riwayat Pengeluaran dari Kelas</span>
+                </div>
+                <p class="text-muted leading-relaxed">
+                    Anda sebelumnya telah dikeluarkan dari kelas ini oleh dosen pengampu.
+                </p>
+                @if(!empty($enrollmentRecord?->kick_reason))
+                    <div class="p-3 rounded-lg bg-white border border-line/70 space-y-1">
+                        <span class="text-[11px] font-semibold text-muted uppercase tracking-wider block">Pesan / Alasan Dosen:</span>
+                        <p class="font-medium text-ink text-xs leading-relaxed">"{{ $enrollmentRecord->kick_reason }}"</p>
+                    </div>
+                @endif
+                <p class="text-[11px] text-amber-700 font-medium">
+                    Perhatian: Jika Anda dikeluarkan satu kali lagi (total 2 kali), akses Anda ke kelas ini akan dibatasi dan memerlukan proses verifikasi ke Admin Prodi.
+                </p>
+            </div>
+        @endif
 
         <div class="border-t border-b border-line/60 py-5 space-y-3">
             <div class="flex items-center justify-between pb-2 border-b border-line/40">
@@ -81,19 +111,37 @@
 
         @if($alreadyEnrolled)
             <div class="flex justify-center gap-3">
-                <a href="{{ route(($isDosen ?? false) ? 'dosen.course.index' : 'mahasiswa.course.index') }}" class="button-primary text-xs px-5 py-2.5">
+                <a href="{{ route(($isDosen ?? false) ? 'dosen.course.show' : 'mahasiswa.course.show', $section->id) }}" class="button-primary text-xs px-5 py-2.5">
                     Buka Course Saya
                 </a>
+            </div>
+        @elseif($isFull ?? false)
+            <div class="space-y-4">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-xs text-rose-800 space-y-1">
+                    <p class="font-bold text-sm">Kapasitas Kelas Telah Penuh</p>
+                    <p class="text-rose-700">Kelas ini telah mencapai kapasitas maksimal ({{ $section->capacity }} mahasiswa). Hubungi dosen pengampu atau admin program studi untuk penambahan kuota.</p>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <a href="{{ route('mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
+                        Kembali ke Dashboard
+                    </a>
+                </div>
             </div>
         @else
             <form method="POST" action="{{ route('mahasiswa.join-kelas.post', $code) }}">
                 @csrf
                 <div class="flex justify-center gap-3">
                     <a href="{{ route(($isDosen ?? false) ? 'dosen.course.index' : 'mahasiswa.dashboard') }}" class="button-secondary text-xs px-5 py-2.5">
-                        Batal
+                        {{ ($isKicked ?? false) ? 'Batalkan / Bukan Kelas Saya' : 'Batal' }}
                     </a>
-                    <button type="submit" class="button-primary text-xs px-5 py-2.5">
-                        {{ ($isDosen ?? false) ? 'Ya, Tambahkan Saya' : 'Ya, Daftarkan Saya' }}
+                    <button type="submit" class="button-primary text-xs px-5 py-2.5 cursor-pointer">
+                        @if($isDosen ?? false)
+                            Ya, Tambahkan Saya
+                        @elseif($isKicked ?? false)
+                            Daftar Ulang Kelas
+                        @else
+                            Ya, Daftarkan Saya
+                        @endif
                     </button>
                 </div>
             </form>

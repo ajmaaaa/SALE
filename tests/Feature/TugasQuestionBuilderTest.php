@@ -405,6 +405,79 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertSame('Tugas Awal Diperbarui', $assessment->name);
     }
 
+    public function test_lecturer_can_store_content_even_if_hidden_empty_coding_steps_payload_is_present(): void
+    {
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'regular',
+            'title' => 'Tugas Bebas Bug Coding Steps',
+            'module' => 'Minggu 7: OOP',
+            'body' => 'Selesaikan tugas analisis OOP berikut.',
+            'question_type' => 'uraian',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['file', 'text'],
+            'manual_cpmk_weights' => [
+                'CPMK-1' => 100,
+            ],
+            // Simulasi form browser yang mengirimkan row 0 coding_steps kosong
+            'coding_steps' => [
+                [
+                    'title' => '',
+                    'body' => '',
+                    'cpmk' => '',
+                    'points' => '100',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('name', 'Tugas Bebas Bug Coding Steps')->firstOrFail();
+        $this->assertSame('tugas', $assessment->type);
+    }
+
+    public function test_lecturer_can_store_coding_task_when_coding_steps_initial_row_is_empty(): void
+    {
+        $payload = [
+            'type' => 'coding',
+            'task_mode' => 'coding',
+            'title' => 'Praktikum Coding Mandiri',
+            'module' => 'Modul 8: Python OOP',
+            'body' => 'Buat class Mahasiswa dengan method display info.',
+            'question_type' => 'coding',
+            'cpmk' => $this->cpmk1->code,
+            'formats' => ['text'],
+            // Row 0 kosong (user hanya mengisi modul dan body di step 1)
+            'coding_steps' => [
+                [
+                    'title' => '',
+                    'body' => '',
+                    'cpmk' => '',
+                    'points' => '100',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+
+        $response->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('name', 'Praktikum Coding Mandiri')->firstOrFail();
+        $this->assertCount(1, $assessment->learning_payload['coding_steps']);
+        $this->assertSame('Modul 8: Python OOP', $assessment->learning_payload['coding_steps'][0]['title']);
+        $this->assertSame('Buat class Mahasiswa dengan method display info.', $assessment->learning_payload['coding_steps'][0]['body']);
+    }
+
     public function test_quiz_creation_still_validates_questions_prompt(): void
     {
         $payload = [
@@ -569,4 +642,314 @@ class TugasQuestionBuilderTest extends TestCase
         // Tidak ada questions atau asesmen tugas
         $this->assertEmpty($assessment->learning_payload['questions'] ?? []);
     }
+
+    public function test_coding_task_single_step_fallback_and_multi_step_grading_rekap_and_student_views(): void
+    {
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mahasiswa.coding@example.test',
+            'nim_nidn' => '230101001',
+        ]);
+        $this->section->students()->attach($student->id);
+
+        // 1. Dosen membuat Tugas Coding dengan 2 langkah / butir soal berbeda CPMK dan Poin
+        $createPayload = [
+            'type' => 'tugas',
+            'task_mode' => 'coding',
+            'title' => 'Tugas Coding BST',
+            'module' => 'Praktikum Struktur Data',
+            'body' => 'Selesaikan instruksi coding BST berikut.',
+            'question_type' => 'coding',
+            'cpmk' => $this->cpmk1->code,
+            'coding_steps' => [
+                [
+                    'title' => 'Soal 1: Kelas Node',
+                    'cpmk' => $this->cpmk1->code,
+                    'body' => 'Buat kelas Node.',
+                    'points' => 40,
+                ],
+                [
+                    'title' => 'Soal 2: Metode Insert',
+                    'cpmk' => $this->cpmk2->code,
+                    'body' => 'Implementasi metode insert.',
+                    'points' => 60,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $createPayload
+        );
+        $response->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Tugas Coding BST')
+            ->firstOrFail();
+
+        $this->assertSame('tugas', $assessment->type);
+        $this->assertCount(2, $assessment->learning_payload['coding_steps']);
+        $this->assertSame(100, $assessment->learning_payload['points']);
+        $this->assertSame('automatic_cpmk', $assessment->learning_payload['scoring_mode']);
+
+        // Verifikasi bobot CPMK proporsional terhadap poin (40% dan 60%)
+        $assessment->load('cpmks');
+        $this->assertCount(2, $assessment->cpmks);
+        $pivotCpmk1 = $assessment->cpmks->firstWhere('id', $this->cpmk1->id);
+        $pivotCpmk2 = $assessment->cpmks->firstWhere('id', $this->cpmk2->id);
+        $this->assertEquals(40.0, (float) $pivotCpmk1->pivot->weight);
+        $this->assertEquals(60.0, (float) $pivotCpmk2->pivot->weight);
+
+        // 2. Mahasiswa mengumpulkan jawaban coding
+        $submission = \App\Models\Submission::create([
+            'assessment_id' => $assessment->id,
+            'user_id' => $student->id,
+            'mahasiswa_id' => $student->id,
+            'attempt' => 1,
+            'version' => 1,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'answer' => json_encode([
+                ['step' => 1, 'name' => 'solution_soal_1.py', 'code' => 'class Node: pass'],
+                ['step' => 2, 'name' => 'solution_soal_2.py', 'code' => 'def insert(): pass'],
+            ]),
+        ]);
+
+        // 3. Dosen menginput nilai coding (Soal 1: 35/40, Soal 2: 55/60 -> Total: 90/100)
+        $gradeResponse = $this->actingAs($this->dosen)->post(
+            route('dosen.penilaian.asesmen.student.coding_scores', [$this->section->id, $assessment->id, $student->id]),
+            [
+                'scores' => [
+                    '1' => 35,
+                    '2' => 55,
+                ],
+            ]
+        );
+        $gradeResponse->assertRedirect();
+        $gradeResponse->assertSessionHasNoErrors();
+
+        // Verifikasi SubmissionAnswer tersimpan
+        $ans1 = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '1')->firstOrFail();
+        $ans2 = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '2')->firstOrFail();
+        $this->assertEquals(35.0, (float) $ans1->earned_score);
+        $this->assertEquals(55.0, (float) $ans2->earned_score);
+
+        // Verifikasi StudentAssessmentScore dan StudentAssessmentCpmkScore
+        $totalScoreRec = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $student->id)
+            ->firstOrFail();
+        $this->assertEquals(90.0, (float) $totalScoreRec->score);
+        $this->assertSame(\App\Models\StudentAssessmentScore::STATUS_PUBLISHED, $totalScoreRec->status);
+
+        $cpmk1Score = \App\Models\StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
+            ->where('cpmk_id', $this->cpmk1->id)
+            ->where('mahasiswa_id', $student->id)
+            ->firstOrFail();
+        $cpmk2Score = \App\Models\StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
+            ->where('cpmk_id', $this->cpmk2->id)
+            ->where('mahasiswa_id', $student->id)
+            ->firstOrFail();
+        $this->assertEquals(35.0, (float) $cpmk1Score->score);
+        $this->assertEquals(55.0, (float) $cpmk2Score->score);
+
+        // 4. Verifikasi Tampilan Nilai di Rekap Dosen
+        $rekapView = $this->actingAs($this->dosen)->get(route('dosen.penilaian.rekap', $this->section->id));
+        $rekapView->assertOk();
+        $rekapView->assertSee((string) $student->name);
+        $rekapView->assertSee('35');
+        $rekapView->assertSee('55');
+
+        // 5. Verifikasi Tampilan Nilai di Mahasiswa
+        // a. Halaman Detail Item
+        $itemView = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+        $itemView->assertOk();
+        $itemView->assertSee('Nilai Tugas:');
+        $itemView->assertSee('90/100 Poin');
+
+        // b. Halaman Transkrip KHS
+        $gradesView = $this->actingAs($student)->get(route('mahasiswa.nilai'));
+        $gradesView->assertOk();
+        $gradesView->assertSee('Tugas Coding BST');
+        $gradesView->assertSee('90.0');
+
+        // c. Halaman Editor Kode Mahasiswa
+        $codeView = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $codeView->assertOk();
+        $codeView->assertSee('90/100');
+    }
+
+    public function test_single_step_coding_task_fallback_preserves_100_points_and_integrates_correctly(): void
+    {
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mahasiswa.single@example.test',
+            'nim_nidn' => '230101002',
+        ]);
+        $this->section->students()->attach($student->id);
+
+        // Dosen membuat Tugas Coding tanpa menambah coding_steps (fallback tunggal otomatis)
+        $payload = [
+            'type' => 'tugas',
+            'task_mode' => 'coding',
+            'title' => 'Single Task Python',
+            'module' => 'Minggu 1: Python Dasar',
+            'body' => 'Buat fungsi print hello world.',
+            'question_type' => 'coding',
+            'cpmk' => $this->cpmk1->code,
+        ];
+
+        $res = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $payload
+        );
+        $res->assertSessionHasNoErrors();
+
+        $assessment = Assessment::where('class_section_id', $this->section->id)
+            ->where('name', 'Single Task Python')
+            ->firstOrFail();
+
+        $this->assertCount(1, $assessment->learning_payload['coding_steps']);
+        $this->assertSame(100, $assessment->learning_payload['coding_steps'][0]['points']);
+        $this->assertSame(100, $assessment->learning_payload['points']);
+
+        // Dosen menilai tugas tunggal ini dengan nilai 88
+        $gradeRes = $this->actingAs($this->dosen)->post(
+            route('dosen.penilaian.asesmen.student.coding_scores', [$this->section->id, $assessment->id, $student->id]),
+            [
+                'scores' => [
+                    '1' => 88,
+                ],
+            ]
+        );
+        $gradeRes->assertRedirect();
+
+        $totalScoreRec = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+            ->where('mahasiswa_id', $student->id)
+            ->firstOrFail();
+        $this->assertEquals(88.0, (float) $totalScoreRec->score);
+
+        // Mahasiswa melihat nilai di editor kode
+        $codeView = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $codeView->assertOk();
+        $codeView->assertSee('88/100');
+    }
+
+    public function test_task_score_color_reflects_cpmk_threshold_and_sidebar_zero_badge_is_hidden(): void
+    {
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mhs.score.color@example.test',
+            'nim_nidn' => '230101003',
+        ]);
+        $this->section->students()->attach($student->id);
+
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-TEST-01',
+            'name' => 'Tugas Uji Ambang Batas CPMK',
+            'type' => 'tugas',
+            'final_weight' => 10.0,
+            'status' => 'published',
+            'learning_payload' => [
+                'points' => 100,
+                'task_mode' => 'coding',
+                'body' => 'Uji warna nilai ambang batas',
+                'coding_steps' => [
+                    ['title' => 'Langkah 1', 'points' => 100, 'body' => 'Kode'],
+                ],
+            ],
+        ]);
+        // Set CPMK threshold 65
+        $this->cpmk1->update(['threshold' => 65.0]);
+        $assessment->cpmks()->attach($this->cpmk1->id, ['weight' => 100]);
+
+        // 1. Kasus Nilai Rendah (50 < 65) -> Warna MERAH (text-rose-600 / bg-rose-50)
+        \App\Models\StudentAssessmentScore::updateOrCreate(
+            ['assessment_id' => $assessment->id, 'mahasiswa_id' => $student->id],
+            ['score' => 50, 'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED]
+        );
+
+        $itemViewLow = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+        $itemViewLow->assertOk();
+        $itemViewLow->assertSee('text-rose-600');
+        $this->assertStringContainsString('text-rose-600 font-mono">50/100 Poin', $itemViewLow->getContent());
+
+        $codeViewLow = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $codeViewLow->assertOk();
+        $codeViewLow->assertSee('bg-rose-50 border-rose-200 text-rose-700', false);
+
+        // 2. Kasus Nilai Tinggi (85 >= 65) -> Warna HIJAU (text-emerald-600 / bg-emerald-50)
+        \App\Models\StudentAssessmentScore::updateOrCreate(
+            ['assessment_id' => $assessment->id, 'mahasiswa_id' => $student->id],
+            ['score' => 85, 'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED]
+        );
+
+        $itemViewHigh = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+        $itemViewHigh->assertOk();
+        $itemViewHigh->assertSee('text-emerald-600');
+        $this->assertStringContainsString('text-emerald-600 font-mono">85/100 Poin', $itemViewHigh->getContent());
+
+        $codeViewHigh = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $codeViewHigh->assertOk();
+        $codeViewHigh->assertSee('bg-emerald-50 border-emerald-200 text-emerald-800', false);
+
+        // 3. Verifikasi badge notifikasi di sidebar jika 0 tidak muncul / hidden
+        $notifService = app(\App\Services\DatabaseNotificationService::class);
+        $notifs = $notifService->forUser($student, 'mahasiswa');
+        $notifService->markRead($student, array_column($notifs, 'id'));
+
+        $dashboardView = $this->actingAs($student)->get(route('mahasiswa.dashboard'));
+        $dashboardView->assertOk();
+        $dashHtml = $dashboardView->getContent();
+
+        // Pastikan badge mhs-notif dan mhs-forum memiliki display: none !important; dan tidak berisi angka 0
+        $this->assertMatchesRegularExpression('/id="sidebar-mhs-notif-badge"[^>]*style="[^"]*display:\s*none\s*!important;[^"]*"/', $dashHtml);
+        $this->assertMatchesRegularExpression('/id="sidebar-mhs-forum-badge"[^>]*style="[^"]*display:\s*none\s*!important;[^"]*"/', $dashHtml);
+        $this->assertDoesNotMatchRegularExpression('/id="sidebar-mhs-notif-badge"[^>]*>\s*0\s*<\/span>/', $dashHtml);
+        $this->assertDoesNotMatchRegularExpression('/id="sidebar-mhs-forum-badge"[^>]*>\s*0\s*<\/span>/', $dashHtml);
+    }
+
+    public function test_empty_quiz_shows_disabled_button_and_does_not_open_new_page(): void
+    {
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mhs.quiz@example.test',
+        ]);
+        $this->section->students()->attach($student->id, ['status' => 'enrolled']);
+
+        // Buat kuis tanpa butir soal
+        $quiz = \App\Models\Assessment::create([
+            'class_section_id' => $this->section->id,
+            'name' => 'Kuis Logika Tanpa Soal',
+            'code' => 'KUIS-001',
+            'type' => 'kuis',
+            'final_weight' => 10,
+            'status' => 'published',
+            'learning_payload' => [
+                'type' => 'kuis',
+                'task_mode' => 'quiz',
+                'body' => 'Silakan kerjakan kuis berikut.',
+                'questions' => [],
+            ],
+        ]);
+
+        // 1. Pada halaman item mahasiswa, tombol kerjakan berstatus disabled dan pudar (opacity-50)
+        $itemView = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $quiz->id]));
+        $itemView->assertOk();
+        $itemView->assertSee('opacity-50 cursor-not-allowed', false);
+        $itemView->assertSee('disabled', false);
+        $itemView->assertSee('title="Soal belum tersedia"', false);
+        $itemView->assertDontSee('href="' . route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]) . '"', false);
+
+        // 2. Jika mahasiswa langsung mengakses URL quiz-room, tidak menampilkan page "Soal Belum Tersedia"
+        // melainkan diarahkan kembali (redirect) ke halaman item
+        $quizRoomResponse = $this->actingAs($student)->get(route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]));
+        $quizRoomResponse->assertRedirect(route('mahasiswa.course.item', [$this->section->id, $quiz->id]));
+        $quizRoomResponse->assertSessionHas('notice', 'Soal kuis belum tersedia.');
+    }
 }
+

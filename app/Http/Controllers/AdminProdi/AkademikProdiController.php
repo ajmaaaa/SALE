@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\AdminProdi;
 
+use App\Models\ClassEnrollmentAppeal;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
@@ -11,15 +12,19 @@ use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\Semester;
 use App\Models\User;
+use App\Services\ClassEnrollmentService;
 use App\Services\QrCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AkademikProdiController extends AdminProdiController
 {
+    public function __construct(private ClassEnrollmentService $enrollment) {}
+
     public function matakuliahIndex(Request $request): View
     {
         $prodis = $this->allowedProdis();
@@ -30,8 +35,11 @@ class AkademikProdiController extends AdminProdiController
         $mataKuliahs = $activeProdi
             ? $activeProdi->mataKuliahs()
                 ->when($selectedSemesterPaket, fn ($q) => $q->where('semester_paket', $selectedSemesterPaket))
-                ->with(['cpmks.cpls'])
-                ->withCount(['classSections', 'cpmks'])
+                ->with(['cpmks' => fn ($q) => $q->whereHas('cpls'), 'cpmks.cpls'])
+                ->withCount([
+                    'classSections',
+                    'cpmks' => fn ($q) => $q->whereHas('cpls'),
+                ])
                 ->orderBy('semester_paket')
                 ->orderBy('code')
                 ->get()
@@ -44,7 +52,14 @@ class AkademikProdiController extends AdminProdiController
                 ->get()
             : collect();
 
-        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs', 'selectedSemesterPaket', 'cpmks'));
+        $cpls = $activeProdi
+            ? \App\Models\Cpl::where('prodi_id', $activeProdi->id)
+                ->with(['cpmks' => fn ($q) => $q->orderBy('code')])
+                ->orderBy('code')
+                ->get()
+            : collect();
+
+        return view('admin-prodi.akademik.matakuliah', compact('prodis', 'activeProdi', 'mataKuliahs', 'selectedSemesterPaket', 'cpmks', 'cpls'));
     }
 
     public function storeMataKuliah(Request $request): RedirectResponse
@@ -74,11 +89,12 @@ class AkademikProdiController extends AdminProdiController
         $this->assertProdiScope($validated['prodi_id']);
 
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
-        $cpmkIds = $request->input('cpmk_ids', []);
+        $cpmkIds = array_values(array_unique(array_filter($request->input('cpmk_ids', []))));
 
         $mataKuliah = MataKuliah::create($validated);
         if (!empty($cpmkIds)) {
-            $mataKuliah->cpmks()->sync($cpmkIds);
+            $validCpmkIds = Cpmk::whereIn('id', $cpmkIds)->whereHas('cpls')->pluck('id')->all();
+            $mataKuliah->cpmks()->sync($validCpmkIds);
         }
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $validated['prodi_id']])
@@ -106,7 +122,11 @@ class AkademikProdiController extends AdminProdiController
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
 
         $mataKuliah->update($validated);
-        $mataKuliah->cpmks()->sync($request->input('cpmk_ids', []));
+        $cpmkIds = array_values(array_unique(array_filter($request->input('cpmk_ids', []))));
+        $validCpmkIds = !empty($cpmkIds)
+            ? Cpmk::whereIn('id', $cpmkIds)->whereHas('cpls')->pluck('id')->all()
+            : [];
+        $mataKuliah->cpmks()->sync($validCpmkIds);
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $mataKuliah->prodi_id])
             ->with('notice', "Mata Kuliah {$mataKuliah->name} berhasil diperbarui.");
@@ -401,10 +421,9 @@ class AkademikProdiController extends AdminProdiController
         $semesterId = $section->semester_id;
         $name = $section->display_code;
 
-        if ($section->students()->exists()) {
-            return back()->withErrors([
-                'kelas' => "Kelas {$name} tidak dapat dihapus karena sudah memiliki mahasiswa terdaftar.",
-            ]);
+        // PRD Tahap 7: gunakan ClassEnrollmentService untuk cek alasan penolakan.
+        if ($blocker = $this->enrollment->deletionBlocker($section)) {
+            return back()->withErrors(['kelas' => $blocker]);
         }
 
         $section->delete();
@@ -488,5 +507,150 @@ class AkademikProdiController extends AdminProdiController
         $isTeaching = $user->can('manage', $section);
 
         abort_unless($isTeaching, 403, 'Anda tidak berhak melihat kode pendaftaran kelas ini.');
+    }
+
+    // ─── Tahap 4: Verifikasi Peserta (Banding) ──────────────────────────────
+
+    /**
+     * Halaman antrean permohonan Verifikasi Peserta.
+     */
+    public function verifikasiPesertaIndex(Request $request): View
+    {
+        $prodis = $this->allowedProdis();
+        $activeProdi = $this->resolveActiveProdi($request);
+
+        $appeals = ClassEnrollmentAppeal::query()
+            ->with(['mahasiswa', 'classSection.mataKuliah', 'classSection.dosen', 'reviewer'])
+            ->when($activeProdi, fn ($q) => $q->whereHas('classSection.mataKuliah', fn ($mk) => $mk->where('prodi_id', $activeProdi->id)))
+            ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
+            ->orderByDesc('created_at')
+            ->paginate(25);
+
+        if ($appeals->isNotEmpty()) {
+            $records = DB::table('class_section_student')
+                ->whereIn('class_section_id', $appeals->pluck('class_section_id')->unique())
+                ->whereIn('mahasiswa_id', $appeals->pluck('mahasiswa_id')->unique())
+                ->get()
+                ->keyBy(fn ($r) => $r->class_section_id . '_' . $r->mahasiswa_id);
+
+            $appeals->getCollection()->transform(function ($appeal) use ($records) {
+                $key = $appeal->class_section_id . '_' . $appeal->mahasiswa_id;
+                $appeal->kick_reason = $records->get($key)?->kick_reason ?? null;
+
+                return $appeal;
+            });
+        }
+
+        return view('admin-prodi.akademik.verifikasi-peserta', compact('appeals', 'prodis', 'activeProdi'));
+    }
+
+    /**
+     * Terima permohonan banding — mahasiswa langsung aktif kembali (is_locked = true).
+     */
+    public function approveAppeal(Request $request, ClassEnrollmentAppeal $appeal): RedirectResponse
+    {
+        $this->assertAppealScope($appeal);
+        abort_unless($appeal->isPending(), 422, 'Permohonan ini sudah diproses.');
+
+        $admin = auth()->user();
+        $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->enrollment->approveAppeal($appeal, $admin, $request->input('admin_notes'));
+
+        $name = $appeal->mahasiswa->name ?? 'Mahasiswa';
+        $code = $appeal->classSection->display_code ?? '';
+
+        return back()->with('notice', "Permohonan {$name} untuk kelas {$code} telah disetujui. Mahasiswa kini aktif kembali.");
+    }
+
+    /**
+     * Tolak permohonan banding (catatan penolakan wajib diisi).
+     */
+    public function rejectAppeal(Request $request, ClassEnrollmentAppeal $appeal): RedirectResponse
+    {
+        $this->assertAppealScope($appeal);
+        abort_unless($appeal->isPending(), 422, 'Permohonan ini sudah diproses.');
+
+        $request->validate([
+            'admin_notes' => ['required', 'string', 'max:500'],
+        ], [
+            'admin_notes.required' => 'Catatan penolakan wajib diisi.',
+        ]);
+
+        $admin = auth()->user();
+        $this->enrollment->rejectAppeal($appeal, $admin, $request->input('admin_notes'));
+
+        $name = $appeal->mahasiswa->name ?? 'Mahasiswa';
+
+        return back()->with('notice', "Permohonan {$name} telah ditolak.");
+    }
+
+    /**
+     * Unduh / tampilkan berkas bukti pendukung permohonan banding verifikasi peserta.
+     */
+    public function appealAttachment(ClassEnrollmentAppeal $appeal)
+    {
+        $this->assertAppealScope($appeal);
+        abort_unless($appeal->attachment_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($appeal->attachment_path), 404, 'Berkas bukti tidak ditemukan.');
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response(
+            $appeal->attachment_path,
+            'Bukti_KRS_' . ($appeal->mahasiswa->number ?? $appeal->mahasiswa_id) . '.' . pathinfo($appeal->attachment_path, PATHINFO_EXTENSION)
+        );
+    }
+
+    // ─── Tahap 6: Arsip Kelas ───────────────────────────────────────────────
+
+    /**
+     * Arsipkan satu kelas (manual).
+     */
+    public function archiveKelas(ClassSection $section): RedirectResponse
+    {
+        $this->assertSectionScope($section);
+        $actor = auth()->user();
+        $this->enrollment->archive($section, $actor);
+
+        return back()->with('notice', "Kelas {$section->display_code} berhasil diarsipkan.");
+    }
+
+    /**
+     * Buka arsip satu kelas.
+     */
+    public function unarchiveKelas(ClassSection $section): RedirectResponse
+    {
+        $this->assertSectionScope($section);
+        $this->enrollment->unarchive($section);
+
+        return back()->with('notice', "Kelas {$section->display_code} berhasil dibuka dari arsip.");
+    }
+
+    /**
+     * Arsip massal semua kelas pada satu semester.
+     */
+    public function archiveClassesBySemester(Request $request, int $semester): RedirectResponse
+    {
+        $activeProdi = $this->resolveActiveProdi($request);
+        abort_unless($activeProdi, 422, 'Pilih program studi terlebih dahulu.');
+
+        $actor = auth()->user();
+        $count = $this->enrollment->archiveSemester($semester, $activeProdi->id, $actor);
+
+        return back()->with('notice', "{$count} kelas berhasil diarsipkan.");
+    }
+
+    // ─── Helper scope ───────────────────────────────────────────────────────
+
+    /** Pastikan appeal berada dalam prodi yang dikelola admin. */
+    private function assertAppealScope(ClassEnrollmentAppeal $appeal): void
+    {
+        $appeal->load('classSection.mataKuliah');
+        $prodiId = $appeal->classSection?->mataKuliah?->prodi_id;
+        if (! $prodiId) {
+            return;
+        }
+        $allowed = $this->allowedProdis()->pluck('id');
+        abort_unless($allowed->contains($prodiId), 403, 'Akses ditolak.');
     }
 }

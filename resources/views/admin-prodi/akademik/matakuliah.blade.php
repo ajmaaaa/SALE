@@ -96,7 +96,7 @@
                         </td>
                         <td class="px-4 py-3.5 text-center font-medium text-ink !align-middle whitespace-nowrap">
                             @if($mk->semester_paket)
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">Sem. {{ $mk->semester_paket }}</span>
+                                <span class="text-xs font-medium text-ink">Semester {{ $mk->semester_paket }}</span>
                             @else
                                 <span class="text-xs text-muted">-</span>
                             @endif
@@ -150,6 +150,35 @@
 @endif
 </div>
 
+@php
+    $cplCpmkData = ($cpls ?? collect())->map(function($cpl) {
+        return [
+            'id' => $cpl->id,
+            'code' => $cpl->code,
+            'description' => $cpl->description,
+            'cpmks' => $cpl->cpmks->map(function($m) use ($cpl) {
+                return [
+                    'id' => $m->id,
+                    'code' => $m->code,
+                    'threshold' => (float)$m->threshold,
+                    'description' => $m->description,
+                    'cpls' => $m->cpls->pluck('code')->all() ?: [$cpl->code],
+                ];
+            })->values(),
+        ];
+    })->values();
+
+    $allCpmkData = ($cpmks ?? collect())->map(function($m) {
+        return [
+            'id' => $m->id,
+            'code' => $m->code,
+            'threshold' => (float)$m->threshold,
+            'description' => $m->description,
+            'cpls' => $m->cpls->pluck('code')->all(),
+        ];
+    })->keyBy('id');
+@endphp
+
 <!-- Modal Tambah MK -->
 <div id="createMkModal" onclick="if(event.target === this) closeCreateMkModal()" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-2xs p-4">
     <div class="surface w-full max-w-md p-6 shadow-2xl rounded-2xl border border-line max-h-[90vh] overflow-y-auto">
@@ -202,30 +231,75 @@
                 <input type="checkbox" name="is_lintas_prodi" value="1" class="mt-0.5 rounded border-line text-brand">
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain pada kelas mata kuliah ini.</span></span>
             </label>
-            {{-- Pilihan Multiple Choice CPMK untuk Mata Kuliah --}}
-            <div>
-                <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-semibold text-ink">
-                        Pilih Butir CPMK yang Diampu (Multiple Choice)
-                    </label>
-                    <span class="text-[11px] text-muted">Bisa memilih lebih dari satu</span>
-                </div>
-                @if(isset($cpmks) && $cpmks->isNotEmpty())
-                    <div class="space-y-1.5 max-h-40 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
-                        @foreach($cpmks as $cpmk)
-                        <label class="flex items-start gap-2.5 p-2 rounded-md border border-line/70 bg-white hover:bg-canvas/50 transition cursor-pointer text-xs">
-                            <input type="checkbox" name="cpmk_ids[]" value="{{ $cpmk->id }}" class="mk-create-cpmk-checkbox mt-0.5 rounded text-brand focus:ring-brand">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-brand text-white">{{ $cpmk->code }}</span>
-                                    <span class="text-[11px] text-muted font-medium">Standar: {{ (float)$cpmk->threshold }}%</span>
-                                    @foreach($cpmk->cpls as $cplBadge)
-                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-canvas border border-line text-ink">{{ $cplBadge->code }}</span>
-                                    @endforeach
-                                </div>
-                                <p class="text-ink text-[11px] mt-1 leading-snug line-clamp-2">{{ $cpmk->description }}</p>
-                            </div>
+            {{-- Pilihan Multiple Choice CPMK: Pilih CPL terlebih dahulu, kemudian muncul dropdown CPMK --}}
+            <div class="space-y-2.5 pt-1 border-t border-line/70">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="block text-xs font-bold text-ink">
+                            Pilih Butir CPMK yang Diampu (Multiple Choice)
                         </label>
+                        <p class="text-[11px] text-muted mt-0.5">Centang CPL yang didukung mata kuliah ini untuk menampilkan pilihan butir CPMK.</p>
+                    </div>
+                    <span id="mk_create_total_count_badge" class="text-[11px] font-semibold text-brand">0 CPMK dipilih</span>
+                </div>
+
+                @if(isset($cpls) && $cpls->isNotEmpty())
+                    <div class="space-y-2 max-h-60 overflow-y-auto p-1 pr-1.5 [scrollbar-gutter:stable]">
+                        @foreach($cpls as $cpl)
+                            <div class="rounded-xl border border-line bg-canvas/30 transition-all p-3 space-y-2" id="mk_create_cpl_card_{{ $cpl->id }}">
+                                <div class="flex items-start justify-between gap-2.5">
+                                    <label class="flex items-start gap-2.5 cursor-pointer flex-1 select-none">
+                                        <input type="checkbox"
+                                               class="mk-create-cpl-cb h-4 w-4 mt-0.5 rounded border-line text-brand focus:ring-brand"
+                                               value="{{ $cpl->id }}"
+                                               data-cpl-id="{{ $cpl->id }}"
+                                               onchange="handleCplToggle(this, 'create')">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-mono font-bold text-xs text-ink">{{ $cpl->code }}</span>
+                                                <span class="text-[11px] text-muted">({{ $cpl->cpmks->count() }} CPMK)</span>
+                                            </div>
+                                            <p class="text-[11px] text-slate-600 mt-0.5 leading-snug">{{ $cpl->description }}</p>
+                                        </div>
+                                    </label>
+                                    <span id="mk_create_cpl_badge_{{ $cpl->id }}" class="hidden text-[10px] font-semibold text-brand bg-brand/5 border border-brand/20 px-1.5 py-0.5 rounded shrink-0">
+                                        0 dipilih
+                                    </span>
+                                </div>
+
+                                {{-- Sub-list CPMK --}}
+                                <div id="mk_create_cpmk_group_{{ $cpl->id }}" class="hidden pl-6 pt-2 border-t border-line/60 space-y-2">
+                                    <div class="flex items-center justify-between text-[11px] text-muted">
+                                        <span class="font-semibold text-ink">Pilihan CPMK untuk {{ $cpl->code }}:</span>
+                                        @if($cpl->cpmks->isNotEmpty())
+                                            <button type="button" onclick="selectAllCpmkInCpl('create', {{ $cpl->id }})" class="text-brand hover:underline font-semibold cursor-pointer">
+                                                Pilih Semua
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        @forelse($cpl->cpmks as $cpmk)
+                                            <label class="flex items-start gap-2.5 p-2 rounded-lg border border-line/70 bg-white hover:bg-canvas/50 cursor-pointer transition text-xs select-none">
+                                                <input type="checkbox"
+                                                       name="cpmk_ids[]"
+                                                       value="{{ $cpmk->id }}"
+                                                       class="mk-create-cpmk-cb h-4 w-4 mt-0.5 rounded border-line text-brand focus:ring-brand"
+                                                       data-cpl-id="{{ $cpl->id }}"
+                                                       onchange="onCpmkCheckboxClick(this, 'create', {{ $cpl->id }})">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="font-mono font-bold text-[11px] bg-brand text-white px-1.5 py-0.2 rounded">{{ $cpmk->code }}</span>
+                                                        <span class="text-[10px] text-muted font-medium">Standar: {{ $cpmk->threshold }}%</span>
+                                                    </div>
+                                                    <p class="text-[11px] text-ink mt-0.5 leading-snug">{{ $cpmk->description ?: '-' }}</p>
+                                                </div>
+                                            </label>
+                                        @empty
+                                            <p class="text-xs text-muted italic py-1">Belum ada butir CPMK yang dipetakan pada CPL ini.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 @else
@@ -233,6 +307,7 @@
                         Belum ada butir CPMK yang dibuat pada prodi ini. Buat CPMK terlebih dahulu di menu <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" class="text-brand underline font-semibold">Kurikulum &gt; CPMK</a>.
                     </div>
                 @endif
+                <template class="hidden"><input type="hidden" name="cpmk_ids[]" value=""></template>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="submit" class="button-primary text-xs">Simpan Mata Kuliah</button>
@@ -281,37 +356,83 @@
                 <input type="checkbox" name="is_lintas_prodi" id="mk_edit_lintas" value="1" class="mt-0.5 rounded border-line text-brand">
                 <span><strong class="block">Mata kuliah lintas prodi</strong><span class="text-muted">Izinkan penetapan dosen dari program studi lain.</span></span>
             </label>
-            {{-- Pilihan Multiple Choice CPMK untuk Mata Kuliah --}}
-            <div>
-                <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-semibold text-ink">
-                        Pilih Butir CPMK yang Diampu (Multiple Choice)
-                    </label>
-                    <span class="text-[11px] text-muted">Bisa memilih lebih dari satu</span>
-                </div>
-                @if(isset($cpmks) && $cpmks->isNotEmpty())
-                    <div class="space-y-1.5 max-h-40 overflow-y-auto p-2.5 rounded-lg border border-line bg-canvas/40">
-                        @foreach($cpmks as $cpmk)
-                        <label class="flex items-start gap-2.5 p-2 rounded-md border border-line/70 bg-white hover:bg-canvas/50 transition cursor-pointer text-xs">
-                            <input type="checkbox" name="cpmk_ids[]" value="{{ $cpmk->id }}" class="mk-edit-cpmk-checkbox mt-0.5 rounded text-brand focus:ring-brand">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-brand text-white">{{ $cpmk->code }}</span>
-                                    <span class="text-[11px] text-muted font-medium">Standar: {{ (float)$cpmk->threshold }}%</span>
-                                    @foreach($cpmk->cpls as $cplBadge)
-                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono bg-canvas border border-line text-ink">{{ $cplBadge->code }}</span>
-                                    @endforeach
-                                </div>
-                                <p class="text-ink text-[11px] mt-1 leading-snug line-clamp-2">{{ $cpmk->description }}</p>
-                            </div>
+            {{-- Pilihan Multiple Choice CPMK: Pilih CPL terlebih dahulu, kemudian muncul dropdown CPMK --}}
+            <div class="space-y-2.5 pt-1 border-t border-line/70">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="block text-xs font-bold text-ink">
+                            Pilih Butir CPMK yang Diampu (Multiple Choice)
                         </label>
+                        <p class="text-[11px] text-muted mt-0.5">Centang CPL yang didukung mata kuliah ini untuk menampilkan pilihan butir CPMK.</p>
+                    </div>
+                    <span id="mk_edit_total_count_badge" class="text-[11px] font-semibold text-brand">0 CPMK dipilih</span>
+                </div>
+
+                @if(isset($cpls) && $cpls->isNotEmpty())
+                    <div class="space-y-2 max-h-60 overflow-y-auto p-1 pr-1.5 [scrollbar-gutter:stable]">
+                        @foreach($cpls as $cpl)
+                            <div class="rounded-xl border border-line bg-canvas/30 transition-all p-3 space-y-2" id="mk_edit_cpl_card_{{ $cpl->id }}">
+                                <div class="flex items-start justify-between gap-2.5">
+                                    <label class="flex items-start gap-2.5 cursor-pointer flex-1 select-none">
+                                        <input type="checkbox"
+                                               class="mk-edit-cpl-cb h-4 w-4 mt-0.5 rounded border-line text-brand focus:ring-brand"
+                                               value="{{ $cpl->id }}"
+                                               data-cpl-id="{{ $cpl->id }}"
+                                               onchange="handleCplToggle(this, 'edit')">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-mono font-bold text-xs text-ink">{{ $cpl->code }}</span>
+                                                <span class="text-[11px] text-muted">({{ $cpl->cpmks->count() }} CPMK)</span>
+                                            </div>
+                                            <p class="text-[11px] text-slate-600 mt-0.5 leading-snug">{{ $cpl->description }}</p>
+                                        </div>
+                                    </label>
+                                    <span id="mk_edit_cpl_badge_{{ $cpl->id }}" class="hidden text-[10px] font-semibold text-brand bg-brand/5 border border-brand/20 px-1.5 py-0.5 rounded shrink-0">
+                                        0 dipilih
+                                    </span>
+                                </div>
+
+                                {{-- Sub-list CPMK --}}
+                                <div id="mk_edit_cpmk_group_{{ $cpl->id }}" class="hidden pl-6 pt-2 border-t border-line/60 space-y-2">
+                                    <div class="flex items-center justify-between text-[11px] text-muted">
+                                        <span class="font-semibold text-ink">Pilihan CPMK untuk {{ $cpl->code }}:</span>
+                                        @if($cpl->cpmks->isNotEmpty())
+                                            <button type="button" onclick="selectAllCpmkInCpl('edit', {{ $cpl->id }})" class="text-brand hover:underline font-semibold cursor-pointer">
+                                                Pilih Semua
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        @forelse($cpl->cpmks as $cpmk)
+                                            <label class="flex items-start gap-2.5 p-2 rounded-lg border border-line/70 bg-white hover:bg-canvas/50 cursor-pointer transition text-xs select-none">
+                                                <input type="checkbox"
+                                                       name="cpmk_ids[]"
+                                                       value="{{ $cpmk->id }}"
+                                                       class="mk-edit-cpmk-cb h-4 w-4 mt-0.5 rounded border-line text-brand focus:ring-brand"
+                                                       data-cpl-id="{{ $cpl->id }}"
+                                                       onchange="onCpmkCheckboxClick(this, 'edit', {{ $cpl->id }})">
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="font-mono font-bold text-[11px] bg-brand text-white px-1.5 py-0.2 rounded">{{ $cpmk->code }}</span>
+                                                        <span class="text-[10px] text-muted font-medium">Standar: {{ $cpmk->threshold }}%</span>
+                                                    </div>
+                                                    <p class="text-[11px] text-ink mt-0.5 leading-snug">{{ $cpmk->description ?: '-' }}</p>
+                                                </div>
+                                            </label>
+                                        @empty
+                                            <p class="text-xs text-muted italic py-1">Belum ada butir CPMK yang dipetakan pada CPL ini.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 @else
                     <div class="p-3 text-center rounded-lg border border-dashed border-line bg-canvas/30 text-xs text-muted">
-                        Belum ada butir CPMK yang dibuat pada prodi ini. Buat CPMK terlebih dahulu di menu <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpmk']) }}" class="text-brand underline font-semibold">Kurikulum &gt; CPMK</a>.
+                        Belum ada data CPL/CPMK pada prodi ini.
                     </div>
                 @endif
+                <template class="hidden"><input type="hidden" name="cpmk_ids[]" value=""></template>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t border-line">
                 <button type="submit" class="button-primary text-xs">Simpan Perubahan</button>
@@ -321,6 +442,139 @@
 </div>
 
 <script>
+    const cplData = @json($cplCpmkData);
+    const allCpmkData = @json($allCpmkData);
+
+    // (selectedCpmks Map tidak lagi digunakan – diganti sistem checkbox langsung)
+
+    // ─── Fungsi untuk sistem checkbox CPL / CPMK ─────────────────────────────
+
+    /**
+     * Dipanggil saat checkbox CPL di-klik.
+     * Jika dicentang: tampilkan sub-list CPMK milik CPL ini.
+     * Jika dihilangkan: sembunyikan sub-list, unchecked semua CPMK, update badge.
+     */
+    function handleCplToggle(checkbox, mode) {
+        const cplId = checkbox.getAttribute('data-cpl-id');
+        const group = document.getElementById(`mk_${mode}_cpmk_group_${cplId}`);
+        const card  = document.getElementById(`mk_${mode}_cpl_card_${cplId}`);
+
+        if (checkbox.checked) {
+            if (group) group.classList.remove('hidden');
+            if (card) {
+                card.classList.add('border-brand/40', 'bg-brand/5');
+                card.classList.remove('bg-canvas/30');
+            }
+        } else {
+            if (group) {
+                group.classList.add('hidden');
+                group.querySelectorAll(`input[type="checkbox"].mk-${mode}-cpmk-cb`).forEach(cb => { cb.checked = false; });
+            }
+            if (card) {
+                card.classList.remove('border-brand/40', 'bg-brand/5');
+                card.classList.add('bg-canvas/30');
+            }
+            updateCplBadge(mode, cplId, 0);
+        }
+        updateTotalBadge(mode);
+    }
+
+    /** Dipanggil saat checkbox CPMK di dalam sub-list di-klik. */
+    function onCpmkCheckboxClick(checkbox, mode, cplId) {
+        const group = document.getElementById(`mk_${mode}_cpmk_group_${cplId}`);
+        const checked = group
+            ? group.querySelectorAll(`input[type="checkbox"].mk-${mode}-cpmk-cb:checked`).length
+            : 0;
+        updateCplBadge(mode, cplId, checked);
+        updateTotalBadge(mode);
+    }
+
+    /** Update badge jumlah CPMK dipilih per CPL */
+    function updateCplBadge(mode, cplId, count) {
+        const badge = document.getElementById(`mk_${mode}_cpl_badge_${cplId}`);
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = `${count} dipilih`;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    /** Update badge total CPMK dipilih (header section) */
+    function updateTotalBadge(mode) {
+        const modalId = mode === 'create' ? 'createMkModal' : 'editMkModal';
+        const allChecked = document.querySelectorAll(`#${modalId} input[type="checkbox"].mk-${mode}-cpmk-cb:checked`);
+        const badge = document.getElementById(`mk_${mode}_total_count_badge`);
+        if (badge) badge.textContent = `${allChecked.length} CPMK dipilih`;
+    }
+
+    /** Centang semua CPMK dalam satu CPL */
+    function selectAllCpmkInCpl(mode, cplId) {
+        const group = document.getElementById(`mk_${mode}_cpmk_group_${cplId}`);
+        if (!group) return;
+        const checkboxes = group.querySelectorAll(`input[type="checkbox"].mk-${mode}-cpmk-cb`);
+        checkboxes.forEach(cb => { cb.checked = true; });
+        updateCplBadge(mode, cplId, checkboxes.length);
+        updateTotalBadge(mode);
+    }
+
+    /** Reset semua CPL & CPMK checkbox di modal tertentu */
+    function resetCplCpmkCheckboxes(mode) {
+        const modal = document.getElementById(mode === 'create' ? 'createMkModal' : 'editMkModal');
+        if (!modal) return;
+        modal.querySelectorAll(`.mk-${mode}-cpl-cb`).forEach(cb => { cb.checked = false; });
+        cplData.forEach(cpl => {
+            const group = document.getElementById(`mk_${mode}_cpmk_group_${cpl.id}`);
+            const card  = document.getElementById(`mk_${mode}_cpl_card_${cpl.id}`);
+            if (group) {
+                group.classList.add('hidden');
+                group.querySelectorAll(`input[type="checkbox"].mk-${mode}-cpmk-cb`).forEach(cb => { cb.checked = false; });
+            }
+            if (card) {
+                card.classList.remove('border-brand/40', 'bg-brand/5');
+                card.classList.add('bg-canvas/30');
+            }
+            updateCplBadge(mode, cpl.id, 0);
+        });
+        updateTotalBadge(mode);
+    }
+
+    /** Pre-tick CPMK checkbox berdasarkan array ID yang sudah tersimpan */
+    function preselectCpmks(mode, cpmkIds) {
+        if (!Array.isArray(cpmkIds) || cpmkIds.length === 0) return;
+        const modal = document.getElementById(mode === 'create' ? 'createMkModal' : 'editMkModal');
+        if (!modal) return;
+        const assignedSet = new Set(cpmkIds.map(Number));
+
+        // IDs yang sudah dicover oleh grup CPL
+        const coveredIds = new Set();
+
+        cplData.forEach(cpl => {
+            const cplHasCpmk = cpl.cpmks.some(m => assignedSet.has(Number(m.id)));
+            if (!cplHasCpmk) return;
+            const cplCb = modal.querySelector(`.mk-${mode}-cpl-cb[data-cpl-id="${cpl.id}"]`);
+            if (cplCb) cplCb.checked = true;
+            const group = document.getElementById(`mk_${mode}_cpmk_group_${cpl.id}`);
+            const card  = document.getElementById(`mk_${mode}_cpl_card_${cpl.id}`);
+            if (group) group.classList.remove('hidden');
+            if (card) {
+                card.classList.add('border-brand/40', 'bg-brand/5');
+                card.classList.remove('bg-canvas/30');
+            }
+            let checkedCount = 0;
+            cpl.cpmks.forEach(m => {
+                if (assignedSet.has(Number(m.id))) {
+                    const cb = group ? group.querySelector(`input[type="checkbox"][value="${m.id}"].mk-${mode}-cpmk-cb`) : null;
+                    if (cb) { cb.checked = true; checkedCount++; coveredIds.add(Number(m.id)); }
+                }
+            });
+            updateCplBadge(mode, cpl.id, checkedCount);
+        });
+
+        updateTotalBadge(mode);
+    }
+
     function switchProdi(prodiId) {
         window.location.href = `{{ route('admin-prodi.akademik.matakuliah') }}?prodi_id=${prodiId}`;
     }
@@ -336,9 +590,7 @@
     }
 
     function openCreateMkModal() {
-        document.querySelectorAll('.mk-create-cpmk-checkbox').forEach(cb => {
-            cb.checked = false;
-        });
+        resetCplCpmkCheckboxes('create');
         document.getElementById('createMkModal').classList.remove('hidden');
         document.getElementById('createMkModal').classList.add('flex');
     }
@@ -356,10 +608,8 @@
         document.getElementById('mk_edit_sem').value = semesterPaket || '';
         document.getElementById('mk_edit_lintas').checked = Boolean(isLintasProdi);
 
-        const assignedIds = Array.isArray(cpmkIds) ? cpmkIds.map(Number) : [];
-        document.querySelectorAll('.mk-edit-cpmk-checkbox').forEach(cb => {
-            cb.checked = assignedIds.includes(parseInt(cb.value));
-        });
+        resetCplCpmkCheckboxes('edit');
+        preselectCpmks('edit', cpmkIds);
 
         document.getElementById('editMkModal').classList.remove('hidden');
         document.getElementById('editMkModal').classList.add('flex');

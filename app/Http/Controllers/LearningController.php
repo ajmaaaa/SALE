@@ -44,14 +44,17 @@ class LearningController extends Controller
     {
         $q = mb_strtolower((string) $request->query('q', ''));
         $selectedSemesterId = $request->query('semester');
+        $tab = (string) $request->query('tab', 'active');
         $user = auth()->user();
 
         $isDosen = $user?->hasRole(Role::DOSEN) ?? request()->is('dosen*');
         $sections = collect();
         $semesters = Semester::orderChronological()->get();
+        $activeCount = 0;
+        $archivedCount = 0;
 
         if ($user && Schema::hasTable('class_sections')) {
-            $query = $isDosen
+            $baseQuery = $isDosen
                 ? ClassSection::query()->where(function ($builder) use ($user) {
                     $builder->where('dosen_id', $user->id)
                         ->orWhere('dosen_pendamping_id', $user->id)
@@ -59,7 +62,11 @@ class LearningController extends Controller
                 })
                 : $user->classSectionsEnrolled();
 
-            $sections = $query
+            $activeCount = (clone $baseQuery)->whereNull('archived_at')->count();
+            $archivedCount = (clone $baseQuery)->whereNotNull('archived_at')->count();
+
+            $query = (clone $baseQuery)
+                ->when($tab === 'archived', fn ($q) => $q->whereNotNull('archived_at'), fn ($q) => $q->whereNull('archived_at'))
                 ->with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota', 'assessments'])
                 ->withCount(['students', 'assessments'])
                 ->when($q !== '', function ($query) use ($q) {
@@ -70,8 +77,9 @@ class LearningController extends Controller
                 })
                 ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
                     $query->where('semester_id', $selectedSemesterId);
-                })
-                ->get();
+                });
+
+            $sections = $query->get();
         }
 
         if ($user) {
@@ -153,7 +161,8 @@ class LearningController extends Controller
                     'dosen_wakil' => $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty() ? $section->dosenAnggota->pluck('name')->join(', ') : $section->dosenPendamping?->name,
                     'dosen_anggota' => $section->relationLoaded('dosenAnggota') && $section->dosenAnggota->isNotEmpty() ? $section->dosenAnggota->pluck('name')->join(', ') : $section->dosenPendamping?->name,
                     'cover' => $payload['cover'] ?? null,
-                    'type' => 'Kelas Aktif',
+                    'type' => $section->isArchived() ? 'Arsip Kelas' : 'Kelas Aktif',
+                    'is_archived' => $section->isArchived(),
                     'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),
                     'semester_id' => $section->semester_id,
                     'semester_name' => $section->semester?->name,
@@ -182,7 +191,7 @@ class LearningController extends Controller
             $courses = [];
         }
 
-        return view('learning.courses', compact('courses', 'semesters', 'selectedSemesterId'));
+        return view('learning.courses', compact('courses', 'semesters', 'selectedSemesterId', 'tab', 'activeCount', 'archivedCount'));
     }
 
     public function course(int $course)
@@ -341,6 +350,15 @@ class LearningController extends Controller
                 ->first()
             : null;
         $scoreValue = $dbScore?->score;
+
+        if ($user && ! $submission && $scoreValue === null) {
+            $questionsEmpty = empty($resource['questions']) || ! empty($resource['questions_empty']);
+            if ($questionsEmpty) {
+                return redirect()->route('mahasiswa.course.item', [$course, $item])
+                    ->with('notice', 'Soal kuis belum tersedia.');
+            }
+        }
+
         $attemptDeadline = null;
         $isAttemptRejected = false;
         $attemptRejectionReason = null;
@@ -402,6 +420,7 @@ class LearningController extends Controller
             'attemptDeadline' => $attemptDeadline,
             'isRejected' => $isAttemptRejected,
             'rejectionReason' => $attemptRejectionReason,
+            'isArchived' => $section?->isArchived() ?? false,
         ]);
     }
 
@@ -704,6 +723,7 @@ class LearningController extends Controller
         $user = auth()->user();
         $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->findOrFail($course);
         abort_unless($user?->hasRole(Role::DOSEN) && $user->can('manage', $section), 403, 'Anda bukan pengampu kelas ini.');
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan (read-only). Tidak dapat menambah konten.');
 
         return view('dosen.item-form', [
             'course' => Learning::databaseCourse($section),
@@ -717,6 +737,7 @@ class LearningController extends Controller
         $user = auth()->user();
         $section = ClassSection::with('mataKuliah')->findOrFail($course);
         abort_unless($user?->hasRole(Role::DOSEN) && $user->can('manage', $section), 403, 'Anda bukan pengampu kelas ini.');
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan (read-only). Tidak dapat menambah konten.');
         $academic = AcademicPreview::config($course);
 
         $rawType = (string) $request->input('type');
@@ -773,6 +794,30 @@ class LearningController extends Controller
 
         if (! $isQuizAssessment) {
             $request->request->remove('questions');
+        }
+
+        $isCodingTask = ($rawType === 'coding') || ($rawTaskMode === 'coding');
+        $isCodingMaterial = ($rawType === 'materi' && $request->input('material_mode') === 'coding');
+        $isCodingContent = $isCodingTask || $isCodingMaterial;
+
+        if (! $isCodingContent) {
+            $request->request->remove('coding_steps');
+        } else {
+            $rawCodingSteps = $request->input('coding_steps');
+            if (is_array($rawCodingSteps)) {
+                $filteredSteps = array_values(array_filter($rawCodingSteps, function ($step) {
+                    if (! is_array($step)) return false;
+                    $title = trim((string) ($step['title'] ?? ''));
+                    $body = trim((string) ($step['body'] ?? ''));
+                    return $title !== '' || $body !== '';
+                }));
+
+                if (empty($filteredSteps)) {
+                    $request->request->remove('coding_steps');
+                } else {
+                    $request->merge(['coding_steps' => $filteredSteps]);
+                }
+            }
         }
 
         $data = $request->validate([
@@ -846,6 +891,7 @@ class LearningController extends Controller
                 'title' => $data['module'],
                 'body' => $data['body'],
                 'cpmk' => $fallbackCpmk,
+                'points' => (int) ($data['points'] ?? 100),
                 'link' => null,
                 'attachment' => null,
             ]];
@@ -1120,18 +1166,24 @@ class LearningController extends Controller
                     };
 
                     if (! empty($data['questions'])) {
-                        $cpmkCounts = array_count_values(array_filter(array_column($data['questions'], 'cpmk')));
-                        $totalQ = max(1, count($data['questions']));
+                        $cpmkPoints = [];
+                        foreach ($data['questions'] as $q) {
+                            $c = $q['cpmk'] ?? '';
+                            if ($c) {
+                                $cpmkPoints[$c] = ($cpmkPoints[$c] ?? 0.0) + (float) ((isset($q['points']) && (float) $q['points'] > 0) ? $q['points'] : 100.0);
+                            }
+                        }
+                        $totalPoints = array_sum($cpmkPoints) ?: 1.0;
                         $accumulated = 0.0;
-                        $itemsLeft = count($cpmkCounts);
-                        foreach ($cpmkCounts as $code => $cnt) {
+                        $itemsLeft = count($cpmkPoints);
+                        foreach ($cpmkPoints as $code => $pts) {
                             $itemsLeft--;
                             $cpmkModel = $findCpmk($code);
                             if ($cpmkModel) {
                                 if ($itemsLeft === 0) {
                                     $w = round(100.00 - $accumulated, 2);
                                 } else {
-                                    $w = round(($cnt / $totalQ) * 100, 2);
+                                    $w = round(($pts / $totalPoints) * 100, 2);
                                     $accumulated += $w;
                                 }
                                 $syncData[$cpmkModel->id] = ['weight' => $w];
@@ -1175,6 +1227,7 @@ class LearningController extends Controller
         $user = auth()->user();
         $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->findOrFail($course);
         abort_unless($user?->hasRole(Role::DOSEN) && $user->can('manage', $section), 403, 'Anda bukan pengampu kelas ini.');
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan (read-only). Tidak dapat mengubah konten.');
         $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
         $itemData = Learning::databaseAssessment($assessment);
         $courseData = Learning::databaseCourse($section);
@@ -1198,6 +1251,9 @@ class LearningController extends Controller
             $section = ClassSection::find($course);
             if ($section && ! $user->can('manage', $section)) {
                 abort(403, 'Anda bukan pengampu kelas ini.');
+            }
+            if ($section && $section->isArchived()) {
+                abort(403, 'Kelas telah diarsipkan (read-only). Tidak dapat mengubah konten.');
             }
             if ($section && Schema::hasTable('assessments')) {
                 $assessment = Assessment::where('class_section_id', $section->id)->find($item);
@@ -1264,6 +1320,30 @@ class LearningController extends Controller
 
         if (! $isQuizAssessment) {
             $request->request->remove('questions');
+        }
+
+        $isCodingTask = ($rawType === 'coding') || ($rawTaskMode === 'coding');
+        $isCodingMaterial = ($rawType === 'materi' && $request->input('material_mode') === 'coding');
+        $isCodingContent = $isCodingTask || $isCodingMaterial;
+
+        if (! $isCodingContent) {
+            $request->request->remove('coding_steps');
+        } else {
+            $rawCodingSteps = $request->input('coding_steps');
+            if (is_array($rawCodingSteps)) {
+                $filteredSteps = array_values(array_filter($rawCodingSteps, function ($step) {
+                    if (! is_array($step)) return false;
+                    $title = trim((string) ($step['title'] ?? ''));
+                    $body = trim((string) ($step['body'] ?? ''));
+                    return $title !== '' || $body !== '';
+                }));
+
+                if (empty($filteredSteps)) {
+                    $request->request->remove('coding_steps');
+                } else {
+                    $request->merge(['coding_steps' => $filteredSteps]);
+                }
+            }
         }
 
         $academic = AcademicPreview::config($course);
@@ -1387,6 +1467,22 @@ class LearningController extends Controller
         $isCodingTask = ($category === 'coding') || (($data['task_mode'] ?? null) === 'coding');
         $isCodingMaterial = ($category === 'materi' && ($data['material_mode'] ?? null) === 'coding');
         $isCodingContent = $isCodingTask || $isCodingMaterial;
+        if (! $isCodingContent) {
+            $data['coding_steps'] = [];
+        } elseif (empty($data['coding_steps'])) {
+            if (! empty($existingItem['coding_steps'])) {
+                $data['coding_steps'] = $existingItem['coding_steps'];
+            } else {
+                $data['coding_steps'] = [[
+                    'title' => $data['module'],
+                    'body' => $data['body'],
+                    'cpmk' => $fallbackCpmk,
+                    'points' => (int) ($data['points'] ?? 100),
+                    'link' => null,
+                    'attachment' => null,
+                ]];
+            }
+        }
         if ($isCodingContent && ! empty($data['coding_steps'])) {
             foreach ($data['coding_steps'] as $index => &$step) {
                 if (empty($step['cpmk'])) {
@@ -1395,7 +1491,7 @@ class LearningController extends Controller
                 if ($request->hasFile("coding_steps.$index.attachment")) {
                     $step['attachment'] = $this->upload($request->file("coding_steps.$index.attachment"));
                 } else {
-                    $step['attachment'] = $existingItem['coding_steps'][$index]['attachment'] ?? null;
+                    $step['attachment'] = $existingItem['coding_steps'][$index]['attachment'] ?? ($step['attachment'] ?? null);
                 }
                 $step['link'] = $step['link'] ?? null;
             }
@@ -1565,15 +1661,21 @@ class LearningController extends Controller
 
                 $syncData = [];
                 if (! empty($data['questions'])) {
-                    $cpmkCounts = array_count_values(array_filter(array_column($data['questions'], 'cpmk')));
+                    $cpmkPoints = [];
+                    foreach ($data['questions'] as $q) {
+                        $c = $q['cpmk'] ?? '';
+                        if ($c) {
+                            $cpmkPoints[$c] = ($cpmkPoints[$c] ?? 0.0) + (float) ((isset($q['points']) && (float) $q['points'] > 0) ? $q['points'] : 100.0);
+                        }
+                    }
+                    $totalPoints = array_sum($cpmkPoints) ?: 1.0;
                     $accumulated = 0.0;
-                    $itemsLeft = count($cpmkCounts);
-                    $totalQ = max(1, count($data['questions']));
-                    foreach ($cpmkCounts as $code => $cnt) {
+                    $itemsLeft = count($cpmkPoints);
+                    foreach ($cpmkPoints as $code => $pts) {
                         $itemsLeft--;
                         $cpmkModel = $findCpmk($code);
                         if ($cpmkModel) {
-                            $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($cnt / $totalQ) * 100, 2);
+                            $w = ($itemsLeft === 0) ? round(100.00 - $accumulated, 2) : round(($pts / $totalPoints) * 100, 2);
                             $accumulated += $w;
                             $syncData[$cpmkModel->id] = ['weight' => $w];
                         }
@@ -1601,6 +1703,7 @@ class LearningController extends Controller
         abort_unless($user?->hasRole(Role::DOSEN), 403);
         $section = ClassSection::findOrFail($course);
         abort_unless($user->can('manage', $section), 403, 'Anda bukan pengampu kelas ini.');
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan (read-only). Tidak dapat menghapus konten.');
         $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
 
         DB::transaction(function () use ($assessment) {
@@ -1616,6 +1719,8 @@ class LearningController extends Controller
 
     public function discussCourse(Request $request, int $course)
     {
+        $section = ClassSection::findOrFail($course);
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan. Diskusi dinonaktifkan.');
         $data = $request->validate(['message' => 'required|string|max:3000']);
         $user = auth()->user();
         $this->assertCourseDiscussionAccess($course, $user);
@@ -1636,6 +1741,8 @@ class LearningController extends Controller
 
     public function discuss(Request $request, int $course, int $item)
     {
+        $section = ClassSection::findOrFail($course);
+        abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan. Diskusi dinonaktifkan.');
         $user = auth()->user();
         Assessment::where('class_section_id', $course)->findOrFail($item);
         $data = $request->validate(['message' => 'required|string|max:3000']);
@@ -1693,6 +1800,7 @@ class LearningController extends Controller
                 $isEnrolled = $user->hasRole(Role::MAHASISWA)
                     && $user->classSectionsEnrolled()->where('class_sections.id', $course)->exists();
                 abort_unless($isEnrolled, 403);
+                abort_if($assessment->classSection?->isArchived(), 403, 'Kelas ini telah diarsipkan dan berstatus read-only. Pengumpulan tugas tidak diizinkan.');
                 abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
                 $resource = Learning::databaseAssessment($assessment);
             }
@@ -2471,11 +2579,12 @@ class LearningController extends Controller
             'all' => count($unreadNotifications),
             'tugas' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'tugas')),
             'diskusi' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
+            'sistem' => count(array_filter($unreadNotifications, fn ($n) => ($n['category'] ?? '') === 'sistem')),
         ];
 
         $category = $request->query('category');
         $notifications = $allNotifications;
-        if ($category && in_array($category, ['tugas', 'diskusi'])) {
+        if ($category && in_array($category, ['tugas', 'diskusi', 'sistem'])) {
             $notifications = array_values(array_filter($allNotifications, fn ($n) => ($n['category'] ?? '') === $category));
         }
 
