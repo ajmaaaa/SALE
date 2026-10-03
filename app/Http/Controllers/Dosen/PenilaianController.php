@@ -443,12 +443,7 @@ class PenilaianController extends Controller
 
     private function cplsFor(ClassSection $section)
     {
-        $cpmkIds = $this->cpmksFor($section)->pluck('id');
-
-        return Cpl::whereHas('cpmks', fn ($q) => $q->whereIn('cpmks.id', $cpmkIds))
-            ->with(['cpmks' => fn ($q) => $q->whereIn('cpmks.id', $cpmkIds)])
-            ->orderBy('code')
-            ->get();
+        return $section->mataKuliah?->contextualCpls() ?? collect();
     }
 
     private function withHeaderCounts(ClassSection $section, $cpls = null, $cpmks = null): ClassSection

@@ -28,12 +28,14 @@ class AcademicPreview
             $section = ClassSection::with(['mataKuliah.cpmks.cpls', 'mataKuliah.prodi.cpls'])->find($course);
             if ($section && $section->mataKuliah) {
                 $dbCpmks = $section->mataKuliah->cpmks()->with('cpls')->orderBy('code')->get();
-                $prodiCpls = $section->mataKuliah->prodi ? $section->mataKuliah->prodi->cpls()->orderBy('code')->get() : collect();
+                $contextualCpls = $section->mataKuliah->contextualCpls();
+                $prodiCpls = $contextualCpls->isNotEmpty() ? $contextualCpls : ($section->mataKuliah->prodi ? $section->mataKuliah->prodi->cpls()->orderBy('code')->get() : collect());
 
                 if ($dbCpmks->isNotEmpty()) {
                     $cpmkList = [];
                     foreach ($dbCpmks as $cm) {
-                        $linkedCplCodes = $cm->cpls->pluck('code')->all();
+                        $contextualCplCodes = $contextualCpls->filter(fn ($cp) => $cp->cpmks->contains('id', $cm->id))->pluck('code')->all();
+                        $linkedCplCodes = ! empty($contextualCplCodes) ? $contextualCplCodes : $cm->cpls->pluck('code')->all();
                         $cplCode = ! empty($linkedCplCodes) ? implode(', ', $linkedCplCodes) : ($prodiCpls->first()?->code ?? 'CPL-01');
                         $cpmkList[] = [
                             'code' => $cm->code,

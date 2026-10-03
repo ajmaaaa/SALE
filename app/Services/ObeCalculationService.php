@@ -599,6 +599,48 @@ class ObeCalculationService
     {
         $contributingCpmks = $cpl->cpmks; // has pivot 'weight'
 
+        if ($classSectionId !== null) {
+            $section = ClassSection::find($classSectionId);
+            if ($section && $section->mata_kuliah_id) {
+                $assignedCpmkIds = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah')
+                    ->where('mata_kuliah_id', $section->mata_kuliah_id)
+                    ->where('cpl_id', $cpl->id)
+                    ->pluck('cpmk_id')
+                    ->all();
+
+                $hasAnyContextual = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah')
+                    ->where('mata_kuliah_id', $section->mata_kuliah_id)
+                    ->whereNotNull('cpl_id')
+                    ->exists();
+
+                if ($hasAnyContextual) {
+                    $contributingCpmks = $contributingCpmks->whereIn('id', $assignedCpmkIds);
+                }
+            }
+        } else {
+            if (\Illuminate\Support\Facades\Schema::hasTable('class_section_student')) {
+                $enrolledContextualCpmkIds = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah as cmk')
+                    ->join('class_sections as cs', 'cmk.mata_kuliah_id', '=', 'cs.mata_kuliah_id')
+                    ->join('class_section_student as css', 'cs.id', '=', 'css.class_section_id')
+                    ->where('css.mahasiswa_id', $studentId)
+                    ->where('cmk.cpl_id', $cpl->id)
+                    ->pluck('cmk.cpmk_id')
+                    ->unique()
+                    ->all();
+
+                $hasAnyEnrolledContextual = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah as cmk')
+                    ->join('class_sections as cs', 'cmk.mata_kuliah_id', '=', 'cs.mata_kuliah_id')
+                    ->join('class_section_student as css', 'cs.id', '=', 'css.class_section_id')
+                    ->where('css.mahasiswa_id', $studentId)
+                    ->whereNotNull('cmk.cpl_id')
+                    ->exists();
+
+                if ($hasAnyEnrolledContextual) {
+                    $contributingCpmks = $contributingCpmks->whereIn('id', $enrolledContextualCpmkIds);
+                }
+            }
+        }
+
         $weightedSum = 0.0;
         $weightGraded = 0.0;
         $weightTotalPossible = 0.0;

@@ -278,7 +278,7 @@ class AssessmentController extends Controller
 
     private function cpmksFor(ClassSection $section)
     {
-        return Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->orderBy('code')->get();
+        return Cpmk::forMataKuliah($section->mata_kuliah_id)->orderBy('code')->get();
     }
 
     /**
@@ -287,9 +287,7 @@ class AssessmentController extends Controller
      */
     private function cplsFor(ClassSection $section)
     {
-        $cpmkIds = $this->cpmksFor($section)->pluck('id');
-
-        return Cpl::whereHas('cpmks', fn ($q) => $q->whereIn('cpmks.id', $cpmkIds))->get();
+        return $section->mataKuliah?->contextualCpls() ?? collect();
     }
 
     private function withHeaderCounts(ClassSection $section): ClassSection

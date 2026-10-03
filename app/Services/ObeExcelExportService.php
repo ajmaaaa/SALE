@@ -57,7 +57,7 @@ class ObeExcelExportService
     public function exportCpmkExcel(ClassSection $section, ?int $cpmkId = null): StreamedResponse
     {
         $section->loadMissing(['mataKuliah.prodi', 'semester', 'dosen']);
-        $cpmks = Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->orderBy('code')->get();
+        $cpmks = Cpmk::forMataKuliah($section->mata_kuliah_id)->orderBy('code')->get();
         $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
         $students = $section->students()->orderBy('name')->get();
         $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
@@ -397,8 +397,7 @@ class ObeExcelExportService
     public function exportCplExcel(ClassSection $section): StreamedResponse
     {
         $section->loadMissing(['mataKuliah.prodi', 'semester', 'dosen']);
-        $cpmkIds = Cpmk::where('mata_kuliah_id', $section->mata_kuliah_id)->pluck('id');
-        $cpls = Cpl::whereHas('cpmks', fn ($q) => $q->whereIn('cpmks.id', $cpmkIds))->orderBy('code')->get();
+        $cpls = $section->mataKuliah?->contextualCpls() ?? collect();
         $students = $section->students()->orderBy('name')->get();
 
         $spreadsheet = new Spreadsheet();

@@ -35,10 +35,10 @@ class AkademikProdiController extends AdminProdiController
         $mataKuliahs = $activeProdi
             ? $activeProdi->mataKuliahs()
                 ->when($selectedSemesterPaket, fn ($q) => $q->where('semester_paket', $selectedSemesterPaket))
-                ->with(['cpmks' => fn ($q) => $q->whereHas('cpls'), 'cpmks.cpls'])
+                ->with(['cpmks', 'cpls'])
                 ->withCount([
                     'classSections',
-                    'cpmks' => fn ($q) => $q->whereHas('cpls'),
+                    'cpmks as cpmks_count' => fn ($q) => $q->select(DB::raw('count(distinct cpmk_id)')),
                 ])
                 ->orderBy('semester_paket')
                 ->orderBy('code')
@@ -54,7 +54,7 @@ class AkademikProdiController extends AdminProdiController
 
         $cpls = $activeProdi
             ? \App\Models\Cpl::where('prodi_id', $activeProdi->id)
-                ->with(['cpmks' => fn ($q) => $q->orderBy('code')])
+                ->with(['cpmks' => fn ($q) => $q->orderBy('code'), 'cpmks.cpls'])
                 ->orderBy('code')
                 ->get()
             : collect();
@@ -81,6 +81,8 @@ class AkademikProdiController extends AdminProdiController
             'is_lintas_prodi' => ['nullable', 'boolean'],
             'cpmk_ids' => ['nullable', 'array'],
             'cpmk_ids.*' => ['exists:cpmks,id'],
+            'cpmk_cpl_pairs' => ['nullable', 'array'],
+            'cpmk_cpl_pairs.*' => ['string'],
         ], [
             'code.unique' => 'Kode mata kuliah sudah digunakan pada program studi ini.',
             'sks.required' => 'Bobot SKS wajib diisi.',
@@ -89,13 +91,9 @@ class AkademikProdiController extends AdminProdiController
         $this->assertProdiScope($validated['prodi_id']);
 
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
-        $cpmkIds = array_values(array_unique(array_filter($request->input('cpmk_ids', []))));
 
         $mataKuliah = MataKuliah::create($validated);
-        if (!empty($cpmkIds)) {
-            $validCpmkIds = Cpmk::whereIn('id', $cpmkIds)->whereHas('cpls')->pluck('id')->all();
-            $mataKuliah->cpmks()->sync($validCpmkIds);
-        }
+        $this->syncMataKuliahCpmkCplPairs($mataKuliah, $request);
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $validated['prodi_id']])
             ->with('notice', "Mata Kuliah {$validated['name']} ({$validated['code']}) berhasil ditambahkan.");
@@ -115,6 +113,8 @@ class AkademikProdiController extends AdminProdiController
             'is_lintas_prodi' => ['nullable', 'boolean'],
             'cpmk_ids' => ['nullable', 'array'],
             'cpmk_ids.*' => ['exists:cpmks,id'],
+            'cpmk_cpl_pairs' => ['nullable', 'array'],
+            'cpmk_cpl_pairs.*' => ['string'],
         ]);
 
         $validated['code'] = strtoupper(trim($validated['code']));
@@ -122,14 +122,79 @@ class AkademikProdiController extends AdminProdiController
         $validated['is_lintas_prodi'] = $request->boolean('is_lintas_prodi');
 
         $mataKuliah->update($validated);
-        $cpmkIds = array_values(array_unique(array_filter($request->input('cpmk_ids', []))));
-        $validCpmkIds = !empty($cpmkIds)
-            ? Cpmk::whereIn('id', $cpmkIds)->whereHas('cpls')->pluck('id')->all()
-            : [];
-        $mataKuliah->cpmks()->sync($validCpmkIds);
+        $this->syncMataKuliahCpmkCplPairs($mataKuliah, $request);
 
         return redirect()->route('admin-prodi.akademik.matakuliah', ['prodi_id' => $mataKuliah->prodi_id])
             ->with('notice', "Mata Kuliah {$mataKuliah->name} berhasil diperbarui.");
+    }
+
+    /**
+     * Sinkronisasi pasangan CPL dan CPMK kontekstual untuk satu mata kuliah.
+     * Mendukung format cpmk_cpl_pairs (misal: "cpmkId_cplId" / "cpmkId_unmapped")
+     * dan fallback cpmk_ids (array CPMK ID).
+     */
+    private function syncMataKuliahCpmkCplPairs(MataKuliah $mataKuliah, Request $request): void
+    {
+        $pairs = $request->input('cpmk_cpl_pairs');
+        $validCpmkIds = Cpmk::where('prodi_id', $mataKuliah->prodi_id)->pluck('id')->all();
+        $validCplIds = \App\Models\Cpl::where('prodi_id', $mataKuliah->prodi_id)->pluck('id')->all();
+
+        $records = [];
+        $now = now();
+
+        if (is_array($pairs) && !empty($pairs)) {
+            foreach ($pairs as $pair) {
+                if (!is_string($pair) || !str_contains($pair, '_')) {
+                    continue;
+                }
+                [$cpmkIdStr, $cplIdStr] = explode('_', $pair, 2);
+                $cpmkId = (int) $cpmkIdStr;
+                $cplId = ($cplIdStr === 'unmapped' || $cplIdStr === '' || $cplIdStr === 'null') ? null : (int) $cplIdStr;
+
+                if (!in_array($cpmkId, $validCpmkIds, true)) {
+                    continue;
+                }
+                if ($cplId !== null && !in_array($cplId, $validCplIds, true)) {
+                    continue;
+                }
+
+                $key = "{$cpmkId}_" . ($cplId ?? 'null');
+                $records[$key] = [
+                    'mata_kuliah_id' => $mataKuliah->id,
+                    'cpmk_id' => $cpmkId,
+                    'cpl_id' => $cplId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        } elseif ($request->has('cpmk_ids')) {
+            // Fallback backward-compatible: jika hanya cpmk_ids yang dikirim (misal unit test legacy)
+            $cpmkIds = array_values(array_unique(array_filter((array) $request->input('cpmk_ids', []))));
+            $selectedValidCpmkIds = array_intersect($cpmkIds, $validCpmkIds);
+
+            foreach ($selectedValidCpmkIds as $cpmkId) {
+                $mappedCplId = DB::table('cpl_cpmk')
+                    ->where('cpmk_id', $cpmkId)
+                    ->whereIn('cpl_id', $validCplIds)
+                    ->orderBy('cpl_id')
+                    ->value('cpl_id');
+
+                $key = "{$cpmkId}_" . ($mappedCplId ?? 'null');
+                $records[$key] = [
+                    'mata_kuliah_id' => $mataKuliah->id,
+                    'cpmk_id' => $cpmkId,
+                    'cpl_id' => $mappedCplId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        // Hapus mapping lama untuk mata kuliah ini dan insert yang baru
+        DB::table('cpmk_mata_kuliah')->where('mata_kuliah_id', $mataKuliah->id)->delete();
+        if (!empty($records)) {
+            DB::table('cpmk_mata_kuliah')->insert(array_values($records));
+        }
     }
 
     public function destroyMataKuliah(MataKuliah $mataKuliah): RedirectResponse
@@ -167,6 +232,7 @@ class AkademikProdiController extends AdminProdiController
                     ->orWhere('managing_prodi_id', $activeProdi->id)
                     ->orWhereNull('prodi_id');
             }))
+            ->with('prodi')
             ->orderBy('name')
             ->get();
 
@@ -183,6 +249,11 @@ class AkademikProdiController extends AdminProdiController
             ->orderBy('section_code')
             ->get();
 
+        $existingSections = $activeProdi
+            ? ClassSection::whereHas('mataKuliah', fn ($mk) => $mk->where('prodi_id', $activeProdi->id))
+                ->get(['mata_kuliah_id', 'semester_id', 'section_code'])
+            : collect();
+
         return view('admin-prodi.akademik.kelas', compact(
             'prodis',
             'activeProdi',
@@ -190,7 +261,8 @@ class AkademikProdiController extends AdminProdiController
             'selectedSemesterId',
             'dosens',
             'mataKuliahs',
-            'classes'
+            'classes',
+            'existingSections'
         ));
     }
 
