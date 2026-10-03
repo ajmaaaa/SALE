@@ -174,8 +174,8 @@
                                         <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
                                         @if(!empty($item['due']))
                                             @php $isDuePast = \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
-                                            @if($isDuePast)
-                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>Terlambat</strong></span>
+                                            @if(!$isLecturer && $isDuePast && !$submission && $scoreValue === null)
+                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong> (Terlambat)</span>
                                             @else
                                                 <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
                                             @endif
@@ -233,11 +233,10 @@
                                         @if(!$isCodingMaterial)
                                             <span>Total <strong>{{ $item['points'] ?? 100 }} poin</strong></span>
                                         @endif
-                                        <span>Bahasa: <strong>{{ strtoupper($item['language'] ?? 'PYTHON') }}</strong></span>
                                         @if(!empty($item['due']))
                                             @php $isDuePast = \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
-                                            @if($isDuePast)
-                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>Terlambat</strong></span>
+                                            @if(!$isLecturer && $isDuePast && !$submission && $scoreValue === null)
+                                                <span class="text-rose-600 font-semibold">Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong> (Terlambat)</span>
                                             @else
                                                 <span>Tenggat: <strong>{{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</strong></span>
                                             @endif
@@ -671,8 +670,7 @@
                             @endif
                             <div class="flex items-center justify-between text-muted">
                                 <span>Tenggat Waktu:</span>
-                                @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
-                                <span class="font-medium {{ $isDuePast ? 'text-rose-600 font-semibold' : 'text-ink' }}">{{ !empty($item['due']) ? ($isDuePast ? 'Terlambat' : \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i')) : 'Tanpa tenggat' }}</span>
+                                <span class="font-medium text-ink">{{ !empty($item['due']) ? \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tanpa tenggat' }}</span>
                             </div>
                             <div class="flex items-center justify-between text-muted">
                                 <span>Pengumpulan Terlambat:</span>
@@ -783,11 +781,9 @@
                         @if($item['type'] !== 'lainnya')
                             <span>{{ $item['points'] ?? 100 }} Poin</span>
                         @endif
-                        @php $isDuePast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
-                        @if($isDuePast)
-                            <span class="text-rose-600 font-semibold">Terlambat</span>
-                        @elseif(!empty($item['due']))
-                            <span>Tenggat {{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M, H:i') }}</span>
+                        @if(!empty($item['due']))
+                            @php $isDuePast = \Carbon\Carbon::parse($item['due'])->isPast(); @endphp
+                            <span class="{{ $isDuePast && empty($submission) ? 'text-rose-600 font-medium' : '' }}">Tenggat {{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</span>
                         @else
                             <span>Tanpa tenggat</span>
                         @endif

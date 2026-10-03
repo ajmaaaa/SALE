@@ -260,23 +260,29 @@ class CourseItemOrderingTest extends TestCase
         $this->assertNotFalse($posOverdueCourse);
         $this->assertTrue($posUpcomingCourse < $posOverdueCourse, 'Kelas dengan tugas upcoming harus berada di atas kelas dengan tugas terlambat');
 
-        // Di card kelas yang overdue, teks tenggat harus berubah menjadi 'Terlambat', bukan jam/tanggal
-        $dashboardResponse->assertSee('Terlambat');
+        // Di card kelas, teks tenggat menampilkan jam/tanggal dan tidak menampilkan teks 'Terlambat'
+        $dashboardResponse->assertDontSee('Terlambat');
+        $dashboardResponse->assertSee($pastDueDate->translatedFormat('d M, H:i'));
 
-        // 2. Pada halaman course: tugas yang lewat waktu harus menampilkan teks 'Terlambat'
+        // 2. Pada halaman course: badge aksi menampilkan 'Terlambat', tetapi samping tanggal diterbitkan menampilkan tanggal tenggat
         $courseResponse = $this->actingAs($student)->get(route('mahasiswa.course.show', $sectionOverdue->id));
         $courseResponse->assertOk();
         $courseResponse->assertSee('Terlambat');
-        $courseResponse->assertDontSee('Tenggat ' . $pastDueDate->translatedFormat('d M Y, H:i'));
+        $courseResponse->assertSee('Tenggat '.$pastDueDate->translatedFormat('d M Y, H:i'));
 
-        // 3. Pada halaman item tugas: info tenggat menampilkan teks 'Terlambat'
+        // Untuk dosen, halaman course tidak menampilkan teks 'Terlambat'
+        $dosenCourseResponse = $this->actingAs($dosen)->get(route('dosen.course.show', $sectionOverdue->id));
+        $dosenCourseResponse->assertOk();
+        $dosenCourseResponse->assertDontSee('Terlambat');
+
+        // 3. Pada halaman item tugas: info tenggat menampilkan tanggal tenggat beserta indikator (Terlambat) untuk mahasiswa
         $itemResponse = $this->actingAs($student)->get(route('mahasiswa.course.item', [$sectionOverdue->id, $overdueTask->id]));
         $itemResponse->assertOk();
         $itemResponse->assertSee('Terlambat');
-        $itemResponse->assertDontSee($pastDueDate->translatedFormat('d M Y, H:i'));
+        $itemResponse->assertSee($pastDueDate->translatedFormat('d M Y, H:i'));
 
-        // 4. Pada daftar penugasan (/mahasiswa/assignment): tugas upcoming harus diprioritaskan sebelum tugas overdue
-        $assignmentsResponse = $this->actingAs($student)->get(route('mahasiswa.assignment.index'));
+        // 4. Pada daftar penugasan (/mahasiswa/assignment): tugas upcoming harus diprioritaskan sebelum tugas overdue (default sort terdekat)
+        $assignmentsResponse = $this->actingAs($student)->get(route('mahasiswa.assignment.index', ['sort' => 'terdekat']));
         $assignmentsResponse->assertOk();
         $assignmentsHtml = $assignmentsResponse->getContent();
 
@@ -284,7 +290,15 @@ class CourseItemOrderingTest extends TestCase
         $posOverdueAssignment = strpos($assignmentsHtml, 'Tugas Sudah Terlewat Waktu');
         $this->assertNotFalse($posUpcomingAssignment);
         $this->assertNotFalse($posOverdueAssignment);
-        $this->assertTrue($posUpcomingAssignment < $posOverdueAssignment, 'Tugas upcoming harus diprioritaskan sebelum tugas yang sudah lewat tenggat');
+        $this->assertTrue($posUpcomingAssignment < $posOverdueAssignment, 'Tugas upcoming harus diprioritaskan sebelum tugas yang sudah lewat tenggat pada sort terdekat');
+
+        // 5. Pada sort terbaru: tugas yang paling baru dibuat/diterbitkan harus di atas
+        $assignmentsNewestResponse = $this->actingAs($student)->get(route('mahasiswa.assignment.index', ['sort' => 'terbaru']));
+        $assignmentsNewestResponse->assertOk();
+        $assignmentsNewestHtml = $assignmentsNewestResponse->getContent();
+
+        $posUpcomingNewest = strpos($assignmentsNewestHtml, 'Tugas Mendekati Tenggat');
+        $posOverdueNewest = strpos($assignmentsNewestHtml, 'Tugas Sudah Terlewat Waktu');
+        $this->assertTrue($posUpcomingNewest < $posOverdueNewest, 'Tugas yang lebih baru dibuat/diterbitkan berada di atas');
     }
 }
-

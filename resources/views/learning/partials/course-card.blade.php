@@ -69,7 +69,7 @@
     $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
     $rawDue = $next['due'] ?? null;
     $isDuePast = !empty($rawDue) && \Carbon\Carbon::parse($rawDue)->isPast();
-    $dueFormatted = !empty($rawDue) ? ($isDuePast ? 'Terlambat' : \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i')) : '';
+    $dueFormatted = !empty($rawDue) ? \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i') : '';
     $hasPendingTask = $isDosen ? !empty($rawDue) : !empty($uncompletedTask);
 
     $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
@@ -142,15 +142,7 @@
 
             {{-- Baris jam (tenggat merah jika ada tugas yang harus dikumpulkan) + QR sejajar --}}
             <div class="mt-2 flex min-h-7 items-center justify-between gap-2">
-                @if($isDuePast)
-                    <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Terlambat">
-                        <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        <span>Terlambat</span>
-                    </a>
-                @elseif($hasPendingTask && !empty($dueFormatted))
+                @if($hasPendingTask && !empty($dueFormatted))
                     <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
                         <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"/>

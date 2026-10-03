@@ -37,6 +37,11 @@
                 <option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>
             @endforeach
         </select>
+        <label class="sr-only" for="sort">Urutkan</label>
+        <select id="sort" name="sort" class="field sm:w-44" onchange="this.form.submit()">
+            <option value="terdekat" @selected(request('sort', 'terdekat') === 'terdekat')>Waktu terdekat</option>
+            <option value="terbaru" @selected(request('sort') === 'terbaru')>Terbaru</option>
+        </select>
     </form>
 
     {{-- Clean Assignment List (Clickable rows) --}}
@@ -55,6 +60,8 @@
                     || !empty($item['coding_steps']);
                 $targetUrl = route('mahasiswa.course.item', [$item['course'], $item['id']]);
                 $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
+                $subRecord = $userSubmissions[$item['id']] ?? null;
+                $subTime = $subRecord?->submitted_at ?? $subRecord?->created_at ?? ($studentScores[$item['id']]->updated_at ?? $studentScores[$item['id']]->created_at ?? null);
             @endphp
             <div class="assignment-item-row group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition" data-search="{{ mb_strtolower($item['title'] . ' ' . ($courses[$item['course']]['code'] ?? '') . ' ' . ($courses[$item['course']]['title'] ?? '')) }}">
                 <a href="{{ $targetUrl }}" class="flex items-start gap-4 min-w-0 flex-1">
@@ -78,8 +85,17 @@
                                 <span class="h-2.5 w-px bg-line"></span>
                                 <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
                             @endif
-                            <span class="h-2.5 w-px bg-line"></span>
-                            <span class="{{ $isPast && !$isSubmitted ? 'text-rose-600 font-semibold' : '' }}">{{ $isPast ? 'Terlambat' : ($item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan') }}</span>
+                            @if($isSubmitted && $subTime)
+                                <span class="h-2.5 w-px bg-line"></span>
+                                <span class="text-emerald-700 font-medium">Dikerjakan {{ \Carbon\Carbon::parse($subTime)->translatedFormat('d M Y, H:i') }}</span>
+                            @endif
+                            @if(!empty($item['due']))
+                                <span class="h-2.5 w-px bg-line"></span>
+                                <span class="{{ $isPast && !$isSubmitted ? 'text-rose-600 font-medium' : '' }}">Tenggat {{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</span>
+                            @else
+                                <span class="h-2.5 w-px bg-line"></span>
+                                <span>Tugas perkuliahan</span>
+                            @endif
                         </div>
                     </div>
                 </a>

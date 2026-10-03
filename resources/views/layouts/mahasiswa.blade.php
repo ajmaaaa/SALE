@@ -289,60 +289,47 @@
                         <p class="hidden truncate text-xs text-muted sm:block">Semester {{ \App\Models\Semester::where('is_active', true)->value('name') ?? 'Belum ditetapkan' }}</p>
                     </div>
                 </div>
-                <div class="relative">
-                    <details class="group relative">
-                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg py-1.5 pl-2 pr-3 hover:bg-[#eceeeb] focus:outline-none">
-                            <span class="hidden text-right sm:block">
-                                <span class="block text-sm font-semibold leading-4 text-ink">{{ $activeUser['name'] }}</span>
-                                <span class="block text-xs text-muted">{{ $roleLabel }}{{ !empty($activeUser['number']) ? ' (' . $activeUser['number'] . ')' : '' }}</span>
+                @php
+                    $profileRoute = null;
+                    if (request()->is('dosen*') || (auth()->check() && auth()->user()->hasRole('dosen') && !request()->is('mahasiswa*'))) {
+                        $profileRoute = route('dosen.profile.index');
+                    } elseif (request()->is('mahasiswa*') || (auth()->check() && auth()->user()->hasRole('mahasiswa'))) {
+                        $profileRoute = route('mahasiswa.profile.index');
+                    }
+                @endphp
+                <div class="flex items-center gap-2 sm:gap-3">
+                    @if($profileRoute)
+                        <a href="{{ $profileRoute }}" class="flex items-center gap-2.5 rounded-lg py-1.5 pl-2 pr-2.5 hover:bg-[#eceeeb] transition group" title="Lihat Profil &amp; Pengaturan">
+                    @else
+                        <div class="flex items-center gap-2.5 py-1.5 pl-2 pr-2.5">
+                    @endif
+                            <span class="text-right">
+                                <span class="block text-sm font-semibold leading-4 text-ink group-hover:text-brand transition max-w-[130px] sm:max-w-[180px] md:max-w-[240px] truncate">{{ $activeUser['name'] }}</span>
+                                <span class="block text-xs text-muted truncate">{{ $roleLabel }}{{ !empty($activeUser['number']) ? ' (' . $activeUser['number'] . ')' : '' }}</span>
                             </span>
                             @if(!empty(auth()->user()?->profile_photo_url))
                                 <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ $activeUser['name'] }}" class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
                             @else
-                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark">
+                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark shrink-0">
                                     {{ $initials }}
                                 </span>
                             @endif
-                            <svg class="h-4 w-4 text-muted shrink-0 transition-transform group-open:rotate-180 ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                        </summary>
-                        <div class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-line bg-white p-3 shadow-xl">
-                            <div class="border-b border-line/60 pb-3">
-                                <p class="text-sm font-bold text-ink">{{ $activeUser['name'] }}</p>
-                                <p class="text-xs text-muted">{{ $activeUser['email'] ?? 'user@example.test' }}</p>
-                                <p class="mt-1 text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '' }})</p>
-                            </div>
-                            @php
-                                $accessibleRoleCount = auth()->check()
-                                    ? auth()->user()->roles()->pluck('roles.name')->push(auth()->user()->role?->name)->filter()->unique()->count()
-                                    : 0;
-                            @endphp
-                            @if(auth()->check() && $accessibleRoleCount > 1)
-                                <div class="border-b border-line/60 py-2.5">
-                                    <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">Ruang kerja yang dapat diakses</p>
-                                    <div class="space-y-1 text-xs">
-                                        @if(auth()->user()->hasRole('dosen'))
-                                            <a href="{{ route('dosen.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Dosen</a>
-                                        @endif
-                                        @if(auth()->user()->hasRole('admin_prodi'))
-                                            <a href="{{ route('admin-prodi.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Program Studi</a>
-                                        @endif
-                                        @if(auth()->user()->hasRole('admin'))
-                                            <a href="{{ route('admin.page', 'dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Sistem</a>
-                                        @endif
-                                        @if(auth()->user()->hasRole('mahasiswa'))
-                                            <a href="{{ route('mahasiswa.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Mahasiswa</a>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endif
-                            <div class="pt-2">
-                                <form method="post" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold text-danger hover:bg-danger/10">Keluar (Logout)</button>
-                                </form>
-                            </div>
+                    @if($profileRoute)
+                        </a>
+                    @else
                         </div>
-                    </details>
+                    @endif
+
+                    <form method="post" action="{{ route('logout') }}" onsubmit="event.preventDefault(); window.saleConfirm ? window.saleConfirm({title: 'Konfirmasi Keluar', message: 'Apakah Anda yakin ingin keluar dari sistem?', confirmLabel: 'Keluar', isDestructive: true}).then(ok => ok && this.submit()) : (confirm('Apakah Anda yakin ingin keluar?') && this.submit())" class="inline-flex items-center m-0 p-0">
+                        @csrf
+                        <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 transition shadow-2xs" title="Keluar (Logout)" aria-label="Keluar (Logout)">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                        </button>
+                    </form>
                 </div>
             </div>
         </header>

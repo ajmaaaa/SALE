@@ -240,7 +240,23 @@ class LearningController extends Controller
                     ))
                     : [];
 
-                return view('learning.course', compact('items', 'section', 'submittedAssessmentIds') + [
+                $userSubmissions = $user->hasRole(Role::MAHASISWA) && Schema::hasTable('submissions')
+                    ? Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
+                        ->whereIn('assessment_id', array_keys($items))
+                        ->latest('submitted_at')
+                        ->get(['assessment_id', 'submitted_at', 'created_at'])
+                        ->keyBy('assessment_id')
+                    : collect();
+
+                $userScores = $user->hasRole(Role::MAHASISWA) && Schema::hasTable('student_assessment_scores')
+                    ? StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                        ->whereIn('assessment_id', array_keys($items))
+                        ->where(fn ($q) => $q->whereNotNull('score')->orWhereIn('status', [StudentAssessmentScore::STATUS_FINAL, StudentAssessmentScore::STATUS_PUBLISHED]))
+                        ->get(['assessment_id', 'created_at', 'updated_at'])
+                        ->keyBy('assessment_id')
+                    : collect();
+
+                return view('learning.course', compact('items', 'section', 'submittedAssessmentIds', 'userSubmissions', 'userScores') + [
                     'course' => $courseData,
                     'classSection' => $section,
                 ]);
@@ -447,9 +463,15 @@ class LearningController extends Controller
                 })
                 ->get()
                 ->keyBy('assessment_id');
-            $subIds = Schema::hasTable('submissions')
-                ? Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))->pluck('assessment_id')->all()
-                : [];
+        }
+
+        $userSubmissions = collect();
+        if ($user && Schema::hasTable('submissions')) {
+            $userSubmissions = Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
+                ->latest('submitted_at')
+                ->get(['assessment_id', 'submitted_at', 'created_at'])
+                ->keyBy('assessment_id');
+            $subIds = $userSubmissions->keys()->all();
             $submittedAssessmentIds = array_unique(array_merge(
                 $subIds,
                 $studentScores->pluck('assessment_id')->all()
@@ -560,55 +582,70 @@ class LearningController extends Controller
             return true;
         });
 
-        uasort($filteredItems, function ($a, $b) {
-            $dueA = ! empty($a['due']) ? Carbon::parse($a['due']) : null;
-            $dueB = ! empty($b['due']) ? Carbon::parse($b['due']) : null;
+        $sort = $request->query('sort', 'terdekat');
+        if ($sort === 'terbaru') {
+            uasort($filteredItems, function ($a, $b) {
+                $timeA = isset($a['published_at']) && $a['published_at'] ? Carbon::parse($a['published_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : 0);
+                $timeB = isset($b['published_at']) && $b['published_at'] ? Carbon::parse($b['published_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? Carbon::parse($b['created_at'])->timestamp : 0);
 
-            $isPastA = $dueA && $dueA->isPast();
-            $isPastB = $dueB && $dueB->isPast();
-
-            $isUpcomingA = $dueA && ! $isPastA;
-            $isUpcomingB = $dueB && ! $isPastB;
-
-            // 1. Prioritaskan tugas aktif yang tenggatnya belum terlewat (upcoming)
-            if ($isUpcomingA !== $isUpcomingB) {
-                return $isUpcomingA ? -1 : 1;
-            }
-
-            // 2. Jika sama-sama upcoming, urutkan dari tenggat tercepat/terdekat (ascending)
-            if ($isUpcomingA && $isUpcomingB) {
-                if ($dueA->ne($dueB)) {
-                    return $dueA <=> $dueB;
+                if ($timeA !== $timeB) {
+                    return $timeB <=> $timeA;
                 }
-            }
 
-            // 3. Jika satu lewat tenggat (terlambat) dan satu tanpa tenggat, utamakan tanpa tenggat
-            if ($isPastA !== $isPastB) {
-                return $isPastA ? 1 : -1;
-            }
+                return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+            });
+        } else {
+            uasort($filteredItems, function ($a, $b) {
+                $dueA = ! empty($a['due']) ? Carbon::parse($a['due']) : null;
+                $dueB = ! empty($b['due']) ? Carbon::parse($b['due']) : null;
 
-            // 4. Jika sama-sama lewat tenggat (terlambat), urutkan dari yang paling baru lewat tenggat
-            if ($isPastA && $isPastB) {
-                if ($dueA->ne($dueB)) {
-                    return $dueB <=> $dueA;
+                $isPastA = $dueA && $dueA->isPast();
+                $isPastB = $dueB && $dueB->isPast();
+
+                $isUpcomingA = $dueA && ! $isPastA;
+                $isUpcomingB = $dueB && ! $isPastB;
+
+                // 1. Prioritaskan tugas aktif yang tenggatnya belum terlewat (upcoming)
+                if ($isUpcomingA !== $isUpcomingB) {
+                    return $isUpcomingA ? -1 : 1;
                 }
-            }
 
-            $timeA = isset($a['updated_at']) && $a['updated_at'] ? Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
-            $timeB = isset($b['updated_at']) && $b['updated_at'] ? Carbon::parse($b['updated_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? Carbon::parse($b['created_at'])->timestamp : ($b['id'] ?? 0));
+                // 2. Jika sama-sama upcoming, urutkan dari tenggat tercepat/terdekat (ascending)
+                if ($isUpcomingA && $isUpcomingB) {
+                    if ($dueA->ne($dueB)) {
+                        return $dueA <=> $dueB;
+                    }
+                }
 
-            if ($timeA !== $timeB) {
-                return $timeB <=> $timeA;
-            }
+                // 3. Jika satu lewat tenggat (terlambat) dan satu tanpa tenggat, utamakan tanpa tenggat
+                if ($isPastA !== $isPastB) {
+                    return $isPastA ? 1 : -1;
+                }
 
-            return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
-        });
+                // 4. Jika sama-sama lewat tenggat (terlambat), urutkan dari yang paling baru lewat tenggat
+                if ($isPastA && $isPastB) {
+                    if ($dueA->ne($dueB)) {
+                        return $dueB <=> $dueA;
+                    }
+                }
+
+                $timeA = isset($a['updated_at']) && $a['updated_at'] ? Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
+                $timeB = isset($b['updated_at']) && $b['updated_at'] ? Carbon::parse($b['updated_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? Carbon::parse($b['created_at'])->timestamp : ($b['id'] ?? 0));
+
+                if ($timeA !== $timeB) {
+                    return $timeB <=> $timeA;
+                }
+
+                return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+            });
+        }
 
         return view('learning.assignments', [
             'items' => $filteredItems,
             'courses' => $courses,
             'studentScores' => $studentScores,
             'submittedAssessmentIds' => $submittedAssessmentIds,
+            'userSubmissions' => $userSubmissions,
         ]);
     }
 

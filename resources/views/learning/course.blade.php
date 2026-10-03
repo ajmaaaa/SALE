@@ -313,6 +313,8 @@
                                         $itemUrl = $isDosen
                                             ? route('dosen.course.item', [$course['id'], $item['id']])
                                             : route('mahasiswa.course.item', [$course['id'], $item['id']]);
+                                        $submissionRecord = $userSubmissions[$item['id']] ?? null;
+                                        $submissionTime = $submissionRecord?->submitted_at ?? $submissionRecord?->created_at ?? ($userScores[$item['id']]->updated_at ?? $userScores[$item['id']]->created_at ?? null);
                                     @endphp
                                     <div class="group flex items-center justify-between gap-4 px-5 py-4 hover:bg-canvas transition">
                                         <a href="{{ $itemUrl }}" class="flex items-start gap-4 min-w-0 flex-1">
@@ -329,13 +331,22 @@
                                             <div class="min-w-0 flex-1">
                                                 <h4 class="text-sm font-semibold text-ink group-hover:text-brand transition leading-snug">{{ $item['title'] }}</h4>
                                                 <div class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
-                                                    <span>{{ \App\Support\LearningPreview::labels()[$item['type']] }}</span>
+                                                    <span>{{ \App\Support\LearningPreview::labels()[$item['type']] ?? ucfirst($item['type']) }}</span>
                                                     @if(!empty($item['published_at_formatted']))
                                                         <span class="h-2.5 w-px bg-line"></span>
                                                         <span>Diterbitkan {{ $item['published_at_formatted'] }}</span>
                                                     @endif
-                                                    <span class="h-2.5 w-px bg-line"></span>
-                                                    <span class="{{ $isPast && !$hasSubmission ? 'text-rose-600 font-semibold' : '' }}">{{ $isPast ? 'Terlambat' : ($item['due'] ? 'Tenggat '.\Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') : 'Tugas perkuliahan') }}</span>
+                                                    @if(!$isDosen && $hasSubmission && $submissionTime)
+                                                        <span class="h-2.5 w-px bg-line"></span>
+                                                        <span class="text-emerald-700 font-medium">Dikerjakan {{ \Carbon\Carbon::parse($submissionTime)->translatedFormat('d M Y, H:i') }}</span>
+                                                    @endif
+                                                    @if(!empty($item['due']))
+                                                        <span class="h-2.5 w-px bg-line"></span>
+                                                        <span class="{{ !$isDosen && $isPast && !$hasSubmission ? 'text-rose-600 font-medium' : '' }}">Tenggat {{ \Carbon\Carbon::parse($item['due'])->translatedFormat('d M Y, H:i') }}</span>
+                                                    @else
+                                                        <span class="h-2.5 w-px bg-line"></span>
+                                                        <span>Tugas perkuliahan</span>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </a>
