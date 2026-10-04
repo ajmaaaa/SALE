@@ -35,7 +35,7 @@
             return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
         });
 
-    $uncompletedTasksCount = $tugasItems->reject(fn($item) => in_array($item['id'], $submittedAssessmentIds, true))->count();
+    $uncompletedTasksCount = $tugasItems->reject(fn($item) => in_array((int)$item['id'], array_map('intval', $submittedAssessmentIds)))->count();
     $enrolledStudents = $enrolledStudents ?? [];
     $courseMembers = $courseMembers ?? collect();
     if (isset($classSection)) {
@@ -307,7 +307,7 @@
                             <div class="divide-y divide-line/40">
                                 @foreach($contents as $item)
                                     @php
-                                        $hasSubmission = in_array($item['id'], $submittedAssessmentIds, true);
+                                        $hasSubmission = in_array((int)$item['id'], array_map('intval', $submittedAssessmentIds));
                                         $isCoding = ($item['type'] === 'coding');
                                         $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
                                         $itemUrl = $isDosen
@@ -1367,9 +1367,27 @@
                         discussCard.style.maxHeight = `${h}px`;
                     }
                 } else {
-                    discussCard.style.height = '540px';
-                    discussCard.style.minHeight = '500px';
-                    discussCard.style.maxHeight = '85vh';
+                    // Tidak ada video: hitung tinggi ekuivalen aspect-video (16:9) dari lebar kolom kiri
+                    // agar ukuran card diskusi tetap konsisten dengan saat ada video
+                    let equivalentH = 0;
+                    if (gridEl) {
+                        const asideEl = discussAside;
+                        const asideW = asideEl ? asideEl.offsetWidth : 360;
+                        const gap = 28; // gap-7 = 1.75rem ≈ 28px
+                        const leftColW = gridEl.offsetWidth - asideW - gap;
+                        if (leftColW > 200) {
+                            equivalentH = Math.round(leftColW * (9 / 16));
+                        }
+                    }
+                    if (equivalentH > 150) {
+                        discussCard.style.height = `${equivalentH}px`;
+                        discussCard.style.minHeight = `${equivalentH}px`;
+                        discussCard.style.maxHeight = `${equivalentH}px`;
+                    } else {
+                        discussCard.style.height = '540px';
+                        discussCard.style.minHeight = '500px';
+                        discussCard.style.maxHeight = '85vh';
+                    }
                 }
 
                 discussAside.style.marginTop = '0px';
