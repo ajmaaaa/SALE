@@ -169,12 +169,19 @@
             })
             ->exists();
     }
+    $assessmentAttempt = $assessmentAttempt ?? null;
+    $isAttemptExpired = ($assessmentAttempt && (
+        in_array($assessmentAttempt->status, [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED], true)
+        || ($assessmentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $assessmentAttempt->deadline_at && now()->greaterThan($assessmentAttempt->deadline_at))
+    ));
     $isSubmitted = (!$isLecturer && !$isMaterial && (
         !empty($submission?->submitted_at)
         || in_array($submission?->status ?? '', ['submitted', 'pending', 'graded', 'graded_auto'], true)
         || !empty($submission?->answer)
         || $hasBeenGraded
         || $studentScore !== null
+        || $isAttemptExpired
+        || ($isAttemptRejected ?? false)
     ));
     $isArchived = !empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false);
     $aiEnabled = ($isLecturer || $isSubmitted) ? false : (bool) ($item['ai_enabled'] ?? true);
@@ -353,12 +360,6 @@
                     <p class="truncate text-[10px] sm:text-xs text-muted">{{ $course['code'] }} · {{ $item['module'] }}</p>
                 </div>
                 @if(! $isLecturer)
-                    @if($submission && $submission->submitted_at)
-                        <div class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium" title="Diserahkan pada {{ $submission->submitted_at->translatedFormat('d M Y, H:i') }}">
-                            <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-                            <span class="font-medium text-ink">Tersimpan di Database</span>
-                        </div>
-                    @endif
                     @if($studentScore !== null)
                         @php
                             $cpmkThreshold = 65.0;
@@ -389,7 +390,8 @@
                     <div id="code-timer-badge" class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono font-bold text-slate-700">
                         <svg class="h-3.5 w-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         <span id="code-countdown"
-                              data-duration="{{ ((int)($item['duration_minutes'] ?? 60)) * 60 }}">00:00</span>
+                              data-duration="{{ ((int)($item['duration_minutes'] ?? 60)) * 60 }}"
+                              @if($attemptDeadline ?? null) data-deadline="{{ $attemptDeadline->toIso8601String() }}" @endif>00:00</span>
                     </div>
                 @endif
 
@@ -440,8 +442,9 @@
                             <form data-code-submit method="post" action="{{ route('mahasiswa.course.submit', [$course['id'], $item['id']]) }}" id="form-code-submit" class="{{ $totalSteps > 1 ? '!hidden' : '' }}" style="{{ $totalSteps > 1 ? 'display: none !important;' : 'display: inline-block;' }}">
                                 @csrf
                                 <input type="hidden" name="from_code_editor" value="1">
+                                <input type="hidden" name="is_timeout" value="0" id="input-is-timeout">
                                 <input type="hidden" name="answer" data-code-answer>
-                                <button type="button" id="btn-submit-code-trigger" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="Serahkan Tugas ke Database">
+                                <button type="button" id="btn-submit-code-trigger" class="button-primary text-xs py-1.5 px-3.5 font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer" title="Serahkan Tugas">
                                     <span>Serahkan</span>
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                                 </button>
@@ -524,43 +527,105 @@
                                 <p class="whitespace-pre-line text-xs font-medium leading-relaxed text-ink">{{ $step['body'] ?? '' }}</p>
                             </div>
 
-                            @if(!empty($step['attachment']))
-                                @php
-                                    $stepFile = \App\Models\Attachment::where('uuid', $step['attachment'])->first();
-                                    $stepFileMeta = \App\Support\LearningPreview::fileMeta($step['attachment']);
-                                    $stepMime = $stepFile?->mime ?? ($stepFileMeta['mime'] ?? '');
-                                    $stepName = $stepFile?->name ?? ($stepFileMeta['name'] ?? 'Berkas Lampiran');
-                                    $stepExt = strtolower(pathinfo($stepName, PATHINFO_EXTENSION) ?: (pathinfo($stepFileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
-                                    $isStepImage = str_starts_with($stepMime, 'image/') || in_array($stepExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
-                                    $isStepPdf = $stepMime === 'application/pdf' || $stepExt === 'pdf' || str_ends_with(strtolower($stepName), '.pdf');
-                                    $stepUrl = route('preview.file', ['file' => $step['attachment'], 'inline' => ($isStepPdf || $isStepImage) ? 1 : null], false);
-                                    $stepDownloadUrl = route('preview.file', ['file' => $step['attachment'], 'download' => 1], false);
-                                @endphp
-                                @if($isStepImage)
-                                    <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
-                                        <img class="max-h-48 w-full rounded-lg object-contain border border-line/40 bg-slate-50" src="{{ $stepUrl }}" alt="{{ $stepName }}">
-                                        <div class="flex items-center justify-between text-xs pt-1">
-                                            <span class="truncate font-medium text-ink" title="{{ $stepName }}">{{ $stepName }}</span>
-                                            <a href="{{ $stepDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold shrink-0">Unduh</a>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="flex items-center justify-between gap-2 rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs">
-                                        <div class="flex items-center gap-2.5 min-w-0">
-                                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line font-mono font-bold text-[10px] {{ $isStepPdf ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700' }}">
-                                                {{ strtoupper($stepExt ?: 'FILE') }}
-                                            </span>
-                                            <div class="min-w-0 flex-1">
-                                                <span class="truncate block text-xs font-semibold text-ink" title="{{ $stepName }}">{{ $stepName }}</span>
-                                                <span class="text-[10px] text-muted">Lampiran tahap pembelajaran</span>
+                            @php
+                                $stepAttachments = array_values(array_filter(array_unique(array_merge(
+                                    (array) ($step['attachments'] ?? []),
+                                    !empty($step['attachment']) ? [$step['attachment']] : []
+                                ))));
+                            @endphp
+                            @if(!empty($stepAttachments))
+                                <div class="space-y-1.5 pt-1">
+                                    <span class="block text-[11px] font-bold uppercase tracking-wider text-muted">Lampiran Tahap ({{ count($stepAttachments) }})</span>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach($stepAttachments as $stepAttUuid)
+                                            @php
+                                                $stepFile = \App\Models\Attachment::where('uuid', $stepAttUuid)->first();
+                                                $stepFileMeta = \App\Support\LearningPreview::fileMeta($stepAttUuid);
+                                                $stepMime = $stepFile?->mime ?? ($stepFileMeta['mime'] ?? '');
+                                                $stepName = $stepFile?->name ?? ($stepFileMeta['name'] ?? 'Berkas Lampiran');
+                                                $stepExt = strtolower(pathinfo($stepName, PATHINFO_EXTENSION) ?: (pathinfo($stepFileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
+                                                if (empty($stepExt) && str_contains($stepMime, 'pdf')) {
+                                                    $stepExt = 'pdf';
+                                                }
+                                                $isStepPdf = $stepMime === 'application/pdf' || $stepExt === 'pdf' || str_ends_with(strtolower($stepName), '.pdf');
+                                                if ($isStepPdf) $stepExt = 'pdf';
+                                                $isStepImage = str_starts_with($stepMime, 'image/') || in_array($stepExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                                                $isStepVideo = str_starts_with($stepMime, 'video/') || in_array($stepExt, ['mp4', 'webm', 'ogg'], true);
+                                                $stepPreviewType = $isStepVideo ? 'video' : ($isStepPdf ? 'pdf' : ($isStepImage ? 'image' : 'file'));
+                                                $stepUrl = route('preview.file', ['file' => $stepAttUuid, 'inline' => ($isStepPdf || $isStepVideo || $isStepImage) ? 1 : null], false);
+                                                $stepDownloadUrl = route('preview.file', ['file' => $stepAttUuid, 'download' => 1], false);
+                                                $previewData = [
+                                                    'title' => $stepName,
+                                                    'url' => $stepUrl,
+                                                    'downloadUrl' => $stepDownloadUrl,
+                                                    'type' => $stepPreviewType,
+                                                    'ext' => strtoupper($stepExt ?: 'FILE'),
+                                                    'meta' => 'Lampiran Pembelajaran',
+                                                ];
+                                            @endphp
+                                            <div class="overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition flex flex-col" style="contain: paint;">
+                                                @if($isStepImage)
+                                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:opacity-95 transition" title="Buka pratinjau {{ $stepName }}">
+                                                        <img class="h-full w-full object-cover group-hover:scale-105 transition duration-300" src="{{ $stepUrl }}" alt="{{ $stepName }}">
+                                                        <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
+                                                    </button>
+                                                @elseif($isStepPdf)
+                                                    @php
+                                                        $thumbnailUrl = route('preview.file', ['file' => $stepAttUuid, 'thumbnail' => 1], false);
+                                                    @endphp
+                                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $stepName }}">
+                                                        <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 z-0">
+                                                            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-rose-700 shadow-2xs group-hover:scale-105 transition">
+                                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                                    <polyline points="14 2 14 8 20 8"/>
+                                                                    <path d="M9 13h6"/>
+                                                                    <path d="M9 17h4"/>
+                                                                </svg>
+                                                            </div>
+                                                            <span class="text-[9px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
+                                                        </div>
+                                                        <img src="{{ $thumbnailUrl }}" alt="Pratinjau {{ $stepName }}" loading="lazy" class="absolute top-0 left-0 w-full h-full object-cover object-top block z-1 bg-white opacity-0 transition-opacity duration-200 pointer-events-none" onload="this.classList.remove('opacity-0')" onerror="this.remove()">
+                                                        <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
+                                                    </button>
+                                                @elseif($isStepVideo)
+                                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-900 text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $stepName }}">
+                                                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-md group-hover:scale-110 transition">
+                                                            <svg class="h-4 w-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M8 5v14l11-7z"/>
+                                                            </svg>
+                                                        </div>
+                                                        <span class="text-[9px] font-bold tracking-wider text-white uppercase">Video {{ strtoupper($stepExt) }}</span>
+                                                    </button>
+                                                @else
+                                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka {{ $stepName }}">
+                                                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs group-hover:scale-105 transition">
+                                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                                <polyline points="14 2 14 8 20 8"/>
+                                                            </svg>
+                                                        </div>
+                                                        <span class="text-[9px] font-bold tracking-wider text-slate-700 uppercase">{{ strtoupper(substr($stepExt ?: 'FILE', 0, 4)) }}</span>
+                                                    </button>
+                                                @endif
+
+                                                <div class="flex h-8 min-w-0 items-center justify-between gap-1 px-2 bg-white">
+                                                    <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-ink hover:underline cursor-pointer" title="{{ $stepName }}">
+                                                        {{ $stepName }}
+                                                    </button>
+                                                    <div class="flex items-center gap-0.5 shrink-0">
+                                                        <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="text-muted hover:text-brand p-1 cursor-pointer" title="Buka Pratinjau">
+                                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                        </button>
+                                                        <a href="{{ $stepDownloadUrl }}" class="text-muted hover:text-ink p-1" title="Unduh {{ $stepName }}" aria-label="Unduh {{ $stepName }}">
+                                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+                                                        </a>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="flex items-center gap-1.5 shrink-0">
-                                            <a href="{{ $stepUrl }}" target="_blank" rel="noopener" class="button-secondary text-[11px] py-1 px-2.5 font-semibold">Buka</a>
-                                            <a href="{{ $stepDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold">Unduh</a>
-                                        </div>
+                                        @endforeach
                                     </div>
-                                @endif
+                                </div>
                             @endif
 
                             @if(!empty($step['link']))
@@ -568,7 +633,7 @@
                                     $ytEmbed = \App\Support\LearningPreview::youtubeEmbedUrl($step['link']);
                                     $isYoutube = !empty($ytEmbed);
                                 @endphp
-                                <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs flex items-center justify-between gap-2">
+                                <div class="rounded-lg border border-line/70 bg-white p-2 shadow-2xs flex items-center justify-between gap-2">
                                     <div class="flex items-center gap-2 min-w-0">
                                         @if($isYoutube)
                                             <svg class="h-4 w-4 shrink-0 text-red-600" viewBox="0 0 24 24" fill="currentColor">
@@ -599,67 +664,133 @@
                         ))));
                     @endphp
                     @if(!empty($item['question_image']) || !empty($allAttachments) || !empty($item['link']))
-                        <div class="border-t border-line/60 pt-4 space-y-3">
+                        <div class="border-t border-line/60 pt-4 space-y-2">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-ink">Berkas &amp; Lampiran Pendukung</h3>
-                            @if(!empty($item['question_image']))
-                                @php
-                                    $imgMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
-                                    $imgAlt = $item['image_alt'] ?? 'Gambar pendukung';
-                                    $imgName = !empty($item['image_alt']) ? $item['image_alt'] : ($imgMeta['name'] ?? 'Gambar pendukung');
-                                    $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
-                                    $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1], false);
-                                @endphp
-                                <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
-                                    <img src="{{ $imgUrl }}" alt="{{ $imgAlt }}" class="max-h-48 w-full object-contain rounded border border-line/40 bg-slate-50">
-                                    <div class="flex items-center justify-between text-xs pt-1">
-                                        <span class="truncate font-medium text-ink" title="{{ $imgName }}">{{ $imgName }}</span>
-                                        <a href="{{ $imgDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold shrink-0">Unduh</a>
-                                    </div>
-                                </div>
-                            @endif
-                            @foreach($allAttachments as $file)
-                                @php
-                                    $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
-                                    $fileMeta = \App\Support\LearningPreview::fileMeta($file);
-                                    $fileMime = $fileMeta['mime'] ?? '';
-                                    $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
-                                    $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
-                                    if (empty($fileExt) && str_contains($fileMime, 'pdf')) {
-                                        $fileExt = 'pdf';
-                                    } elseif (empty($fileExt)) {
-                                        $fileExt = 'file';
-                                    }
-                                    $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf' || str_ends_with(strtolower($fileName), '.pdf');
-                                    if ($isPdf) {
-                                        $fileExt = 'pdf';
-                                    }
-                                    $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
-                                    $fileUrl = route('preview.file', ['file' => $fileId, 'inline' => ($isPdf || $isImage) ? 1 : null], false);
-                                    $fileDownloadUrl = route('preview.file', ['file' => $fileId, 'download' => 1], false);
-                                @endphp
-                                @if($isImage)
-                                    <div class="rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs space-y-2">
-                                        <img src="{{ $fileUrl }}" alt="{{ $fileName }}" class="max-h-48 w-full object-contain rounded border border-line/40 bg-slate-50">
-                                        <div class="flex items-center justify-between text-xs pt-1">
-                                            <span class="truncate font-medium text-ink" title="{{ $fileName }}">{{ $fileName }}</span>
-                                            <a href="{{ $fileDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2.5 font-semibold shrink-0">Unduh</a>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="flex items-center justify-between gap-2 rounded-lg border border-line/70 bg-white p-2.5 shadow-2xs">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-line bg-canvas font-mono font-bold text-[10px] {{ $isPdf ? 'text-rose-700' : 'text-brand' }}">
-                                                {{ $isPdf ? 'PDF' : 'FILE' }}
-                                            </span>
-                                            <span class="truncate text-xs font-medium text-ink" title="{{ $fileName }}">{{ $fileName }}</span>
-                                        </div>
-                                        <div class="flex items-center gap-1.5 shrink-0">
-                                            <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="button-secondary text-[11px] py-1 px-2">Buka</a>
-                                            <a href="{{ $fileDownloadUrl }}" class="button-secondary text-[11px] py-1 px-2">Unduh</a>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                @if(!empty($item['question_image']))
+                                    @php
+                                        $imgMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
+                                        $imgAlt = $item['image_alt'] ?? 'Gambar pendukung';
+                                        $imgName = !empty($item['image_alt']) ? $item['image_alt'] : ($imgMeta['name'] ?? 'Gambar pendukung');
+                                        $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
+                                        $imgDownloadUrl = route('preview.file', ['file' => $item['question_image'], 'download' => 1], false);
+                                        $imgPreviewData = [
+                                            'title' => $imgName,
+                                            'url' => $imgUrl,
+                                            'downloadUrl' => $imgDownloadUrl,
+                                            'type' => 'image',
+                                            'ext' => 'PNG',
+                                            'meta' => 'Gambar soal pendukung',
+                                        ];
+                                    @endphp
+                                    <div class="overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition flex flex-col" style="contain: paint;">
+                                        <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($imgPreviewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:opacity-95 transition" title="Buka pratinjau {{ $imgName }}">
+                                            <img src="{{ $imgUrl }}" alt="{{ $imgAlt }}" class="h-full w-full object-cover group-hover:scale-105 transition duration-300">
+                                            <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
+                                        </button>
+                                        <div class="flex h-8 min-w-0 items-center justify-between gap-1 px-2 bg-white">
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($imgPreviewData) }})" class="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-ink hover:underline cursor-pointer" title="{{ $imgName }}">
+                                                {{ $imgName }}
+                                            </button>
+                                            <div class="flex items-center gap-0.5 shrink-0">
+                                                <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($imgPreviewData) }})" class="text-muted hover:text-brand p-1 cursor-pointer" title="Buka Pratinjau">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                </button>
+                                                <a href="{{ $imgDownloadUrl }}" class="text-muted hover:text-ink p-1" title="Unduh {{ $imgName }}" aria-label="Unduh {{ $imgName }}">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
                                 @endif
-                            @endforeach
+                                @foreach($allAttachments as $file)
+                                    @php
+                                        $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
+                                        $fileMeta = \App\Support\LearningPreview::fileMeta($file);
+                                        $fileMime = $fileMeta['mime'] ?? '';
+                                        $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
+                                        $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
+                                        if (empty($fileExt) && str_contains($fileMime, 'pdf')) {
+                                            $fileExt = 'pdf';
+                                        }
+                                        $isPdf = $fileMime === 'application/pdf' || $fileExt === 'pdf' || str_ends_with(strtolower($fileName), '.pdf');
+                                        if ($isPdf) $fileExt = 'pdf';
+                                        $isImage = str_starts_with($fileMime, 'image/') || in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                                        $isVideo = str_starts_with($fileMime, 'video/') || in_array($fileExt, ['mp4', 'webm', 'ogg'], true);
+                                        $filePreviewType = $isVideo ? 'video' : ($isPdf ? 'pdf' : ($isImage ? 'image' : 'file'));
+                                        $fileUrl = route('preview.file', ['file' => $fileId, 'inline' => ($isPdf || $isVideo || $isImage) ? 1 : null], false);
+                                        $fileDownloadUrl = route('preview.file', ['file' => $fileId, 'download' => 1], false);
+                                        $filePreviewData = [
+                                            'title' => $fileName,
+                                            'url' => $fileUrl,
+                                            'downloadUrl' => $fileDownloadUrl,
+                                            'type' => $filePreviewType,
+                                            'ext' => strtoupper($fileExt ?: 'FILE'),
+                                            'meta' => 'Lampiran Pembelajaran',
+                                        ];
+                                    @endphp
+                                    <div class="overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition flex flex-col" style="contain: paint;">
+                                        @if($isImage)
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:opacity-95 transition" title="Buka pratinjau {{ $fileName }}">
+                                                <img class="h-full w-full object-cover group-hover:scale-105 transition duration-300" src="{{ $fileUrl }}" alt="{{ $fileName }}">
+                                                <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
+                                            </button>
+                                        @elseif($isPdf)
+                                            @php
+                                                $thumbUrl = route('preview.file', ['file' => $fileId, 'thumbnail' => 1], false);
+                                            @endphp
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka pratinjau {{ $fileName }}">
+                                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 z-0">
+                                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-rose-700 shadow-2xs group-hover:scale-105 transition">
+                                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                            <polyline points="14 2 14 8 20 8"/>
+                                                            <path d="M9 13h6"/>
+                                                            <path d="M9 17h4"/>
+                                                        </svg>
+                                                    </div>
+                                                    <span class="text-[9px] font-bold tracking-wider text-rose-700 uppercase">Dokumen PDF</span>
+                                                </div>
+                                                <img src="{{ $thumbUrl }}" alt="Pratinjau {{ $fileName }}" loading="lazy" class="absolute top-0 left-0 w-full h-full object-cover object-top block z-1 bg-white opacity-0 transition-opacity duration-200 pointer-events-none" onload="this.classList.remove('opacity-0')" onerror="this.remove()">
+                                                <div class="absolute inset-0 z-10 bg-transparent group-hover:bg-slate-900/10 transition"></div>
+                                            </button>
+                                        @elseif($isVideo)
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-900 text-white cursor-pointer group hover:opacity-95 transition" title="Putar video {{ $fileName }}">
+                                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-md group-hover:scale-110 transition">
+                                                    <svg class="h-4 w-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M8 5v14l11-7z"/>
+                                                    </svg>
+                                                </div>
+                                                <span class="text-[9px] font-bold tracking-wider text-white uppercase">Video {{ strtoupper($fileExt) }}</span>
+                                            </button>
+                                        @else
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="flex aspect-video w-full flex-col items-center justify-center gap-1 border-b border-line bg-slate-50 cursor-pointer group hover:bg-slate-100/80 transition" title="Buka {{ $fileName }}">
+                                                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs group-hover:scale-105 transition">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                        <polyline points="14 2 14 8 20 8"/>
+                                                    </svg>
+                                                </div>
+                                                <span class="text-[9px] font-bold tracking-wider text-slate-700 uppercase">{{ strtoupper(substr($fileExt ?: 'FILE', 0, 4)) }}</span>
+                                            </button>
+                                        @endif
+
+                                        <div class="flex h-8 min-w-0 items-center justify-between gap-1 px-2 bg-white">
+                                            <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-ink hover:underline cursor-pointer" title="{{ $fileName }}">
+                                                {{ $fileName }}
+                                            </button>
+                                            <div class="flex items-center gap-0.5 shrink-0">
+                                                <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($filePreviewData) }})" class="text-muted hover:text-brand p-1 cursor-pointer" title="Buka Pratinjau">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                </button>
+                                                <a href="{{ $fileDownloadUrl }}" class="text-muted hover:text-ink p-1" title="Unduh {{ $fileName }}" aria-label="Unduh {{ $fileName }}">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                             @if(!empty($item['link']))
                                 <div class="rounded-lg border border-line/70 bg-white p-2.5">
                                     <a class="quiet-link inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline" href="{{ $item['link'] }}" target="_blank" rel="noopener">
@@ -795,16 +926,9 @@
             {{-- PANEL 3 (KANAN): Penilaian & Evaluasi Dosen Langsung di Editor --}}
             <aside id="panel-grading" class="surface flex flex-col shrink-0 h-full rounded-xl overflow-hidden shadow-sm border border-line/60 transition-none mobile-panel-hidden xl:flex" style="width: var(--workbench-right-width, 360px); min-width: 280px; max-width: 600px;" aria-labelledby="grading-heading">
                 {{-- Header Panel Penilaian --}}
-                <div class="p-4 border-b border-line/60 bg-white flex items-center justify-between shrink-0">
-                    <div>
-                        <h2 id="grading-heading" class="text-sm font-bold text-ink">Penilaian Tugas Coding</h2>
-                        <p class="text-xs text-muted mt-0.5">Nilai langsung per butir soal</p>
-                    </div>
-                    @if($studentScore !== null)
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold {{ (!empty($isScorePassed)) ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200' }} border" title="Ambang Batas CPMK: {{ $cpmkThreshold ?? 65 }}%">
-                            Total: {{ rtrim(rtrim(number_format((float)$studentScore, 2), '0'), '.') }}/100
-                        </span>
-                    @endif
+                <div class="p-4 border-b border-line/60 bg-white shrink-0">
+                    <h2 id="grading-heading" class="text-sm font-bold text-ink">Penilaian Tugas Coding</h2>
+                    <p class="text-xs text-muted mt-0.5">Nilai langsung per butir soal</p>
                 </div>
 
                 @if(session('notice'))
@@ -1018,7 +1142,7 @@
 
     @if(!$isLecturer && !$isSubmitted && !$isMaterial)
     {{-- MODAL KONFIRMASI PENGUMPULAN TUGAS CODING --}}
-    <dialog id="coding-submit-confirm-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50 h-fit max-h-[90vh] overflow-y-auto">
+    <dialog id="coding-submit-confirm-modal" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-line bg-white p-0 text-ink shadow-2xl backdrop:bg-slate-900/50 h-fit max-h-[90vh] overflow-y-auto z-40">
         <div class="p-6">
             <div class="flex items-start gap-2.5 mb-2">
                 <svg class="h-5 w-5 text-slate-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
@@ -1042,10 +1166,178 @@
             </div>
         </div>
     </dialog>
+
     @endif
 
+    {{-- Google Drive / Classroom Style Attachment Previewer Modal --}}
+    <dialog id="attachment-preview-dialog" class="submission-preview" aria-labelledby="attachment-preview-title">
+        <header class="submission-header">
+            <span class="submission-filetype text-xs font-bold" id="attachment-preview-badge" aria-hidden="true">FILE</span>
+            <div class="min-w-0 flex-1">
+                <h2 id="attachment-preview-title" class="text-sm font-semibold text-ink truncate">Pratinjau Berkas</h2>
+                <p id="attachment-preview-meta" class="mt-0.5 text-xs text-muted truncate">Lampiran Pembelajaran</p>
+            </div>
+            <div class="submission-actions">
+                <a id="attachment-preview-download" href="#" class="button-secondary text-xs inline-flex items-center gap-1.5" download title="Unduh berkas">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+                    <span>Unduh</span>
+                </a>
+                <a id="attachment-preview-open" href="#" target="_blank" rel="noopener noreferrer" class="button-secondary text-xs inline-flex items-center gap-1.5" title="Buka di tab baru">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    <span class="hidden sm:inline">Buka Tab Baru</span>
+                </a>
+                <button type="button" class="submission-close" onclick="closeAttachmentPreview()" aria-label="Tutup pratinjau">
+                    <svg width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></svg>
+                </button>
+            </div>
+        </header>
+        <div class="submission-body flex items-center justify-center p-4 bg-slate-100/90 flex-1 min-h-[420px]" id="attachment-preview-body">
+            <!-- Dynamic Preview Content injected via JS -->
+        </div>
+    </dialog>
+
+
+
     <script>
+        function openAttachmentPreview(e, fileData) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const dialog = document.getElementById('attachment-preview-dialog');
+            if (!dialog) return;
+
+            const titleEl = document.getElementById('attachment-preview-title');
+            const badgeEl = document.getElementById('attachment-preview-badge');
+            const metaEl = document.getElementById('attachment-preview-meta');
+            const downloadEl = document.getElementById('attachment-preview-download');
+            const openEl = document.getElementById('attachment-preview-open');
+            const bodyEl = document.getElementById('attachment-preview-body');
+
+            if (titleEl) titleEl.textContent = fileData.title || 'Berkas Lampiran';
+            if (badgeEl) badgeEl.textContent = (fileData.ext || 'FILE').toUpperCase().slice(0, 6);
+            if (metaEl) metaEl.textContent = fileData.meta || 'Lampiran perkuliahan';
+
+            let ytId = fileData.videoId || '';
+            if (!ytId && fileData.url) {
+                const m = fileData.url.match(/(?:embed\/|v\/|watch\?v=|\.be\/)([a-zA-Z0-9_-]{11})/);
+                if (m) ytId = m[1];
+            }
+            if (!ytId && fileData.downloadUrl) {
+                const m = fileData.downloadUrl.match(/(?:embed\/|v\/|watch\?v=|\.be\/)([a-zA-Z0-9_-]{11})/);
+                if (m) ytId = m[1];
+            }
+            const ytWatchUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : (fileData.downloadUrl || fileData.url);
+
+            const isExternalLink = fileData.type === 'link' || fileData.type === 'youtube';
+            if (downloadEl) {
+                downloadEl.href = fileData.downloadUrl || fileData.url;
+                downloadEl.hidden = isExternalLink;
+            }
+            if (openEl) {
+                openEl.href = fileData.type === 'youtube' ? ytWatchUrl : ((isExternalLink && fileData.downloadUrl) ? fileData.downloadUrl : fileData.url);
+                const openSpan = openEl.querySelector('span');
+                if (openSpan) openSpan.textContent = fileData.type === 'youtube' ? 'Tonton di YouTube' : (isExternalLink ? 'Buka Sumber' : 'Buka Tab Baru');
+            }
+
+            if (bodyEl) {
+                bodyEl.innerHTML = '';
+
+                if (fileData.type === 'video') {
+                    bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-900/90 flex-1 min-h-[420px]';
+                    const vid = document.createElement('video');
+                    vid.src = fileData.url;
+                    vid.controls = true;
+                    vid.autoplay = true;
+                    vid.className = 'max-h-[75vh] max-w-full rounded-lg shadow-md bg-black';
+                    bodyEl.appendChild(vid);
+                } else if (fileData.type === 'youtube') {
+                    bodyEl.className = 'submission-body flex flex-col p-2 sm:p-4 bg-slate-900/90 flex-1 min-h-[500px] h-full';
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'w-full flex-1 flex flex-col items-center justify-center';
+                    const frame = document.createElement('iframe');
+                    const embedSrc = ytId
+                        ? `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&playsinline=1`
+                        : fileData.url;
+                    frame.src = embedSrc;
+                    frame.title = `Pratinjau ${fileData.title}`;
+                    frame.className = 'w-full flex-1 min-h-[460px] h-full border-0 rounded-lg bg-black shadow-md';
+                    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+                    frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                    frame.allowFullscreen = true;
+                    wrapper.appendChild(frame);
+                    bodyEl.appendChild(wrapper);
+                } else if (fileData.type === 'pdf' || fileData.type === 'link') {
+                    bodyEl.className = 'submission-body flex flex-col p-2 sm:p-4 bg-slate-100/90 flex-1 min-h-[500px] h-full';
+                    const frame = document.createElement('iframe');
+                    frame.src = fileData.url;
+                    frame.title = `Pratinjau ${fileData.title}`;
+                    frame.className = 'w-full flex-1 min-h-[520px] h-full border-0 rounded-lg bg-white shadow-xs';
+                    frame.referrerPolicy = 'origin';
+                    if (fileData.type === 'link') {
+                        frame.sandbox = 'allow-forms allow-popups allow-same-origin allow-scripts';
+                    }
+                    bodyEl.appendChild(frame);
+                } else if (fileData.type === 'image') {
+                    bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-100/90 flex-1 min-h-[420px]';
+                    const img = document.createElement('img');
+                    img.src = fileData.url;
+                    img.alt = fileData.title;
+                    img.className = 'max-h-[75vh] max-w-full object-contain rounded-lg shadow-sm';
+                    img.addEventListener('error', function() {
+                        img.remove();
+                        bodyEl.innerHTML = '<div class="text-xs text-muted text-center p-6">Gambar tidak dapat dimuat. Gunakan tombol Unduh atau Buka Tab Baru di atas.</div>';
+                    });
+                    bodyEl.appendChild(img);
+                } else {
+                    bodyEl.className = 'submission-body flex items-center justify-center p-4 bg-slate-100/90 flex-1 min-h-[420px]';
+                    const card = document.createElement('div');
+                    card.className = 'text-center p-8 bg-white rounded-xl shadow-xs border border-line max-w-md w-full';
+                    card.innerHTML = `
+                        <div class="h-12 w-12 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto mb-3">
+                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-ink mb-1">${fileData.title}</h4>
+                        <p class="text-xs text-muted mb-4">Pratinjau langsung tidak didukung untuk tipe berkas ini. Silakan unduh untuk membukanya.</p>
+                        <a href="${fileData.downloadUrl || fileData.url}" class="button-primary text-xs py-2 px-4 inline-flex items-center gap-1.5" download>
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+                            <span>Unduh Berkas</span>
+                        </a>
+                    `;
+                    bodyEl.appendChild(card);
+                }
+            }
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            } else {
+                dialog.setAttribute('open', '');
+            }
+        }
+
+        function closeAttachmentPreview() {
+            const dialog = document.getElementById('attachment-preview-dialog');
+            if (dialog) {
+                if (typeof dialog.close === 'function') {
+                    dialog.close();
+                } else {
+                    dialog.removeAttribute('open');
+                }
+                const bodyEl = document.getElementById('attachment-preview-body');
+                if (bodyEl) bodyEl.innerHTML = '';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            const attPreviewDialog = document.getElementById('attachment-preview-dialog');
+            if (attPreviewDialog) {
+                attPreviewDialog.addEventListener('click', function(e) {
+                    const rect = attPreviewDialog.getBoundingClientRect();
+                    if (e.target === attPreviewDialog && (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom)) {
+                        closeAttachmentPreview();
+                    }
+                });
+            }
             // Mobile Segmented Tabs Navigation (< 1280px / Android / Mobile)
             const mobileTabs = document.querySelectorAll('[data-mobile-tab]');
             const panelQuestion = document.getElementById('panel-question');
@@ -1307,7 +1599,7 @@
                 scoreInputs.forEach(inp => inp.addEventListener('input', calcTotal));
             }
 
-            // Kolektor berkas seluruh soal/bagian untuk dikirim ke database
+            // Kolektor berkas seluruh soal/bagian untuk dikirim
             window.getAllWorkbenchFiles = () => {
                 if (typeof window.getWorkbenchFiles === 'function') {
                     stepFilesMap[currentStep] = window.getWorkbenchFiles();
@@ -1360,13 +1652,27 @@
             modalCodingConfirmBtn?.addEventListener('click', () => {
                 modalCodingConfirmBtn.disabled = true;
                 modalCodingConfirmBtn.textContent = 'Menyerahkan...';
+                const currentUserId = '{{ auth()->id() ?? "guest" }}';
+                localStorage.removeItem(`sale.code.deadline.{{ $item['id'] }}.${currentUserId}`);
+                localStorage.removeItem(`sale.code.started.{{ $item['id'] }}.${currentUserId}`);
                 localStorage.removeItem(`sale.code.deadline.{{ $item['id'] }}`);
                 localStorage.removeItem(`sale.code.assignment.{{ $item['id'] }}.{{ $language }}`);
-                const allFiles = window.getAllWorkbenchFiles();
+                localStorage.setItem(`sale.code.expired.{{ $item['id'] }}.${currentUserId}`, '1');
+                const allFiles = (typeof window.getAllWorkbenchFiles === 'function') ? window.getAllWorkbenchFiles() : [];
                 const ansInput = document.querySelector('[data-code-answer]');
-                if (ansInput && allFiles.length > 0) {
-                    ansInput.value = JSON.stringify(allFiles);
+                if (ansInput) {
+                    if (allFiles && allFiles.length > 0) {
+                        ansInput.value = JSON.stringify(allFiles);
+                    } else {
+                        const curCode = (typeof window.getWorkbenchCode === 'function') ? window.getWorkbenchCode() : '';
+                        ansInput.value = JSON.stringify([{
+                            name: '{{ $language === "web" ? "untitled.html" : "untitled" }}',
+                            code: curCode || '',
+                            step: 1
+                        }]);
+                    }
                 }
+                codingSubmitModal?.close();
                 formCodeSubmit?.submit();
             });
 
@@ -1401,24 +1707,39 @@
                 });
             });
 
-            // Countdown timer jika batas durasi waktu diaktifkan
+            // Countdown timer jika batas durasi waktu diaktifkan (diselaraskan per akun pengguna)
             const codeTimerEl = document.getElementById('code-countdown');
+
             if (codeTimerEl && !isMaterialItem && !{{ $isLecturer ? 'true' : 'false' }} && !{{ $isSubmitted ? 'true' : 'false' }} && !{{ $isArchived ? 'true' : 'false' }}) {
                 const totalDurationSeconds = Number(codeTimerEl.dataset.duration || 3600);
-                const deadlineKey = `sale.code.deadline.{{ $item['id'] }}`;
+                const currentUserId = '{{ auth()->id() ?? "guest" }}';
+                const deadlineKey = `sale.code.deadline.{{ $item['id'] }}.${currentUserId}`;
+                const expiredKey = `sale.code.expired.{{ $item['id'] }}.${currentUserId}`;
                 const now = Date.now();
-                let deadline = localStorage.getItem(deadlineKey);
+                const serverDeadline = Date.parse(codeTimerEl.dataset.deadline || '');
+                let deadline = Number.isFinite(serverDeadline) ? serverDeadline : localStorage.getItem(deadlineKey);
 
-                if (!deadline || isNaN(Number(deadline))) {
+                if (localStorage.getItem(expiredKey) === '1' && !Number.isFinite(serverDeadline)) {
+                    deadline = now;
+                } else if (Number.isFinite(serverDeadline)) {
+                    deadline = serverDeadline;
+                    localStorage.setItem(deadlineKey, String(deadline));
+                } else if (!deadline || isNaN(Number(deadline))) {
                     deadline = now + (totalDurationSeconds * 1000);
                     localStorage.setItem(deadlineKey, String(deadline));
                 } else {
                     deadline = Number(deadline);
                 }
 
+                localStorage.removeItem(`sale.code.deadline.{{ $item['id'] }}`);
+
                 const formatTime = (seconds) => {
-                    const m = Math.floor(seconds / 60);
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
                     const s = seconds % 60;
+                    if (h > 0) {
+                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                    }
                     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                 };
 
@@ -1439,18 +1760,31 @@
                     if (remainingSeconds <= 0) {
                         clearInterval(codeTimerInterval);
                         localStorage.removeItem(deadlineKey);
+                        localStorage.setItem(expiredKey, '1');
+                        localStorage.removeItem(`sale.code.deadline.{{ $item['id'] }}`);
                         localStorage.removeItem(`sale.code.assignment.{{ $item['id'] }}.{{ $language }}`);
                         if (!hasTriggeredEnd) {
                             hasTriggeredEnd = true;
-                            if (typeof window.saleNotice === 'function') {
-                                await window.saleNotice({ title: 'Waktu pengerjaan berakhir', message: 'Jawaban kode Anda akan otomatis dikumpulkan.' });
-                            } else {
-                                alert('Waktu pengerjaan berakhir. Jawaban kode Anda akan otomatis dikumpulkan.');
-                            }
-                            const allFiles = window.getAllWorkbenchFiles();
+                            const allFiles = (typeof window.getAllWorkbenchFiles === 'function') ? window.getAllWorkbenchFiles() : [];
                             const ansInput = document.querySelector('[data-code-answer]');
-                            if (ansInput && allFiles.length > 0) {
-                                ansInput.value = JSON.stringify(allFiles);
+                            const timeoutInput = document.getElementById('input-is-timeout');
+                            if (timeoutInput) timeoutInput.value = '1';
+                            if (ansInput) {
+                                if (allFiles && allFiles.length > 0) {
+                                    ansInput.value = JSON.stringify(allFiles);
+                                } else {
+                                    const curCode = (typeof window.getWorkbenchCode === 'function') ? window.getWorkbenchCode() : '';
+                                    ansInput.value = JSON.stringify([{
+                                        name: '{{ $language === "web" ? "untitled.html" : "untitled" }}',
+                                        code: curCode || '',
+                                        step: 1
+                                    }]);
+                                }
+                            }
+                            if (typeof window.saleNotice === 'function') {
+                                await window.saleNotice({ title: 'Waktu pengerjaan berakhir', message: 'Waktu pengerjaan telah habis. Jawaban kode Anda otomatis dikumpulkan.' });
+                            } else {
+                                alert('Waktu pengerjaan telah habis. Jawaban kode Anda otomatis dikumpulkan.');
                             }
                             formCodeSubmit?.submit();
                         }
