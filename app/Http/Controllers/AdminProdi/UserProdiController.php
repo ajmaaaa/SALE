@@ -17,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -415,6 +416,10 @@ class UserProdiController extends AdminProdiController
             $sheet->getRowDimension($row)->setRowHeight(20);
             $row++;
         }
+
+        // Set format kolom NIM/NIDN (A) sebagai teks (@) untuk SELURUH kolom termasuk baris kosong
+        // agar angka panjang seperti NIP/NIM tidak dipotong/dibulatkan oleh Excel (max 15 digit angka)
+        $sheet->getStyle('A2:A1000')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         $lastRow = $row - 1;
         $sheet->getStyle("A1:{$lastCol}{$lastRow}")->applyFromArray([
