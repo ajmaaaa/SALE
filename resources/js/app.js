@@ -2171,7 +2171,7 @@ if (contentForm) {
         const isCoding = (mode === 'coding');
         if (codingAiSetting) {
             codingAiSetting.hidden = !isCoding;
-            codingAiSetting.querySelectorAll('input[name="ai_enabled"]').forEach(inp => {
+            codingAiSetting.querySelectorAll('input[name="ai_enabled"], input[name="linked_material_ids[]"]').forEach(inp => {
                 inp.disabled = !isCoding;
             });
         }
@@ -2202,11 +2202,11 @@ if (contentForm) {
             questionType.value = isCoding ? 'coding' : 'uraian';
         }
 
-        // Setup vs Step 2 views: pertahankan setup tetap terlihat agar form mengalir ke bawah secara alami
-        if (setup) setup.hidden = false;
+        // Setup vs Step 2 views: susun soal hanya setelah setup informasi konten (Step 1 -> Step 2)
+        if (setup) setup.hidden = questionsStep;
 
         if (builder) {
-            const showQuestions = (mode === 'questions');
+            const showQuestions = questionsStep && mode === 'questions';
             builder.hidden = !showQuestions;
             if (showQuestions) {
                 builder.style.opacity = '1';
@@ -2218,7 +2218,7 @@ if (contentForm) {
         }
 
         if (codingStepBuilder) {
-            const showCoding = (mode === 'coding');
+            const showCoding = questionsStep && mode === 'coding';
             codingStepBuilder.hidden = !showCoding;
             if (showCoding) {
                 codingStepBuilder.style.opacity = '1';
@@ -2238,9 +2238,9 @@ if (contentForm) {
         syncDuration();
 
         if (progress) progress.hidden = !twoStepActive;
-        if (nextButton) nextButton.hidden = !twoStepActive || (step === 'questions');
-        if (backButton) backButton.hidden = !twoStepActive || (step !== 'questions');
-        if (submitButton) submitButton.hidden = false;
+        if (nextButton) nextButton.hidden = questionsStep || !twoStepActive;
+        if (backButton) backButton.hidden = !questionsStep || !twoStepActive;
+        if (submitButton) submitButton.hidden = twoStepActive && !questionsStep;
 
         if (step2Label) {
             step2Label.textContent = mainCat === 'materi' ? 'Susun materi' : 'Susun soal';
@@ -2357,21 +2357,22 @@ if (contentForm) {
             return;
         }
 
-        showStep('questions');
-        const mode = getStepMode();
-        const targetBuilder = (mode === 'coding') ? codingStepBuilder : builder;
-        if (targetBuilder) {
-            requestAnimationFrame(() => {
-                targetBuilder.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
+        // 3. Materi / Instruksi
+        if (!bodyInput?.value.trim()) {
+            bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
+            bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            bodyInput?.focus();
+            showFormError('Isi materi, instruksi, atau stimulus soal.');
+            return;
         }
+
+        showStep('questions');
+        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     backButton?.addEventListener('click', () => {
         showStep('setup');
-        if (setup) {
-            setup.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     contentForm.querySelectorAll('[data-step-indicator]').forEach(indicator => {
@@ -2381,17 +2382,16 @@ if (contentForm) {
             if (step === 'questions') {
                 const mode = getStepMode();
                 if (mode !== 'none') {
+                    if (!getMainCategory() || !moduleInput?.value.trim() || !bodyInput?.value.trim()) {
+                        nextButton?.click();
+                        return;
+                    }
                     showStep('questions');
-                    const targetBuilder = (mode === 'coding') ? codingStepBuilder : builder;
-                    requestAnimationFrame(() => {
-                        targetBuilder?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
+                    contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             } else {
                 showStep('setup');
-                requestAnimationFrame(() => {
-                    setup?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
+                contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
     });
@@ -2433,24 +2433,6 @@ if (contentForm) {
 
     // Initial render
     showStep(contentForm.dataset.step || 'setup');
-
-    if (window.IntersectionObserver) {
-        const stepObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && entry.intersectionRatio >= 0.2) {
-                    if (entry.target === builder || entry.target === codingStepBuilder) {
-                        paintProgress('questions');
-                    } else if (entry.target === setup) {
-                        paintProgress('setup');
-                    }
-                }
-            });
-        }, { threshold: [0.2, 0.5] });
-
-        if (setup) stepObserver.observe(setup);
-        if (builder) stepObserver.observe(builder);
-        if (codingStepBuilder) stepObserver.observe(codingStepBuilder);
-    }
 
     contentForm.addEventListener('submit', (e) => {
         clearHighlights();
@@ -3028,7 +3010,14 @@ if (codingStepBuilder) {
             }
 
             row.querySelectorAll('[data-step-field]').forEach(input => {
-                input.name = `coding_steps[${index}][${input.dataset.stepField}]`;
+                if (input.dataset.stepField === 'attachments') {
+                    input.name = `coding_steps[${index}][attachments][]`;
+                } else {
+                    input.name = `coding_steps[${index}][${input.dataset.stepField}]`;
+                }
+            });
+            row.querySelectorAll('[data-step-existing-att]').forEach(input => {
+                input.name = `coding_steps[${index}][existing_attachments][]`;
             });
             const pts = ptsInput && !isMaterial ? (parseInt(ptsInput.value, 10) || 0) : 0;
             const pointShare = row.querySelector('[data-step-point-share]');
@@ -3087,27 +3076,34 @@ if (codingStepBuilder) {
         const addonMenu = row.querySelector('[data-step-addon-menu]');
         const filesPanel = row.querySelector('[data-step-addon-panel="files"]');
         const linkPanel = row.querySelector('[data-step-addon-panel="link"]');
-        const fileInput = row.querySelector('input[data-step-field="attachment"]');
+        const fileInput = row.querySelector('input[data-step-field="attachments"]') || row.querySelector('input[data-step-field="attachment"]');
         const filePreview = row.querySelector('[data-step-file-preview]');
+        const filePickerBtn = row.querySelector('[data-step-file-picker-btn]');
+        const existingAttsContainer = row.querySelector('[data-step-existing-attachments-container]');
         const linkInput = row.querySelector('input[data-step-field="link"]');
         const removeLinkBtn = row.querySelector('[data-remove-step-link]');
-        let currentObjUrl = null;
+        let selectedFiles = [];
+        let existingFiles = [];
+        let objUrls = [];
 
-        const renderFilePreview = (fileInfo) => {
-            if (!filePreview) return;
-            if (currentObjUrl) {
-                URL.revokeObjectURL(currentObjUrl);
-                currentObjUrl = null;
+        const syncFileInput = () => {
+            if (!fileInput) return;
+            try {
+                const dt = new DataTransfer();
+                selectedFiles.forEach(f => dt.items.add(f));
+                fileInput.files = dt.files;
+            } catch (e) {
+                console.warn('DataTransfer not supported', e);
             }
-            filePreview.replaceChildren();
-            if (!fileInfo) return;
+        };
 
+        const createPreviewCard = (fileInfo, onRemove) => {
             const card = document.createElement('div');
             card.className = 'flex items-center justify-between gap-3 rounded-lg border border-line/60 bg-white p-2.5 shadow-2xs';
 
             const fileName = fileInfo.name || 'Berkas Lampiran';
             const ext = (fileName.split('.').pop() || 'file').toLowerCase();
-            const isImage = (fileInfo.type && fileInfo.type.startsWith('image/')) || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+            const isImage = fileInfo.imgUrl || (fileInfo.type && fileInfo.type.startsWith('image/')) || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
             const isPdf = fileInfo.type === 'application/pdf' || ext === 'pdf';
             const isWord = ['doc', 'docx'].includes(ext);
             const isSlides = ['ppt', 'pptx'].includes(ext);
@@ -3116,10 +3112,9 @@ if (codingStepBuilder) {
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2.5 min-w-0 flex-1';
 
-            if (isImage && fileInfo instanceof File) {
+            if (isImage && fileInfo.imgUrl) {
                 const img = document.createElement('img');
-                currentObjUrl = URL.createObjectURL(fileInfo);
-                img.src = currentObjUrl;
+                img.src = fileInfo.imgUrl;
                 img.className = 'h-10 w-10 shrink-0 rounded object-cover border border-line/40';
                 left.append(img);
             } else {
@@ -3154,26 +3149,88 @@ if (codingStepBuilder) {
 
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
-            removeBtn.className = 'text-muted hover:text-danger p-1 text-sm font-bold shrink-0 transition';
+            removeBtn.className = 'text-muted hover:text-danger p-1 text-sm font-bold shrink-0 transition cursor-pointer';
             removeBtn.innerHTML = '&times;';
-            removeBtn.title = 'Hapus lampiran';
+            removeBtn.title = 'Hapus lampiran ini';
             removeBtn.setAttribute('aria-label', `Hapus lampiran ${fileName}`);
-            removeBtn.addEventListener('click', () => {
-                if (fileInput) fileInput.value = '';
-                const existingAtt = row.querySelector('[data-step-field="existing_attachment"]');
-                if (existingAtt) existingAtt.value = '';
-                if (currentObjUrl) {
-                    URL.revokeObjectURL(currentObjUrl);
-                    currentObjUrl = null;
-                }
-                filePreview.replaceChildren();
-                if (filesPanel) filesPanel.hidden = true;
-            });
+            removeBtn.addEventListener('click', onRemove);
             card.append(removeBtn);
 
-            filePreview.append(card);
-            if (filesPanel) filesPanel.hidden = false;
+            return card;
         };
+
+        const renderExistingInputs = () => {
+            if (!existingAttsContainer) return;
+            existingAttsContainer.replaceChildren();
+            existingFiles.forEach(ef => {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.setAttribute('data-step-existing-att', '1');
+                hidden.value = ef.uuid || ef.name;
+                existingAttsContainer.append(hidden);
+            });
+            update();
+        };
+
+        const renderPreviews = () => {
+            if (!filePreview) return;
+            objUrls.forEach(url => URL.revokeObjectURL(url));
+            objUrls = [];
+            filePreview.replaceChildren();
+
+            existingFiles.forEach((fileInfo, exIdx) => {
+                const card = createPreviewCard(fileInfo, () => {
+                    existingFiles.splice(exIdx, 1);
+                    renderExistingInputs();
+                    renderPreviews();
+                    if (existingFiles.length === 0 && selectedFiles.length === 0 && filesPanel) {
+                        filesPanel.hidden = true;
+                    }
+                });
+                filePreview.append(card);
+            });
+
+            selectedFiles.forEach((file, fIdx) => {
+                let objUrl = null;
+                const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes((file.name.split('.').pop() || '').toLowerCase());
+                if (isImage) {
+                    objUrl = URL.createObjectURL(file);
+                    objUrls.push(objUrl);
+                }
+                const card = createPreviewCard({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    imgUrl: objUrl,
+                }, () => {
+                    selectedFiles.splice(fIdx, 1);
+                    syncFileInput();
+                    renderPreviews();
+                    if (existingFiles.length === 0 && selectedFiles.length === 0 && filesPanel) {
+                        filesPanel.hidden = true;
+                    }
+                });
+                filePreview.append(card);
+            });
+
+            if ((existingFiles.length > 0 || selectedFiles.length > 0) && filesPanel) {
+                filesPanel.hidden = false;
+            }
+        };
+
+        filePickerBtn?.addEventListener('click', () => {
+            fileInput?.click();
+        });
+
+        const removeFilesBtn = row.querySelector('[data-remove-step-files]');
+        removeFilesBtn?.addEventListener('click', () => {
+            selectedFiles = [];
+            existingFiles = [];
+            syncFileInput();
+            renderExistingInputs();
+            renderPreviews();
+            if (filesPanel) filesPanel.hidden = true;
+        });
 
         row.querySelector('[data-step-addon="files"]')?.addEventListener('click', () => {
             if (filesPanel) filesPanel.hidden = false;
@@ -3193,11 +3250,20 @@ if (codingStepBuilder) {
         });
 
         fileInput?.addEventListener('change', () => {
-            if (fileInput.files && fileInput.files[0]) {
-                const file = fileInput.files[0];
-                if (file.size > 20 * 1024 * 1024) {
-                    fileInput.value = '';
-                    const message = 'File tidak dapat diunggah jika ukurannya lebih dari 20 MB.';
+            if (fileInput.files && fileInput.files.length > 0) {
+                let overSizeFiles = [];
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    const file = fileInput.files[i];
+                    if (file.size > 20 * 1024 * 1024) {
+                        overSizeFiles.push(file.name);
+                        continue;
+                    }
+                    if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                        selectedFiles.push(file);
+                    }
+                }
+                if (overSizeFiles.length > 0) {
+                    const message = `Berkas berikut melebihi 20 MB dan tidak ditambahkan: ${overSizeFiles.join(', ')}`;
                     if (typeof window.saleNotice === 'function') {
                         window.saleNotice({
                             title: 'Ukuran File Terlalu Besar',
@@ -3207,9 +3273,9 @@ if (codingStepBuilder) {
                     } else {
                         alert(message);
                     }
-                    return;
                 }
-                renderFilePreview(file);
+                syncFileInput();
+                renderPreviews();
             }
         });
 
@@ -3218,11 +3284,17 @@ if (codingStepBuilder) {
             if (linkInput) linkInput.value = data.link;
         }
 
-        if (data.attachment) {
-            const existingAtt = row.querySelector('[data-step-field="existing_attachment"]');
-            if (existingAtt) existingAtt.value = data.attachment;
-            const attName = data.attachment_name || (typeof data.attachment === 'string' && !data.attachment.match(/^[0-9a-f-]{36}$/i) ? data.attachment : 'Berkas Terlampir');
-            renderFilePreview({ name: attName, size: data.attachment_size });
+        const rawExistingAtts = data.attachments || (data.attachment ? [data.attachment] : []);
+        if (Array.isArray(rawExistingAtts) && rawExistingAtts.length > 0) {
+            rawExistingAtts.forEach(att => {
+                if (!att) return;
+                const meta = (data.attachments_meta && data.attachments_meta[att]) ? data.attachments_meta[att] : null;
+                const attName = meta?.name || (typeof att === 'string' && !att.match(/^[0-9a-f-]{36}$/i) ? att : 'Berkas Terlampir');
+                const attSize = meta?.size || (att === data.attachment ? data.attachment_size : null);
+                existingFiles.push({ uuid: att, name: attName, size: attSize });
+            });
+            renderExistingInputs();
+            renderPreviews();
         }
 
         rows.appendChild(row);
