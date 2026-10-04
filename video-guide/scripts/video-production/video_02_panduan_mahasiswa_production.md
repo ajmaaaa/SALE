@@ -1,158 +1,101 @@
-# SKRIP PRODUKSI PROYEK VIDEO 02
-# PANDUAN LENGKAP MAHASISWA
+# NASKAH PRODUKSI VIDEO 02
 
-[PROYEK: Master Video 02 / Panduan Lengkap Mahasiswa]  
-[RESOLUSI: 1920 × 1080 piksel (16:9) @ 30fps]  
-[TOTAL DURASI: 04:30 menit / 8100 frames]  
-[LINK VOICE OVER: `scripts/voice-over/vo_02_panduan_mahasiswa.md`]  
-[STANDAR SOP: DESIGN_RULES.md dan TUTORIAL_EDIT_SOP.md]  
+## Identitas
 
----
+Judul Panduan Lengkap Mahasiswa
 
-## SCENE 01 / COVER PEMBUKA PANDUAN MAHASISWA
-[DURASI: 4.0 detik / frames 0 hingga 120]  
-[TIPE KONTEN: Motion Graphic Cover Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50, radial glow di bagian atas, architectural engineering grid]  
-[ELEMEN VISUAL: Logo SALE, judul tegas "Panduan Lengkap Mahasiswa", subtitle alur semester terpadu]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
-[TRANSISI: Snappy quick cut 6 frames ke rekaman layar pertama]  
+Durasi target sepuluh sampai sebelas menit termasuk waktu interaksi
 
----
+Voice over menggunakan seluruh isi vo_02_panduan_mahasiswa.md
 
-## SCENE 02 / REKAMAN LAYAR LOGIN MAHASISWA
-[DURASI: 7.0 detik / frames 120 hingga 330]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: screens/01_login_blank.png]  
-[CURSOR ACTION:]  
-- Frame 36: Kursor bergerak ke field input NIM (x: 960, y: 577), klik input, simulasi ketik '231011401234'  
-- Frame 98: Kursor berpindah ke field Password (x: 960, y: 666), klik input, simulasi ketik '••••••••'  
-- Frame 154: Kursor bergerak ke tombol Masuk (x: 960, y: 730), trigger klik dengan efek ripple  
-- Frame 162 (8 frames pasca klik): Reaksi sistem instan beralih ke Dashboard Mahasiswa  
-[OVERLAY: bottom-left, bar gradien gelap bawah, font putih, "LANGKAH 01 / Masuk ke Sistem SALE"]  
-[AUDIO SYNC: VO_02_01]  
+Kalimat pembuka harus sama persis dengan video tiga sampai lima
 
----
+## Alur adegan
 
-## SCENE 03 / NAVIGASI MENU COURSE DAN MODAL GABUNG KELAS
-[DURASI: 6.0 detik / frames 330 hingga 510]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: screens/03_mahasiswa_dashboard.png $\rightarrow$ screens/04_mahasiswa_course.png $\rightarrow$ screens/14_modal_gabung_kelas.png]  
-[CURSOR ACTION:]  
-- Frame 44: Kursor bergerak ke sidebar Course (x: 124, y: 194), klik tombol  
-- Frame 52: Hard cut instan memuat halaman Course  
-- Frame 92: Kursor bergerak ke tombol "+ Gabung Kelas" (x: 1802, y: 127), klik tombol  
-- Frame 100: Hard cut instan memuat modal dialog Gabung Kelas  
-- Frame 122: Kursor mengklik kolom kode input (x: 952, y: 531), simulasi ketik 'IF204-A'  
-- Frame 172: Kursor mengklik tombol "Gabung Kelas" (x: 1099, y: 641), klik submit  
-[OVERLAY:]  
-- Pada Dashboard: side-right (bottom-24 right-0), bayangan tepi lembut, font gelap slate-950, "LANGKAH 02 / Buka Menu Course"  
-- Pada Modal: bottom-center, bar bawah gelap, font putih, "LANGKAH 02 / Masukkan Kode Akses Perkuliahan"  
-[AUDIO SYNC: VO_02_02 bagian kode akses]  
+### Adegan 01 00:00 sampai 00:20 Pembuka lanjutan
 
----
+Mulai dengan potongan dua detik dari penutup video pengenalan lalu tampilkan cover Panduan Lengkap Mahasiswa. Potong langsung ke halaman login saat narasi menyebut perjalanan mahasiswa.
 
-## SCENE 04 / ALTERNATIF AKTIVASI DENGAN QR CODE
-[DURASI: 5.0 detik / frames 510 hingga 660]  
-[TIPE KONTEN: Motion Mockup Scanner & Layar Konfirmasi]  
-[TAMPILAN SISTEM: Mockup proyektor kelas menampilkan QR Code $\rightarrow$ Browser memuat halaman konfirmasi pendaftaran kelas]  
-[CURSOR ACTION: Kursor mengklik tombol "Konfirmasi & Masuk Kelas" di tengah layar]  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "LANGKAH 02 / Pindai QR Code di Ruang Kuliah"]  
-[AUDIO SYNC: VO_02_02 bagian scan QR]  
+### Adegan 02 00:20 sampai 00:55 Login dan keamanan awal
 
----
+Rekam input NIM, input kata sandi, klik Masuk, dan Dashboard terbuka. Siapkan variasi akun yang masih wajib mengganti kata sandi untuk merekam halaman perubahan kata sandi. Jangan menampilkan kata sandi nyata.
 
-## SCENE 05 / EKSPLORASI RUANG KELAS SILABUS DAN VIDEO MATERI
-[DURASI: 8.0 detik / frames 660 hingga 900]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: screens/15_mahasiswa_course_detail.png]  
-[CURSOR ACTION:]  
-- Kursor menelusuri silabus pertemuan dari header (520, 155) menuju pemutar video materi (650, 520)  
-- Kursor mendemonstrasikan pemutaran video kuliah langsung di antarmuka  
-- Kursor menyoroti daftar lampiran berkas modul kuliah PDF di bawah pemutar video  
-[OVERLAY: split-cinematic, bar bawah, "LANGKAH 03 / Eksplorasi Silabus dan Video Perkuliahan"]  
-[AUDIO SYNC: VO_02_03 bagian silabus dan video]  
+### Adegan 03 00:55 sampai 01:25 Dashboard dan indikator
 
----
+Gerakkan kursor melalui ringkasan kelas, tugas, nilai, aktivitas terbaru, lalu indikator pada Tugas dan Kuis, Forum Diskusi, dan Notifikasi. Jangan hanya menampilkan teks penjelas. Setiap poin harus menunjuk data nyata.
 
-## SCENE 06 / INTERAKSI FORUM DISKUSI KELAS REAL TIME
-[DURASI: 6.0 detik / frames 900 hingga 1080]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Panel Forum Diskusi kanan screens/15_mahasiswa_course_detail.png]  
-[CURSOR ACTION:]  
-- Kursor berpindah ke panel chat sisi kanan (x: 1450, y: 420)  
-- Kursor mengklik kolom input obrolan, mengetik pertanyaan untuk dosen  
-- Kursor menekan tombol kirim (panah biru), pesan langsung muncul di lini masa diskusi  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "LANGKAH 03 / Forum Diskusi Kelas Real-Time"]  
-[AUDIO SYNC: VO_02_03 bagian forum chat]  
+### Adegan 04 01:25 sampai 02:10 Bergabung ke kelas
 
----
+Buka Course, tekan Gabung Kelas, ketik SALEIF26, kirim, periksa halaman konfirmasi, lalu konfirmasi. Rekam alternatif QR sebagai rekaman perangkat atau halaman tautan konfirmasi asli. Setelah berhasil, kartu Struktur Data dan Algoritma Kelas A muncul. Tampilkan teks singkat Kode untuk mahasiswa tanpa menutup antarmuka.
 
-## SCENE 07 / PENGERJAAN TUGAS MANDIRI DAN UNGGAH BERKAS
-[DURASI: 7.0 detik / frames 1080 hingga 1290]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Halaman Detail Tugas screens/05_detail_tugas.png]  
-[CURSOR ACTION:]  
-- Kursor membaca instruksi tugas dan batas tenggat waktu  
-- Kursor melakukan simulasi drag and drop berkas laporan PDF ke area unggah berkas  
-- Kursor mengklik tombol "Kumpulkan Tugas", status berubah menjadi "Tugas Berhasil Terkumpul"  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950, "LANGKAH 04 / Pengumpulan Tugas Mandiri"]  
-[AUDIO SYNC: VO_02_04 bagian tugas]  
+### Adegan 05 02:10 sampai 02:35 Pengajuan verifikasi
 
----
+Gunakan akun demo kedua yang belum terdaftar. Buka formulir pengajuan peserta, isi alasan, pilih bukti gambar atau PDF, kirim, dan tampilkan status menunggu. Jangan menggunakan pengajuan yang sama untuk adegan bergabung berhasil.
 
-## SCENE 08 / KUIS BERWAKTU DAN UJIAN SEMESTER
-[DURASI: 8.0 detik / frames 1290 hingga 1530]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Halaman Pengerjaan Kuis Online]  
-[CURSOR ACTION:]  
-- Kursor menekan tombol "Mulai Pengerjaan", countdown timer di sudut kanan atas mulai berdetik  
-- Kursor memilih opsi jawaban pilihan ganda, berpindah butir soal menggunakan bilah navigasi nomor  
-- Kursor mengklik tombol "Selesai & Kumpulkan", modal konfirmasi penyerahan ujian disetujui  
-[OVERLAY: bottom-center, bar bawah gelap, font putih, "LANGKAH 04 / Ujian Terjadwal dengan Timer Pintar"]  
-[AUDIO SYNC: VO_02_04 bagian kuis timer]  
+### Adegan 06 02:35 sampai 03:35 Eksplorasi course dan semua kategori
 
----
+Buka kelas. Gulir daftar modul dan tahan pada tiap label Materi, Tugas, Coding, Kuis, UTS, UAS, PBL, Pengumuman, dan Lainnya. Buka daftar anggota lalu tutup kembali. Pilih materi Binary Search Tree.
 
-## SCENE 09 / PRAKTIKUM CODING IN-BROWSER DAN TEST RUNNER
-[DURASI: 8.0 detik / frames 1530 hingga 1770]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Lingkungan Coding Challenge screens/08_editor_coding.png]  
-[CURSOR ACTION:]  
-- Kursor mengetikkan algoritma pada in-browser code editor  
-- Kursor mengklik tombol "Jalankan Kode", konsol test runner menampilkan output dan indikator PASSED hijau  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "LANGKAH 05 / Praktikum Pemrograman In-Browser"]  
-[AUDIO SYNC: VO_02_05 bagian coding editor]  
+### Adegan 07 03:35 sampai 04:25 Video dan lampiran
 
----
+Buka video, tekan play, biarkan lima detik, pause pada diagram, lalu lanjutkan. Buka PDF di pratinjau dan tekan Unduh. Buka gambar, slide atau dokumen, lalu tunjukkan tautan. Tunjukkan pula bahwa berkas lembar kerja, teks, arsip, dan spreadsheet dapat diunduh sesuai izin yang tersedia meskipun tidak semua bisa dipratinjau. File video harus benar benar bergerak dan progress bar bertambah.
 
-## SCENE 10 / PANDUAN BIMBINGAN ASISTEN AI CERDAS
-[DURASI: 7.0 detik / frames 1770 hingga 1980]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Panel Asisten AI Coding]  
-[CURSOR ACTION:]  
-- Kursor mengklik tombol "Minta Bimbingan AI"  
-- Jendela Asisten AI memunculkan analisis logika kesalahan dan analogi konsep tanpa contekan kode instan  
-- Kursor merevisi kode dan menekan "Kirim Jawaban Akhir"  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950, "LANGKAH 05 / Bimbingan Logika dari Asisten AI"]  
-[AUDIO SYNC: VO_02_05 bagian bimbingan AI]  
+### Adegan 08 04:25 sampai 05:20 Percakapan dua arah
 
----
+Mahasiswa mengetik pertanyaan traversal dan mengirim. Hard cut ke akun dosen pada browser berbeda. Notifikasi atau badge bertambah. Dosen membuka forum, memilih Balas, mengetik jawaban, mengirim, dan menyematkan arahan. Hard cut kembali ke mahasiswa. Balasan muncul, status belum dibaca berubah, mahasiswa membalas. Rekam pula mention ke satu teman.
 
-## SCENE 11 / RADAR CAPAIAN CPMK DAN PROFIL AKUN
-[DURASI: 8.0 detik / frames 1980 hingga 2220]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: screens/10_transkrip_nilai_cpmk.png dan Panel Profil Akun]  
-[CURSOR ACTION:]  
-- Kursor menelusuri grafik spider / radar ketercapaian CPMK pribadi  
-- Kursor membuka lonceng notifikasi dan menu profil untuk pengaturan akun  
-[OVERLAY: split-cinematic, bar bawah, "LANGKAH 06 / Evaluasi Transparansi Capaian Kompetensi"]  
-[AUDIO SYNC: VO_02_06]  
+### Adegan 09 05:20 sampai 06:05 Tugas reguler
 
----
+Buka Tugas dan Kuis, gunakan filter, pilih tugas laporan. Perlihatkan petunjuk, CPMK, tenggat, dan format. Isi teks, tautan, unggah PDF dan gambar. Klik Kumpulkan lalu tampilkan status penyerahan. Bila tombol tersedia, batalkan, ubah satu baris, dan kirim ulang.
 
-## SCENE 12 / COVER PENUTUP PANDUAN MAHASISWA
-[DURASI: 4.0 detik / frames 2220 hingga 2340]  
-[TIPE KONTEN: Motion Graphic Outro Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50, desain bersih dan lega]  
-[ELEMEN VISUAL: Logo SALE, judul "Pendaftaran dan Pembelajaran Aktif", teks penutup motivasi]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
+### Adegan 10 06:05 sampai 07:20 Kuis dan jenis soal
+
+Tampilkan ringkasan kuis dan mulai pengerjaan. Timer harus berjalan. Jawab pilihan tunggal, pilihan kompleks, benar salah, mencocokkan, dan uraian. Navigasikan nomor soal, kumpulkan, konfirmasi, lalu tampilkan status menunggu nilai uraian. Sisipkan satu cuplikan UTS dan UAS hanya untuk membedakan jadwal serta durasi.
+
+### Adegan 11 07:20 sampai 08:35 Coding dan hasil eksekusi
+
+Buka tugas coding. Tampilkan instruksi, CPMK, editor, terminal, dan panel AI. Ketik sebagian fungsi insert, jalankan, tampilkan error, perbaiki, lalu jalankan lagi sampai output benar. Rekam satu cuplikan mode web dengan pratinjau agar kedua bahasa yang didukung terlihat.
+
+### Adegan 12 08:35 sampai 09:20 AI dengan status menunggu
+
+Ketik pertanyaan yang relevan dan klik Kirim. Tahan tampilan loading paling sedikit tiga detik. Setelah respons masuk, scroll perlahan, kembali ke editor, ubah kode berdasarkan petunjuk, dan jalankan. Rekam tombol batal pada permintaan demo terpisah dan tunjukkan fungsi bersihkan percakapan tanpa menghapus percakapan utama sebelum adegan selesai.
+
+### Adegan 13 09:20 sampai 09:45 Penyerahan coding
+
+Pindah ke bagian terakhir, klik Serahkan Tugas, baca modal, konfirmasi, tunggu status terkunci atau berhasil. Tunjukkan bahwa nilai otomatis atau hasil pengujian akan terlihat sesuai pengaturan dosen, sedangkan bagian yang memerlukan penilaian manual akan menunggu pemeriksaan. Jangan mensimulasikan hasil yang tidak keluar dari aplikasi.
+
+### Adegan 14 09:45 sampai 10:20 Notifikasi dan nilai
+
+Buka Notifikasi. Tampilkan pemberitahuan dari berbagai jenis yaitu materi baru, tugas mendekati tenggat, balasan forum, penyebutan nama, dan nilai yang sudah dipublikasikan. Masuk dari notifikasi balasan forum dan nilai. Tandai dibaca dan hapus satu item demo. Tunjukkan fungsi bersihkan notifikasi bila memang ingin merapikan daftar.
+
+Setelah adegan notifikasi selesai, buka menu Nilai. Ganti semester, perluas mata kuliah Struktur Data dan Algoritma, tampilkan rincian setiap komponen, umpan balik dosen, serta capaian CPMK yang memang dirender aplikasi. Nilai hanya dianggap final ketika sudah dipublikasikan oleh dosen.
+
+### Adegan 15 10:20 sampai selesai Profil dan penutup
+
+Buka Profil dan Pengaturan. Ganti foto demo, buka Keamanan Akun tanpa menampilkan sandi, lalu ubah preferensi notifikasi nilai dan forum. Akhiri dengan ringkasan aktivitas dan pengantar video dosen.
+
+## Data continuity
+
+Gunakan Ahmad Maulana sebagai mahasiswa utama
+
+Gunakan Dr Budi Santoso sebagai dosen utama
+
+Gunakan mata kuliah IF204 Struktur Data dan Algoritma Kelas A
+
+Gunakan kode kelas SALEIF26
+
+Pertanyaan forum mahasiswa harus memperoleh balasan dosen yang sama pada video tiga
+
+Tugas yang dikumpulkan di sini harus muncul sebagai pengumpulan menunggu nilai pada video tiga
+
+## Validasi wajib
+
+Semua tombol, kategori, status, dan jenis soal harus berasal dari antarmuka asli
+
+Unduhan PDF harus menghasilkan file dan video harus benar benar diputar
+
+Loading AI terlihat sebelum jawaban
+
+Timer kuis bergerak dan status pengumpulan berubah
+
+Badge notifikasi berubah setelah pesan atau nilai dibuka

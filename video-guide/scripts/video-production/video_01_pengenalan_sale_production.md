@@ -1,76 +1,79 @@
-# SKRIP PRODUKSI PROYEK VIDEO 01
-# PENGENALAN DAN ARSITEKTUR EKOSISTEM SALE
+# NASKAH PRODUKSI VIDEO 01
 
-[PROYEK: Master Video 01 / Pengenalan Ekosistem]  
-[RESOLUSI: 1920 × 1080 piksel (16:9) @ 30fps]  
-[TOTAL DURASI: 03:15 menit / 5850 frames]  
-[LINK VOICE OVER: `scripts/voice-over/vo_01_pengenalan_sale.md`]  
-[STANDAR SOP: DESIGN_RULES.md dan TUTORIAL_EDIT_SOP.md]  
+## Identitas
 
----
+Judul Pengenalan Smart Academic Learning Ecosystem
 
-## SCENE 01 / HOOK DAN IDENTITAS EKOSISTEM
-[DURASI: 35 detik / frames 0 hingga 1050]  
-[TIPE KONTEN: Motion Graphic Tipografi Elegan]  
-[LATAR VISUAL: Luminous Navy #102f50 dengan radial glow lembut #18477a di atas, architectural engineering grid opacity 0.06]  
-[ELEMEN VISUAL: Logo resmi SALE putih scale-up lembut, teks judul Plus Jakarta Sans bold 60px]  
-[LAYOUT: Center-Bold, spasi vertikal lega, minimalis modern]  
-[OVERLAY: center-bold, font putih bersih dengan drop-shadow lembut, tanpa card buatan]  
-[AUDIO SYNC: VO_01_01 / BGM bertempo medium dan berwibawa]  
-[CATATAN EDITOR: Tidak boleh ada ornamen lingkaran blur neon atau teks bertumpuk padat]  
+Target seluruh pengguna
 
----
+Durasi target empat menit
 
-## SCENE 02 / ARSITEKTUR EMPAT PERAN PENGGUNA
-[DURASI: 45 detik / frames 1050 hingga 2400]  
-[TIPE KONTEN: Motion Graphic Matriks Peran Interaktif]  
-[LATAR VISUAL: Deep Navy #0d2847]  
-[ELEMEN VISUAL: 4 kuadran peran dengan ikon vektor minimalis open-source (Heroicons):]  
-- Kuadran 1: Admin Sistem (Ikon server & keamanan)  
-- Kuadran 2: Admin Prodi (Ikon kurikulum & struktur diagram)  
-- Kuadran 3: Dosen (Ikon toga & buku nilai)  
-- Kuadran 4: Mahasiswa (Ikon laptop & praktikan aktif)  
-[ANIMASI: Setiap kuadran menyala bergantian dengan aksen biru muda #e8f1f8 mengikuti alur narasi]  
-[OVERLAY: split-cinematic, judul bab di kiri bawah, deskripsi peran di kanan bawah]  
-[AUDIO SYNC: VO_01_02 / SFX subtle whoosh per transisi peran]  
+Voice over menggunakan seluruh isi file vo_01_pengenalan_sale.md tanpa label tambahan
 
----
+## Alur adegan
 
-## SCENE 03 / KERANGKA OUTCOME BASED EDUCATION (OBE)
-[DURASI: 45 detik / frames 2400 hingga 3750]  
-[TIPE KONTEN: Motion Graphic Diagram Alir OBE]  
-[LATAR VISUAL: Deep Navy #0a1d32]  
-[ELEMEN VISUAL: Diagram alir hierarki OBE mengalir dinamis dari atas ke bawah:]  
-- Level 1: CPL Program Studi  
-- Level 2: CPMK Mata Kuliah  
-- Level 3: Sub-CPMK dan Instrumen Asesmen (Tugas, Kuis, Ujian, Coding)  
-- Level 4: Radar Chart Portofolio Capaian Kompetensi Mahasiswa  
-[ANIMASI: Garis penghubung data mengalir turun, radar chart mekar terisi persentase]  
-[OVERLAY: bottom-left, bar gradien gelap, font putih tegas]  
-[AUDIO SYNC: VO_01_03 / SFX data chime lembut saat radar kompetensi mekar]  
+### Adegan 01 00:00 sampai 00:18
 
----
+Visual mulai dari layar gelap lalu logo SALE muncul di atas latar biru tua. Judul Smart Academic Learning Ecosystem muncul sebagai tiga baris bersih. Jangan memakai nama Smart Academic Learning Environment. Setelah judul terbaca, potong ke halaman masuk aplikasi asli.
 
-## SCENE 04 / FITUR CERDAS DAN KOLABORASI REAL TIME
-[DURASI: 40 detik / frames 3750 hingga 4950]  
-[TIPE KONTEN: Montase Rekaman Layar Asli Sistem SALE]  
-[TAMPILAN SISTEM: 4 cuplikan layar antarmuka asli 1920x1080:]  
-1. In-browser Coding Editor (screens/08_editor_coding.png) dengan test runner otomatis  
-2. Live Chat Forum Diskusi (screens/15_mahasiswa_course_detail.png)  
-3. Halaman Kuis dengan Countdown Timer Berjalan  
-4. Ekspor Dokumen Portofolio Nilai PDF & Excel  
-[CURSOR ACTION: Kursor bergerak dinamis menyoroti tombol Jalankan Kode dan tombol Ekspor Laporan]  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950]  
-[TRANSISI: Seamless Hard Cut 0-frame antar antarmuka sistem]  
-[AUDIO SYNC: VO_01_04 / SFX typing keyboard dan notification ping]  
+Sinkron narasi dimulai dari Perguruan tinggi membutuhkan sampai satu alur yang utuh
 
----
+### Adegan 02 00:18 sampai 00:45
 
-## SCENE 05 / PENUTUP DAN AJAKAN EKSPLORASI
-[DURASI: 30 detik / frames 4950 hingga 5850]  
-[TIPE KONTEN: Motion Graphic Outro Elegan]  
-[LATAR VISUAL: Luminous Navy #102f50 serasi dengan Scene 01]  
-[ELEMEN VISUAL: Logo SALE, tipografi penutup: "Ekosistem Belajar Cerdas dan Terukur", navigasi 4 kategori video]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
-[TRANSISI: Fade-out halus 6 frames menuju akhir video]  
-[AUDIO SYNC: VO_01_05 / BGM memudar perlahan]  
+Visual menampilkan halaman asli Dashboard mahasiswa, Dashboard dosen, Dashboard Admin Program Studi, dan Dashboard Admin Sistem secara bergantian. Gunakan hard cut ketika berpindah antarmuka. Teks layar hanya nama peran dan fungsi singkat.
+
+Sinkron narasi dimulai dari SALE dibangun sampai kompetensi yang diukur
+
+### Adegan 03 00:45 sampai 01:15
+
+Visual menggunakan antarmuka kurikulum asli. Rekam CPL, CPMK, pemetaan mata kuliah, kelas, asesmen, lalu halaman nilai. Gunakan gerak kamera ringan untuk menunjukkan hubungan data. Diagram tambahan hanya boleh menjelaskan aliran CPL ke CPMK ke asesmen ke nilai dan tidak boleh menyerupai antarmuka palsu.
+
+Sinkron narasi adalah lanjutan dari paragraf SALE dibangun sampai kalimat dapat ditelusuri kembali ke kompetensi yang diukur
+
+### Adegan 04 01:15 sampai 01:48
+
+Visual memperlihatkan empat peran secara berurutan. Admin Sistem membuka Data Akademik. Admin Program Studi membuka Kurikulum dan Kelas. Dosen membuka Course Saya. Mahasiswa membuka Course. Setiap potongan menunjukkan aksi nyata selama tiga sampai lima detik.
+
+Sinkron narasi dimulai dari Empat peran bekerja sampai laporan akademik program studi
+
+### Adegan 05 01:48 sampai 02:15
+
+Visual memperlihatkan Admin Program Studi menyimpan kelas dengan dosen ketua. Setelah itu pindah ke akun dosen dan tampilkan kelas yang langsung muncul pada Course Saya. Berikutnya tampilkan kode kelas dan kode QR untuk mahasiswa. Adegan ini harus menegaskan bahwa dosen tidak memasukkan kode kelas.
+
+Sinkron narasi dimulai dari Setelah kelas dibuat dan dosen ditetapkan sampai kode QR disediakan untuk mahasiswa yang akan bergabung
+
+### Adegan 06 02:15 sampai 02:48
+
+Visual berupa montase materi video yang diputar, PDF yang dipratinjau lalu diunduh, gambar yang dibuka, slide presentasi, lembar kerja, arsip, dan daftar kategori konten. Tahan setiap aksi cukup lama agar reaksi aplikasi terlihat.
+
+Sinkron narasi dimulai dari Mahasiswa bergabung melalui kode kelas sampai video pembelajaran dapat diputar dijeda dilanjutkan dan ditampilkan bersama penjelasan dosen
+
+### Adegan 07 02:48 sampai 03:18
+
+Visual menunjukkan kuis bertimer, perpindahan jenis soal, workbench coding, tombol Jalankan, keluaran terminal, pertanyaan ke AI, status sedang memproses, lalu jawaban AI. Sisakan jeda visual dua sampai empat detik pada status menunggu AI.
+
+Sinkron narasi dimulai dari Proses evaluasi juga berlangsung di dalam satu ekosistem sampai prosesnya terlihat alami dan tidak terasa seperti teks yang muncul tiba tiba
+
+### Adegan 08 03:18 sampai 03:43
+
+Visual menggunakan layar terbelah dari dua rekaman nyata. Mahasiswa mengirim pesan. Dosen menerima notifikasi dan membalas. Mahasiswa menerima balasan. Potong ke rekap CPMK, CPL, ekspor PDF, lalu ekspor Excel.
+
+Sinkron narasi dimulai dari SALE juga menyediakan komunikasi kelas yang interaktif sampai mengekspor laporan dalam format PDF atau Excel
+
+### Adegan 09 03:43 sampai selesai
+
+Visual kembali ke latar biru tua. Tampilkan urutan video Mahasiswa, Dosen, Admin Program Studi, dan Admin Sistem. Penutup terdiri dari nama SALE, kepanjangan Smart Academic Learning Ecosystem, dan nama institusi.
+
+Sinkron narasi dimulai dari Lima video dalam seri ini sampai seluruh data tetap terhubung menjadi proses akademik yang transparan terukur dan mudah ditelusuri
+
+## Validasi wajib
+
+Semua cuplikan antarmuka berasal dari aplikasi asli
+
+Tidak ada radar chart atau tombol yang dibuat khusus untuk video bila tidak ada pada aplikasi
+
+Klik selalu diikuti reaksi halaman dalam enam sampai sepuluh frame
+
+Nama produk selalu Smart Academic Learning Ecosystem
+
+Audio final menjadi sumber durasi dan timestamp kata setelah voice over dibuat

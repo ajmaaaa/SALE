@@ -1,81 +1,71 @@
-# SKRIP PRODUKSI PROYEK VIDEO 04
-# PANDUAN LENGKAP ADMIN PROGRAM STUDI
+# NASKAH PRODUKSI VIDEO 04
 
-[PROYEK: Master Video 04 / Panduan Lengkap Admin Program Studi]  
-[RESOLUSI: 1920 × 1080 piksel (16:9) @ 30fps]  
-[TOTAL DURASI: 03:30 menit / 6300 frames]  
-[LINK VOICE OVER: `scripts/voice-over/vo_04_panduan_admin_prodi.md`]  
-[STANDAR SOP: DESIGN_RULES.md dan TUTORIAL_EDIT_SOP.md]  
+## Identitas
 
----
+Judul Panduan Lengkap Admin Program Studi
 
-## SCENE 01 / COVER PEMBUKA PANDUAN ADMIN PRODI
-[DURASI: 4.0 detik / frames 0 hingga 120]  
-[TIPE KONTEN: Motion Graphic Cover Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50, radial glow lembut di atas, architectural engineering grid]  
-[ELEMEN VISUAL: Logo SALE, judul tegas "Panduan Lengkap Admin Program Studi", subtitle tata kelola kurikulum OBE]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
-[TRANSISI: Snappy quick cut 6 frames ke screencast pertama]  
+Durasi target tujuh sampai delapan menit
 
----
+Voice over menggunakan seluruh isi vo_04_panduan_admin_prodi.md
 
-## SCENE 02 / SETUP MATA KULIAH KELAS DAN DOSEN PENGAMPU
-[DURASI: 8.0 detik / frames 120 hingga 360]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Halaman Mata Kuliah Admin Prodi]  
-[CURSOR ACTION:]  
-- Kursor membuka daftar mata kuliah kurikulum aktif semester berjalan  
-- Kursor membuka salah satu mata kuliah dan menambahkan kelas paralel (Kelas A dan B)  
-- Kursor menetapkan Dosen Ketua Pengampu dan Tim Pengajar (Team Teaching)  
-- Kursor menekan tombol "Simpan Kelas"  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950, "BAB 01 / Distribusi Beban Mengajar"]  
-[AUDIO SYNC: VO_04_01]  
+Kalimat pembuka harus sama persis dengan video dua tiga dan lima
 
----
+## Alur adegan
 
-## SCENE 03 / PERUMUSAN CPL DAN PEMETAAN MATRIKS CPMK
-[DURASI: 9.0 detik / frames 360 hingga 630]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Menu Kurikulum & OBE Admin Prodi]  
-[CURSOR ACTION:]  
-- Kursor meninjau tab Master CPL Prodi (CPL Sikap, Pengetahuan, Keterampilan)  
-- Kursor beralih ke tab Matriks Pemetaan, mencentang keterkaitan mata kuliah dengan CPL terkait  
-- Kursor membuka detail penurunan target CPMK tiap mata kuliah  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "BAB 02 / Penjaminan Mutu Kurikulum OBE"]  
-[AUDIO SYNC: VO_04_02]  
+### Adegan 01 00:00 sampai 00:20 Pembuka lanjutan
 
----
+Tampilkan cover tiga baris lalu login dan Dashboard Admin Program Studi.
 
-## SCENE 04 / PENGELOLAAN PENGGUNA DAN IMPORT MASSAL EXCEL
-[DURASI: 8.0 detik / frames 630 hingga 870]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Direktori Mahasiswa & Modal Import Excel]  
-[CURSOR ACTION:]  
-- Kursor mengklik tombol "Import Excel"  
-- Kursor mengunduh template spreadsheet resmi, lalu mengunggah berkas data mahasiswa baru  
-- Mesin validasi memeriksa data tanpa konflik NIM, kursor menekan "Proses Import"  
-- Ratusan akun baru langsung terdaftar secara instan  
-[OVERLAY: bottom-center, bar bawah gelap, font putih, "BAB 03 / Otomatisasi Registrasi Massal"]  
-[AUDIO SYNC: VO_04_03]  
+### Adegan 02 00:20 sampai 00:50 Pemilihan prodi dan dashboard
 
----
+Jika akun mengelola beberapa prodi, tampilkan pemilih prodi. Buka Teknik Informatika. Sorot ringkasan dosen, mahasiswa, mata kuliah, kelas, semester, dan laporan.
 
-## SCENE 05 / ANALISIS DASBOR CPL DAN LAPORAN SEMESTER PRODI
-[DURASI: 8.0 detik / frames 870 hingga 1110]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Dasbor Laporan & Evaluasi Mutu Kurikulum]  
-[CURSOR ACTION:]  
-- Kursor meninjau grafik bar rata-rata ketercapaian CPL program studi  
-- Kursor menyoroti tabel evaluasi mata kuliah dan mengklik tombol "Generate Dokumen Laporan Semester"  
-- Dokumen Laporan Kinerja Kurikulum resmi format PDF terunduh satu klik  
-[OVERLAY: split-cinematic, bar bawah, "BAB 04 / Laporan Ketercapaian Mutu Lulusan"]  
-[AUDIO SYNC: VO_04_04]  
+### Adegan 03 00:50 sampai 01:40 Pengguna tunggal
 
----
+Buka Data Dosen dan Mahasiswa. Tambah satu dosen lengkap lalu satu mahasiswa lengkap. Tampilkan hasil setelah simpan. Jangan memakai identitas orang nyata.
 
-## SCENE 06 / COVER PENUTUP PANDUAN ADMIN PRODI
-[DURASI: 4.0 detik / frames 1110 hingga 1230]  
-[TIPE KONTEN: Motion Graphic Outro Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50 serasi dengan Scene 01]  
-[ELEMEN VISUAL: Logo SALE, judul penutup akuntabilitas mutu, teks penutup hangat]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
+### Adegan 04 01:40 sampai 02:20 Import dan ekspor pengguna
+
+Unduh template dosen. Buka cuplikan spreadsheet yang sudah diisi. Unggah melalui dialog impor dengan memilih berkas XLSX, XLS, atau CSV, dan tampilkan hasil validasi berupa jumlah data berhasil, data dilewati, dan kesalahan bila ada. Ulangi secara singkat untuk mahasiswa. Tekan ekspor daftar pengguna dan perlihatkan file spreadsheet terunduh.
+
+### Adegan 05 02:20 sampai 03:10 CPL dan CPMK
+
+Buka Kurikulum dan OBE. Tambah CPL, lalu tambah CPMK dengan memilih CPL, mengisi kode, deskripsi, dan threshold. Buka tampilan pemetaan dan tunjukkan hubungan yang tersimpan.
+
+### Adegan 06 03:10 sampai 03:55 Mata kuliah
+
+Buka Mata Kuliah dan buat IF204 Struktur Data dan Algoritma. Isi SKS, semester paket, lintas prodi bila relevan, CPMK, dan CPL. Simpan. Jelaskan secara visual bahwa mata kuliah belum menjadi course aktif.
+
+### Adegan 07 03:55 sampai 05:00 Pembuatan kelas dan dosen
+
+Buka Kelas, pilih mata kuliah, semester, kode A, kapasitas, dosen ketua, dosen wakil, dan anggota tim. Simpan. Setelah respons sukses, hard cut ke akun dosen dan tunjukkan kelas langsung muncul di Course Saya. Kembali ke Admin Program Studi untuk menampilkan kode, QR, barcode, edit kelas, dan regenerasi kode. Ini adalah adegan utama penjelasan hubungan admin dengan dosen.
+
+### Adegan 08 05:00 sampai 05:40 Verifikasi peserta
+
+Buka pengajuan Ahmad atau mahasiswa demo kedua. Pratinjau bukti, beri catatan, dan setujui. Gunakan pengajuan lain untuk menunjukkan penolakan tanpa mengganggu mahasiswa utama.
+
+### Adegan 09 05:40 sampai 06:15 Siklus arsip
+
+Buka kelas demo cadangan, arsipkan, tampilkan status read only, lalu buka kembali. Tampilkan pula tombol arsip per semester tanpa menjalankannya pada kelas utama.
+
+### Adegan 10 06:15 sampai 07:05 Laporan dan keluaran
+
+Buka Laporan, pilih semester, tinjau rincian kelas dan rata rata. Buka Cetak Laporan, ganti ukuran A4 ke F4 lalu kembali ke A4. Simpan sebagai PDF melalui dialog peramban. Kembali dan unduh Excel. Buka kedua file sebentar untuk membuktikan keluaran.
+
+### Adegan 11 07:05 sampai selesai Ringkasan urutan
+
+Gunakan replay singkat Pengguna lalu CPL dan CPMK lalu Mata Kuliah lalu Kelas lalu Dosen lalu Mahasiswa lalu Laporan. Tutup dengan pengantar Admin Sistem.
+
+## Validasi wajib
+
+Urutan setup tidak boleh dibalik dalam penjelasan utama
+
+Dosen langsung mendapatkan kelas setelah ditetapkan
+
+Kode kelas ditujukan kepada mahasiswa
+
+Import menampilkan hasil validasi nyata
+
+PDF berasal dari fungsi cetak peramban dan Excel berasal dari tombol ekspor aplikasi
+
+Arsip hanya direkam pada kelas demo cadangan

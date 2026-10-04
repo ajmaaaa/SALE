@@ -1,102 +1,73 @@
-# SKRIP PRODUKSI PROYEK VIDEO 05
-# PANDUAN LENGKAP ADMIN SISTEM
+# NASKAH PRODUKSI VIDEO 05
 
-[PROYEK: Master Video 05 / Panduan Lengkap Admin Sistem]  
-[RESOLUSI: 1920 × 1080 piksel (16:9) @ 30fps]  
-[TOTAL DURASI: 03:00 menit / 5400 frames]  
-[LINK VOICE OVER: `scripts/voice-over/vo_05_panduan_admin_sistem.md`]  
-[STANDAR SOP: DESIGN_RULES.md dan TUTORIAL_EDIT_SOP.md]  
+## Identitas
 
----
+Judul Panduan Lengkap Admin Sistem
 
-## SCENE 01 / COVER PEMBUKA PANDUAN ADMIN SISTEM
-[DURASI: 4.0 detik / frames 0 hingga 120]  
-[TIPE KONTEN: Motion Graphic Cover Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50, radial glow lembut di atas, architectural engineering grid]  
-[ELEMEN VISUAL: Logo SALE, judul tegas "Panduan Lengkap Admin Sistem", subtitle infrastruktur dan tata kelola global]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
-[TRANSISI: Snappy quick cut 6 frames ke screencast pertama]  
+Durasi target tujuh sampai delapan menit
 
----
+Voice over menggunakan seluruh isi vo_05_panduan_admin_sistem.md
 
-## SCENE 02 / PENGELOLAAN PENGGUNA GLOBAL DAN MULTI PERAN
-[DURASI: 8.0 detik / frames 120 hingga 360]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Master Pengguna Global Superadmin]  
-[CURSOR ACTION:]  
-- Kursor meninjau direktori pengguna lintas fakultas  
-- Kursor mengklik salah satu dosen dan memberikan wewenang tambahan sebagai Admin Prodi  
-- Kursor menyimpan perubahan tanpa duplikasi akun  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950, "BAB 01 / Fleksibilitas Hak Akses Multi-Peran"]  
-[AUDIO SYNC: VO_05_01 bagian pengguna]  
+Kalimat pembuka harus sama persis dengan video dua tiga dan empat
 
----
+## Alur adegan
 
-## SCENE 03 / KALENDER DAN SEMESTER AKTIF INSTITUSI
-[DURASI: 7.0 detik / frames 360 hingga 570]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Master Semester & Tahun Akademik]  
-[CURSOR ACTION:]  
-- Kursor membuka daftar semester, menetapkan tanggal mulai dan berakhir perkuliahan  
-- Kursor menyalakan toggle "Semester Aktif" yang mengontrol operasional sistem secara global  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "BAB 01 / Pengaturan Kalender Semester Global"]  
-[AUDIO SYNC: VO_05_01 bagian semester]  
+### Adegan 01 00:00 sampai 00:20 Pembuka lanjutan
 
----
+Tampilkan cover lalu login dan Dashboard Admin Sistem.
 
-## SCENE 04 / PARAMETER SISTEM DAN PENGATURAN KUOTA AI
-[DURASI: 8.0 detik / frames 570 hingga 810]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Tab Integrasi AI & Narahubung Kampus]  
-[CURSOR ACTION:]  
-- Kursor mengisi alamat surel resmi helpdesk kampus  
-- Kursor mengonfigurasi batas kuota token AI harian dan memilih model komputasi  
-- Kursor menekan "Simpan Konfigurasi Global"  
-[OVERLAY: bottom-center, bar bawah gelap, font putih, "BAB 02 / Integrasi Layanan Cerdas Terkendali"]  
-[AUDIO SYNC: VO_05_02 bagian AI]  
+### Adegan 02 00:20 sampai 01:10 Data akademik
 
----
+Setelah login, tunjukkan Dashboard Admin Sistem terlebih dahulu. Sorot ringkasan jumlah pengguna, struktur akademik, konfigurasi sistem, pemakaian AI, dan kapasitas penyimpanan. Tampilkan tombol cepat untuk menambah pengguna atau membuka data akademik.
 
-## SCENE 05 / KEBIJAKAN KEAMANAN DAN KEDALUWARSA SESI
-[DURASI: 7.0 detik / frames 810 hingga 1020]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Tab Keamanan & Sesi Superadmin]  
-[CURSOR ACTION:]  
-- Kursor mengatur batas waktu inaktivitas sesi pengguna  
-- Kursor mengaktifkan standar kompleksitas kata sandi minimum  
-[OVERLAY: side-right, kuadran kanan bawah, bayangan tepi lembut, font gelap slate-950, "BAB 02 / Keamanan Data Akademik Kampus"]  
-[AUDIO SYNC: VO_05_02 bagian keamanan]  
+Setelah dashboard ditampilkan, buka Data Akademik. Buat fakultas demo, prodi demo dengan fakultas induk, lalu semester dengan kode unik, nama, dan status aktif. Tunjukkan pencarian, filter jenis, edit status, dan tabel hasil. Hindari menghapus data yang dipakai video lain.
 
----
+### Adegan 03 01:10 sampai 02:10 Pengguna dan hak akses
 
-## SCENE 06 / MONITORING DIAGNOSTIK SERVER DAN PENYIMPANAN
-[DURASI: 8.0 detik / frames 1020 hingga 1260]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Dasbor Monitoring Server & Storage Analytics]  
-[CURSOR ACTION:]  
-- Kursor meninjau metrik real-time beban prosesor CPU, RAM, dan koneksi database  
-- Kursor meninjau diagram penggunaan ruang penyimpanan berkas materi dan tugas  
-[OVERLAY: bottom-left, bar bawah gelap, font putih, "BAB 03 / Pengawasan Kinerja Infrastruktur"]  
-[AUDIO SYNC: VO_05_03 bagian monitoring]  
+Tambah akun dengan identitas, peran, status, password awal, dan prodi. Edit akun dosen demo untuk menambahkan atau menunjukkan hak Admin Program Studi tanpa membuat kredensial kedua. Gunakan filter peran dan prodi. Unduh template, unggah Excel pengguna demo, dan tampilkan ringkasan hasil. Tunjukkan pula bahwa sistem menyediakan masukan teks sebagai alternatif selain berkas Excel untuk import pengguna sekaligus.
 
----
+### Adegan 04 02:10 sampai 03:00 Identitas institusi
 
-## SCENE 07 / PENCADANGAN DATABASE DAN LOG AUDIT SISTEM
-[DURASI: 8.0 detik / frames 1260 hingga 1500]  
-[TIPE KONTEN: 100% Screen Recording Asli]  
-[TAMPILAN SISTEM: Modul Backup Database & Log Aktivitas]  
-[CURSOR ACTION:]  
-- Kursor mengklik tombol "+ Buat Backup Basis Data Sekarang"  
-- Sistem menghasilkan berkas snapshot SQL terenkripsi, kursor menyoroti tombol unduh aman  
-- Kursor membuka riwayat log audit transaksi  
-[OVERLAY: split-cinematic, bar bawah, "BAB 03 / Pencadangan Enkripsi dan Audit Transparan"]  
-[AUDIO SYNC: VO_05_03 bagian backup]  
+Buka Pengaturan Sistem. Isi nama institusi, nama aplikasi, email dukungan, kementerian, alamat, telepon, website, email, dan logo demo. Simpan lalu tunjukkan identitas yang berubah pada antarmuka atau dokumen.
 
----
+### Adegan 05 03:00 sampai 03:30 Semester aktif
 
-## SCENE 08 / COVER PENUTUP PANDUAN ADMIN SISTEM
-[DURASI: 4.0 detik / frames 1500 hingga 1620]  
-[TIPE KONTEN: Motion Graphic Outro Editorial]  
-[LATAR VISUAL: Luminous Navy #102f50 serasi dengan Scene 01]  
-[ELEMEN VISUAL: Logo SALE, judul penutup keandalan ekosistem, teks penutup hangat]  
-[OVERLAY: center-bold, font putih bersih, tanpa card buatan]  
+Pilih semester aktif dari daftar yang sudah dibuat. Simpan dan tampilkan notifikasi sukses. Jangan membuat klaim bahwa perubahan ini otomatis memodifikasi semua tenggat yang sudah ada.
+
+### Adegan 06 03:30 sampai 04:25 Integrasi AI
+
+Pilih provider, isi kunci contoh yang sudah disamarkan, ambil daftar model, pilih model, dan isi kuota token bulanan. Jalankan Uji Koneksi pada lingkungan demo. Jangan pernah merekam atau menyimpan kunci produksi. Jika koneksi demo tidak tersedia, tampilkan respons validasi nyata tanpa membuat modal palsu.
+
+### Adegan 07 04:25 sampai 04:55 Sesi dan pemeliharaan
+
+Pilih mode normal, ubah durasi sesi, simpan, lalu tampilkan mode pemeliharaan pada lingkungan demo dan kembalikan ke normal. Jangan menampilkan pengaturan IP atau kompleksitas kata sandi karena tidak tersedia pada halaman.
+
+### Adegan 08 04:55 sampai 05:40 Monitoring
+
+Buka detail AI dan tunjukkan request, token input, token output, total, model, biaya, latensi, dan waktu. Unduh laporan AI. Buka detail penyimpanan dan tunjukkan kapasitas yang tercatat. Jangan mengklaim grafik CPU atau RAM karena layar saat ini tidak menyediakannya.
+
+### Adegan 09 05:40 sampai 06:40 Backup
+
+Pada database demo, tekan Buat Backup Server dan tunggu sampai file SQL muncul. Unduh file. Tunjukkan tombol Pulihkan dan Hapus tanpa menjalankannya pada data utama. Atur path, jadwal, dan jam. Gunakan cadangan khusus demo jika ingin merekam upload dan pemulihan eksternal.
+
+### Adegan 10 06:40 sampai 07:20 Laporan dan audit
+
+Buka Laporan dan tunjukkan struktur institusi, penggunaan AI, distribusi hak akses, serta riwayat audit. Unduh laporan. Buka Activity Log dan sorot actor, action, context, dan timestamp.
+
+### Adegan 11 07:20 sampai selesai Penutup seri
+
+Tampilkan replay singkat empat peran dan alur data dari institusi sampai nilai. Tutup dengan SALE, Smart Academic Learning Ecosystem, dan nama institusi.
+
+## Validasi wajib
+
+Rahasia API tidak pernah terlihat
+
+Tidak ada klaim monitoring CPU atau RAM
+
+Tidak ada klaim pembatasan IP atau kebijakan password global
+
+Backup diuji hanya pada lingkungan demo
+
+Unduhan SQL dan laporan harus benar benar terbentuk
+
+Mode pemeliharaan dikembalikan ke normal setelah rekaman
