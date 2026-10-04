@@ -1114,11 +1114,26 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertTrue($codingAssessment->learning_payload['duration_enabled']);
         $this->assertSame(90, $codingAssessment->learning_payload['duration_minutes']);
 
-        // Mahasiswa melihat halaman editor coding dengan timer 90 menit (5400 detik)
+        // Mahasiswa melihat halaman editor coding dengan timer 90 menit (5400 detik) dan deadline attempt akun pengguna
         $codeEditorView = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $codingAssessment->id]));
         $codeEditorView->assertOk();
         $codeEditorView->assertSee('id="code-countdown"', false);
         $codeEditorView->assertSee('data-duration="5400"', false);
+        $codeEditorView->assertSee('data-deadline=', false);
+
+        // Mahasiswa kedua memulai pengerjaan secara terpisah dan mendapatkan attempt waktu mandiri
+        $studentRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student2 = User::factory()->create(['role_id' => $studentRole->id]);
+        $this->section->students()->attach($student2->id, ['status' => 'enrolled']);
+
+        $codeEditorView2 = $this->actingAs($student2)->get(route('course.assignment.code', [$this->section->id, $codingAssessment->id]));
+        $codeEditorView2->assertOk();
+        $codeEditorView2->assertSee('data-deadline=', false);
+
+        $attempt1 = \App\Models\AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student->id)->firstOrFail();
+        $attempt2 = \App\Models\AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student2->id)->firstOrFail();
+        $this->assertSame($student->id, $attempt1->mahasiswa_id);
+        $this->assertSame($student2->id, $attempt2->mahasiswa_id);
 
         // 3. Dosen mengubah tugas menjadi tanpa batas waktu (duration_mode = disabled)
         $codingPayload['duration_mode'] = 'disabled';
@@ -1134,12 +1149,15 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertFalse($codingAssessment->learning_payload['duration_enabled']);
         $this->assertNull($codingAssessment->learning_payload['duration_minutes']);
 
-        // 4. Verifikasi tata letak form dosen memuat susun soal yang mengalir ke bawah dari data-content-setup
+        // 4. Verifikasi form dosen memuat stepper setup dan builder
         $createForm = $this->actingAs($this->dosen)->get(route('dosen.item.create', [
             'course' => $this->section->id,
             'type' => 'kuis',
         ]));
         $createForm->assertOk();
+        $createForm->assertSee('data-content-progress', false);
+        $createForm->assertSee('data-next-to-questions', false);
+        $createForm->assertSee('data-back-to-setup', false);
         $html = $createForm->getContent();
         $setupPos = strpos($html, 'data-content-setup');
         $builderPos = strpos($html, 'data-question-builder');

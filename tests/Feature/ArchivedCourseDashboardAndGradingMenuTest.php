@@ -142,6 +142,8 @@ class ArchivedCourseDashboardAndGradingMenuTest extends TestCase
         $responseArchived->assertOk();
         $responseArchived->assertDontSee('Pemrograman Web Aktif');
         $responseArchived->assertSee('Algoritma Lampau Diarsipkan');
+        // Yellow Arsip label is not displayed on the cards
+        $responseArchived->assertDontSee('border-amber-200', false);
     }
 
     public function test_dosen_rekap_separates_active_and_archived_classes_into_tabs(): void
@@ -159,5 +161,7 @@ class ArchivedCourseDashboardAndGradingMenuTest extends TestCase
         $responseArchived->assertOk();
         $responseArchived->assertDontSee('Pemrograman Web Aktif');
         $responseArchived->assertSee('Algoritma Lampau Diarsipkan');
+        // Yellow Arsip label is not displayed on the cards
+        $responseArchived->assertDontSee('border-amber-200', false);
     }
 }
