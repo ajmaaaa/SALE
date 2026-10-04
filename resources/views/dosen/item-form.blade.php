@@ -753,11 +753,23 @@
                         <div class="space-y-3">
                             {{-- Panel Lampiran Berkas --}}
                             <div data-step-addon-panel="files" hidden>
-                                <label class="form-label text-xs mb-1">Lampiran berkas</label>
-                                <input type="hidden" data-step-field="existing_attachment">
-                                <input type="file" data-step-field="attachment" class="field text-xs py-1.5 bg-white" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
-                                <p class="mt-1 text-[11px] text-muted">Mendukung PDF, dokumen, arsip, gambar, atau video pendukung. Maksimal 20 MB.</p>
-                                <div data-step-file-preview class="mt-2.5 space-y-2"></div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="form-label text-xs mb-0">Lampiran berkas</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] text-muted">Maksimal 20 MB per berkas</span>
+                                        <button type="button" data-remove-step-files class="text-[11px] text-danger hover:underline cursor-pointer">Tutup</button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 mb-2">
+                                    <button type="button" data-step-file-picker-btn class="button-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 cursor-pointer font-medium hover:border-slate-400">
+                                        <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.2 7 8.6 13.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.6a6 6 0 108.4 8.4L20.5 13"/></svg>
+                                        <span>Pilih Berkas Lampiran</span>
+                                    </button>
+                                    <span class="text-[11px] text-muted hidden sm:inline">Mendukung PDF, dokumen, arsip, gambar, atau video pendukung</span>
+                                </div>
+                                <input type="file" data-step-field="attachments" multiple class="hidden" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4,.webm">
+                                <div data-step-existing-attachments-container></div>
+                                <div data-step-file-preview class="space-y-2"></div>
                             </div>
 
                             {{-- Panel Tautan --}}

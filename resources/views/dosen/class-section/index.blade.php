@@ -103,9 +103,6 @@
                                     @if($isAnggota)
                                         <span class="text-xs text-muted shrink-0">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
                                     @endif
-                                    @if($section->isArchived())
-                                        <span class="rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold shrink-0">Arsip</span>
-                                    @endif
                                     <span class="text-slate-300 shrink-0">•</span>
                                     <span class="text-xs text-muted truncate">{{ $section->semester->name }}</span>
                                 </div>
@@ -177,9 +174,6 @@
                                         <span class="text-xs font-bold font-mono text-brand">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
                                         @if($isAnggota)
                                             <span class="text-xs text-muted">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
-                                        @endif
-                                        @if($section->isArchived())
-                                            <span class="rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold shrink-0">Arsip</span>
                                         @endif
                                     </div>
                                     <h2 class="text-base font-bold text-ink leading-snug line-clamp-2 min-h-[2.75rem] group-hover:text-brand transition-colors" title="{{ $section->mataKuliah->name }}">
