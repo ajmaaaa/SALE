@@ -42,14 +42,35 @@ class DashboardController extends Controller
                         ->where('status', StudentAssessmentScore::STATUS_PUBLISHED)
                         ->whereNotNull('score')
                         ->pluck('assessment_id')
+                        ->map(fn ($id) => (int) $id)
                         ->toArray();
                 }
 
-                $submittedIds = \App\Models\Submission::where('mahasiswa_id', $user->id)
+                $submittedIds = \App\Models\Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
                     ->whereIn('assessment_id', $assessments->pluck('id'))
-                    ->pluck('assessment_id')->all();
-                $activeItems = $assessments->reject(fn ($asm) => in_array($asm->id, $scoredIds, true)
-                    || in_array($asm->id, $submittedIds, true));
+                    ->pluck('assessment_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                if (Schema::hasTable('assessment_attempts')) {
+                    $attemptIds = \App\Models\AssessmentAttempt::where('mahasiswa_id', $user->id)
+                        ->whereIn('assessment_id', $assessments->pluck('id'))
+                        ->where(function ($q) {
+                            $q->whereIn('status', [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED])
+                                ->orWhere(function ($sub) {
+                                    $sub->where('status', \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS)
+                                        ->whereNotNull('deadline_at')
+                                        ->where('deadline_at', '<', now());
+                                });
+                        })
+                        ->pluck('assessment_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                    $submittedIds = array_values(array_unique(array_merge($submittedIds, $attemptIds)));
+                }
+
+                $activeItems = $assessments->reject(fn ($asm) => in_array((int) $asm->id, $scoredIds)
+                    || in_array((int) $asm->id, $submittedIds));
             }
         }
 

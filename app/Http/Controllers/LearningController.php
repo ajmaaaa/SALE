@@ -89,7 +89,22 @@ class LearningController extends Controller
             $scoredAssessmentIds = [];
             if (! $isDosen) {
                 if (Schema::hasTable('submissions')) {
-                    $submittedAssessmentIds = Submission::where('mahasiswa_id', $user->id)->pluck('assessment_id')->all();
+                    $submittedAssessmentIds = Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))->pluck('assessment_id')->map(fn ($id) => (int) $id)->all();
+                }
+                if (Schema::hasTable('assessment_attempts')) {
+                    $attemptIds = AssessmentAttempt::where('mahasiswa_id', $user->id)
+                        ->where(function ($q) {
+                            $q->whereIn('status', [AssessmentAttempt::STATUS_SUBMITTED, AssessmentAttempt::STATUS_REJECTED])
+                                ->orWhere(function ($sub) {
+                                    $sub->where('status', AssessmentAttempt::STATUS_IN_PROGRESS)
+                                        ->whereNotNull('deadline_at')
+                                        ->where('deadline_at', '<', now());
+                                });
+                        })
+                        ->pluck('assessment_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                    $submittedAssessmentIds = array_values(array_unique(array_merge($submittedAssessmentIds, $attemptIds)));
                 }
                 if (Schema::hasTable('student_assessment_scores')) {
                     $scoredAssessmentIds = StudentAssessmentScore::where('mahasiswa_id', $user->id)
@@ -101,7 +116,9 @@ class LearningController extends Controller
                                 ]);
                         })
                         ->pluck('assessment_id')
+                        ->map(fn ($id) => (int) $id)
                         ->all();
+                    $submittedAssessmentIds = array_values(array_unique(array_merge($submittedAssessmentIds, $scoredAssessmentIds)));
                 }
             }
 
@@ -119,7 +136,7 @@ class LearningController extends Controller
                     ->where('status', 'published');
 
                 if (! $isDosen) {
-                    $secTasks = $secTasks->reject(fn ($asm) => in_array($asm->id, $submittedAssessmentIds, true) || in_array($asm->id, $scoredAssessmentIds, true));
+                    $secTasks = $secTasks->reject(fn ($asm) => in_array((int) $asm->id, $submittedAssessmentIds) || in_array((int) $asm->id, $scoredAssessmentIds));
                 }
 
                 // Tugas dengan tenggat yang belum terlewat (upcoming)
@@ -229,32 +246,60 @@ class LearningController extends Controller
 
                 $this->notifications->markDiscussionRead($user, $section->id);
 
-                $submittedAssessmentIds = $user->hasRole(Role::MAHASISWA)
-                    ? array_unique(array_merge(
-                        Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
-                            ->whereIn('assessment_id', array_keys($items))
-                            ->pluck('assessment_id')->all(),
-                        StudentAssessmentScore::where('mahasiswa_id', $user->id)->whereIn('assessment_id', array_keys($items))
+                $submittedAssessmentIds = [];
+                $userSubmissions = collect();
+                $userScores = collect();
+
+                if ($user->hasRole(Role::MAHASISWA)) {
+                    $itemIds = array_keys($items);
+                    $subIds = [];
+                    $scoreIds = [];
+                    $attemptIds = [];
+
+                    if (Schema::hasTable('submissions')) {
+                        $userSubmissions = Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
+                            ->whereIn('assessment_id', $itemIds)
+                            ->latest('submitted_at')
+                            ->get(['assessment_id', 'submitted_at', 'created_at'])
+                            ->keyBy('assessment_id');
+                        $subIds = $userSubmissions->keys()->map(fn ($id) => (int) $id)->all();
+                    }
+
+                    if (Schema::hasTable('student_assessment_scores')) {
+                        $userScores = StudentAssessmentScore::where('mahasiswa_id', $user->id)
+                            ->whereIn('assessment_id', $itemIds)
                             ->where(fn ($q) => $q->whereNotNull('score')->orWhereIn('status', [StudentAssessmentScore::STATUS_FINAL, StudentAssessmentScore::STATUS_PUBLISHED]))
-                            ->pluck('assessment_id')->all()
-                    ))
-                    : [];
+                            ->get(['assessment_id', 'created_at', 'updated_at'])
+                            ->keyBy('assessment_id');
+                        $scoreIds = $userScores->keys()->map(fn ($id) => (int) $id)->all();
+                    }
 
-                $userSubmissions = $user->hasRole(Role::MAHASISWA) && Schema::hasTable('submissions')
-                    ? Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
-                        ->whereIn('assessment_id', array_keys($items))
-                        ->latest('submitted_at')
-                        ->get(['assessment_id', 'submitted_at', 'created_at'])
-                        ->keyBy('assessment_id')
-                    : collect();
+                    if (Schema::hasTable('assessment_attempts')) {
+                        $attempts = AssessmentAttempt::where('mahasiswa_id', $user->id)
+                            ->whereIn('assessment_id', $itemIds)
+                            ->where(function ($q) {
+                                $q->whereIn('status', [AssessmentAttempt::STATUS_SUBMITTED, AssessmentAttempt::STATUS_REJECTED])
+                                    ->orWhere(function ($sub) {
+                                        $sub->where('status', AssessmentAttempt::STATUS_IN_PROGRESS)
+                                            ->whereNotNull('deadline_at')
+                                            ->where('deadline_at', '<', now());
+                                    });
+                            })
+                            ->get(['assessment_id', 'status', 'submitted_at', 'deadline_at', 'started_at']);
+                        $attemptIds = $attempts->pluck('assessment_id')->map(fn ($id) => (int) $id)->all();
+                        foreach ($attempts as $att) {
+                            if (!isset($userSubmissions[$att->assessment_id])) {
+                                $userSubmissions[$att->assessment_id] = (object) [
+                                    'assessment_id' => $att->assessment_id,
+                                    'submitted_at' => $att->submitted_at ?? $att->deadline_at ?? $att->started_at,
+                                    'created_at' => $att->started_at,
+                                ];
+                            }
+                        }
+                    }
 
-                $userScores = $user->hasRole(Role::MAHASISWA) && Schema::hasTable('student_assessment_scores')
-                    ? StudentAssessmentScore::where('mahasiswa_id', $user->id)
-                        ->whereIn('assessment_id', array_keys($items))
-                        ->where(fn ($q) => $q->whereNotNull('score')->orWhereIn('status', [StudentAssessmentScore::STATUS_FINAL, StudentAssessmentScore::STATUS_PUBLISHED]))
-                        ->get(['assessment_id', 'created_at', 'updated_at'])
-                        ->keyBy('assessment_id')
-                    : collect();
+                    $submittedAssessmentIds = array_values(array_unique(array_merge($subIds, $scoreIds, $attemptIds)));
+                }
 
                 return view('learning.course', compact('items', 'section', 'submittedAssessmentIds', 'userSubmissions', 'userScores') + [
                     'course' => $courseData,
@@ -393,17 +438,40 @@ class LearningController extends Controller
                 $assessmentAttempt = $this->startTimedAssessmentAttempt($assessment, $user, $resource);
             }
 
-            if ($assessmentAttempt->status === AssessmentAttempt::STATUS_REJECTED) {
-                $isAttemptRejected = true;
-                $attemptRejectionReason = $assessmentAttempt->rejection_reason ?? 'Batas waktu pengerjaan kuis ini telah habis dan attempt Anda telah ditutup.';
-            } elseif ($assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && now()->greaterThan($assessmentAttempt->deadline_at->copy()->addSeconds(30))) {
-                $attemptRejectionReason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
-                $assessmentAttempt->update([
-                    'status' => AssessmentAttempt::STATUS_REJECTED,
-                    'rejected_at' => now(),
-                    'rejection_reason' => $attemptRejectionReason,
-                ]);
-                $isAttemptRejected = true;
+            $hasExpired = $assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && $assessmentAttempt->deadline_at && now()->greaterThan($assessmentAttempt->deadline_at);
+            if ($hasExpired || $assessmentAttempt->status === AssessmentAttempt::STATUS_REJECTED || $assessmentAttempt->status === AssessmentAttempt::STATUS_SUBMITTED) {
+                if ($hasExpired) {
+                    $assessmentAttempt->update([
+                        'status' => AssessmentAttempt::STATUS_SUBMITTED,
+                        'submitted_at' => now(),
+                    ]);
+                }
+                if (Schema::hasTable('submissions')) {
+                    $dbSub = Submission::firstOrCreate(
+                        ['assessment_id' => $item, 'user_id' => $user->id],
+                        [
+                            'mahasiswa_id' => $user->id,
+                            'attempt' => $assessmentAttempt->attempt ?? 1,
+                            'version' => 1,
+                            'status' => 'pending',
+                            'submitted_at' => $assessmentAttempt->submitted_at ?? now(),
+                            'student_number' => $user->nim_nidn,
+                        ]
+                    );
+                    $submission = [
+                        'answer' => $dbSub->answer,
+                        'link' => $dbSub->link,
+                        'question_answers' => $dbSub->question_answers ?? [],
+                        'files' => $dbSub->file_ids ?? [],
+                        'student_number' => $dbSub->student_number,
+                        'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                        'status' => $dbSub->status,
+                        'attempt' => $dbSub->attempt,
+                        'version' => $dbSub->version,
+                        'answer_scores' => [],
+                    ];
+                }
+                $attemptDeadline = null;
             } else {
                 $attemptDeadline = $assessmentAttempt->deadline_at;
             }
@@ -471,12 +539,38 @@ class LearningController extends Controller
                 ->latest('submitted_at')
                 ->get(['assessment_id', 'submitted_at', 'created_at'])
                 ->keyBy('assessment_id');
-            $subIds = $userSubmissions->keys()->all();
-            $submittedAssessmentIds = array_unique(array_merge(
-                $subIds,
-                $studentScores->pluck('assessment_id')->all()
-            ));
         }
+
+        $attemptSubmittedIds = [];
+        if ($user && Schema::hasTable('assessment_attempts')) {
+            $attempts = AssessmentAttempt::where('mahasiswa_id', $user->id)
+                ->where(function ($q) {
+                    $q->whereIn('status', [AssessmentAttempt::STATUS_SUBMITTED, AssessmentAttempt::STATUS_REJECTED])
+                        ->orWhere(function ($sub) {
+                            $sub->where('status', AssessmentAttempt::STATUS_IN_PROGRESS)
+                                ->whereNotNull('deadline_at')
+                                ->where('deadline_at', '<', now());
+                        });
+                })
+                ->get(['assessment_id', 'status', 'submitted_at', 'deadline_at', 'started_at']);
+            $attemptSubmittedIds = $attempts->pluck('assessment_id')->map(fn ($id) => (int) $id)->all();
+            foreach ($attempts as $att) {
+                if (!isset($userSubmissions[$att->assessment_id])) {
+                    $userSubmissions[$att->assessment_id] = (object) [
+                        'assessment_id' => $att->assessment_id,
+                        'submitted_at' => $att->submitted_at ?? $att->deadline_at ?? $att->started_at,
+                        'created_at' => $att->started_at,
+                    ];
+                }
+            }
+        }
+
+        $subIds = $userSubmissions->keys()->map(fn ($id) => (int) $id)->all();
+        $submittedAssessmentIds = array_values(array_unique(array_merge(
+            $subIds,
+            $studentScores ? $studentScores->pluck('assessment_id')->map(fn ($id) => (int) $id)->all() : [],
+            $attemptSubmittedIds
+        )));
 
         if ($user && Schema::hasTable('class_sections')) {
             $isDosen = $user->hasRole(Role::DOSEN);
@@ -582,7 +676,7 @@ class LearningController extends Controller
             return true;
         });
 
-        $sort = $request->query('sort', 'terdekat');
+        $sort = $request->query('sort', 'terbaru');
         if ($sort === 'terbaru') {
             uasort($filteredItems, function ($a, $b) {
                 $timeA = isset($a['published_at']) && $a['published_at'] ? Carbon::parse($a['published_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? Carbon::parse($a['created_at'])->timestamp : 0);
@@ -917,6 +1011,10 @@ class LearningController extends Controller
             'coding_steps.*.points' => 'nullable|integer|min:0|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
+            'coding_steps.*.attachments' => 'nullable|array|max:10',
+            'coding_steps.*.attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
+            'coding_steps.*.existing_attachments' => 'nullable|array',
+            'coding_steps.*.existing_attachment' => 'nullable|string',
             'manual_cpmk_weights' => 'nullable|array',
             'manual_cpmk_weights.*' => 'nullable|numeric|min:0|max:100',
             'options' => 'nullable|string|max:10000000', 'cpmk' => 'nullable|string|max:1000',
@@ -1027,9 +1125,26 @@ class LearningController extends Controller
         }
         if ($isCodingContent) {
             foreach ($data['coding_steps'] as $index => &$step) {
-                $step['attachment'] = $request->hasFile("coding_steps.$index.attachment")
-                    ? $this->upload($request->file("coding_steps.$index.attachment"))
-                    : null;
+                $stepFiles = $request->file("coding_steps.$index.attachments", []);
+                if ($request->hasFile("coding_steps.$index.attachment")) {
+                    $stepFiles = array_merge([$request->file("coding_steps.$index.attachment")], is_array($stepFiles) ? $stepFiles : []);
+                }
+                $stepUuids = [];
+                if (is_array($stepFiles)) {
+                    foreach ($stepFiles as $sFile) {
+                        if ($sFile) {
+                            $stepUuids[] = $this->upload($sFile);
+                        }
+                    }
+                }
+                $existingStepAtts = array_values(array_filter(array_merge(
+                    (array) ($step['existing_attachments'] ?? []),
+                    !empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
+                )));
+                $mergedStepAtts = array_values(array_unique(array_merge($existingStepAtts, $stepUuids)));
+                $step['attachments'] = $mergedStepAtts;
+                $step['attachment'] = $mergedStepAtts[0] ?? null;
+                unset($step['existing_attachments'], $step['existing_attachment']);
                 $step['link'] = $step['link'] ?? null;
             }
             unset($step);
@@ -1166,7 +1281,9 @@ class LearningController extends Controller
                 $assessmentType = ($category === 'coding') ? 'tugas' : $category;
                 $asmCount = Assessment::where('class_section_id', $section->id)->count();
                 $questionImages = collect($data['questions'] ?? [])->pluck('image')->filter();
-                $stepAttachments = collect($data['coding_steps'] ?? [])->pluck('attachment')->filter();
+                $stepAttachments = collect($data['coding_steps'] ?? [])
+                    ->flatMap(fn($st) => array_merge($st['attachments'] ?? [], !empty($st['attachment']) ? [$st['attachment']] : []))
+                    ->filter();
                 $fileIds = collect($data['attachments'])
                     ->merge($data['option_images'])
                     ->merge([$data['question_image']])
@@ -1457,6 +1574,10 @@ class LearningController extends Controller
             'coding_steps.*.points' => 'nullable|integer|min:0|max:1000',
             'coding_steps.*.link' => 'nullable|url:http,https|max:2000',
             'coding_steps.*.attachment' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
+            'coding_steps.*.attachments' => 'nullable|array|max:10',
+            'coding_steps.*.attachments.*' => 'file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,csv,txt,zip,jpg,jpeg,png,webp,mp4,webm|max:20480',
+            'coding_steps.*.existing_attachments' => 'nullable|array',
+            'coding_steps.*.existing_attachment' => 'nullable|string',
             'manual_cpmk_weights' => 'nullable|array',
             'manual_cpmk_weights.*' => 'nullable|numeric|min:0|max:100',
             'options' => 'nullable|string|max:10000000', 'cpmk' => 'nullable|string|max:1000',
@@ -1573,14 +1694,32 @@ class LearningController extends Controller
                 if (empty($step['cpmk'])) {
                     $step['cpmk'] = $fallbackCpmk;
                 }
+                $stepFiles = $request->file("coding_steps.$index.attachments", []);
                 if ($request->hasFile("coding_steps.$index.attachment")) {
-                    $step['attachment'] = $this->upload($request->file("coding_steps.$index.attachment"));
-                } elseif (isset($step['existing_attachment'])) {
-                    $step['attachment'] = ! empty($step['existing_attachment']) ? $step['existing_attachment'] : null;
-                } else {
-                    $step['attachment'] = $existingItem['coding_steps'][$index]['attachment'] ?? ($step['attachment'] ?? null);
+                    $stepFiles = array_merge([$request->file("coding_steps.$index.attachment")], is_array($stepFiles) ? $stepFiles : []);
                 }
-                unset($step['existing_attachment']);
+                $stepUuids = [];
+                if (is_array($stepFiles)) {
+                    foreach ($stepFiles as $sFile) {
+                        if ($sFile) {
+                            $stepUuids[] = $this->upload($sFile);
+                        }
+                    }
+                }
+                $existingStepAtts = array_values(array_filter(array_merge(
+                    (array) ($step['existing_attachments'] ?? []),
+                    !empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
+                )));
+                if (!isset($step['existing_attachments']) && !isset($step['existing_attachment'])) {
+                    $existingStepAtts = array_values(array_filter(array_merge(
+                        !empty($existingItem['coding_steps'][$index]['attachments']) ? (array)$existingItem['coding_steps'][$index]['attachments'] : [],
+                        !empty($existingItem['coding_steps'][$index]['attachment']) ? [$existingItem['coding_steps'][$index]['attachment']] : []
+                    )));
+                }
+                $mergedStepAtts = array_values(array_unique(array_merge($existingStepAtts, $stepUuids)));
+                $step['attachments'] = $mergedStepAtts;
+                $step['attachment'] = $mergedStepAtts[0] ?? null;
+                unset($step['existing_attachments'], $step['existing_attachment']);
                 $step['link'] = $step['link'] ?? null;
             }
             unset($step);
@@ -1704,7 +1843,7 @@ class LearningController extends Controller
             $fileIds = collect($data['attachments'] ?? [])
                 ->merge([$data['question_image'] ?? null])
                 ->merge(collect($data['questions'] ?? [])->pluck('image'))
-                ->merge(collect($data['coding_steps'] ?? [])->pluck('attachment'))
+                ->merge(collect($data['coding_steps'] ?? [])->flatMap(fn($st) => array_merge($st['attachments'] ?? [], !empty($st['attachment']) ? [$st['attachment']] : [])))
                 ->filter()
                 ->unique();
 
@@ -1951,21 +2090,39 @@ class LearningController extends Controller
                 }
             }
 
+            $isTimedAutoSubmit = $request->boolean('from_code_editor') || $request->boolean('from_quiz_room') || $request->boolean('is_timeout');
+
             if ($assessmentAttempt && $assessmentAttempt->status !== AssessmentAttempt::STATUS_IN_PROGRESS) {
+                if ($request->boolean('from_code_editor')) {
+                    return redirect()->route('mahasiswa.course.code.submitted', [$course, $item])->with('notice', 'Tugas pemrograman sudah diserahkan dan terkunci.');
+                }
+                if ($request->boolean('from_quiz_room')) {
+                    return redirect()->route('mahasiswa.quiz.room', [$course, $item])->with('notice', 'Kuis sudah diserahkan dan selesai.');
+                }
+                $rejectMsg = $assessmentAttempt->rejection_reason ?? 'Attempt ini sudah selesai dan tidak dapat dikirim ulang.';
                 return back()->withErrors([
-                    'submission' => $assessmentAttempt->rejection_reason ?? 'Attempt ini sudah selesai dan tidak dapat dikirim ulang.',
+                    'submission' => $rejectMsg,
                 ])->withInput();
             }
 
             if ($assessmentAttempt && now()->greaterThan($assessmentAttempt->deadline_at->copy()->addSeconds(30))) {
-                $reason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
-                $assessmentAttempt->update([
-                    'status' => AssessmentAttempt::STATUS_REJECTED,
-                    'rejected_at' => now(),
-                    'rejection_reason' => $reason,
-                ]);
+                if ($isTimedAutoSubmit) {
+                    $assessmentAttempt->update([
+                        'status' => AssessmentAttempt::STATUS_SUBMITTED,
+                        'submitted_at' => now(),
+                        'rejected_at' => null,
+                        'rejection_reason' => null,
+                    ]);
+                } else {
+                    $reason = 'Submission ditolak karena melewati deadline attempt pada '.$assessmentAttempt->deadline_at->format('d M Y, H:i:s').'.';
+                    $assessmentAttempt->update([
+                        'status' => AssessmentAttempt::STATUS_REJECTED,
+                        'rejected_at' => now(),
+                        'rejection_reason' => $reason,
+                    ]);
 
-                return back()->withErrors(['submission' => $reason])->withInput();
+                    return back()->withErrors(['submission' => $reason])->withInput();
+                }
             }
         }
 
@@ -2059,6 +2216,9 @@ class LearningController extends Controller
         }
         $dbSub = Submission::where('assessment_id', $item)->where('mahasiswa_id', $user->id)->first();
         if ($isCodingSubmission && $dbSub && $dbSub->submitted_at) {
+            if ($request->boolean('from_code_editor')) {
+                return redirect()->route('mahasiswa.course.code.submitted', [$course, $item])->with('notice', 'Tugas coding ini sudah diserahkan dan terkunci.');
+            }
             return back()->withErrors(['answer' => 'Tugas coding ini sudah diserahkan dan terkunci, tidak dapat dikerjakan atau diperbaiki lagi.'])->withInput();
         }
         $previousFiles = $dbSub?->file_ids ?? [];
@@ -2066,6 +2226,9 @@ class LearningController extends Controller
         abort_if(array_diff($keep, $previousFiles), 422);
         if (count($keep) + count($request->file('files', [])) > 5) {
             return back()->withErrors(['files' => 'Maksimal lima lampiran, termasuk berkas sebelumnya.'])->withInput();
+        }
+        if ($isCodingSubmission && $request->boolean('from_code_editor') && ! $request->filled('answer')) {
+            $data['answer'] = json_encode([]);
         }
         if (! $isFromQuizRoom && empty($data['question_answers']) && ! $keep && ! $request->filled('answer') && ! $request->filled('link') && ! $request->hasFile('files') && ! $request->filled('choices') && ! $request->filled('boolean_choice') && ! $request->filled('matching')) {
             return back()->withErrors(['answer' => $isCodingSubmission ? 'Tuliskan kode program sebelum menyerahkan tugas.' : 'Tambahkan jawaban, berkas, atau tautan sebelum mengumpulkan.'])->withInput();
@@ -2198,7 +2361,7 @@ class LearningController extends Controller
         }
 
         if ($request->boolean('from_code_editor')) {
-            return redirect()->route('course.assignment.code', [$course, $item])->with('notice', 'Tugas coding berhasil diserahkan!');
+            return redirect()->route('mahasiswa.course.code.submitted', [$course, $item])->with('notice', 'Tugas pemrograman berhasil diserahkan!');
         }
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban berhasil disimpan dan menunggu penilaian.');
@@ -2270,6 +2433,11 @@ class LearningController extends Controller
             if ($hasBeenGraded) {
                 return back()->with('notice', 'Pengiriman tugas tidak dapat dibatalkan karena sudah dinilai oleh dosen.');
             }
+        }
+
+        // Jika tugas memiliki batas waktu pengerjaan (timer), tidak dapat dibatalkan agar waktu tidak dapat direset
+        if ($this->timedDurationMinutes($resource) !== null) {
+            return back()->with('notice', 'Tugas ini memiliki batas waktu pengerjaan (timer) sehingga penyerahan tugas tidak dapat dibatalkan.');
         }
 
         // Jika batas waktu lewat dan tidak mengizinkan pengumpulan terlambat, tidak dapat dibatalkan

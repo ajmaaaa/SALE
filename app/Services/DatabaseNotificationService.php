@@ -256,13 +256,14 @@ class DatabaseNotificationService
                 } else {
                     $dueText = $assessment->due_at?->translatedFormat('d M Y, H:i') ?? 'Tanpa batas tenggat';
                     $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
+                    $eventAt = $assessment->published_at ?? $assessment->created_at;
 
                     if ($isQuiz) {
                         $notifications[] = $this->notification(
                             "pending_{$assessment->id}",
-                            "Kuis Tersedia: {$assessment->name} ({$section->display_code})",
+                            "Kuis Baru: {$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
-                            $assessment->created_at,
+                            $eventAt,
                             'quiz',
                             $target,
                             'Mulai Kerjakan Kuis',
@@ -272,9 +273,9 @@ class DatabaseNotificationService
                     } elseif ($isCoding && $type !== 'materi') {
                         $notifications[] = $this->notification(
                             "pending_{$assessment->id}",
-                            "Tugas Pemrograman Tersedia: {$assessment->name} ({$section->display_code})",
+                            "Tugas Pemrograman Baru: {$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
-                            $assessment->created_at,
+                            $eventAt,
                             'quiz',
                             $target,
                             'Mulai Kerjakan Tugas Koding',
@@ -286,7 +287,7 @@ class DatabaseNotificationService
                             "material_{$assessment->id}",
                             ($isCodingMaterial ? 'Materi Pemrograman: ' : 'Materi Baru: ')."{$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Pelajari materi pembelajaran yang telah diterbitkan dosen.",
-                            $assessment->created_at,
+                            $eventAt,
                             'alert',
                             $target,
                             'Pelajari Materi',
@@ -298,7 +299,7 @@ class DatabaseNotificationService
                             "announcement_{$assessment->id}",
                             "Pengumuman: {$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Pengumuman penting dari dosen pengampu.",
-                            $assessment->created_at,
+                            $eventAt,
                             'alert',
                             $target,
                             'Lihat Pengumuman',
@@ -308,9 +309,9 @@ class DatabaseNotificationService
                     } elseif ($type === 'lainnya') {
                         $notifications[] = $this->notification(
                             "pending_{$assessment->id}",
-                            "Pengumpulan: {$assessment->name} ({$section->display_code})",
+                            "Tugas Baru: {$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
-                            $assessment->created_at,
+                            $eventAt,
                             'alert',
                             $target,
                             'Buka Lembar Pengumpulan',
@@ -320,9 +321,9 @@ class DatabaseNotificationService
                     } else {
                         $notifications[] = $this->notification(
                             "pending_{$assessment->id}",
-                            "Penugasan: {$assessment->name} ({$section->display_code})",
+                            "Tugas Baru: {$assessment->name} ({$section->display_code})",
                             "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
-                            $assessment->created_at,
+                            $eventAt,
                             'alert',
                             $target,
                             'Buka Lembar Tugas',
@@ -428,7 +429,7 @@ class DatabaseNotificationService
     {
         $sections = ClassSection::query()
             ->where(fn ($query) => $query->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id))
-            ->with('mataKuliah')
+            ->with(['mataKuliah', 'assessments' => fn ($query) => $query->where('status', Assessment::STATUS_PUBLISHED)])
             ->get();
         $sectionIds = $sections->pluck('id');
         $submissions = Submission::query()
@@ -459,6 +460,38 @@ class DatabaseNotificationService
         }
 
         foreach ($sections as $section) {
+            foreach ($section->assessments as $assessment) {
+                $type = $assessment->type;
+                if (in_array($type, ['materi', 'pengumuman'], true)) {
+                    continue;
+                }
+                $payload = $assessment->learning_payload ?? [];
+                $isCoding = ($type === 'coding')
+                    || (($payload['task_mode'] ?? null) === 'coding')
+                    || (($payload['question_type'] ?? null) === 'coding')
+                    || !empty($payload['coding_steps']);
+                $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
+
+                $title = $isQuiz
+                    ? "Kuis Baru: {$assessment->name} ({$section->display_code})"
+                    : ($isCoding
+                        ? "Tugas Pemrograman Baru: {$assessment->name} ({$section->display_code})"
+                        : "Tugas Baru: {$assessment->name} ({$section->display_code})");
+
+                $dueText = $assessment->due_at?->translatedFormat('d M Y, H:i') ?? 'Tanpa batas tenggat';
+
+                $notifications[] = $this->notification(
+                    "task_{$assessment->id}",
+                    $title,
+                    "Mata Kuliah {$section->mataKuliah->name}. Batas tenggat: {$dueText}.",
+                    $assessment->published_at ?? $assessment->created_at,
+                    'alert',
+                    route('dosen.course.item', [$section->id, $assessment->id], false),
+                    'Lihat Tugas',
+                    'tugas',
+                    $section->id
+                );
+            }
             $this->appendDiscussionNotification($notifications, $user, $section);
         }
 
@@ -773,7 +806,7 @@ class DatabaseNotificationService
             if ($category === 'diskusi' && isset($prefs['forum']) && ! $prefs['forum']) {
                 return false;
             }
-            if (str_starts_with($id, 'pending_') && isset($prefs['deadline']) && ! $prefs['deadline']) {
+            if (str_starts_with($id, 'deadline_') && isset($prefs['deadline']) && ! $prefs['deadline']) {
                 return false;
             }
 

@@ -329,18 +329,39 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $questionImage = $payload['question_image'] ?? null;
         $optionImages = array_values(array_filter($payload['option_images'] ?? []));
         $questionImages = array_filter(array_column($payload['questions'] ?? [], 'image'));
-        $stepAttachments = array_filter(array_column($payload['coding_steps'] ?? [], 'attachment'));
+        $stepAttachments = [];
+        foreach ($payload['coding_steps'] ?? [] as $st) {
+            if (!empty($st['attachments']) && is_array($st['attachments'])) {
+                foreach ($st['attachments'] as $att) {
+                    if ($att) $stepAttachments[] = $att;
+                }
+            }
+            if (!empty($st['attachment'])) {
+                $stepAttachments[] = $st['attachment'];
+            }
+        }
+        $stepAttachments = array_values(array_unique(array_filter($stepAttachments)));
         $excludeUuids = array_values(array_filter(array_merge([$questionImage], $optionImages, $questionImages, $stepAttachments)));
 
         $currentAtts = $payload['attachments'] ?? [];
-        // Sumber 1: tabel attachments DB yang terhubung ke assessment ini
+        // Sumber 1: tabel attachments DB yang terhubung ke assessment ini (hanya lampiran tugas dosen, bukan berkas pengumpulan mahasiswa)
         if (\Illuminate\Support\Facades\Schema::hasTable('attachments')) {
             $dbUuids = \App\Models\Attachment::where('assessment_id', $assessment->id)
+                ->whereNull('submission_id')
                 ->pluck('uuid')
                 ->filter(fn($uuid) => !in_array($uuid, $excludeUuids, true))
                 ->values()
                 ->all();
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $dbUuids)));
+
+            // Pastikan tidak ada berkas pengumpulan mahasiswa (submission) yang masuk ke lampiran tugas
+            $submissionUuids = \App\Models\Attachment::where('assessment_id', $assessment->id)
+                ->whereNotNull('submission_id')
+                ->pluck('uuid')
+                ->all();
+            if (!empty($submissionUuids)) {
+                $currentAtts = array_values(array_filter($currentAtts, fn($uuid) => !in_array($uuid, $submissionUuids, true)));
+            }
         }
 
         // Sumber 2: file_meta di payload (fallback untuk data lama)
@@ -387,8 +408,21 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
         if (! empty($payload['coding_steps']) && is_array($payload['coding_steps'])) {
             foreach ($payload['coding_steps'] as &$cStep) {
+                $cStepAtts = array_values(array_filter(array_unique(array_merge(
+                    $cStep['attachments'] ?? [],
+                    !empty($cStep['attachment']) ? [$cStep['attachment']] : []
+                ))));
+                $cStep['attachments'] = $cStepAtts;
+                $cStep['attachment'] = $cStepAtts[0] ?? null;
+
+                $cStep['attachments_meta'] = [];
+                foreach ($cStepAtts as $attUuid) {
+                    $meta = self::fileMeta($attUuid);
+                    $cStep['attachments_meta'][$attUuid] = $meta;
+                }
+
                 if (! empty($cStep['attachment'])) {
-                    $meta = self::fileMeta($cStep['attachment']);
+                    $meta = $cStep['attachments_meta'][$cStep['attachment']] ?? self::fileMeta($cStep['attachment']);
                     $cStep['attachment_name'] = $meta['name'] ?? null;
                     $cStep['attachment_mime'] = $meta['mime'] ?? null;
                     $cStep['attachment_size'] = $meta['size'] ?? null;

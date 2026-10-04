@@ -74,6 +74,10 @@ class AssignmentController extends Controller
         $codingScoreUrl = null;
 
         $completionTimeString = null;
+        $assessmentAttempt = null;
+        $isAttemptRejected = false;
+        $attemptRejectionReason = null;
+        $hasExpired = false;
 
         if ($isLecturer) {
             if (!$isMaterial && request()->has('student')) {
@@ -169,23 +173,47 @@ class AssignmentController extends Controller
             }
 
             // Catat awal attempt jika durasi aktif dan belum pernah diserahkan
+            $isAttemptRejected = false;
+            $attemptRejectionReason = null;
+            $hasExpired = false;
             if (!$isMaterial && $user && Schema::hasTable('assessment_attempts')) {
                 $durationMinutes = !empty($resource['duration_enabled']) ? (int)($resource['duration_minutes'] ?? 60) : null;
-                if ($durationMinutes && $durationMinutes > 0 && !$submission) {
+                if ($durationMinutes && $durationMinutes > 0) {
                     $assessmentAttempt = AssessmentAttempt::where('assessment_id', $assessment->id)
                         ->where('mahasiswa_id', $user->id)
                         ->latest('attempt')
                         ->first();
-                    if (!$assessmentAttempt) {
-                        AssessmentAttempt::create([
+                    if (!$assessmentAttempt && !$submission) {
+                        $assessmentAttempt = AssessmentAttempt::create([
                             'assessment_id' => $assessment->id,
-                            'class_section_id' => $section->id,
                             'mahasiswa_id' => $user->id,
                             'attempt' => 1,
                             'started_at' => now(),
                             'deadline_at' => now()->addMinutes($durationMinutes),
                             'status' => AssessmentAttempt::STATUS_IN_PROGRESS,
                         ]);
+                    } elseif ($assessmentAttempt) {
+                        $hasExpired = ($assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && $assessmentAttempt->deadline_at && now()->greaterThan($assessmentAttempt->deadline_at));
+                        if ($hasExpired || in_array($assessmentAttempt->status, [AssessmentAttempt::STATUS_SUBMITTED, AssessmentAttempt::STATUS_REJECTED], true)) {
+                            if ($hasExpired) {
+                                $assessmentAttempt->update([
+                                    'status' => AssessmentAttempt::STATUS_SUBMITTED,
+                                    'submitted_at' => $assessmentAttempt->submitted_at ?? now(),
+                                ]);
+                            }
+                            if (!$submission && Schema::hasTable('submissions')) {
+                                $submission = Submission::create([
+                                    'assessment_id' => $assessment->id,
+                                    'mahasiswa_id' => $user->id,
+                                    'user_id' => $user->id,
+                                    'attempt' => $assessmentAttempt->attempt ?? 1,
+                                    'version' => 1,
+                                    'status' => 'pending',
+                                    'submitted_at' => $assessmentAttempt->submitted_at ?? now(),
+                                    'answer' => json_encode([]),
+                                ]);
+                            }
+                        }
                     }
                 }
             }
@@ -223,7 +251,38 @@ class AssignmentController extends Controller
             'hasBeenGraded' => $hasBeenGraded,
             'codingScoreUrl' => $codingScoreUrl,
             'section' => $section,
+            'attemptDeadline' => ($hasExpired || ($assessmentAttempt && $assessmentAttempt->status !== AssessmentAttempt::STATUS_IN_PROGRESS) || ($isAttemptRejected ?? false)) ? null : $assessmentAttempt?->deadline_at,
+            'isAttemptRejected' => $isAttemptRejected ?? false,
+            'attemptRejectionReason' => $attemptRejectionReason ?? null,
+            'assessmentAttempt' => $assessmentAttempt,
+        ]);
+    }
+
+    public function codeSubmittedResult(int $course, int $item): View|RedirectResponse
+    {
+        $user = auth()->user();
+        $section = ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping'])->findOrFail($course);
+        $canAccess = $user?->hasRole(Role::DOSEN)
+            ? $user->can('manage', $section)
+            : ($user?->hasRole(Role::MAHASISWA)
+                && $section->students()->where('users.id', $user->id)->exists());
+
+        abort_unless($canAccess, 403, 'Anda tidak terdaftar pada kelas ini.');
+
+        $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
+
+        $submission = null;
+        if (Schema::hasTable('submissions') && $user) {
+            $submission = Submission::where('assessment_id', $assessment->id)
+                ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                ->latest('id')
+                ->first();
+        }
+
+        return view('mahasiswa.assignment-code-submitted', [
+            'section' => $section,
             'assessment' => $assessment,
+            'submission' => $submission,
         ]);
     }
 }
