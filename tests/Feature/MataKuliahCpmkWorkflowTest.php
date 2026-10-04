@@ -13,6 +13,7 @@ use App\Models\Role;
 use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
 use App\Models\User;
+use App\Services\ObeCalculationService;
 use Database\Seeders\DosenAccountSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,9 +24,13 @@ class MataKuliahCpmkWorkflowTest extends TestCase
     use RefreshDatabase;
 
     private User $adminProdi;
+
     private User $dosen;
+
     private User $mahasiswa;
+
     private Prodi $prodi;
+
     private Semester $semester;
 
     protected function setUp(): void
@@ -383,7 +388,7 @@ class MataKuliahCpmkWorkflowTest extends TestCase
             'status' => StudentAssessmentScore::STATUS_PUBLISHED,
         ]);
 
-        $obeService = app(\App\Services\ObeCalculationService::class);
+        $obeService = app(ObeCalculationService::class);
         // Nilai CPL-01 harus terhitung 90
         $cpl1Score = $obeService->cplScore($cpl1, $this->mahasiswa->id, $section->id);
         $this->assertEquals(90.0, $cpl1Score);

@@ -2,8 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Semester;
+use App\Models\Submission;
+use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -144,18 +152,18 @@ class LecturerProfileSettingsTest extends TestCase
 
     public function test_lecturer_profile_displays_active_semester_and_total_classes_from_database(): void
     {
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'code' => '2026-GANJIL',
             'name' => 'Ganjil 2026/2027',
             'is_active' => true,
         ]);
 
-        $prodi = \App\Models\Prodi::create([
+        $prodi = Prodi::create([
             'code' => 'IF',
             'name' => 'Informatika',
         ]);
 
-        $mataKuliah = \App\Models\MataKuliah::create([
+        $mataKuliah = MataKuliah::create([
             'prodi_id' => $prodi->id,
             'code' => 'IF202',
             'name' => 'Basis Data',
@@ -170,7 +178,7 @@ class LecturerProfileSettingsTest extends TestCase
         ]);
 
         // Class where lecturer is primary
-        \App\Models\ClassSection::create([
+        ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,
             'dosen_id' => $this->lecturer->id,
@@ -179,7 +187,7 @@ class LecturerProfileSettingsTest extends TestCase
         ]);
 
         // Class where lecturer is co-lecturer (dosen pendamping)
-        \App\Models\ClassSection::create([
+        ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,
             'dosen_id' => $otherLecturer->id,
@@ -199,7 +207,7 @@ class LecturerProfileSettingsTest extends TestCase
 
     public function test_support_admin_email_is_placed_in_sidebar_and_not_in_profile_content(): void
     {
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
+        SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
 
         $response = $this->actingAs($this->lecturer)
             ->get(route('dosen.profile.index'));
@@ -216,26 +224,26 @@ class LecturerProfileSettingsTest extends TestCase
 
     public function test_lecturer_notification_preferences_filter_notifications_returned_by_service(): void
     {
-        $prodi = \App\Models\Prodi::create([
+        $prodi = Prodi::create([
             'code' => 'TI',
             'name' => 'Teknik Informatika',
             'slug' => 'teknik-informatika-dosen',
         ]);
-        $course = \App\Models\MataKuliah::create([
+        $course = MataKuliah::create([
             'prodi_id' => $prodi->id,
             'code' => 'TI201',
             'name' => 'Struktur Data',
             'sks' => 3,
             'semester' => 2,
         ]);
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'code' => '20262',
             'name' => '2026/2027 Genap',
             'academic_year' => '2026/2027',
             'term' => 2,
             'is_active' => true,
         ]);
-        $section = \App\Models\ClassSection::create([
+        $section = ClassSection::create([
             'mata_kuliah_id' => $course->id,
             'semester_id' => $semester->id,
             'dosen_id' => $this->lecturer->id,
@@ -243,7 +251,7 @@ class LecturerProfileSettingsTest extends TestCase
             'capacity' => 40,
         ]);
 
-        $assessment = \App\Models\Assessment::create([
+        $assessment = Assessment::create([
             'class_section_id' => $section->id,
             'code' => 'TUGAS-2',
             'name' => 'Tugas 2',
@@ -261,7 +269,7 @@ class LecturerProfileSettingsTest extends TestCase
             'role_id' => $studentRole->id,
         ]);
 
-        $submission = \App\Models\Submission::create([
+        $submission = Submission::create([
             'assessment_id' => $assessment->id,
             'user_id' => $student->id,
             'mahasiswa_id' => $student->id,
@@ -271,7 +279,7 @@ class LecturerProfileSettingsTest extends TestCase
             'answer' => 'Jawaban mahasiswa.',
         ]);
 
-        $service = app(\App\Services\DatabaseNotificationService::class);
+        $service = app(DatabaseNotificationService::class);
 
         // By default (no preferences or notif_submission: true), submission notification is visible
         $this->lecturer->forceFill(['notification_preferences' => null])->save();

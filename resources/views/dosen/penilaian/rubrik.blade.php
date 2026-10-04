@@ -102,7 +102,7 @@
     </div>
 </template>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     let criterionIndex = 0;
 
     function addCriterion(data = null) {

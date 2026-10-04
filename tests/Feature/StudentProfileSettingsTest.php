@@ -2,10 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Semester;
+use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -200,18 +208,18 @@ class StudentProfileSettingsTest extends TestCase
 
     public function test_student_profile_displays_active_semester_and_enrolled_classes_from_database(): void
     {
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'code' => '2026-GANJIL',
             'name' => 'Ganjil 2026/2027',
             'is_active' => true,
         ]);
 
-        $prodi = \App\Models\Prodi::create([
+        $prodi = Prodi::create([
             'code' => 'IF',
             'name' => 'Informatika',
         ]);
 
-        $mataKuliah = \App\Models\MataKuliah::create([
+        $mataKuliah = MataKuliah::create([
             'prodi_id' => $prodi->id,
             'code' => 'IF101',
             'name' => 'Pemrograman Dasar',
@@ -226,7 +234,7 @@ class StudentProfileSettingsTest extends TestCase
             'role_id' => $dosenRole->id,
         ]);
 
-        $section1 = \App\Models\ClassSection::create([
+        $section1 = ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,
             'dosen_id' => $dosen->id,
@@ -234,7 +242,7 @@ class StudentProfileSettingsTest extends TestCase
             'capacity' => 30,
         ]);
 
-        $section2 = \App\Models\ClassSection::create([
+        $section2 = ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,
             'dosen_id' => $dosen->id,
@@ -254,7 +262,7 @@ class StudentProfileSettingsTest extends TestCase
 
     public function test_support_admin_email_is_placed_in_sidebar_and_not_in_profile_content(): void
     {
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
+        SystemSetting::updateOrCreate(['key' => 'support'], ['value' => 'admin.support@univ.ac.id']);
 
         $response = $this->actingAs($this->student)
             ->get(route('mahasiswa.profile.index'));
@@ -271,32 +279,32 @@ class StudentProfileSettingsTest extends TestCase
 
     public function test_notification_preferences_filter_notifications_returned_by_service(): void
     {
-        $prodi = \App\Models\Prodi::create([
+        $prodi = Prodi::create([
             'code' => 'TI',
             'name' => 'Teknik Informatika',
             'slug' => 'teknik-informatika',
         ]);
-        $course = \App\Models\MataKuliah::create([
+        $course = MataKuliah::create([
             'prodi_id' => $prodi->id,
             'code' => 'TI101',
             'name' => 'Dasar Pemrograman',
             'sks' => 3,
             'semester' => 1,
         ]);
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'code' => '20261',
             'name' => '2026/2027 Ganjil',
             'academic_year' => '2026/2027',
             'term' => 1,
             'is_active' => true,
         ]);
-        $section = \App\Models\ClassSection::create([
+        $section = ClassSection::create([
             'mata_kuliah_id' => $course->id,
             'semester_id' => $semester->id,
             'section_code' => 'A',
             'capacity' => 40,
         ]);
-        \Illuminate\Support\Facades\DB::table('class_section_student')->insert([
+        DB::table('class_section_student')->insert([
             'class_section_id' => $section->id,
             'mahasiswa_id' => $this->student->id,
             'status' => 'enrolled',
@@ -304,7 +312,7 @@ class StudentProfileSettingsTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $assessment = \App\Models\Assessment::create([
+        $assessment = Assessment::create([
             'class_section_id' => $section->id,
             'code' => 'TUGAS-1',
             'name' => 'Tugas 1',
@@ -314,7 +322,7 @@ class StudentProfileSettingsTest extends TestCase
             'due_at' => now()->addDays(2),
         ]);
 
-        $service = app(\App\Services\DatabaseNotificationService::class);
+        $service = app(DatabaseNotificationService::class);
 
         // By default (no preferences or all true), pending notification is visible
         $this->student->forceFill(['notification_preferences' => null])->save();

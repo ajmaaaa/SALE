@@ -20,7 +20,9 @@ class TimedQuizTimeoutLoopTest extends TestCase
     use RefreshDatabase;
 
     private User $student;
+
     private User $dosen;
+
     private ClassSection $section;
 
     protected function setUp(): void

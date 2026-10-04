@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
-use App\Models\Message;
 use App\Models\MataKuliah;
+use App\Models\Message;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
@@ -174,7 +174,7 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_dosen_course_page_offers_both_join_code_and_course_creation(): void
+    public function test_dosen_can_join_a_course_but_cannot_create_academic_master_data(): void
     {
         $this->seed(RoleSeeder::class);
         $dosen = User::create([
@@ -193,19 +193,17 @@ class DosenCourseEnrollmentIntegrationTest extends TestCase
             ->assertSee('kode acak 8 karakter')
             ->assertDontSee('Tambah course');
 
-        $this->get(route('dosen.course.create'))->assertOk();
+        $this->get('/dosen/course/create')->assertNotFound();
 
-        $postResponse = $this->post(route('dosen.course.store'), [
+        $this->post('/dosen/course', [
             'code' => 'IF999',
             'title' => 'Kecerdasan Buatan',
             'description' => 'Deskripsi mata kuliah kecerdasan buatan',
             'lecturer' => 'Dosen Tanpa Kelas',
-        ]);
+        ])->assertStatus(405);
 
         $section = ClassSection::whereHas('mataKuliah', fn ($q) => $q->where('code', 'IF999'))->first();
-        $this->assertNotNull($section);
-        $this->assertSame($dosen->id, $section->dosen_id);
-        $postResponse->assertRedirect(route('dosen.course.show', $section->id));
+        $this->assertNull($section);
     }
 
     public function test_enrollment_code_is_random_unique_and_uses_the_documented_format(): void

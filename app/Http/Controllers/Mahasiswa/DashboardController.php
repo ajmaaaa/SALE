@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\AssessmentAttempt;
 use App\Models\StudentAssessmentScore;
-use App\Models\User;
+use App\Models\Submission;
 use App\Services\DatabaseNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,19 +47,19 @@ class DashboardController extends Controller
                         ->toArray();
                 }
 
-                $submittedIds = \App\Models\Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
+                $submittedIds = Submission::where(fn ($q) => $q->where('mahasiswa_id', $user->id)->orWhere('user_id', $user->id))
                     ->whereIn('assessment_id', $assessments->pluck('id'))
                     ->pluck('assessment_id')
                     ->map(fn ($id) => (int) $id)
                     ->all();
 
                 if (Schema::hasTable('assessment_attempts')) {
-                    $attemptIds = \App\Models\AssessmentAttempt::where('mahasiswa_id', $user->id)
+                    $attemptIds = AssessmentAttempt::where('mahasiswa_id', $user->id)
                         ->whereIn('assessment_id', $assessments->pluck('id'))
                         ->where(function ($q) {
-                            $q->whereIn('status', [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED])
+                            $q->whereIn('status', [AssessmentAttempt::STATUS_SUBMITTED, AssessmentAttempt::STATUS_REJECTED])
                                 ->orWhere(function ($sub) {
-                                    $sub->where('status', \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS)
+                                    $sub->where('status', AssessmentAttempt::STATUS_IN_PROGRESS)
                                         ->whereNotNull('deadline_at')
                                         ->where('deadline_at', '<', now());
                                 });
@@ -130,15 +131,36 @@ class DashboardController extends Controller
                     'svg_index' => ($sec->id % 4) + 1,
                     '_priority' => $priorityLevel,
                     '_sort_key' => $sortKey,
+                    'uncompleted_task' => $nearestUpcomingTask ? [
+                        'id' => $nearestUpcomingTask->id,
+                        'title' => $nearestUpcomingTask->name,
+                        'type' => match ($nearestUpcomingTask->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nearestUpcomingTask->type,
+                        },
+                        'due' => $nearestUpcomingTask->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nearestUpcomingTask->due_at,
+                    ] : null,
+                    'next_task' => $nearestUpcomingTask ? [
+                        'id' => $nearestUpcomingTask->id,
+                        'title' => $nearestUpcomingTask->name,
+                        'type' => match ($nearestUpcomingTask->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nearestUpcomingTask->type,
+                        },
+                        'due' => $nearestUpcomingTask->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nearestUpcomingTask->due_at,
+                    ] : null,
                 ];
             })
-            ->sort(function ($a, $b) {
-                if ($a['_priority'] !== $b['_priority']) {
-                    return $a['_priority'] <=> $b['_priority'];
-                }
-                return $a['_sort_key'] <=> $b['_sort_key'];
-            })
-            ->values();
+                ->sort(function ($a, $b) {
+                    if ($a['_priority'] !== $b['_priority']) {
+                        return $a['_priority'] <=> $b['_priority'];
+                    }
+
+                    return $a['_sort_key'] <=> $b['_sort_key'];
+                })
+                ->values();
         } else {
             $courses = collect();
         }

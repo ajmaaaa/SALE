@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title }}: {{ $section->mataKuliah->code }} ({{ $section->section_code }}) - {{ $section->mataKuliah->name }} | UMRAH</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
     @php
         $logoBase64 = \App\Models\SystemSetting::logoBase64();
 
@@ -14,9 +19,7 @@
             'SK' => ['name' => 'Ir. Hendra Pratama, M.T.', 'nip' => '197911042005011001'],
         ];
 
-        $dosenKaprodi = \App\Models\User::where('prodi_id', $prodi?->id)
-            ->whereHas('role', fn ($q) => $q->where('name', \App\Models\Role::DOSEN))
-            ->first();
+        $dosenKaprodi = $dosenKaprodi ?? null;
 
         $kaprodiDefault = $kaprodiMap[$prodi?->code] ?? null;
         $kaprodiName = $kaprodiDefault['name'] ?? ($dosenKaprodi?->name ?? 'Dr. H. Kaprodi, M.T.');
@@ -574,7 +577,7 @@
         </div><!-- #paper -->
     </div><!-- #paper-wrap -->
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         const paperSizes = {
             a4_land:     { width: '297mm', height: '210mm', padding: '15mm 15mm 20mm 20mm' },
             f4_land:     { width: '330mm', height: '215mm', padding: '15mm 15mm 20mm 20mm' },

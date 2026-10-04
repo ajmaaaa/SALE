@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Assessment;
+use App\Models\ChatNotification;
 use App\Models\ClassEnrollmentAppeal;
 use App\Models\ClassSection;
-use App\Models\ChatNotification;
 use App\Models\Message;
 use App\Models\MessageMention;
 use App\Models\Role;
@@ -15,16 +15,34 @@ use App\Models\Submission;
 use App\Models\User;
 use App\Models\UserNotificationState;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class DatabaseNotificationService
 {
+    public function clearMemoization(): void
+    {
+        if (app()->bound('request')) {
+            $request = request();
+            foreach ($request->attributes->keys() as $key) {
+                if (is_string($key) && str_starts_with($key, '_notif_memo_')) {
+                    $request->attributes->remove($key);
+                }
+            }
+        }
+    }
+
     public function forUser(User $user, ?string $workspaceRole = null): array
     {
         $workspaceRole ??= request()->is('dosen*') ? Role::DOSEN : ((request()->is('admin*') || request()->is('admin-prodi*')) ? Role::ADMIN_PRODI : Role::MAHASISWA);
+        $request = app()->bound('request') ? request() : null;
+        $prefHash = md5(json_encode($user->notification_preferences ?? ''));
+        $memoKey = "_notif_memo_{$user->id}_{$workspaceRole}_{$prefHash}";
+        if ($request && $request->attributes->has($memoKey)) {
+            return $request->attributes->get($memoKey);
+        }
+
         if ($workspaceRole === Role::DOSEN && $user->hasRole(Role::DOSEN)) {
             $notifications = $this->lecturerNotifications($user);
         } elseif (($workspaceRole === Role::ADMIN_PRODI || $workspaceRole === Role::ADMIN) && ($user->hasRole(Role::ADMIN_PRODI) || $user->hasRole(Role::ADMIN))) {
@@ -35,7 +53,7 @@ class DatabaseNotificationService
 
         $discussSectionKeys = collect($notifications)
             ->where('category', 'diskusi')
-            ->map(fn ($n) => 'discuss_section_' . ($n['class_section_id'] ?? 0))
+            ->map(fn ($n) => 'discuss_section_'.($n['class_section_id'] ?? 0))
             ->unique()
             ->all();
 
@@ -50,7 +68,7 @@ class DatabaseNotificationService
         $notifications = array_values(array_filter(array_map(function (array $notification) use ($states) {
             $state = $states->get($notification['id']);
             $secState = ($notification['category'] ?? '') === 'diskusi'
-                ? $states->get('discuss_section_' . ($notification['class_section_id'] ?? 0))
+                ? $states->get('discuss_section_'.($notification['class_section_id'] ?? 0))
                 : null;
 
             $eventAt = Carbon::createFromTimestamp((int) $notification['timestamp']);
@@ -78,7 +96,13 @@ class DatabaseNotificationService
 
         usort($notifications, fn (array $a, array $b) => $b['timestamp'] <=> $a['timestamp']);
 
-        return $this->filterByPreferences($notifications, $user, $workspaceRole);
+        $result = $this->filterByPreferences($notifications, $user, $workspaceRole);
+
+        if ($request) {
+            $request->attributes->set($memoKey, $result);
+        }
+
+        return $result;
     }
 
     public function unreadCount(User $user, ?string $workspaceRole = null): int
@@ -112,6 +136,7 @@ class DatabaseNotificationService
 
     public function markRead(User $user, array $keys): void
     {
+        $this->clearMemoization();
         $keys = array_filter(array_map('strval', $keys));
         foreach ($keys as $key) {
             UserNotificationState::updateOrCreate(
@@ -132,6 +157,7 @@ class DatabaseNotificationService
 
     public function markDiscussionRead(User $user, int $sectionId): void
     {
+        $this->clearMemoization();
         $keys = collect($this->forUser($user))
             ->where('category', 'diskusi')
             ->filter(fn (array $notification) => (int) ($notification['class_section_id'] ?? 0) === $sectionId)
@@ -146,6 +172,7 @@ class DatabaseNotificationService
 
     public function delete(User $user, array $keys): void
     {
+        $this->clearMemoization();
         $valid = collect($this->forUser($user))->pluck('id')->intersect($keys);
         foreach ($valid as $key) {
             UserNotificationState::updateOrCreate(
@@ -199,6 +226,15 @@ class DatabaseNotificationService
             ->unique('assessment_id')
             ->keyBy('assessment_id');
 
+        $sectionIds = $sections->pluck('id');
+        $roomsBySectionId = collect();
+        if ($sectionIds->isNotEmpty() && Schema::hasTable('rooms')) {
+            $roomsBySectionId = Room::whereIn('class_section_id', $sectionIds)
+                ->orWhereIn('course_id', $sectionIds)
+                ->get()
+                ->keyBy(fn ($r) => $r->class_section_id ?: $r->course_id);
+        }
+
         $notifications = [];
         foreach ($sections as $section) {
             foreach ($section->assessments as $assessment) {
@@ -209,7 +245,7 @@ class DatabaseNotificationService
                 $isCoding = ($type === 'coding')
                     || (($payload['task_mode'] ?? null) === 'coding')
                     || (($payload['question_type'] ?? null) === 'coding')
-                    || !empty($payload['coding_steps']);
+                    || ! empty($payload['coding_steps']);
                 $isCodingMaterial = ($type === 'materi') && (($payload['material_mode'] ?? null) === 'coding');
 
                 $target = route('mahasiswa.course.item', [$section->id, $assessment->id], false);
@@ -333,7 +369,7 @@ class DatabaseNotificationService
                     }
                 }
             }
-            $this->appendDiscussionNotification($notifications, $user, $section);
+            $this->appendDiscussionNotification($notifications, $user, $section, $roomsBySectionId->get($section->id));
         }
 
         // PRD-CLASS-LIFECYCLE-MANAGEMENT §7: Dosen Kick Mahasiswa
@@ -432,6 +468,13 @@ class DatabaseNotificationService
             ->with(['mataKuliah', 'assessments' => fn ($query) => $query->where('status', Assessment::STATUS_PUBLISHED)])
             ->get();
         $sectionIds = $sections->pluck('id');
+        $roomsBySectionId = collect();
+        if ($sectionIds->isNotEmpty() && Schema::hasTable('rooms')) {
+            $roomsBySectionId = Room::whereIn('class_section_id', $sectionIds)
+                ->orWhereIn('course_id', $sectionIds)
+                ->get()
+                ->keyBy(fn ($r) => $r->class_section_id ?: $r->course_id);
+        }
         $submissions = Submission::query()
             ->whereHas('assessment', fn ($query) => $query->whereIn('class_section_id', $sectionIds))
             ->with(['assessment', 'mahasiswa', 'user'])
@@ -469,7 +512,7 @@ class DatabaseNotificationService
                 $isCoding = ($type === 'coding')
                     || (($payload['task_mode'] ?? null) === 'coding')
                     || (($payload['question_type'] ?? null) === 'coding')
-                    || !empty($payload['coding_steps']);
+                    || ! empty($payload['coding_steps']);
                 $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
 
                 $title = $isQuiz
@@ -492,7 +535,7 @@ class DatabaseNotificationService
                     $section->id
                 );
             }
-            $this->appendDiscussionNotification($notifications, $user, $section);
+            $this->appendDiscussionNotification($notifications, $user, $section, $roomsBySectionId->get($section->id));
         }
 
         // PRD-CLASS-LIFECYCLE-MANAGEMENT §7: Mahasiswa Re-join pasca Kick 1
@@ -570,7 +613,7 @@ class DatabaseNotificationService
         return $notifications;
     }
 
-    public function discussionStatsForSection(User $user, int $sectionId): array
+    public function discussionStatsForSection(User $user, int $sectionId, mixed $room = false): array
     {
         if (! Schema::hasTable('rooms') || ! Schema::hasTable('messages')) {
             return [
@@ -581,9 +624,11 @@ class DatabaseNotificationService
             ];
         }
 
-        $room = Room::where('class_section_id', $sectionId)
-            ->orWhere('course_id', $sectionId)
-            ->first();
+        if ($room === false) {
+            $room = Room::where('class_section_id', $sectionId)
+                ->orWhere('course_id', $sectionId)
+                ->first();
+        }
 
         if (! $room) {
             return [
@@ -617,7 +662,7 @@ class DatabaseNotificationService
                 ->where('user_id', $user->id)
                 ->where(function ($q) use ($sectionId) {
                     $q->where('notification_key', "discuss_section_{$sectionId}")
-                      ->orWhere('notification_key', 'like', "discuss_{$sectionId}_message_%");
+                        ->orWhere('notification_key', 'like', "discuss_{$sectionId}_message_%");
                 })
                 ->get();
 
@@ -692,9 +737,13 @@ class DatabaseNotificationService
         ];
     }
 
-    private function appendDiscussionNotification(array &$notifications, User $user, ClassSection $section): void
+    private function appendDiscussionNotification(array &$notifications, User $user, ClassSection $section, mixed $room = false): void
     {
-        $stats = $this->discussionStatsForSection($user, $section->id);
+        if ($section->isArchived() || $room === null) {
+            return;
+        }
+
+        $stats = $this->discussionStatsForSection($user, $section->id, $room);
         $message = $stats['latest_message'];
 
         if (! $message) {
@@ -806,7 +855,7 @@ class DatabaseNotificationService
             if ($category === 'diskusi' && isset($prefs['forum']) && ! $prefs['forum']) {
                 return false;
             }
-            if (str_starts_with($id, 'deadline_') && isset($prefs['deadline']) && ! $prefs['deadline']) {
+            if ((str_starts_with($id, 'deadline_') || str_starts_with($id, 'pending_')) && isset($prefs['deadline']) && ! $prefs['deadline']) {
                 return false;
             }
 

@@ -38,26 +38,6 @@ class AiTutorController extends Controller
         abort_if(RateLimiter::tooManyAttempts($key, 5), 429, 'Terlalu banyak percobaan masuk. Tunggu satu menit.');
         RateLimiter::hit($key, 60);
 
-        $isDemoMode = (bool) (config('app.demo_mode') || app()->environment(['local', 'testing']));
-        if ($isDemoMode && Schema::hasTable('users') && $credentials['email'] === 'demo.ai@sale.test' && $credentials['password'] === 'password123456') {
-            $user = User::firstOrCreate(
-                ['email' => 'demo.ai@sale.test'],
-                ['name' => 'Mahasiswa Demo AI', 'password' => 'password123456']
-            );
-            if ($assignment && Schema::hasTable('ai_tasks')) {
-                DB::table('ai_tasks')->updateOrInsert(
-                    ['id' => $assignmentId],
-                    ['title' => $assignment['title'], 'body' => $assignment['body'], 'enabled' => true]
-                );
-            }
-            if ($assignment && Schema::hasTable('ai_access')) {
-                DB::table('ai_access')->insertOrIgnore([
-                    'user_id' => $user->id,
-                    'task_id' => $assignmentId,
-                ]);
-            }
-        }
-
         if (! Auth::attempt($credentials)) {
             return redirect($destination)->withErrors(['ai' => 'Email atau password akun AI tidak sesuai.']);
         }

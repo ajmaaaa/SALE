@@ -25,7 +25,9 @@ use Illuminate\Support\Facades\DB;
 class ClassEnrollmentService
 {
     public const STATUS_ENROLLED = 'enrolled';
+
     public const STATUS_DROPPED_SELF = 'dropped_self';
+
     public const STATUS_KICKED = 'kicked';
 
     /** Setelah dikeluarkan sebanyak ini, mahasiswa tidak dapat bergabung lagi via kode. */

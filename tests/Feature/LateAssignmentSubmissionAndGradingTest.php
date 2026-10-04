@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Assessment;
 use App\Models\Attachment;
 use App\Models\ClassSection;
+use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
@@ -263,7 +264,7 @@ class LateAssignmentSubmissionAndGradingTest extends TestCase
         ]);
         $section->students()->attach($student->id);
 
-        $cpmk = \App\Models\Cpmk::create([
+        $cpmk = Cpmk::create([
             'mata_kuliah_id' => $matkul->id,
             'code' => 'CPMK-1',
             'description' => 'Mampu mendesain skema relasional',

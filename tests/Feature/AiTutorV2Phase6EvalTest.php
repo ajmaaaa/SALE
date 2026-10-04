@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\AiMessage;
 use App\Models\AiThread;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\Ai\AiErrorCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +27,11 @@ class AiTutorV2Phase6EvalTest extends TestCase
             'ai.context' => true,
             'ai.threads' => true,
             'ai.key' => 'fake-test-key',
-            'ai.eval_token' => 'sale-eval-secret-token',
+            'ai.eval_token' => 'sale-eval-secret-token-32-chars-long-evaluation-key',
         ]);
+
+        $adminRole = Role::create(['name' => Role::ADMIN, 'label' => 'System Admin']);
+        $this->actingAs(User::factory()->create(['role_id' => $adminRole->id]));
     }
 
     public function test_internal_ai_eval_endpoint_is_disabled_in_production_environment(): void
@@ -36,7 +41,7 @@ class AiTutorV2Phase6EvalTest extends TestCase
         $response = $this->postJson('/internal/ai-eval', [
             'question' => 'apa itu BST?',
         ], [
-            'X-Eval-Token' => 'sale-eval-secret-token',
+            'X-Eval-Token' => 'sale-eval-secret-token-32-chars-long-evaluation-key',
         ]);
 
         $response->assertStatus(404);
@@ -97,7 +102,7 @@ class AiTutorV2Phase6EvalTest extends TestCase
             'code' => '',
             'console_output' => '',
         ], [
-            'X-Eval-Token' => 'sale-eval-secret-token',
+            'X-Eval-Token' => 'sale-eval-secret-token-32-chars-long-evaluation-key',
         ]);
 
         $response->assertStatus(200);
@@ -190,7 +195,7 @@ class AiTutorV2Phase6EvalTest extends TestCase
         $response = $this->postJson('/internal/ai-eval', [
             'question' => 'berikan kode node',
         ], [
-            'X-Eval-Token' => 'sale-eval-secret-token',
+            'X-Eval-Token' => 'sale-eval-secret-token-32-chars-long-evaluation-key',
         ]);
 
         $response->assertStatus(200);
@@ -232,7 +237,7 @@ class AiTutorV2Phase6EvalTest extends TestCase
         $response = $this->postJson('/internal/ai-eval', [
             'question' => 'resep rendang padang',
         ], [
-            'X-Eval-Token' => 'sale-eval-secret-token',
+            'X-Eval-Token' => 'sale-eval-secret-token-32-chars-long-evaluation-key',
         ]);
 
         $response->assertStatus(200);

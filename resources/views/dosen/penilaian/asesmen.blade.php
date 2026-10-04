@@ -40,14 +40,12 @@
                 </thead>
                 <tbody class="divide-y divide-line/40">
                     @php
-                        $totalStudents = $section->students()->count();
-                        $obeService = $obe ?? app(\App\Services\ObeCalculationService::class);
+                        $totalStudents = $section->students_count ?? 0;
+                        $obeService = $obe;
                     @endphp
                     @foreach($assessments as $assessment)
                         @php
-                            $gradedCount = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
-                                ->whereNotNull('score')
-                                ->count();
+                            $gradedCount = $assessment->graded_count ?? 0;
                         @endphp
                         <tr class="hover:bg-canvas/30 transition-colors">
                             <td class="py-3 px-4 font-mono text-xs text-muted">{{ $assessment->code }}</td>

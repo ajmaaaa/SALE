@@ -78,7 +78,7 @@
     @include('learning.partials.join-class-dialog', ['joinAsDosen' => request()->is('dosen*')])
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('course-search');
         const container = document.getElementById('course-list-container');

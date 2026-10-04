@@ -81,6 +81,15 @@ class AuthController extends Controller
             'password' => 'required|string|max:1024',
         ]);
         $loginId = trim($credentials['login_id']);
+        $normalizedLoginId = mb_strtolower($loginId);
+        $ipAddress = (string) $request->ip();
+        $identifierKey = 'login:attempt:'.hash('sha256', $normalizedLoginId.'|'.$ipAddress);
+        $ipKey = 'login:ip:'.hash('sha256', $ipAddress);
+
+        if (RateLimiter::tooManyAttempts($identifierKey, 5) || RateLimiter::tooManyAttempts($ipKey, 20)) {
+            return $this->invalidLoginResponse();
+        }
+
         $user = User::with('role')
             ->where(function ($query) use ($loginId) {
                 $query->whereRaw('LOWER(email) = ?', [mb_strtolower($loginId)])
@@ -88,56 +97,20 @@ class AuthController extends Controller
             })
             ->first();
 
-        if (! $user) {
-            $msg = 'Email atau NIM / NIDN tidak terdaftar.';
-            return back()
-                ->withErrors(['login_id' => $msg, 'password' => $msg])
-                ->onlyInput('login_id');
+        // Perform a password hash check for unknown users as well so the
+        // response does not reveal account existence through timing.
+        static $dummyHash;
+        $passwordHash = $user?->password ?? ($dummyHash ??= Hash::make('sale-invalid-login-placeholder'));
+        $passwordMatches = Hash::check($credentials['password'], $passwordHash);
+
+        if (! $user || ! $user->is_active || ! $passwordMatches) {
+            RateLimiter::hit($identifierKey, 60);
+            RateLimiter::hit($ipKey, 60);
+
+            return $this->invalidLoginResponse();
         }
 
-        if ($user->is_active === false) {
-            $msg = 'Akun Anda dinonaktifkan. Silakan hubungi admin.';
-            return back()
-                ->withErrors(['login_id' => $msg, 'password' => $msg])
-                ->onlyInput('login_id');
-        }
-
-        // Kunci akun selama 5 jam (18.000 detik) jika salah kata sandi lebih dari 5 kali
-        $throttleKey = 'login:password_failures:user:'.$user->id;
-        $maxAttempts = 5;
-        $lockoutSeconds = 5 * 3600; // 5 jam = 18.000 detik
-
-        if (RateLimiter::tooManyAttempts($throttleKey, $maxAttempts)) {
-            $secondsRemaining = RateLimiter::availableIn($throttleKey);
-            $hours = ceil($secondsRemaining / 3600);
-            $timeText = $hours > 1 ? "{$hours} jam lagi" : ($secondsRemaining > 60 ? ceil($secondsRemaining / 60) . ' menit lagi' : 'beberapa saat lagi');
-            $msg = "Terlalu banyak percobaan kata sandi yang salah (lebih dari 5 kali). Akun Anda terkunci sementara dan dapat dicoba lagi {$timeText}. Silakan hubungi admin prodi untuk kendala password bermasalah.";
-
-            return back()
-                ->withErrors(['login_id' => $msg, 'password' => $msg])
-                ->onlyInput('login_id');
-        }
-
-        if (! Hash::check($credentials['password'], $user->password)) {
-            RateLimiter::hit($throttleKey, $lockoutSeconds);
-            $attempts = RateLimiter::attempts($throttleKey);
-
-            if ($attempts >= $maxAttempts) {
-                $secondsRemaining = RateLimiter::availableIn($throttleKey);
-                $hours = ceil($secondsRemaining / 3600);
-                $timeText = $hours > 1 ? "{$hours} jam lagi" : ($secondsRemaining > 60 ? ceil($secondsRemaining / 60) . ' menit lagi' : 'beberapa saat lagi');
-                $msg = "Terlalu banyak percobaan kata sandi yang salah (lebih dari 5 kali). Akun Anda terkunci sementara dan dapat dicoba lagi {$timeText}. Silakan hubungi admin prodi untuk kendala password bermasalah.";
-            } else {
-                $remaining = $maxAttempts - $attempts;
-                $msg = "Kata sandi yang Anda masukkan salah. Sisa {$remaining} kali percobaan sebelum akun dibatasi selama 5 jam.";
-            }
-
-            return back()
-                ->withErrors(['login_id' => $msg, 'password' => $msg])
-                ->onlyInput('login_id');
-        }
-
-        RateLimiter::clear($throttleKey);
+        RateLimiter::clear($identifierKey);
 
         $role = $user->role?->name;
         abort_unless(in_array($role, ['mahasiswa', 'dosen', 'admin_prodi', 'admin'], true), 403, 'Akun belum memiliki peran yang didukung.');
@@ -147,6 +120,15 @@ class AuthController extends Controller
         }
 
         return $this->authenticateUser($request, $user, "Selamat datang kembali, {$user->name}!");
+    }
+
+    private function invalidLoginResponse()
+    {
+        $message = 'Email/NIM/NIDN atau kata sandi tidak sesuai. Silakan coba lagi beberapa saat kemudian.';
+
+        return back()
+            ->withErrors(['login_id' => $message, 'password' => $message])
+            ->onlyInput('login_id');
     }
 
     private function authenticateUser(Request $request, User $user, string $message)

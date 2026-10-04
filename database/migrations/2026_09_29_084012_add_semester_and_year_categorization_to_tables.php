@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -21,7 +22,7 @@ return new class extends Migration
         });
 
         // Backfill existing semesters data
-        $semesters = \Illuminate\Support\Facades\DB::table('semesters')->get();
+        $semesters = DB::table('semesters')->get();
         foreach ($semesters as $sem) {
             $term = null;
             $academicYear = null;
@@ -42,10 +43,10 @@ return new class extends Migration
                 $academicYear = $matches[1];
             } elseif (preg_match('/^(\d{4})/', (string) $sem->code, $matches)) {
                 $y = (int) $matches[1];
-                $academicYear = $y . '/' . ($y + 1);
+                $academicYear = $y.'/'.($y + 1);
             }
 
-            \Illuminate\Support\Facades\DB::table('semesters')
+            DB::table('semesters')
                 ->where('id', $sem->id)
                 ->update([
                     'term' => $term,

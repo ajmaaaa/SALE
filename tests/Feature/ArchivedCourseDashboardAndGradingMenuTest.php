@@ -18,10 +18,15 @@ class ArchivedCourseDashboardAndGradingMenuTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $mahasiswa;
+
     private Prodi $prodi;
+
     private Semester $semester;
+
     private ClassSection $activeSection;
+
     private ClassSection $archivedSection;
 
     protected function setUp(): void

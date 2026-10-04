@@ -12,7 +12,9 @@ use App\Models\User;
 class AdminPreview
 {
     public const FACULTY_ID = 1;
+
     public const PRODI_OFFSET = 1_000_000;
+
     public const SEMESTER_OFFSET = 2_000_000;
 
     public static function users(): array
@@ -22,6 +24,7 @@ class AdminPreview
                 $roles = $user->roles->pluck('name')->whenEmpty(fn ($collection) => $collection->push($user->role?->name ?? 'mahasiswa'))->unique()->values()->all();
                 $role = $user->role?->name ?? $roles[0];
                 $prodiName = $user->managingProdi?->name ?? ($user->prodi?->name ?? null);
+
                 return [$user->id => [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -86,12 +89,16 @@ class AdminPreview
                 'status' => $semester->is_active ? 'aktif' : 'nonaktif',
             ];
         }
+
         return $records;
     }
 
     public static function settings(): array
     {
-        return SystemSetting::query()->pluck('value', 'key')->all();
+        return SystemSetting::query()->get(['key', 'value'])
+            ->mapWithKeys(fn (SystemSetting $setting) => [
+                $setting->key => SystemSetting::decodeValue($setting->key, $setting->getRawOriginal('value')),
+            ])->all();
     }
 
     public static function logs(): array

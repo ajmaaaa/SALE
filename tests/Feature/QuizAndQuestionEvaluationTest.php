@@ -5,9 +5,10 @@ namespace Tests\Feature;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
-use App\Models\Course;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
+use App\Models\Role;
+use App\Models\Semester;
 use App\Models\User;
 use App\Support\QuizQuestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -97,7 +98,7 @@ class QuizAndQuestionEvaluationTest extends TestCase
             'sks' => 3,
             'semester' => 1,
         ]);
-        $lecturerRole = \App\Models\Role::firstOrCreate(['name' => \App\Models\Role::DOSEN], ['label' => 'Dosen']);
+        $lecturerRole = Role::firstOrCreate(['name' => Role::DOSEN], ['label' => 'Dosen']);
         $dosen = User::create([
             'name' => 'Dosen Uji',
             'email' => 'dosen-uji@test.local',
@@ -106,7 +107,7 @@ class QuizAndQuestionEvaluationTest extends TestCase
             'nim_nidn' => 'D001',
         ]);
 
-        $semester = \App\Models\Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
+        $semester = Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
         $section = ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,
@@ -149,7 +150,7 @@ class QuizAndQuestionEvaluationTest extends TestCase
             'sks' => 3,
             'semester' => 2,
         ]);
-        $lecturerRole = \App\Models\Role::firstOrCreate(['name' => \App\Models\Role::DOSEN], ['label' => 'Dosen']);
+        $lecturerRole = Role::firstOrCreate(['name' => Role::DOSEN], ['label' => 'Dosen']);
         $dosen = User::create([
             'name' => 'Dosen Basis Data',
             'email' => 'dosen-bd@test.local',
@@ -157,7 +158,7 @@ class QuizAndQuestionEvaluationTest extends TestCase
             'role_id' => $lecturerRole->id,
             'nim_nidn' => 'D002',
         ]);
-        $semester = \App\Models\Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
+        $semester = Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
         $section = ClassSection::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'semester_id' => $semester->id,

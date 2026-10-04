@@ -7,6 +7,12 @@
     <meta name="theme-color" content="#102f50">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Masuk | SALE - Smart Academic Learning Ecosystem</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v=4">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         /* Mencegah icon mata ganda dari native browser (Microsoft Edge & WebKit) */
@@ -52,11 +58,13 @@
         </svg>
     </div>
 
-    {{-- Header Top Bar: SALE & Portal Akademik di Kiri Atas Layar --}}
-    <header class="w-full flex items-baseline justify-between z-20 mb-3 sm:mb-0">
-        <a href="{{ route('login') }}" class="flex items-baseline gap-2.5 focus:outline-none" aria-label="SALE, halaman masuk">
-            <span class="text-2xl font-bold tracking-tight text-white">SALE</span>
-            <span class="text-xs sm:text-sm text-[#b9cedf] font-medium">Portal Akademik</span>
+    {{-- Header Top Bar: Brand di Kiri Atas Layar --}}
+    <header class="w-full flex items-start justify-between z-20 mb-3 sm:mb-0">
+        <a href="{{ route('login') }}" class="flex items-center gap-2.5 focus:outline-none group" aria-label="Smart Academic Learning Ecosystem, halaman masuk">
+            <img src="{{ asset('icon/white_icon.svg') }}" alt="Logo SALE" class="h-9 w-9 shrink-0 object-contain">
+            <span class="text-xs font-bold leading-tight text-white max-w-[170px]">
+                Smart Academic Learning Ecosystem
+            </span>
         </a>
     </header>
 
@@ -141,7 +149,7 @@
         Smart Academic Learning Ecosystem &copy; {{ date('Y') }}
     </footer>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.addEventListener('DOMContentLoaded', function () {
             const toggleBtn = document.getElementById('toggle-password');
             const passwordInput = document.getElementById('password');

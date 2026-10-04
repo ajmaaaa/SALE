@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Tests\TestCase;
 
 class AiTutorV2Phase2AdapterTest extends TestCase
@@ -239,6 +240,85 @@ class AiTutorV2Phase2AdapterTest extends TestCase
         $this->assertDatabaseHas('ai_api_calls', [
             'status' => 'rate_limited',
             'provider' => 'openai',
+        ]);
+    }
+
+    public function test_legacy_pipeline_refunds_provider_rate_limit_without_usage(): void
+    {
+        $user = $this->student();
+        config(['ai.v2' => false]);
+        SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'OpenAI']);
+        SystemSetting::updateOrCreate(['key' => 'ai_model'], ['value' => 'gpt-4o-mini']);
+        SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => 'test-openai-key']);
+
+        Http::fake([
+            'https://api.openai.com/*' => Http::response(['error' => ['message' => 'Rate limit']], 429),
+        ]);
+
+        $this->postJson('/ai/tasks/1', ['question' => 'Pertanyaan'])
+            ->assertStatus(503)
+            ->assertJsonFragment(['message' => 'Provider AI sedang mencapai batas request. Silakan coba lagi nanti.']);
+
+        $used = (int) DB::table('ai_usage')
+            ->where('scope', 'user:'.$user->id)
+            ->where('day', now('UTC')->toDateString())
+            ->value('tokens');
+
+        $this->assertSame(0, $used);
+        $this->assertDatabaseHas('ai_api_calls', [
+            'user_id' => $user->id,
+            'provider' => 'openai',
+            'status' => 'rate_limited',
+            'usage_source' => 'refunded',
+            'total_tokens' => 0,
+        ]);
+    }
+
+    public function test_error_response_with_provider_usage_commits_only_confirmed_tokens(): void
+    {
+        $user = $this->student();
+        SystemSetting::updateOrCreate(['key' => 'ai_provider'], ['value' => 'DeepSeek']);
+        SystemSetting::updateOrCreate(['key' => 'ai_model'], ['value' => 'deepseek-chat']);
+        SystemSetting::updateOrCreate(['key' => 'ai_api_key'], ['value' => 'test-deepseek-key']);
+
+        Http::fake([
+            'https://api.deepseek.com/*' => Http::response([
+                'error' => ['message' => 'Rejected after processing'],
+                'usage' => [
+                    'prompt_tokens' => 12,
+                    'completion_tokens' => 5,
+                    'total_tokens' => 17,
+                ],
+            ], 400),
+        ]);
+
+        try {
+            app(AiTutor::class)->sendProviderRequest(
+                $user->id,
+                'System instructions',
+                ['question' => 'Halo'],
+                100,
+                false,
+                'answer',
+                []
+            );
+            $this->fail('Provider error should abort the request.');
+        } catch (HttpExceptionInterface $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
+        }
+
+        $used = (int) DB::table('ai_usage')
+            ->where('scope', 'user:'.$user->id)
+            ->where('day', now('UTC')->toDateString())
+            ->value('tokens');
+
+        $this->assertSame(17, $used);
+        $this->assertDatabaseHas('ai_api_calls', [
+            'user_id' => $user->id,
+            'provider' => 'deepseek',
+            'status' => 'provider_error',
+            'usage_source' => 'confirmed',
+            'total_tokens' => 17,
         ]);
     }
 

@@ -18,11 +18,17 @@ class DosenAnggotaManagementTest extends TestCase
     use RefreshDatabase;
 
     private User $adminProdi;
+
     private User $dosenKetua;
+
     private User $dosenAnggota1;
+
     private User $dosenAnggota2;
+
     private Prodi $prodi;
+
     private Semester $semester;
+
     private MataKuliah $mataKuliah;
 
     protected function setUp(): void

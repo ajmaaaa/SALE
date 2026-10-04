@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
+use App\Models\Cpmk;
 use App\Models\Submission;
 use Illuminate\Support\Facades\Schema;
 
@@ -59,7 +60,7 @@ class AcademicPreview
         }
 
         if (empty($cpmkList)) {
-            if (Schema::hasTable('cpmks') && ($allCpmks = \App\Models\Cpmk::with('cpls')->orderBy('code')->get())->isNotEmpty()) {
+            if (Schema::hasTable('cpmks') && ($allCpmks = Cpmk::with('cpls')->orderBy('code')->get())->isNotEmpty()) {
                 $cpmkList = [];
                 foreach ($allCpmks as $cm) {
                     $linkedCplCodes = $cm->cpls->pluck('code')->all();
@@ -264,7 +265,7 @@ class AcademicPreview
                 'id' => 1,
                 'prompt' => $itemData['body'] ?? $itemData['title'],
                 'type' => $itemData['question_type'] ?? 'uraian',
-                'cpmk' => (!empty($itemData['cpmk']) && strlen($itemData['cpmk']) <= 15) ? $itemData['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01'),
+                'cpmk' => (! empty($itemData['cpmk']) && strlen($itemData['cpmk']) <= 15) ? $itemData['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01'),
                 'points' => $itemData['points'] ?? 100,
             ]];
         }
@@ -274,7 +275,7 @@ class AcademicPreview
 
         $formattedQuestions = [];
         foreach ($questions as $qIdx => $q) {
-            $cCode = (!empty($q['cpmk']) && strlen($q['cpmk']) <= 15) ? $q['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01');
+            $cCode = (! empty($q['cpmk']) && strlen($q['cpmk']) <= 15) ? $q['cpmk'] : ($academic['cpmk'][0]['code'] ?? 'CPMK-01');
             $groupCount = max(1, (int) ($groupCounts[$cCode] ?? 1));
             $porsiSoal = 100 / $groupCount;
             $bobotCpmk = ($groupCount / $totalQuestions) * 100;
@@ -303,7 +304,7 @@ class AcademicPreview
         ];
         $students = $baseStudents;
         foreach ($extraStudents as $extra) {
-            if (!collect($students)->contains('id', $extra['id'])) {
+            if (! collect($students)->contains('id', $extra['id'])) {
                 $students[] = $extra;
             }
         }
@@ -311,13 +312,13 @@ class AcademicPreview
             $section = ClassSection::find($course);
             if ($section) {
                 $dbStudents = $section->students()->get()->map(fn ($u) => [
-                    'id'     => $u->id,
-                    'name'   => $u->name,
-                    'email'  => $u->email,
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
                     'number' => $u->nim_nidn ?? (string) $u->id,
-                    'role'   => 'mahasiswa',
+                    'role' => 'mahasiswa',
                     'status' => 'aktif',
-                    'roles'  => ['mahasiswa'],
+                    'roles' => ['mahasiswa'],
                 ])->toArray();
                 foreach ($dbStudents as $dbStu) {
                     if (! collect($students)->contains('id', $dbStu['id'])) {
@@ -333,7 +334,7 @@ class AcademicPreview
         foreach ($students as $stu) {
             $stuId = $stu['id'];
             $submission = self::resolveSubmission($item, $stuId);
-            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && !session()->has("learning.submissions.{$item}.{$stuId}")) {
+            if ($submission && isset($submission['student_number']) && $submission['student_number'] !== $stu['number'] && ! session()->has("learning.submissions.{$item}.{$stuId}")) {
                 $submission = null;
             }
 
@@ -341,7 +342,7 @@ class AcademicPreview
 
             $stuQuestions = [];
             $pendingEssaysCount = 0;
-            $hasSubmitted = !empty($submission);
+            $hasSubmitted = ! empty($submission);
 
             foreach ($formattedQuestions as $qIdx => $q) {
                 $ans = $submission['question_answers'][(string) $q['id']]
@@ -388,7 +389,7 @@ class AcademicPreview
             $cpmkScores = [];
             foreach ($formattedQuestions as $qIdx => $q) {
                 $cCode = $q['cpmk'];
-                if (!isset($cpmkScores[$cCode])) {
+                if (! isset($cpmkScores[$cCode])) {
                     $cpmkScores[$cCode] = [
                         'total_nilai' => 0.0,
                         'bobot_cpmk' => $q['bobot_cpmk_raw'],
@@ -474,10 +475,10 @@ class AcademicPreview
 
         $grades = session("academic.item_grades.{$item}.{$studentId}.points", []);
 
-        if ($questionIndex === null || !isset($questions[$questionIndex]) || !$questions[$questionIndex]['is_essay']) {
+        if ($questionIndex === null || ! isset($questions[$questionIndex]) || ! $questions[$questionIndex]['is_essay']) {
             $targetIndex = null;
             foreach ($essayIndexes as $idx) {
-                if (!isset($grades[$idx]) || $grades[$idx] === null) {
+                if (! isset($grades[$idx]) || $grades[$idx] === null) {
                     $targetIndex = $idx;
                     break;
                 }
@@ -541,7 +542,7 @@ class AcademicPreview
         }
 
         // Fajar Ramadhan (student 5, 231011401238)
-        if (!session()->has("learning.submissions.{$item}.5")) {
+        if (! session()->has("learning.submissions.{$item}.5")) {
             $answers = [];
             foreach ($questions as $idx => $q) {
                 if ($q['is_essay']) {
@@ -560,12 +561,12 @@ class AcademicPreview
         }
 
         // Siti Nurhaliza (student 7, 231011401240)
-        if (!session()->has("learning.submissions.{$item}.7")) {
+        if (! session()->has("learning.submissions.{$item}.7")) {
             $answers = [];
             foreach ($questions as $idx => $q) {
                 if ($q['is_essay']) {
                     $answers[$idx] = [
-                        'text' => "Perbedaan utamanya terletak pada cara penyimpanan dan pengaksesan data. Stack bekerja berdasarkan urutan LIFO, contohnya tumpukan pemanggilan fungsi (call stack) saat rekursi. Queue bekerja berdasarkan urutan FIFO, contohnya simulasi antrean kasir.",
+                        'text' => 'Perbedaan utamanya terletak pada cara penyimpanan dan pengaksesan data. Stack bekerja berdasarkan urutan LIFO, contohnya tumpukan pemanggilan fungsi (call stack) saat rekursi. Queue bekerja berdasarkan urutan FIFO, contohnya simulasi antrean kasir.',
                     ];
                 } else {
                     $answers[$idx] = ['choices' => ['Benar']];
@@ -579,7 +580,7 @@ class AcademicPreview
         }
 
         // Ahmad Maulana (student 1) - Finished (85,00)
-        if (!session()->has("learning.submissions.{$item}.1")) {
+        if (! session()->has("learning.submissions.{$item}.1")) {
             $answers = [];
             foreach ($questions as $idx => $q) {
                 $answers[$idx] = ['text' => 'Analisis komparatif struktur data Stack dan Queue...', 'choices' => ['Benar']];
@@ -597,7 +598,7 @@ class AcademicPreview
         }
 
         // Dewi Anggraini (student 4) - Finished (78,00)
-        if (!session()->has("learning.submissions.{$item}.4")) {
+        if (! session()->has("learning.submissions.{$item}.4")) {
             $answers = [];
             foreach ($questions as $idx => $q) {
                 $answers[$idx] = ['text' => 'Stack menggunakan prinsip LIFO, Queue menggunakan prinsip FIFO...', 'choices' => ['Benar']];
@@ -615,7 +616,7 @@ class AcademicPreview
         }
 
         // Rizky Pratama (student 6) - Finished (90,00)
-        if (!session()->has("learning.submissions.{$item}.6")) {
+        if (! session()->has("learning.submissions.{$item}.6")) {
             $answers = [];
             foreach ($questions as $idx => $q) {
                 $answers[$idx] = ['text' => 'Stack adalah LIFO, Queue adalah FIFO dengan implementasi pointer head dan tail...', 'choices' => ['Benar']];
@@ -649,15 +650,15 @@ class AcademicPreview
             $dbSub = $query->latest('id')->first();
             if ($dbSub) {
                 $submission = [
-                    'answer'           => $dbSub->answer,
-                    'link'             => $dbSub->link,
+                    'answer' => $dbSub->answer,
+                    'link' => $dbSub->link,
                     'question_answers' => $dbSub->question_answers ?? [],
-                    'files'            => $dbSub->file_ids ?? [],
-                    'student_number'   => $dbSub->student_number,
-                    'time'             => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
-                    'status'           => $dbSub->status,
-                    'attempt'          => $dbSub->attempt,
-                    'version'          => $dbSub->version,
+                    'files' => $dbSub->file_ids ?? [],
+                    'student_number' => $dbSub->student_number,
+                    'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                    'status' => $dbSub->status,
+                    'attempt' => $dbSub->attempt,
+                    'version' => $dbSub->version,
                 ];
             }
         }

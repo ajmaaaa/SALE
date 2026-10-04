@@ -2,13 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
-use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -19,15 +17,25 @@ class LaporanProdiSemesterMetricsTest extends TestCase
     use RefreshDatabase;
 
     private User $adminProdi;
+
     private Prodi $prodi;
+
     private Semester $semester;
+
     private User $dosen1;
+
     private User $dosen2;
+
     private User $dosen3;
+
     private User $dosenIdle;
+
     private User $mhs1;
+
     private User $mhs2;
+
     private User $mhs3;
+
     private User $mhsIdle;
 
     protected function setUp(): void
@@ -237,7 +245,7 @@ class LaporanProdiSemesterMetricsTest extends TestCase
         file_put_contents($tempFile, $excelResponse->streamedContent());
 
         $spreadsheet = IOFactory::load($tempFile);
-        
+
         // Sheet 1: Ringkasan Metrik
         $sheetMetrics = $spreadsheet->getSheet(0);
         $this->assertSame('Ringkasan Metrik', $sheetMetrics->getTitle());

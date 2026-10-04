@@ -226,7 +226,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('class-search');
         const container = document.getElementById('class-list-container');

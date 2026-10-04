@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminProdi;
 
 use App\Models\ClassEnrollmentAppeal;
 use App\Models\ClassSection;
+use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
@@ -18,7 +19,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AkademikProdiController extends AdminProdiController
@@ -53,7 +56,7 @@ class AkademikProdiController extends AdminProdiController
             : collect();
 
         $cpls = $activeProdi
-            ? \App\Models\Cpl::where('prodi_id', $activeProdi->id)
+            ? Cpl::where('prodi_id', $activeProdi->id)
                 ->with(['cpmks' => fn ($q) => $q->orderBy('code'), 'cpmks.cpls'])
                 ->orderBy('code')
                 ->get()
@@ -137,28 +140,28 @@ class AkademikProdiController extends AdminProdiController
     {
         $pairs = $request->input('cpmk_cpl_pairs');
         $validCpmkIds = Cpmk::where('prodi_id', $mataKuliah->prodi_id)->pluck('id')->all();
-        $validCplIds = \App\Models\Cpl::where('prodi_id', $mataKuliah->prodi_id)->pluck('id')->all();
+        $validCplIds = Cpl::where('prodi_id', $mataKuliah->prodi_id)->pluck('id')->all();
 
         $records = [];
         $now = now();
 
-        if (is_array($pairs) && !empty($pairs)) {
+        if (is_array($pairs) && ! empty($pairs)) {
             foreach ($pairs as $pair) {
-                if (!is_string($pair) || !str_contains($pair, '_')) {
+                if (! is_string($pair) || ! str_contains($pair, '_')) {
                     continue;
                 }
                 [$cpmkIdStr, $cplIdStr] = explode('_', $pair, 2);
                 $cpmkId = (int) $cpmkIdStr;
                 $cplId = ($cplIdStr === 'unmapped' || $cplIdStr === '' || $cplIdStr === 'null') ? null : (int) $cplIdStr;
 
-                if (!in_array($cpmkId, $validCpmkIds, true)) {
+                if (! in_array($cpmkId, $validCpmkIds, true)) {
                     continue;
                 }
-                if ($cplId !== null && !in_array($cplId, $validCplIds, true)) {
+                if ($cplId !== null && ! in_array($cplId, $validCplIds, true)) {
                     continue;
                 }
 
-                $key = "{$cpmkId}_" . ($cplId ?? 'null');
+                $key = "{$cpmkId}_".($cplId ?? 'null');
                 $records[$key] = [
                     'mata_kuliah_id' => $mataKuliah->id,
                     'cpmk_id' => $cpmkId,
@@ -179,7 +182,7 @@ class AkademikProdiController extends AdminProdiController
                     ->orderBy('cpl_id')
                     ->value('cpl_id');
 
-                $key = "{$cpmkId}_" . ($mappedCplId ?? 'null');
+                $key = "{$cpmkId}_".($mappedCplId ?? 'null');
                 $records[$key] = [
                     'mata_kuliah_id' => $mataKuliah->id,
                     'cpmk_id' => $cpmkId,
@@ -192,7 +195,7 @@ class AkademikProdiController extends AdminProdiController
 
         // Hapus mapping lama untuk mata kuliah ini dan insert yang baru
         DB::table('cpmk_mata_kuliah')->where('mata_kuliah_id', $mataKuliah->id)->delete();
-        if (!empty($records)) {
+        if (! empty($records)) {
             DB::table('cpmk_mata_kuliah')->insert(array_values($records));
         }
     }
@@ -327,7 +330,7 @@ class AkademikProdiController extends AdminProdiController
                     }
                 },
             ],
-            
+
         ], [
             'section_code.unique' => 'Kelas dengan kode seksi ini sudah ada untuk mata kuliah dan semester yang dipilih.',
             'dosen_pendamping_id.different' => 'Dosen Anggota tidak boleh sama dengan Dosen Ketua.',
@@ -518,7 +521,7 @@ class AkademikProdiController extends AdminProdiController
             || (int) $lecturer->managing_prodi_id === (int) $mataKuliah->prodi_id;
 
         if (! $belongsToManagedProdi && ! $mataKuliah->is_lintas_prodi) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 $field => 'Dosen dari program studi lain hanya dapat dipilih untuk mata kuliah yang ditandai lintas prodi.',
             ]);
         }
@@ -603,10 +606,10 @@ class AkademikProdiController extends AdminProdiController
                 ->whereIn('class_section_id', $appeals->pluck('class_section_id')->unique())
                 ->whereIn('mahasiswa_id', $appeals->pluck('mahasiswa_id')->unique())
                 ->get()
-                ->keyBy(fn ($r) => $r->class_section_id . '_' . $r->mahasiswa_id);
+                ->keyBy(fn ($r) => $r->class_section_id.'_'.$r->mahasiswa_id);
 
             $appeals->getCollection()->transform(function ($appeal) use ($records) {
-                $key = $appeal->class_section_id . '_' . $appeal->mahasiswa_id;
+                $key = $appeal->class_section_id.'_'.$appeal->mahasiswa_id;
                 $appeal->kick_reason = $records->get($key)?->kick_reason ?? null;
 
                 return $appeal;
@@ -665,11 +668,11 @@ class AkademikProdiController extends AdminProdiController
     public function appealAttachment(ClassEnrollmentAppeal $appeal)
     {
         $this->assertAppealScope($appeal);
-        abort_unless($appeal->attachment_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($appeal->attachment_path), 404, 'Berkas bukti tidak ditemukan.');
+        abort_unless($appeal->attachment_path && Storage::disk('local')->exists($appeal->attachment_path), 404, 'Berkas bukti tidak ditemukan.');
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->response(
+        return Storage::disk('local')->response(
             $appeal->attachment_path,
-            'Bukti_KRS_' . ($appeal->mahasiswa->number ?? $appeal->mahasiswa_id) . '.' . pathinfo($appeal->attachment_path, PATHINFO_EXTENSION)
+            'Bukti_KRS_'.($appeal->mahasiswa->number ?? $appeal->mahasiswa_id).'.'.pathinfo($appeal->attachment_path, PATHINFO_EXTENSION)
         );
     }
 

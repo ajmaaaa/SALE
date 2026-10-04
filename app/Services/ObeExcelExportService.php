@@ -7,7 +7,7 @@ use App\Models\Cpl;
 use App\Models\Cpmk;
 use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
-use App\Services\ClassEnrollmentService;
+use App\Models\SystemSetting;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -23,29 +23,51 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ObeExcelExportService
 {
     // ── Palet Warna Standar OBE, File Referensi Rekap_OBE_CPMK101 & Desain Eksekutif ──
-    private const COLOR_BANNER_GREEN     = 'FF15803D'; // Emerald Green banner
-    private const COLOR_ACCENT_YELLOW    = 'FFFFFF00'; // Canary Yellow strip (#FFFF00 - garis aksen kuning)
+    private const COLOR_BANNER_GREEN = 'FF15803D'; // Emerald Green banner
+
+    private const COLOR_ACCENT_YELLOW = 'FFFFFF00'; // Canary Yellow strip (#FFFF00 - garis aksen kuning)
+
     private const COLOR_HIGHLIGHT_YELLOW = 'FFFFFF00'; // Canary Yellow highlight (#FFFF00 - identik file contoh)
-    private const COLOR_BANNER_ORANGE    = 'FF15803D'; // Emerald Green banner
-    private const COLOR_HEADER_BLACK     = 'FF000000'; // Pure Black text for official header title
-    private const COLOR_DARK_CHARCOAL    = 'FF15803D'; // Emerald Green for KPI banner
-    private const COLOR_TABLE_HEADER_BG  = 'FF15803D'; // Emerald-700 green table header
-    private const COLOR_ZEBRA_BG         = 'FFF8FAFC'; // Slate-50 zebra stripe
-    private const COLOR_CAPAIAN_BG       = 'FFFEF9C3'; // Soft Warm Pastel Yellow for Nilai Capaian highlight
-    private const COLOR_CAPAIAN_TEXT     = 'FF713F12'; // Warm Dark Amber/Brown for Nilai Capaian text
-    private const COLOR_PASS_BG          = 'FFDCFCE7'; // Soft Mint Green badge (Lulus)
-    private const COLOR_PASS_TEXT        = 'FF15803D'; // Dark Emerald text (Lulus)
-    private const COLOR_FAIL_BG          = 'FFFEE2E2'; // Soft Rose Red badge (Belum Lulus)
-    private const COLOR_FAIL_TEXT        = 'FFB91C1C'; // Dark Crimson text (Belum Lulus)
-    private const COLOR_GRADE_A_BG       = 'FFDCFCE7'; // Mint badge for Grade A
-    private const COLOR_GRADE_A_TEXT     = 'FF15803D';
-    private const COLOR_GRADE_B_BG       = 'FFFEF3C7'; // Soft Amber badge for Grade B/AB
-    private const COLOR_GRADE_B_TEXT     = 'FFB45309';
-    private const COLOR_GRADE_C_BG       = 'FFFFEDD5'; // Soft Orange badge for Grade C/BC
-    private const COLOR_GRADE_C_TEXT     = 'FFC2410C';
-    private const COLOR_INFO_BOX_BG      = 'FFF8FAFC'; // Slate-50 info card background
-    private const COLOR_BORDER_GRAY      = 'FFCBD5E1'; // Slate-300 clean border
-    private const COLOR_BORDER_DARK      = 'FF94A3B8'; // Slate-400 accent border
+
+    private const COLOR_BANNER_ORANGE = 'FF15803D'; // Emerald Green banner
+
+    private const COLOR_HEADER_BLACK = 'FF000000'; // Pure Black text for official header title
+
+    private const COLOR_DARK_CHARCOAL = 'FF15803D'; // Emerald Green for KPI banner
+
+    private const COLOR_TABLE_HEADER_BG = 'FF15803D'; // Emerald-700 green table header
+
+    private const COLOR_ZEBRA_BG = 'FFF8FAFC'; // Slate-50 zebra stripe
+
+    private const COLOR_CAPAIAN_BG = 'FFFEF9C3'; // Soft Warm Pastel Yellow for Nilai Capaian highlight
+
+    private const COLOR_CAPAIAN_TEXT = 'FF713F12'; // Warm Dark Amber/Brown for Nilai Capaian text
+
+    private const COLOR_PASS_BG = 'FFDCFCE7'; // Soft Mint Green badge (Lulus)
+
+    private const COLOR_PASS_TEXT = 'FF15803D'; // Dark Emerald text (Lulus)
+
+    private const COLOR_FAIL_BG = 'FFFEE2E2'; // Soft Rose Red badge (Belum Lulus)
+
+    private const COLOR_FAIL_TEXT = 'FFB91C1C'; // Dark Crimson text (Belum Lulus)
+
+    private const COLOR_GRADE_A_BG = 'FFDCFCE7'; // Mint badge for Grade A
+
+    private const COLOR_GRADE_A_TEXT = 'FF15803D';
+
+    private const COLOR_GRADE_B_BG = 'FFFEF3C7'; // Soft Amber badge for Grade B/AB
+
+    private const COLOR_GRADE_B_TEXT = 'FFB45309';
+
+    private const COLOR_GRADE_C_BG = 'FFFFEDD5'; // Soft Orange badge for Grade C/BC
+
+    private const COLOR_GRADE_C_TEXT = 'FFC2410C';
+
+    private const COLOR_INFO_BOX_BG = 'FFF8FAFC'; // Slate-50 info card background
+
+    private const COLOR_BORDER_GRAY = 'FFCBD5E1'; // Slate-300 clean border
+
+    private const COLOR_BORDER_DARK = 'FF94A3B8'; // Slate-400 accent border
 
     public function __construct(private ObeCalculationService $obe) {}
 
@@ -62,7 +84,7 @@ class ObeExcelExportService
         $students = $section->students()->orderBy('name')->get();
         $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $spreadsheet->removeSheetByIndex(0);
 
         if ($cpmkId !== null) {
@@ -83,7 +105,7 @@ class ObeExcelExportService
                 $this->buildInactiveStudentsSheet($inactiveSheet, $section, $cpmks);
 
                 $spreadsheet->setActiveSheetIndex(0);
-                $filename = 'Rekap_OBE_' . $targetCpmk->code . '_' . date('Y-m-d') . '.xlsx';
+                $filename = 'Rekap_OBE_'.$targetCpmk->code.'_'.date('Y-m-d').'.xlsx';
             } else {
                 $targetCpmk = $cpmks->first();
                 $sheet = $spreadsheet->createSheet();
@@ -99,7 +121,7 @@ class ObeExcelExportService
                 $this->buildInactiveStudentsSheet($inactiveSheet, $section, $cpmks);
 
                 $spreadsheet->setActiveSheetIndex(0);
-                $filename = 'Rekap_OBE_CPMK_' . ($section->mataKuliah?->code ?? 'MK') . '_' . date('Y-m-d') . '.xlsx';
+                $filename = 'Rekap_OBE_CPMK_'.($section->mataKuliah?->code ?? 'MK').'_'.date('Y-m-d').'.xlsx';
             }
         } else {
             // Sheet 1: Matriks Asesmen & CPMK (Ringkasan Lengkap Kelas)
@@ -126,7 +148,7 @@ class ObeExcelExportService
             $spreadsheet->setActiveSheetIndex(0);
             $mkCode = $section->mataKuliah?->code ?? 'MK';
             $classCode = $section->section_code ?: ($section->name ?: 'A');
-            $filename = 'Rekap_OBE_CPMK_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
+            $filename = 'Rekap_OBE_CPMK_'.$mkCode.'_'.$classCode.'_'.date('Y-m-d').'.xlsx';
         }
 
         return $this->downloadSpreadsheet($spreadsheet, $filename);
@@ -142,7 +164,7 @@ class ObeExcelExportService
         $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
         $students = $section->students()->orderBy('name')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Nilai & CPMK');
         $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
@@ -174,7 +196,7 @@ class ObeExcelExportService
         foreach ($cpmks as $cpmk) {
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
             $w = $cpmkWeights[$cpmk->id] ?? 0;
-            $sheet->setCellValue("{$colLetter}{$currRow}", $cpmk->code . "\n(" . rtrim(rtrim(number_format($w, 1), '0'), '.') . '%)');
+            $sheet->setCellValue("{$colLetter}{$currRow}", $cpmk->code."\n(".rtrim(rtrim(number_format($w, 1), '0'), '.').'%)');
             $colIdx++;
         }
 
@@ -199,7 +221,7 @@ class ObeExcelExportService
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         // Data Rows
         $finalScores = [];
@@ -270,7 +292,7 @@ class ObeExcelExportService
 
             // Coverage
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$colLetter}{$currRow}", $final['coverage'] . '%');
+            $sheet->setCellValue("{$colLetter}{$currRow}", $final['coverage'].'%');
             $sheet->getStyle("{$colLetter}{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $colIdx++;
 
@@ -386,7 +408,7 @@ class ObeExcelExportService
 
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'Rekap_OBE_Nilai_Akhir_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
+        $filename = 'Rekap_OBE_Nilai_Akhir_'.$mkCode.'_'.$classCode.'_'.date('Y-m-d').'.xlsx';
 
         return $this->downloadSpreadsheet($spreadsheet, $filename);
     }
@@ -400,7 +422,7 @@ class ObeExcelExportService
         $cpls = $section->mataKuliah?->contextualCpls() ?? collect();
         $students = $section->students()->orderBy('name')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Capaian CPL');
         $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
@@ -430,16 +452,16 @@ class ObeExcelExportService
         $colIdx = 4;
         foreach ($cpls as $cpl) {
             $cLet = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$cLet}{$currRow}", $cpl->code . "\n(Skor)");
+            $sheet->setCellValue("{$cLet}{$currRow}", $cpl->code."\n(Skor)");
             $colIdx++;
             $cLet = Coordinate::stringFromColumnIndex($colIdx);
-            $sheet->setCellValue("{$cLet}{$currRow}", 'Status ' . $cpl->code);
+            $sheet->setCellValue("{$cLet}{$currRow}", 'Status '.$cpl->code);
             $colIdx++;
         }
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         // Data Rows
         $cplPassCounts = [];
@@ -558,7 +580,7 @@ class ObeExcelExportService
 
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'Rekap_OBE_CPL_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
+        $filename = 'Rekap_OBE_CPL_'.$mkCode.'_'.$classCode.'_'.date('Y-m-d').'.xlsx';
 
         return $this->downloadSpreadsheet($spreadsheet, $filename);
     }
@@ -572,7 +594,7 @@ class ObeExcelExportService
         $assessments = $section->gradableAssessments()->orderBy('code')->get();
         $students = $section->students()->orderBy('name')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Nilai per Asesmen');
         $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
@@ -603,13 +625,13 @@ class ObeExcelExportService
         foreach ($assessments as $asmt) {
             $cLet = Coordinate::stringFromColumnIndex($colIdx);
             $w = rtrim(rtrim(number_format((float) $asmt->final_weight, 1), '0'), '.');
-            $sheet->setCellValueExplicit("{$cLet}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name) . "\n(" . $w . '%)', DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("{$cLet}{$currRow}", $this->sanitizeSpreadsheetText($asmt->name)."\n(".$w.'%)', DataType::TYPE_STRING);
             $colIdx++;
         }
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(32);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         // Data Rows
         $asmtScoreSums = [];
@@ -691,7 +713,7 @@ class ObeExcelExportService
 
         $mkCode = $section->mataKuliah?->code ?? 'MK';
         $classCode = $section->section_code ?: ($section->name ?: 'A');
-        $filename = 'Rekap_OBE_Asesmen_' . $mkCode . '_' . $classCode . '_' . date('Y-m-d') . '.xlsx';
+        $filename = 'Rekap_OBE_Asesmen_'.$mkCode.'_'.$classCode.'_'.date('Y-m-d').'.xlsx';
 
         return $this->downloadSpreadsheet($spreadsheet, $filename);
     }
@@ -722,11 +744,11 @@ class ObeExcelExportService
         $penultimateLetter = Coordinate::stringFromColumnIndex($numCols - 1);
 
         // ── 1. KOP SURAT RESMI ──
-        $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Penilaian Capaian ' . $cpmk->code, $numCols);
+        $currRow = $this->applyKopSurat($sheet, $section, 'Rekapitulasi Penilaian Capaian '.$cpmk->code, $numCols);
 
         // ── 2. BANNER ORANYE ASESMEN CAPAIAN (#F79646 - persis referensi) ──
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'ASESMEN CAPAIAN PEMBELAJARAN ' . $cpmk->code);
+        $sheet->setCellValue("A{$currRow}", 'ASESMEN CAPAIAN PEMBELAJARAN '.$cpmk->code);
         $this->styleBannerOrange($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
 
@@ -748,15 +770,15 @@ class ObeExcelExportService
         }
 
         $capColLetter = Coordinate::stringFromColumnIndex($colIdx);
-        $sheet->setCellValue("{$capColLetter}{$currRow}", 'NILAI CAPAIAN ' . $cpmk->code);
+        $sheet->setCellValue("{$capColLetter}{$currRow}", 'NILAI CAPAIAN '.$cpmk->code);
         $colIdx++;
 
         $statColLetter = Coordinate::stringFromColumnIndex($colIdx);
-        $sheet->setCellValue("{$statColLetter}{$currRow}", 'STATUS KELULUSAN ' . $cpmk->code);
+        $sheet->setCellValue("{$statColLetter}{$currRow}", 'STATUS KELULUSAN '.$cpmk->code);
 
         $this->styleTableHeader($sheet, "A{$currRow}:{$lastColLetter}{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(30);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         // Data Rows
         $threshold = (float) ($cpmk->threshold ?: 60);
@@ -931,10 +953,10 @@ class ObeExcelExportService
         $assessmentIds = $assessments->pluck('id');
         $rawAssessmentScores = StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)
             ->get()
-            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->mahasiswa_id);
+            ->groupBy(fn ($r) => $r->assessment_id.'_'.$r->mahasiswa_id);
         $rawCpmkScores = StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)
             ->get()
-            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->cpmk_id . '_' . $r->mahasiswa_id);
+            ->groupBy(fn ($r) => $r->assessment_id.'_'.$r->cpmk_id.'_'.$r->mahasiswa_id);
 
         $columns = [];
         $totalSubCols = 0;
@@ -1005,11 +1027,11 @@ class ObeExcelExportService
             $endLet = Coordinate::stringFromColumnIndex($colIdx + $subColCount - 1);
 
             $sheet->mergeCells("{$startLet}{$h1Row}:{$endLet}{$h1Row}");
-            $sheet->setCellValueExplicit("{$startLet}{$h1Row}", $this->sanitizeSpreadsheetText($asmt->name) . ' (' . ucfirst($asmt->type ?? 'Asesmen') . ')', DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("{$startLet}{$h1Row}", $this->sanitizeSpreadsheetText($asmt->name).' ('.ucfirst($asmt->type ?? 'Asesmen').')', DataType::TYPE_STRING);
 
             foreach ($col['cpmk_cols'] as $cc) {
                 $subLet = Coordinate::stringFromColumnIndex($colIdx);
-                $sheet->setCellValue("{$subLet}{$h2Row}", $cc['cpmk']->code . "\n(" . $cc['weight_fmt'] . '%)');
+                $sheet->setCellValue("{$subLet}{$h2Row}", $cc['cpmk']->code."\n(".$cc['weight_fmt'].'%)');
                 $colIdx++;
             }
 
@@ -1022,7 +1044,7 @@ class ObeExcelExportService
         $this->styleTableHeader($sheet, "A{$h1Row}:{$lastColLetter}{$h2Row}");
         $sheet->getRowDimension($h1Row)->setRowHeight(24);
         $sheet->getRowDimension($h2Row)->setRowHeight(28);
-        $sheet->freezePane('A' . ($h2Row + 1));
+        $sheet->freezePane('A'.($h2Row + 1));
 
         // Data Rows
         $matrixSums = [];
@@ -1039,7 +1061,7 @@ class ObeExcelExportService
             $colIdx = 4;
             foreach ($columns as $col) {
                 $asmtId = $col['assessment']->id;
-                $asmtScoreKey = $asmtId . '_' . $student->id;
+                $asmtScoreKey = $asmtId.'_'.$student->id;
                 $asmtRow = $rawAssessmentScores->get($asmtScoreKey)?->first();
 
                 $asmtHasPending = false;
@@ -1049,7 +1071,7 @@ class ObeExcelExportService
 
                 foreach ($col['cpmk_cols'] as $cc) {
                     $cpmk = $cc['cpmk'];
-                    $cpmkKey = $asmtId . '_' . $cpmk->id . '_' . $student->id;
+                    $cpmkKey = $asmtId.'_'.$cpmk->id.'_'.$student->id;
                     $cpmkSpecific = $rawCpmkScores->get($cpmkKey)?->first();
                     $maxScore = (float) $cc['weight'];
 
@@ -1169,7 +1191,7 @@ class ObeExcelExportService
         Cpmk $cpmk,
         Collection|array $cpmkWeights
     ): void {
-        $sheet->setTitle(substr('Bobot ' . $cpmk->code, 0, 31));
+        $sheet->setTitle(substr('Bobot '.$cpmk->code, 0, 31));
         $sheet->getTabColor()->setARGB(self::COLOR_BANNER_GREEN);
         $sheet->setShowGridlines(true);
 
@@ -1180,10 +1202,10 @@ class ObeExcelExportService
             ->get();
 
         $numCols = 4;
-        $currRow = $this->applyKopSurat($sheet, $section, 'Pembobotan Nilai Asesmen ' . $cpmk->code, $numCols);
+        $currRow = $this->applyKopSurat($sheet, $section, 'Pembobotan Nilai Asesmen '.$cpmk->code, $numCols);
 
         $sheet->mergeCells("A{$currRow}:D{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN NILAI ASESMEN ' . $cpmk->code);
+        $sheet->setCellValue("A{$currRow}", 'PEMBOBOTAN NILAI ASESMEN '.$cpmk->code);
         $this->styleBannerGreen($sheet, "A{$currRow}:D{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(23);
 
@@ -1194,10 +1216,10 @@ class ObeExcelExportService
         $sheet->setCellValue("A{$currRow}", 'No');
         $sheet->setCellValue("B{$currRow}", 'Nama Instrumen Asesmen');
         $sheet->setCellValue("C{$currRow}", 'Jenis Evaluasi');
-        $sheet->setCellValue("D{$currRow}", 'Bobot Efektif Terhadap ' . $cpmk->code . ' (%)');
+        $sheet->setCellValue("D{$currRow}", 'Bobot Efektif Terhadap '.$cpmk->code.' (%)');
         $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(26);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         $pIdx = 1;
         $totalEffWeight = 0;
@@ -1210,7 +1232,7 @@ class ObeExcelExportService
             $sheet->setCellValue("A{$currRow}", $pIdx);
             $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
             $sheet->setCellValue("C{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
-            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($effWeight, 1), '0'), '.') . '%');
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($effWeight, 1), '0'), '.').'%');
 
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
@@ -1232,7 +1254,7 @@ class ObeExcelExportService
         $sheet->mergeCells("A{$currRow}:C{$currRow}");
         $sheet->setCellValue("A{$currRow}", "TOTAL BOBOT KONTRIBUSI {$cpmk->code} (TERHADAP MK)");
         $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
-        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($cpmkWeightVal, 1), '0'), '.') . '%');
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($cpmkWeightVal, 1), '0'), '.').'%');
         $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
         $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
@@ -1281,7 +1303,7 @@ class ObeExcelExportService
         $sheet->setCellValue("D{$currRow}", 'Bobot Akhir (%)');
         $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(24);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         $totalW = 0;
         foreach ($cpmks as $idx => $cpmk) {
@@ -1292,8 +1314,8 @@ class ObeExcelExportService
 
             $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($cpmk->code), DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($cpmk->description ?? $cpmk->name ?? '-'), DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$currRow}", '≥ ' . (int) ($cpmk->threshold ?: 60));
-            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
+            $sheet->setCellValue("C{$currRow}", '≥ '.(int) ($cpmk->threshold ?: 60));
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.').'%');
 
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
@@ -1313,7 +1335,7 @@ class ObeExcelExportService
         $sheet->mergeCells("A{$currRow}:C{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'TOTAL BOBOT CPMK');
         $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
-        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalW, 1), '0'), '.') . '%');
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalW, 1), '0'), '.').'%');
         $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
         $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
@@ -1360,7 +1382,7 @@ class ObeExcelExportService
         $sheet->setCellValue("C{$currRow}", 'Target Minimum (0-100)');
         $this->styleTableHeader($sheet, "A{$currRow}:C{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(24);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         foreach ($cpls as $idx => $cpl) {
             $currRow++;
@@ -1422,7 +1444,7 @@ class ObeExcelExportService
         $sheet->setCellValue("D{$currRow}", 'Bobot Nilai (%)');
         $this->styleTableHeader($sheet, "A{$currRow}:D{$currRow}");
         $sheet->getRowDimension($currRow)->setRowHeight(24);
-        $sheet->freezePane('A' . ($currRow + 1));
+        $sheet->freezePane('A'.($currRow + 1));
 
         $totalWeight = 0;
         foreach ($assessments as $idx => $asmt) {
@@ -1434,7 +1456,7 @@ class ObeExcelExportService
             $sheet->setCellValueExplicit("A{$currRow}", $this->sanitizeSpreadsheetText($asmt->code ?: $asmt->name), DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("B{$currRow}", $this->sanitizeSpreadsheetText($asmt->name), DataType::TYPE_STRING);
             $sheet->setCellValue("C{$currRow}", ucfirst($asmt->type ?? 'Asesmen'));
-            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.') . '%');
+            $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($w, 1), '0'), '.').'%');
 
             $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("B{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
@@ -1454,7 +1476,7 @@ class ObeExcelExportService
         $sheet->mergeCells("A{$currRow}:C{$currRow}");
         $sheet->setCellValue("A{$currRow}", 'TOTAL BOBOT ASESMEN');
         $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setIndent(1);
-        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalWeight, 1), '0'), '.') . '%');
+        $sheet->setCellValue("D{$currRow}", rtrim(rtrim(number_format($totalWeight, 1), '0'), '.').'%');
         $sheet->getStyle("D{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle("A{$currRow}:D{$currRow}")->applyFromArray($this->doubleBottomBorderArray());
         $sheet->getStyle("A{$currRow}:D{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_TABLE_HEADER_BG);
@@ -1482,9 +1504,9 @@ class ObeExcelExportService
 
         // Baris 1: Nama Sistem & Ekosistem Utama (Warna Hitam)
         $sheet->mergeCells("A1:{$lastColLetter}1");
-        $appNameVal = \App\Models\SystemSetting::appName();
-        $institutionVal = \App\Models\SystemSetting::valueFor('institution', '');
-        $kopA1 = $institutionVal ? mb_strtoupper($institutionVal, 'UTF-8') . ' - ' . mb_strtoupper($appNameVal, 'UTF-8') : mb_strtoupper($appNameVal, 'UTF-8');
+        $appNameVal = SystemSetting::appName();
+        $institutionVal = SystemSetting::valueFor('institution', '');
+        $kopA1 = $institutionVal ? mb_strtoupper($institutionVal, 'UTF-8').' - '.mb_strtoupper($appNameVal, 'UTF-8') : mb_strtoupper($appNameVal, 'UTF-8');
         $sheet->setCellValue('A1', $kopA1);
         $sheet->getStyle('A1')->getFont()->setName('Times New Roman')->setSize(13.5)->setBold(true)->getColor()->setARGB(self::COLOR_HEADER_BLACK);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
@@ -1504,12 +1526,12 @@ class ObeExcelExportService
 
         // Baris 4-7: Box Informasi Kartu Metadata Terpadu (Academic Info Card)
         $mk = $section->mataKuliah;
-        $mkLabel = $mk ? ($mk->code . ' - ' . $mk->name . ($mk->sks ? " ({$mk->sks} SKS)" : '')) : '-';
+        $mkLabel = $mk ? ($mk->code.' - '.$mk->name.($mk->sks ? " ({$mk->sks} SKS)" : '')) : '-';
         $prodiName = $mk?->prodi?->name ?? '-';
         $dosenName = $section->dosen?->name ?? '-';
         $dosenNip = $section->dosen?->nim_nidn ?: '-';
         $semesterName = $section->semester?->name ?? 'Semester Aktif';
-        $classCode = 'Kelas ' . ($section->section_code ?: ($section->name ?: 'A'));
+        $classCode = 'Kelas '.($section->section_code ?: ($section->name ?: 'A'));
         $studentCount = $section->students()->count();
 
         // Tentukan pembagian kolom kiri dan kanan secara adaptif
@@ -1532,37 +1554,37 @@ class ObeExcelExportService
         $sheet->mergeCells('A4:B4');
         $sheet->setCellValue('A4', 'Mata Kuliah');
         $sheet->mergeCells("C4:{$leftValEnd}4");
-        $sheet->setCellValue('C4', ': ' . $mkLabel);
+        $sheet->setCellValue('C4', ': '.$mkLabel);
         $sheet->setCellValue("{$rightLabelCol}4", 'Semester');
         $sheet->mergeCells("{$rightValStart}4:{$lastColLetter}4");
-        $sheet->setCellValue("{$rightValStart}4", ': ' . $semesterName);
+        $sheet->setCellValue("{$rightValStart}4", ': '.$semesterName);
 
         // Row 5
         $sheet->mergeCells('A5:B5');
         $sheet->setCellValue('A5', 'Program Studi');
         $sheet->mergeCells("C5:{$leftValEnd}5");
-        $sheet->setCellValue('C5', ': ' . $prodiName);
+        $sheet->setCellValue('C5', ': '.$prodiName);
         $sheet->setCellValue("{$rightLabelCol}5", 'Kelas / Sesi');
         $sheet->mergeCells("{$rightValStart}5:{$lastColLetter}5");
-        $sheet->setCellValue("{$rightValStart}5", ': ' . $classCode);
+        $sheet->setCellValue("{$rightValStart}5", ': '.$classCode);
 
         // Row 6
         $sheet->mergeCells('A6:B6');
         $sheet->setCellValue('A6', 'Dosen Pengampu');
         $sheet->mergeCells("C6:{$leftValEnd}6");
-        $sheet->setCellValueExplicit('C6', ': ' . $this->sanitizeSpreadsheetText($dosenName), DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('C6', ': '.$this->sanitizeSpreadsheetText($dosenName), DataType::TYPE_STRING);
         $sheet->setCellValue("{$rightLabelCol}6", 'NIP / NIDN');
         $sheet->mergeCells("{$rightValStart}6:{$lastColLetter}6");
-        $sheet->setCellValueExplicit("{$rightValStart}6", ': ' . $this->sanitizeSpreadsheetText($dosenNip), DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("{$rightValStart}6", ': '.$this->sanitizeSpreadsheetText($dosenNip), DataType::TYPE_STRING);
 
         // Row 7
         $sheet->mergeCells('A7:B7');
         $sheet->setCellValue('A7', 'Jumlah Mahasiswa');
         $sheet->mergeCells("C7:{$leftValEnd}7");
-        $sheet->setCellValue('C7', ': ' . $studentCount . ' Orang Terdaftar');
+        $sheet->setCellValue('C7', ': '.$studentCount.' Orang Terdaftar');
         $sheet->setCellValue("{$rightLabelCol}7", 'Tanggal Ekspor');
         $sheet->mergeCells("{$rightValStart}7:{$lastColLetter}7");
-        $sheet->setCellValue("{$rightValStart}7", ': ' . now()->locale('id')->translatedFormat('d F Y, H:i') . ' WIB');
+        $sheet->setCellValue("{$rightValStart}7", ': '.now()->locale('id')->translatedFormat('d F Y, H:i').' WIB');
 
         // Style Metadata Card
         $sheet->getStyle('A4:A7')->getFont()->setName('Times New Roman')->setSize(9.5)->setBold(true)->getColor()->setARGB('FF334155');
@@ -1675,7 +1697,7 @@ class ObeExcelExportService
         $currRow++;
         // Header Ringkasan Eksekutif
         $sheet->mergeCells("A{$currRow}:{$lastColLetter}{$currRow}");
-        $sheet->setCellValue("A{$currRow}", 'RINGKASAN EKSEKUTIF CAPAIAN & STATISTIK KELAS (' . $codeLabel . ')');
+        $sheet->setCellValue("A{$currRow}", 'RINGKASAN EKSEKUTIF CAPAIAN & STATISTIK KELAS ('.$codeLabel.')');
         $sheet->getStyle("A{$currRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle("A{$currRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle("A{$currRow}:{$lastColLetter}{$currRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::COLOR_DARK_CHARCOAL);
@@ -1772,10 +1794,10 @@ class ObeExcelExportService
         // Catatan legalitas di sisi kiri
         $sheet->setCellValue("A{$signRow}", 'Catatan & Legalitas Dokumen:');
         $sheet->getStyle("A{$signRow}")->getFont()->setName('Times New Roman')->setSize(9)->setBold(true)->getColor()->setARGB('FF475569');
-        $sheet->setCellValue("A" . ($signRow + 1), '1. Rekapitulasi nilai ini sah dan terintegrasi langsung dengan Outcome-Based Education (OBE) SALE.');
-        $sheet->setCellValue("A" . ($signRow + 2), '2. Nilai capaian dihitung otomatis berdasarkan pemetaan pembobotan asesmen pada RPS.');
-        $sheet->setCellValue("A" . ($signRow + 3), '3. Mahasiswa yang belum tuntas direkomendasikan mengikuti program remedial atau evaluasi tambahan.');
-        $sheet->getStyle("A" . ($signRow + 1) . ":A" . ($signRow + 3))->getFont()->setName('Times New Roman')->setSize(8.5)->getColor()->setARGB('FF64748B');
+        $sheet->setCellValue('A'.($signRow + 1), '1. Rekapitulasi nilai ini sah dan terintegrasi langsung dengan Outcome-Based Education (OBE) SALE.');
+        $sheet->setCellValue('A'.($signRow + 2), '2. Nilai capaian dihitung otomatis berdasarkan pemetaan pembobotan asesmen pada RPS.');
+        $sheet->setCellValue('A'.($signRow + 3), '3. Mahasiswa yang belum tuntas direkomendasikan mengikuti program remedial atau evaluasi tambahan.');
+        $sheet->getStyle('A'.($signRow + 1).':A'.($signRow + 3))->getFont()->setName('Times New Roman')->setSize(8.5)->getColor()->setARGB('FF64748B');
 
         // Tanda tangan di sisi kanan
         $todayStr = now()->locale('id')->translatedFormat('d F Y');
@@ -1785,11 +1807,11 @@ class ObeExcelExportService
         $sheet->getStyle("{$signLet}{$signRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $dosenName = $section->dosen?->name ?? '-';
-        $dosenNidn = $section->dosen?->nim_nidn ? 'NIP/NIDN. ' . $section->dosen->nim_nidn : '';
+        $dosenNidn = $section->dosen?->nim_nidn ? 'NIP/NIDN. '.$section->dosen->nim_nidn : '';
 
         $nameRow = $signRow + 4;
         $sheet->mergeCells("{$signLet}{$nameRow}:{$lastColLet}{$nameRow}");
-        $sheet->setCellValueExplicit("{$signLet}{$nameRow}", '( ' . $this->sanitizeSpreadsheetText($dosenName) . ' )', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("{$signLet}{$nameRow}", '( '.$this->sanitizeSpreadsheetText($dosenName).' )', DataType::TYPE_STRING);
         $sheet->getStyle("{$signLet}{$nameRow}")->getFont()->setName('Times New Roman')->setSize(10)->setBold(true)->setUnderline(true);
         $sheet->getStyle("{$signLet}{$nameRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
@@ -1895,7 +1917,7 @@ class ObeExcelExportService
     {
         $string = (string) $value;
         if ($string !== '' && in_array($string[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
-            return "'" . $string;
+            return "'".$string;
         }
 
         return $string;
@@ -2028,7 +2050,7 @@ class ObeExcelExportService
         });
 
         $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'"');
         $response->headers->set('Cache-Control', 'max-age=0');
 
         return $response;

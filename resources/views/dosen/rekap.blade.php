@@ -228,7 +228,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
 function showRekapTab(tab) {
     const isActive = tab === 'active';
     const panelActive = document.getElementById('rekap-panel-active');

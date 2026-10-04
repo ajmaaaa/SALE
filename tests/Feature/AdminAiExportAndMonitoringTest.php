@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\AdminPreviewController;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use Tests\TestCase;
 
 class AdminAiExportAndMonitoringTest extends TestCase
@@ -83,10 +87,10 @@ class AdminAiExportAndMonitoringTest extends TestCase
         $this->assertStringContainsString('sale-rekap-penggunaan-ai.xlsx', $response->headers->get('content-disposition'));
 
         // Verify spreadsheet readability
-        $tempPath = tempnam(sys_get_temp_dir(), 'ai_export_test_') . '.xlsx';
+        $tempPath = tempnam(sys_get_temp_dir(), 'ai_export_test_').'.xlsx';
         file_put_contents($tempPath, $response->streamedContent());
 
-        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $reader = new Xlsx;
         $spreadsheet = $reader->load($tempPath);
 
         $this->assertTrue($spreadsheet->sheetNameExists('Log Panggilan AI'));
@@ -115,10 +119,10 @@ class AdminAiExportAndMonitoringTest extends TestCase
         );
         $this->assertStringContainsString('sale-rekap-akademik.xlsx', $response->headers->get('content-disposition'));
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'academic_export_test_') . '.xlsx';
+        $tempPath = tempnam(sys_get_temp_dir(), 'academic_export_test_').'.xlsx';
         file_put_contents($tempPath, $response->streamedContent());
 
-        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $reader = new Xlsx;
         $spreadsheet = $reader->load($tempPath);
 
         $this->assertTrue($spreadsheet->sheetNameExists('Rekap Akademik'));
@@ -192,14 +196,14 @@ class AdminAiExportAndMonitoringTest extends TestCase
     public function test_admin_can_delete_backup(): void
     {
         // Create dummy backup file
-        $dir = \App\Http\Controllers\AdminPreviewController::getBackupDirectory();
+        $dir = AdminPreviewController::getBackupDirectory();
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
         $testFile = 'sale-backup-test-dummy.sql';
-        file_put_contents($dir . '/' . $testFile, '-- test dummy');
+        file_put_contents($dir.'/'.$testFile, '-- test dummy');
 
-        $this->assertFileExists($dir . '/' . $testFile);
+        $this->assertFileExists($dir.'/'.$testFile);
 
         $response = $this->actingAs($this->admin)->post('/admin/monitoring/backup/delete', [
             'filename' => $testFile,
@@ -207,7 +211,7 @@ class AdminAiExportAndMonitoringTest extends TestCase
 
         $response->assertRedirect('/admin/monitoring?detail=backup');
         $response->assertSessionHas('status');
-        $this->assertFileDoesNotExist($dir . '/' . $testFile);
+        $this->assertFileDoesNotExist($dir.'/'.$testFile);
     }
 
     public function test_admin_can_create_server_backup(): void
@@ -230,7 +234,7 @@ class AdminAiExportAndMonitoringTest extends TestCase
 
     public function test_sale_backup_artisan_command_generates_sql_dump(): void
     {
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('sale:backup');
+        $exitCode = Artisan::call('sale:backup');
         $this->assertEquals(0, $exitCode);
     }
 
@@ -253,7 +257,7 @@ class AdminAiExportAndMonitoringTest extends TestCase
     public function test_admin_can_upload_and_remove_institution_logo(): void
     {
         Storage::fake('public');
-        \App\Models\Semester::create(['name' => 'Ganjil 2026/2027', 'code' => '20261', 'is_active' => true]);
+        Semester::create(['name' => 'Ganjil 2026/2027', 'code' => '20261', 'is_active' => true]);
 
         $logoFile = UploadedFile::fake()->image('kampus_logo.png', 120, 120);
 

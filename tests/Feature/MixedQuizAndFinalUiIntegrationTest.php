@@ -11,11 +11,13 @@ use App\Models\Role;
 use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
 use App\Models\Submission;
-use App\Models\SubmissionAnswer;
 use App\Models\User;
 use App\Support\QuizQuestion;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class MixedQuizAndFinalUiIntegrationTest extends TestCase
@@ -154,10 +156,11 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
 
         // 2. Click "Buka Input Nilai" (GET request with target)
         $target = route('dosen.penilaian.asesmen.nilai', [$section->id, $assessment->id], false);
-        $readResponse = $this->get(route('dosen.notifications.read', [
+        $readResponse = $this->post(route('dosen.notifications.read', [
             'id' => "submission_{$submission->id}",
+        ]), [
             'target' => $target,
-        ]));
+        ]);
         $readResponse->assertRedirect($target);
 
         // 3. Revisiting notifications (as happens on browser back) must show notification as read
@@ -386,18 +389,18 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
             ->assertHeader('content-disposition', 'attachment; filename=template-import-pengguna.xlsx');
 
         // 3. Test Excel file bulk upload
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray([
             ['NIM / NIDN', 'Nama Lengkap', 'Email', 'Peran', 'Status'],
             ['231011409991', 'Budi Excel', 'budi.excel@student.test', 'mahasiswa', 'aktif'],
             ['DSN9992', 'Dosen Excel', 'dosen.excel@campus.test', 'dosen', 'aktif'],
         ]);
-        $tempPath = tempnam(sys_get_temp_dir(), 'test_excel_') . '.xlsx';
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempPath = tempnam(sys_get_temp_dir(), 'test_excel_').'.xlsx';
+        $writer = new Xlsx($spreadsheet);
         $writer->save($tempPath);
 
-        $uploadedFile = new \Illuminate\Http\UploadedFile(
+        $uploadedFile = new UploadedFile(
             $tempPath,
             'users_test.xlsx',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -585,7 +588,7 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
                 $ans2->id => 40,
             ],
         ])->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$section, $quiz]))
-          ->assertSessionHasErrors(['scores']);
+            ->assertSessionHasErrors(['scores']);
 
         // 3. Test successful batch save of all essay scores at once
         $this->actingAs($lecturer)->post(route('dosen.penilaian.asesmen.student.essay_scores', [$section, $quiz, $student]), [
@@ -594,8 +597,8 @@ class MixedQuizAndFinalUiIntegrationTest extends TestCase
                 $ans2->id => 35,
             ],
         ])->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$section, $quiz]))
-          ->assertSessionHasNoErrors()
-          ->assertSessionHas('notice');
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('notice');
 
         // Verify both answers were updated
         $this->assertSame('45.00', $ans1->fresh()->earned_score);

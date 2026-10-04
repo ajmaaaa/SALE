@@ -74,11 +74,11 @@ Route::middleware('role:mahasiswa')->group(function () {
     Route::post('/mahasiswa/course/{course}/item/{item}/submission', [LearningController::class, 'submit'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submit');
     Route::post('/mahasiswa/course/{course}/item/{item}/submission/cancel', [LearningController::class, 'cancelSubmission'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submission.cancel');
     Route::get('/mahasiswa/notifikasi', [LearningController::class, 'notifications'])->name('mahasiswa.notifications');
-    Route::match(['get', 'post'], '/mahasiswa/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('mahasiswa.notifications.read');
+    Route::post('/mahasiswa/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('mahasiswa.notifications.read');
     Route::post('/mahasiswa/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('mahasiswa.notifications.clear');
     Route::post('/mahasiswa/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('mahasiswa.notifications.delete');
 });
-Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen,admin,admin_prodi')->where('file', '[A-Za-z0-9\-_]+')->name('preview.file');
+Route::get('/preview/files/{file}', [LearningController::class, 'file'])->middleware('role:mahasiswa,dosen,admin,admin_prodi')->whereUuid('file')->name('preview.file');
 
 // Chat Real-Time & Diskusi Kelas
 Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(function () {
@@ -92,8 +92,6 @@ Route::prefix('chat')->name('chat.')->middleware('role:mahasiswa,dosen')->group(
 Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_password_change'])->group(function () {
     Route::get('/dashboard', [DosenDashboardController::class, 'index'])->name('dashboard');
     Route::get('/course', [LearningController::class, 'courses'])->name('course.index');
-    Route::get('/course/create', [LearningController::class, 'createCourse'])->name('course.create');
-    Route::post('/course', [LearningController::class, 'storeCourse'])->name('course.store');
     Route::get('/course/{course}', [LearningController::class, 'course'])->whereNumber('course')->name('course.show');
     Route::get('/course/{course}/item/{item}', [LearningController::class, 'item'])->whereNumber(['course', 'item'])->name('course.item');
     Route::post('/course/{course}/item/{item}/discussion', [LearningController::class, 'discuss'])->whereNumber(['course', 'item'])->name('course.discuss');
@@ -163,7 +161,7 @@ Route::prefix('dosen')->name('dosen.')->middleware(['role:dosen', 'force_passwor
     });
     Route::get('/discussion', [LearningController::class, 'discussions'])->name('discussion.index');
     Route::get('/notifikasi', [LearningController::class, 'dosenNotifications'])->name('notifications');
-    Route::match(['get', 'post'], '/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('notifications.read');
+    Route::post('/notifikasi/{id}/read', [LearningController::class, 'markNotificationRead'])->name('notifications.read');
     Route::post('/notifikasi/clear', [LearningController::class, 'clearNotifications'])->name('notifications.clear');
     Route::post('/notifikasi/{id}/delete', [LearningController::class, 'deleteNotification'])->name('notifications.delete');
     Route::get('/profil', [App\Http\Controllers\Dosen\ProfileController::class, 'index'])->name('profile.index');
@@ -191,7 +189,7 @@ Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function
     Route::post('/akademik/{id}/delete', [AdminPreviewController::class, 'deleteAcademic'])->whereNumber('id')->name('academic.destroy');
     Route::post('/akademik', [AdminPreviewController::class, 'academic'])->name('academic.store');
     Route::post('/pengaturan/test-ai', [AdminPreviewController::class, 'testAiConnection'])->name('settings.test-ai');
-    Route::get('/pengaturan/ai-models', [AdminPreviewController::class, 'getAiModels'])->name('settings.ai-models');
+    Route::post('/pengaturan/ai-models', [AdminPreviewController::class, 'getAiModels'])->name('settings.ai-models');
     Route::post('/pengaturan', [AdminPreviewController::class, 'settings'])->name('settings.store');
     Route::get('/{section?}', [AdminPreviewController::class, 'page'])->name('page');
 });
@@ -209,8 +207,9 @@ Route::get('/ai/tasks/{assignment}/thread', [AiTutorController::class, 'thread']
 Route::delete('/ai/tasks/{assignment}/thread', [AiTutorController::class, 'destroyThread'])->middleware('auth')->whereNumber('assignment')->name('ai.thread.destroy');
 Route::get('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'thread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread');
 Route::delete('/ai/tutor/{assessment}/thread', [AiTutorController::class, 'destroyThread'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.thread.destroy');
-Route::post('/ai/tutor/{assessment}', [AiTutorController::class, 'send'])->middleware('auth')->whereNumber('assessment')->name('ai.tutor.send');
-Route::post('/internal/ai-eval', [AiEvalController::class, 'evaluate'])->name('ai.internal.eval');
+Route::post('/internal/ai-eval', [AiEvalController::class, 'evaluate'])
+    ->middleware('throttle:15,1')
+    ->name('ai.internal.eval');
 
 Route::get('/join-kelas/{code}', [EnrollmentController::class, 'confirm'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas');
 Route::post('/join-kelas/{code}', [EnrollmentController::class, 'join'])->middleware('role:mahasiswa,dosen')->name('mahasiswa.join-kelas.post');

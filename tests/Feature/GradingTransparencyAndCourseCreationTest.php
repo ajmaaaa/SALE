@@ -218,28 +218,21 @@ class GradingTransparencyAndCourseCreationTest extends TestCase
         $response->assertDontSee('Catatan ini tidak perlu ditampilkan');
     }
 
-    public function test_lecturer_can_create_course_with_video_and_view_it_without_error(): void
+    public function test_lecturer_cannot_create_course_outside_admin_prodi_workflow(): void
     {
         Storage::fake('local');
         $videoFile = UploadedFile::fake()->create('intro.mp4', 1024, 'video/mp4');
 
-        $response = $this->actingAs($this->dosen)->post(route('dosen.course.store'), [
+        $this->actingAs($this->dosen)->post('/dosen/course', [
             'code' => 'IF301',
             'title' => 'Pemrograman Web Lanjut',
             'lecturer' => $this->dosen->name,
             'description' => 'Mata kuliah pengembangan web modern berbasis arsitektur komponen.',
             'video_file' => $videoFile,
-        ]);
+        ])->assertStatus(405);
 
         $newSection = ClassSection::whereHas('mataKuliah', fn ($q) => $q->where('code', 'IF301'))->first();
-        $this->assertNotNull($newSection);
-        $this->assertSame($this->dosen->id, $newSection->dosen_id);
-
-        $response->assertRedirect(route('dosen.course.show', $newSection->id));
-
-        $viewResponse = $this->actingAs($this->dosen)->get(route('dosen.course.show', $newSection->id));
-        $viewResponse->assertOk();
-        $viewResponse->assertSee('Pemrograman Web Lanjut');
+        $this->assertNull($newSection);
     }
 
     public function test_database_demo_courses_keep_pushed_youtube_and_mp4_examples(): void

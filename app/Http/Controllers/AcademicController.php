@@ -9,6 +9,7 @@ use App\Models\Semester;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\ObeCalculationService;
+use App\Support\AcademicPreview;
 use App\Support\AcademicPreview as Academic;
 use App\Support\AdminPreview;
 use App\Support\LearningPreview as Learning;
@@ -156,8 +157,8 @@ class AcademicController extends Controller
             $demoCourses = Learning::courses();
             $studentId = session('auth_user.id') ?? 1;
             foreach ($demoCourses as $c) {
-                $res = \App\Support\AcademicPreview::result($c['id'], $studentId);
-                $cfg = \App\Support\AcademicPreview::config($c['id']);
+                $res = AcademicPreview::result($c['id'], $studentId);
+                $cfg = AcademicPreview::config($c['id']);
                 $sks = 3;
                 $totalCredits += $sks;
                 $finalScore = $res['average'] ?? null;

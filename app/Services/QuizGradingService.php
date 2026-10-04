@@ -91,6 +91,7 @@ class QuizGradingService
                                 ])->save();
                                 $summary['pending_essays']++;
                             }
+
                             continue;
                         }
 
@@ -197,8 +198,7 @@ class QuizGradingService
 
     private function rowFromCollection(Collection $rows, string $questionId, int $index): ?SubmissionAnswer
     {
-        return $rows->first(fn (SubmissionAnswer $row) =>
-            ($row->question_id !== null && (string) $row->question_id === $questionId)
+        return $rows->first(fn (SubmissionAnswer $row) => ($row->question_id !== null && (string) $row->question_id === $questionId)
             || ($row->question_index !== null && (int) $row->question_index === $index)
         );
     }

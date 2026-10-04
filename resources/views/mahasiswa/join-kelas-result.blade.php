@@ -209,7 +209,7 @@
         </div>
     </form>
 </dialog>
-<script>
+<script nonce="{{ $cspNonce }}">
     document.getElementById('appeal-modal')?.addEventListener('click', function(e) {
         if (e.target === this) this.close();
     });

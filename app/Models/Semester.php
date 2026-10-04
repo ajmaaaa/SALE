@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Semester extends Model
 {
@@ -34,7 +35,7 @@ class Semester extends Model
         }
 
         if (preg_match('/(\d{4})/', (string) $this->code, $matches)) {
-            return $matches[1] . '/' . ((int) $matches[1] + 1);
+            return $matches[1].'/'.((int) $matches[1] + 1);
         }
 
         return null;
@@ -46,7 +47,7 @@ class Semester extends Model
             return (int) $value;
         }
 
-        return str_contains(strtolower((string) ($this->name . ' ' . $this->code)), 'genap') ? 2 : 1;
+        return str_contains(strtolower((string) ($this->name.' '.$this->code)), 'genap') ? 2 : 1;
     }
 
     public function getTermLabelAttribute(): string
@@ -79,7 +80,7 @@ class Semester extends Model
     public function getDisplayNameAttribute(): string
     {
         if ($this->academic_year && $this->term) {
-            return $this->term_label . ' ' . $this->academic_year;
+            return $this->term_label.' '.$this->academic_year;
         }
 
         return $this->name;
@@ -87,9 +88,9 @@ class Semester extends Model
 
     public function scopeOrderChronological($query, string $direction = 'desc')
     {
-        if (\Illuminate\Support\Facades\Schema::hasColumn('semesters', 'academic_year')) {
+        if (Schema::hasColumn('semesters', 'academic_year')) {
             $query->orderBy('academic_year', $direction);
-            if (\Illuminate\Support\Facades\Schema::hasColumn('semesters', 'term')) {
+            if (Schema::hasColumn('semesters', 'term')) {
                 $query->orderBy('term', $direction);
             }
 

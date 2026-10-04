@@ -67,7 +67,7 @@ class AiTutorV2Phase1Test extends TestCase
         // Mahasiswa masih memiliki 95.000 sisa token
         DB::table('ai_usage')->insert(['scope' => 'user:'.$user->id, 'day' => $day, 'tokens' => 5000]);
 
-        // Provider mengembalikan 429 pada 3 percobaan (1 awal + 2 retry)
+        // Provider mengembalikan 429 tanpa Retry-After. Hard quota tidak boleh di-retry.
         Http::fake([
             '*' => Http::response(['error' => ['message' => 'Rate limit exceeded']], 429),
         ]);
@@ -81,7 +81,7 @@ class AiTutorV2Phase1Test extends TestCase
                 'message' => AiErrorCode::ProviderBusy->message(),
             ]);
 
-        Http::assertSentCount(3);
+        Http::assertSentCount(1);
 
         // Token yang direservasi harus di-refund penuh, kuota kembali ke 5000
         $used = (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->where('day', $day)->value('tokens');

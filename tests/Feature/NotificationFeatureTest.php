@@ -2,8 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\MataKuliah;
+use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -29,20 +35,21 @@ class NotificationFeatureTest extends TestCase
             'nim_nidn' => '20260001',
         ]);
 
-        $prodi = \App\Models\Prodi::create(['code' => 'TI', 'name' => 'Teknik Informatika']);
-        $mk = \App\Models\MataKuliah::create(['prodi_id' => $prodi->id, 'code' => 'TI-101', 'name' => 'Pemrograman Web', 'sks' => 3]);
-        $sem = \App\Models\Semester::create(['code' => '2026-1', 'name' => 'Ganjil 2026', 'is_active' => true]);
-        $section = \App\Models\ClassSection::create(['mata_kuliah_id' => $mk->id, 'semester_id' => $sem->id, 'section_code' => 'A', 'enrollment_code' => 'TI-A-2026']);
+        $prodi = Prodi::create(['code' => 'TI', 'name' => 'Teknik Informatika']);
+        $mk = MataKuliah::create(['prodi_id' => $prodi->id, 'code' => 'TI-101', 'name' => 'Pemrograman Web', 'sks' => 3]);
+        $sem = Semester::create(['code' => '2026-1', 'name' => 'Ganjil 2026', 'is_active' => true]);
+        $section = ClassSection::create(['mata_kuliah_id' => $mk->id, 'semester_id' => $sem->id, 'section_code' => 'A', 'enrollment_code' => 'TI-A-2026']);
         $section->students()->attach($this->student->id);
-        $assessment = \App\Models\Assessment::create([
+        $assessment = Assessment::create([
             'class_section_id' => $section->id,
             'name' => 'Tugas 1 Pemrograman',
             'code' => 'TUGAS-1',
             'type' => 'tugas',
             'final_weight' => 10,
-            'status' => \App\Models\Assessment::STATUS_PUBLISHED,
+            'status' => Assessment::STATUS_PUBLISHED,
             'max_score' => 100,
         ]);
+        $assessment->published_at = now()->subMinutes(5);
         $assessment->created_at = now()->subMinutes(5);
         $assessment->saveQuietly();
     }
@@ -90,7 +97,7 @@ class NotificationFeatureTest extends TestCase
 
     public function test_individual_notification_can_be_deleted(): void
     {
-        $notifService = app(\App\Services\DatabaseNotificationService::class);
+        $notifService = app(DatabaseNotificationService::class);
         $firstNotif = collect($notifService->forUser($this->student))->first();
         $this->assertNotNull($firstNotif);
 
@@ -116,11 +123,11 @@ class NotificationFeatureTest extends TestCase
     {
         $internalPath = '/mahasiswa/dashboard?from=notification#latest';
         $this->actingAs($this->student)
-            ->get(route('mahasiswa.notifications.read', ['id' => 'internal', 'target' => $internalPath]))
+            ->post(route('mahasiswa.notifications.read', ['id' => 'internal']), ['target' => $internalPath])
             ->assertRedirect($internalPath);
 
         $sameOrigin = url('/mahasiswa/dashboard?from=notification');
-        $this->get(route('mahasiswa.notifications.read', ['id' => 'same-origin', 'target' => $sameOrigin]))
+        $this->post(route('mahasiswa.notifications.read', ['id' => 'same-origin']), ['target' => $sameOrigin])
             ->assertRedirect($sameOrigin);
 
         $maliciousTargets = [
@@ -133,11 +140,17 @@ class NotificationFeatureTest extends TestCase
 
         foreach ($maliciousTargets as $index => $target) {
             $this->from('https://attacker.example/referrer')
-                ->get(route('mahasiswa.notifications.read', [
+                ->post(route('mahasiswa.notifications.read', [
                     'id' => "malicious-{$index}",
-                    'target' => $target,
-                ]))
+                ]), ['target' => $target])
                 ->assertRedirect(route('mahasiswa.notifications'));
         }
+    }
+
+    public function test_get_request_to_mark_read_endpoint_returns_405_method_not_allowed(): void
+    {
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.notifications.read', 'any_id'))
+            ->assertStatus(405);
     }
 }

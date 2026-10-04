@@ -3,15 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\Assessment;
+use App\Models\AssessmentAttempt;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
+use App\Models\StudentAssessmentScore;
 use App\Models\Submission;
+use App\Models\SubmissionAnswer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class CodingTaskSubmissionAndAiTest extends TestCase
@@ -19,9 +23,13 @@ class CodingTaskSubmissionAndAiTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $mahasiswa;
+
     private ClassSection $section;
+
     private MataKuliah $mataKuliah;
+
     private Cpmk $cpmk;
 
     protected function setUp(): void
@@ -108,7 +116,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $assessment = Assessment::latest('id')->first();
         $this->assertNotNull($assessment);
         $this->assertTrue((bool) ($assessment->learning_payload['ai_enabled'] ?? false));
-        $this->assertEquals(1, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
+        $this->assertEquals(1, (int) DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
 
         // Student views task with AI enabled
         $viewRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
@@ -143,7 +151,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $updateRes->assertSessionHasNoErrors();
         $assessment->refresh();
         $this->assertFalse((bool) ($assessment->learning_payload['ai_enabled'] ?? true));
-        $this->assertEquals(0, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
+        $this->assertEquals(0, (int) DB::table('ai_tasks')->where('id', $assessment->id)->value('enabled'));
 
         // Student views task with AI disabled: no panel-ai, no status badge
         $viewResDisabled = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
@@ -178,7 +186,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $this->assertNotNull($matAssessment);
         $this->assertEquals('materi', $matAssessment->type);
         $this->assertFalse((bool) ($matAssessment->learning_payload['ai_enabled'] ?? true));
-        $this->assertEquals(0, (int) \Illuminate\Support\Facades\DB::table('ai_tasks')->where('id', $matAssessment->id)->value('enabled'));
+        $this->assertEquals(0, (int) DB::table('ai_tasks')->where('id', $matAssessment->id)->value('enabled'));
 
         // Student views programming material: shows 'Materi Pemrograman', no CPMK badge, no submit button/modal, and no AI/Interaktif badges
         $matView = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $matAssessment->id]));
@@ -292,7 +300,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $dosenRes->assertRedirect(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
 
         // Dosen reviewing student with ?student=
-        $dosenReviewRes = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]) . '?student=' . $this->mahasiswa->id);
+        $dosenReviewRes = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]).'?student='.$this->mahasiswa->id);
         $dosenReviewRes->assertDontSee('Meninjau:');
         $dosenReviewRes->assertSee($this->mahasiswa->name);
         $dosenReviewRes->assertSee('Kembali ke Penilaian');
@@ -488,7 +496,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $res->assertSee('Penilaian Tugas Coding (Per Butir Soal)');
 
         // Check created submission answers
-        $answers = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->get();
+        $answers = SubmissionAnswer::where('submission_id', $submission->id)->get();
         $this->assertCount(2, $answers);
 
         $ans1 = $answers->firstWhere('question_id', '1');
@@ -619,11 +627,11 @@ class CodingTaskSubmissionAndAiTest extends TestCase
             ],
         ]);
 
-        \App\Models\StudentAssessmentScore::create([
+        StudentAssessmentScore::create([
             'assessment_id' => $gradedAssessment->id,
             'mahasiswa_id' => $this->mahasiswa->id,
             'score' => 88.5,
-            'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED,
+            'status' => StudentAssessmentScore::STATUS_PUBLISHED,
         ]);
 
         $gradedRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $gradedAssessment->id]));
@@ -668,7 +676,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $startedAt = now()->subMinutes(40);
         $submittedAt = now();
 
-        \App\Models\AssessmentAttempt::create([
+        AssessmentAttempt::create([
             'assessment_id' => $assessment->id,
             'class_section_id' => $this->section->id,
             'mahasiswa_id' => $this->mahasiswa->id,
@@ -676,7 +684,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
             'started_at' => $startedAt,
             'submitted_at' => $submittedAt,
             'deadline_at' => $startedAt->copy()->addMinutes(60),
-            'status' => \App\Models\AssessmentAttempt::STATUS_SUBMITTED,
+            'status' => AssessmentAttempt::STATUS_SUBMITTED,
         ]);
 
         $studentCustomCode = 'def my_custom_solution(): return 42';
@@ -698,7 +706,7 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         ]);
 
         // Lecturer opens the student coding review page
-        $res = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]) . '?student=' . $this->mahasiswa->id);
+        $res = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]).'?student='.$this->mahasiswa->id);
         $res->assertOk();
 
         // 1. Must NOT see 'Meninjau:' badge

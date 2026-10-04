@@ -463,17 +463,13 @@ TEXT;
             }
         }
 
-        // Reservation: when v2 is active, use ceil(strlen/AI_CHARS_PER_TOKEN) + output + AI_RESERVE_PADDING
+        // Use the same provider-neutral token estimate in every pipeline. The reservation is
+        // temporary and is always reconciled against provider usage (or refunded) below.
         $payloadStr = json_encode($payload, JSON_UNESCAPED_UNICODE);
-        if ($isV2) {
-            $charsPerToken = max(1, (int) config('ai.chars_per_token', 4));
-            $reservePadding = max(0, (int) config('ai.reserve_padding', 256));
-            $estimatedInputTokens = max(20, (int) ceil(strlen($payloadStr) / $charsPerToken));
-            $reserved = $estimatedInputTokens + $output + $reservePadding;
-        } else {
-            $reserved = strlen($payloadStr) + $output + 2048;
-            $estimatedInputTokens = max(20, (int) round(strlen($payloadStr) / 4));
-        }
+        $charsPerToken = max(1, (int) config('ai.chars_per_token', 4));
+        $reservePadding = max(0, (int) config('ai.reserve_padding', 256));
+        $estimatedInputTokens = max(20, (int) ceil(strlen($payloadStr) / $charsPerToken));
+        $reserved = $estimatedInputTokens + $output + $reservePadding;
         $day = now('UTC')->toDateString();
 
         // Rate limiter ringan untuk provider aktif (RateLimiter Laravel, config AI_RPM). Opsional, default mati.
@@ -524,21 +520,28 @@ TEXT;
             }
 
             $isRetryable = false;
+            $retryAfterSeconds = null;
             if ($lastException !== null) {
                 $isRetryable = true;
-            } elseif ($response !== null && ($response->status() === 429 || $response->serverError())) {
+            } elseif ($response !== null && $response->serverError()) {
                 $isRetryable = true;
+            } elseif ($response !== null && $response->status() === 429) {
+                $retryAfter = $response->header('Retry-After');
+                if (is_numeric($retryAfter)) {
+                    $retryAfterSeconds = max(0.0, (float) $retryAfter);
+                } elseif (is_string($retryAfter) && ($retryAt = strtotime($retryAfter)) !== false) {
+                    $retryAfterSeconds = max(0.0, (float) ($retryAt - time()));
+                }
+
+                // A 429 without an explicit short retry window commonly represents a daily,
+                // billing, or hard request quota. Retrying it only burns provider request quota.
+                $isRetryable = $retryAfterSeconds !== null && $retryAfterSeconds <= 5.0;
             }
 
             if ($isV2 && $isRetryable && $attempt < $maxAttempts - 1) {
                 $delay = 0.5 * (2 ** $attempt) + (random_int(50, 200) / 1000);
-                if ($response !== null && $response->header('Retry-After')) {
-                    $retryAfter = $response->header('Retry-After');
-                    if (is_numeric($retryAfter)) {
-                        $delay = min(5.0, max(0.5, (float) $retryAfter));
-                    } elseif ($ts = strtotime($retryAfter)) {
-                        $delay = min(5.0, max(0.5, (float) ($ts - time())));
-                    }
+                if ($retryAfterSeconds !== null) {
+                    $delay = max(0.5, $retryAfterSeconds);
                 }
                 if (microtime(true) - $started + $delay < $maxBudgetSeconds - 3.0) {
                     usleep((int) ($delay * 1_000_000));
@@ -555,14 +558,12 @@ TEXT;
         // Handle network/connection failure after retries
         if ($lastException !== null) {
             $timeout = str_contains($lastException->getMessage(), 'cURL error 28');
-            if ($isV2) {
-                // Refund penuh jika gagal sebelum provider menagih
-                $this->adjust($userId, $day, -$reserved, false);
-            }
+            // No response usage exists, so the provider-neutral reservation must not become a charge.
+            $this->adjust($userId, $day, -$reserved, false);
             $this->recordUsage($userId, $stage, $context, [
                 'status' => $timeout ? 'timeout' : 'connection_error',
-                'usage_source' => $isV2 ? 'refunded' : 'reserved',
-                'total_tokens' => $isV2 ? 0 : $reserved,
+                'usage_source' => 'refunded',
+                'total_tokens' => 0,
                 'latency_ms' => $this->elapsedMs($started),
             ], $provider, $model);
             Log::warning("AI connection failed ({$provider})", [
@@ -613,19 +614,24 @@ TEXT;
         $isEmptyText = trim($text) === '';
         $isCompleted = (in_array(strtoupper((string) $finishReason), ['STOP', 'LENGTH', 'NULL', ''], true) || $finishReason === null) && ! $isEmptyText && ! $isSafetyBlocked;
 
-        if ($response->successful()) {
-            if ($totalTokens > 0) {
-                // Provider berhasil memproses dan mengembalikan usage aktual:
-                // Tagih token sesuai usage riil dan sesuaikan selisih reservasi (baik complete, safety filter, maupun empty response)
-                $this->adjust($userId, $day, $totalTokens - $reserved, false);
-            } elseif ($isV2) {
-                // Provider sukses tetapi tidak mengembalikan data usage: refund penuh reservasi
-                $this->adjust($userId, $day, -$reserved, false);
-            }
-        } elseif ($isV2) {
-            // Error sebelum respons / kegagalan provider (429, 5xx, client error, timeout): refund penuh
+        $hasConfirmedUsage = $totalTokens > 0;
+        if ($hasConfirmedUsage) {
+            // Some providers can return billable usage with an error response. Whenever usage is
+            // present it is the source of truth, independent of provider, HTTP status, or V1/V2.
+            $this->adjust($userId, $day, $totalTokens - $reserved, false);
+        } else {
+            // No provider-confirmed usage means the temporary reservation is not a real charge.
             $this->adjust($userId, $day, -$reserved, false);
         }
+
+        $normalizedUsage = [
+            'input_tokens' => $inputTokens,
+            'cached_tokens' => $cachedTokens,
+            'output_tokens' => $outputTokens,
+            'thinking_tokens' => $thinkingTokens,
+            'total_tokens' => $totalTokens,
+        ];
+        $this->lastUsage = $normalizedUsage;
 
         $callStatus = ! $response->successful()
             ? ($response->status() === 429 ? 'rate_limited' : 'provider_error')
@@ -633,12 +639,12 @@ TEXT;
 
         $this->recordUsage($userId, $stage, $context, [
             'status' => $callStatus,
-            'usage_source' => ($response->successful() && $totalTokens > 0) ? 'confirmed' : ($isV2 ? 'refunded' : 'reserved'),
+            'usage_source' => $hasConfirmedUsage ? 'confirmed' : 'refunded',
             'input_tokens' => $inputTokens,
             'cached_tokens' => $cachedTokens,
             'output_tokens' => $outputTokens,
             'thinking_tokens' => $thinkingTokens,
-            'total_tokens' => ($response->successful() && $totalTokens > 0) ? $totalTokens : ($isV2 ? 0 : $reserved),
+            'total_tokens' => $hasConfirmedUsage ? $totalTokens : 0,
             'latency_ms' => $this->elapsedMs($started),
             'finish_reason' => $finishReason,
             'model_version' => $modelVersion,
@@ -668,7 +674,7 @@ TEXT;
             abort_unless($response->successful(), 503, match ($response->status()) {
                 400, 404 => 'Konfigurasi model AI bermasalah. Hubungi pengelola.',
                 401, 403 => 'Akses API AI ditolak. Hubungi pengelola untuk memeriksa API key.',
-                429 => 'Batas pemakaian layanan AI tercapai. Silakan coba lagi nanti.',
+                429 => 'Provider AI sedang mencapai batas request. Silakan coba lagi nanti.',
                 503 => 'Layanan AI sedang sibuk. Silakan coba lagi sebentar lagi.',
                 504 => 'Waktu tunggu layanan AI habis. Silakan coba lagi sebentar lagi.',
                 default => 'Layanan AI mengalami gangguan sementara. Silakan coba lagi nanti.',
@@ -690,13 +696,7 @@ TEXT;
 
         return [
             'text' => $text,
-            'usage' => [
-                'input_tokens' => $inputTokens,
-                'cached_tokens' => $cachedTokens,
-                'output_tokens' => $outputTokens,
-                'thinking_tokens' => $thinkingTokens,
-                'total_tokens' => $totalTokens,
-            ],
+            'usage' => $normalizedUsage,
             'finish_reason' => $finishReason,
             'model' => $model,
             'provider' => $provider,

@@ -192,19 +192,19 @@
     </div>
 </div>
 @if($errors->has('current_password') || $errors->has('new_password') || session('status') === 'password-updated')
-    <script>
+    <script nonce="{{ $cspNonce }}">
         if (!window.location.hash || window.location.hash === '#profil') {
             window.location.hash = '#keamanan';
         }
     </script>
 @elseif(session('status') === 'notification-preferences-updated')
-    <script>
+    <script nonce="{{ $cspNonce }}">
         if (!window.location.hash || window.location.hash === '#profil') {
             window.location.hash = '#notifikasi';
         }
     </script>
 @endif
-<script>
+<script nonce="{{ $cspNonce }}">
     function togglePasswordVisibility(inputId, btn) {
         const input = document.getElementById(inputId);
         if (!input) return;

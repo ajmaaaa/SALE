@@ -6,6 +6,12 @@
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#f4f5f7">
     <title>{{ $item['title'] }} | SALE</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v=4">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="preload" href="/vendor/pyodide/pyodide.asm.wasm" as="fetch" type="application/wasm" crossorigin>
     <link rel="preload" href="/vendor/pyodide/python_stdlib.zip" as="fetch" crossorigin>
@@ -129,7 +135,7 @@
             display: none !important;
         }
     </style>
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             try {
                 if (window.innerWidth >= 1280) {
@@ -157,18 +163,6 @@
     $studentScore = $studentScore ?? null;
     $codingScoreUrl = $codingScoreUrl ?? null;
     $hasBeenGraded = $hasBeenGraded ?? false;
-    if (!$isLecturer && !$isMaterial && !$hasBeenGraded && auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('student_assessment_scores')) {
-        $hasBeenGraded = \App\Models\StudentAssessmentScore::where('assessment_id', $item['id'] ?? 0)
-            ->where('mahasiswa_id', auth()->id())
-            ->where(function ($query) {
-                $query->whereIn('status', [
-                    \App\Models\StudentAssessmentScore::STATUS_PARTIAL,
-                    \App\Models\StudentAssessmentScore::STATUS_FINAL,
-                    \App\Models\StudentAssessmentScore::STATUS_PUBLISHED,
-                ])->orWhereNotNull('score');
-            })
-            ->exists();
-    }
     $assessmentAttempt = $assessmentAttempt ?? null;
     $isAttemptExpired = ($assessmentAttempt && (
         in_array($assessmentAttempt->status, [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED], true)
@@ -183,7 +177,7 @@
         || $isAttemptExpired
         || ($isAttemptRejected ?? false)
     ));
-    $isArchived = !empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false);
+    $isArchived = $isArchived ?? (!empty($course['is_archived']));
     $aiEnabled = ($isLecturer || $isSubmitted) ? false : (bool) ($item['ai_enabled'] ?? true);
     $isEditorReadOnly = ($isSubmitted || $isLecturer);
     $storedLanguage = $item['language'] ?? 'python';
@@ -296,7 +290,7 @@
         try {
             $subAnswers = $submission->relationLoaded('answers')
                 ? $submission->answers
-                : \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->orderBy('id')->get();
+                : collect();
             foreach ($subAnswers as $aIdx => $sAns) {
                 if (!empty($sAns->answer_text)) {
                     $decodedAns = json_decode($sAns->answer_text, true);
@@ -333,7 +327,7 @@
     }
 @endphp
     @if(!$isMaterial && $hasSavedSubmission && !$isLecturer && !$isSubmitted)
-        <script>
+        <script nonce="{{ $cspNonce }}">
             try {
                 const draftKey = `sale.code.assignment.{{ $item['id'] }}.{{ $language }}`;
                 localStorage.setItem(draftKey, JSON.stringify(@json($defaultFiles)));
@@ -362,15 +356,7 @@
                 @if(! $isLecturer)
                     @if($studentScore !== null)
                         @php
-                            $cpmkThreshold = 65.0;
-                            if (isset($assessment) && $assessment && ($assessment->relationLoaded('cpmks') ? $assessment->cpmks->isNotEmpty() : $assessment->cpmks()->exists())) {
-                                $cpmkThreshold = (float) $assessment->cpmks->avg('threshold');
-                            } elseif (!empty($item['cpmk'])) {
-                                $cpmkObj = \App\Models\Cpmk::where('code', $item['cpmk'])->first();
-                                if ($cpmkObj && $cpmkObj->threshold !== null) {
-                                    $cpmkThreshold = (float) $cpmkObj->threshold;
-                                }
-                            }
+                            $cpmkThreshold = $cpmkThreshold ?? 65.0;
                             $maxPoints = (float)($item['points'] ?? 100);
                             $scorePct = $maxPoints > 0 ? (((float)$studentScore / $maxPoints) * 100) : (float)$studentScore;
                             $isScorePassed = $scorePct >= $cpmkThreshold;
@@ -539,8 +525,8 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         @foreach($stepAttachments as $stepAttUuid)
                                             @php
-                                                $stepFile = \App\Models\Attachment::where('uuid', $stepAttUuid)->first();
-                                                $stepFileMeta = \App\Support\LearningPreview::fileMeta($stepAttUuid);
+                                                $stepFile = ($stepAttachmentsMap[$stepAttUuid] ?? null);
+                                                $stepFileMeta = $item['file_meta'][$stepAttUuid] ?? [];
                                                 $stepMime = $stepFile?->mime ?? ($stepFileMeta['mime'] ?? '');
                                                 $stepName = $stepFile?->name ?? ($stepFileMeta['name'] ?? 'Berkas Lampiran');
                                                 $stepExt = strtolower(pathinfo($stepName, PATHINFO_EXTENSION) ?: (pathinfo($stepFileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
@@ -564,6 +550,7 @@
                                                 ];
                                             @endphp
                                             <div class="overflow-hidden rounded-lg border border-line/70 bg-white shadow-2xs hover:border-brand/40 transition flex flex-col" style="contain: paint;">
+                                                <span class="sr-only">{{ strtoupper($stepExt ?: 'FILE') }}</span>
                                                 @if($isStepImage)
                                                     <button type="button" onclick="openAttachmentPreview(event, {{ Illuminate\Support\Js::from($previewData) }})" class="relative flex aspect-video w-full flex-col items-center justify-center overflow-hidden border-b border-line bg-slate-50 cursor-pointer group hover:opacity-95 transition" title="Buka pratinjau {{ $stepName }}">
                                                         <img class="h-full w-full object-cover group-hover:scale-105 transition duration-300" src="{{ $stepUrl }}" alt="{{ $stepName }}">
@@ -669,7 +656,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 @if(!empty($item['question_image']))
                                     @php
-                                        $imgMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
+                                        $imgMeta = $item['file_meta'][$item['question_image']] ?? [];
                                         $imgAlt = $item['image_alt'] ?? 'Gambar pendukung';
                                         $imgName = !empty($item['image_alt']) ? $item['image_alt'] : ($imgMeta['name'] ?? 'Gambar pendukung');
                                         $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
@@ -706,7 +693,7 @@
                                 @foreach($allAttachments as $file)
                                     @php
                                         $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
-                                        $fileMeta = \App\Support\LearningPreview::fileMeta($file);
+                                        $fileMeta = $item['file_meta'][$fileId] ?? [];
                                         $fileMime = $fileMeta['mime'] ?? '';
                                         $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
                                         $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
@@ -1198,7 +1185,7 @@
 
 
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         function openAttachmentPreview(e, fileData) {
             if (e) {
                 e.preventDefault();

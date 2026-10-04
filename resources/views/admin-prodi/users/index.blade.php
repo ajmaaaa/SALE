@@ -375,7 +375,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     function switchProdi(prodiId) {
         window.location.href = `{{ route('admin-prodi.users.index') }}?prodi_id=${prodiId}&tab={{ $tab }}`;
     }

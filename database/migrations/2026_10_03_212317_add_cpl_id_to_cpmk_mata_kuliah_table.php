@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('cpmk_mata_kuliah', function (Blueprint $table) {
-            if (!Schema::hasColumn('cpmk_mata_kuliah', 'cpl_id')) {
+            if (! Schema::hasColumn('cpmk_mata_kuliah', 'cpl_id')) {
                 $table->foreignId('cpl_id')
                     ->nullable()
                     ->after('cpmk_id')
@@ -28,16 +28,23 @@ return new class extends Migration
             $table->unique(['mata_kuliah_id', 'cpmk_id', 'cpl_id'], 'cpmk_mk_cpl_unique');
         });
 
-        // Correlated subquery works across MySQL, MariaDB, and SQLite
-        DB::statement("
-            UPDATE cpmk_mata_kuliah
-            SET cpl_id = (
-                SELECT MIN(cpl_id)
-                FROM cpl_cpmk
-                WHERE cpl_cpmk.cpmk_id = cpmk_mata_kuliah.cpmk_id
-            )
-            WHERE cpl_id IS NULL
-        ");
+        DB::table('cpmk_mata_kuliah')
+            ->whereNull('cpl_id')
+            ->orderBy('id')
+            ->chunkById(500, function ($rows): void {
+                $cplByCpmk = DB::table('cpl_cpmk')
+                    ->whereIn('cpmk_id', $rows->pluck('cpmk_id')->unique())
+                    ->selectRaw('cpmk_id, MIN(cpl_id) AS cpl_id')
+                    ->groupBy('cpmk_id')
+                    ->pluck('cpl_id', 'cpmk_id');
+
+                foreach ($rows as $row) {
+                    $cplId = $cplByCpmk->get($row->cpmk_id);
+                    if ($cplId !== null) {
+                        DB::table('cpmk_mata_kuliah')->where('id', $row->id)->update(['cpl_id' => $cplId]);
+                    }
+                }
+            });
     }
 
     /**

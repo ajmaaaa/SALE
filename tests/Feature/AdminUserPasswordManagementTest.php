@@ -16,6 +16,7 @@ class AdminUserPasswordManagementTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Prodi $prodi;
 
     protected function setUp(): void

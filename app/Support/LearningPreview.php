@@ -15,7 +15,6 @@ use App\Services\DatabaseNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class LearningPreview
 {
@@ -246,17 +245,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
         $pinned = $pinnedList->first();
 
-        // Otomatis unpin materi-materi lama jika ada lebih dari 1 materi yang ter-pin
-        if ($pinned && $pinnedList->count() > 1) {
-            foreach ($pinnedList->slice(1) as $olderPinned) {
-                $oldPayload = $olderPinned->learning_payload ?? [];
-                if (! empty($oldPayload['pin_video'])) {
-                    $oldPayload['pin_video'] = false;
-                    $olderPinned->update(['learning_payload' => $oldPayload]);
-                }
-            }
-        }
-
         if ($pinned && ! empty($pinned->learning_payload['video'])) {
             $customVideo = [
                 'video' => $pinned->learning_payload['video'],
@@ -319,7 +307,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         // Sekarang: biarkan questions kosong, beri flag 'questions_empty' untuk UI.
         $questionsEmpty = in_array($type, ['kuis', 'uts', 'uas'], true) && empty($payload['questions']);
         $publishedAt = $assessment->published_at ?? $assessment->created_at;
-        $publishedAtFormatted = $publishedAt ? \Carbon\Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null;
+        $publishedAtFormatted = $publishedAt ? Carbon::parse($publishedAt)->translatedFormat('d M Y, H:i') : null;
 
         // PERBAIKAN PREVIEW DOSEN: Jika array attachments kosong, backfill dari dua sumber:
         // 1. Tabel attachments yang terhubung ke assessment_id ini
@@ -331,12 +319,14 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         $questionImages = array_filter(array_column($payload['questions'] ?? [], 'image'));
         $stepAttachments = [];
         foreach ($payload['coding_steps'] ?? [] as $st) {
-            if (!empty($st['attachments']) && is_array($st['attachments'])) {
+            if (! empty($st['attachments']) && is_array($st['attachments'])) {
                 foreach ($st['attachments'] as $att) {
-                    if ($att) $stepAttachments[] = $att;
+                    if ($att) {
+                        $stepAttachments[] = $att;
+                    }
                 }
             }
-            if (!empty($st['attachment'])) {
+            if (! empty($st['attachment'])) {
                 $stepAttachments[] = $st['attachment'];
             }
         }
@@ -345,30 +335,41 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
         $currentAtts = $payload['attachments'] ?? [];
         // Sumber 1: tabel attachments DB yang terhubung ke assessment ini (hanya lampiran tugas dosen, bukan berkas pengumpulan mahasiswa)
-        if (\Illuminate\Support\Facades\Schema::hasTable('attachments')) {
-            $dbUuids = \App\Models\Attachment::where('assessment_id', $assessment->id)
-                ->whereNull('submission_id')
+        if (Schema::hasTable('attachments')) {
+            $dbAttachments = Attachment::where('assessment_id', $assessment->id)->get();
+            $domainAttachments = $dbAttachments->whereNull('submission_id');
+            $dbUuids = $domainAttachments
                 ->pluck('uuid')
-                ->filter(fn($uuid) => !in_array($uuid, $excludeUuids, true))
+                ->filter(fn ($uuid) => ! in_array($uuid, $excludeUuids, true))
                 ->values()
                 ->all();
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $dbUuids)));
 
+            $payload['file_meta'] = array_merge(
+                $payload['file_meta'] ?? [],
+                $domainAttachments->mapWithKeys(fn (Attachment $attachment) => [$attachment->uuid => [
+                    'path' => $attachment->path,
+                    'name' => $attachment->name,
+                    'mime' => $attachment->mime,
+                    'size' => $attachment->size,
+                ]])->all()
+            );
+
             // Pastikan tidak ada berkas pengumpulan mahasiswa (submission) yang masuk ke lampiran tugas
-            $submissionUuids = \App\Models\Attachment::where('assessment_id', $assessment->id)
+            $submissionUuids = $dbAttachments
                 ->whereNotNull('submission_id')
                 ->pluck('uuid')
                 ->all();
-            if (!empty($submissionUuids)) {
-                $currentAtts = array_values(array_filter($currentAtts, fn($uuid) => !in_array($uuid, $submissionUuids, true)));
+            if (! empty($submissionUuids)) {
+                $currentAtts = array_values(array_filter($currentAtts, fn ($uuid) => ! in_array($uuid, $submissionUuids, true)));
             }
         }
 
         // Sumber 2: file_meta di payload (fallback untuk data lama)
-        if (!empty($payload['file_meta'])) {
+        if (! empty($payload['file_meta'])) {
             $filemetaUuids = array_values(array_filter(
                 array_keys($payload['file_meta']),
-                fn($uuid) => !in_array($uuid, $excludeUuids, true)
+                fn ($uuid) => ! in_array($uuid, $excludeUuids, true)
             ));
             $currentAtts = array_values(array_unique(array_merge($currentAtts, $filemetaUuids)));
         }
@@ -379,9 +380,9 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
 
         if (empty($payload['coding_steps'])) {
             if (! empty($payload['questions'])) {
-                $codingQuestions = array_filter($payload['questions'], fn($q) => ($q['type'] ?? '') === 'coding');
+                $codingQuestions = array_filter($payload['questions'], fn ($q) => ($q['type'] ?? '') === 'coding');
                 if (! empty($codingQuestions)) {
-                    $payload['coding_steps'] = array_values(array_map(function($q) use ($payload) {
+                    $payload['coding_steps'] = array_values(array_map(function ($q) use ($payload) {
                         return [
                             'title' => $q['prompt'] ?? 'Soal Pemrograman',
                             'body' => $q['body'] ?? $payload['body'] ?? '',
@@ -401,7 +402,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
                         'points' => (int) ($payload['points'] ?? 100),
                         'link' => $payload['link'] ?? null,
                         'attachment' => null,
-                    ]
+                    ],
                 ];
             }
         }
@@ -410,7 +411,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             foreach ($payload['coding_steps'] as &$cStep) {
                 $cStepAtts = array_values(array_filter(array_unique(array_merge(
                     $cStep['attachments'] ?? [],
-                    !empty($cStep['attachment']) ? [$cStep['attachment']] : []
+                    ! empty($cStep['attachment']) ? [$cStep['attachment']] : []
                 ))));
                 $cStep['attachments'] = $cStepAtts;
                 $cStep['attachment'] = $cStepAtts[0] ?? null;
@@ -450,7 +451,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             'due' => $due,
             'attachments' => $currentAtts,
             'allow_late' => (bool) $assessment->allow_late,
-            'published_at' => $publishedAt ? \Carbon\Carbon::parse($publishedAt)->toIso8601String() : null,
+            'published_at' => $publishedAt ? Carbon::parse($publishedAt)->toIso8601String() : null,
             'published_at_formatted' => $publishedAtFormatted,
             'created_at' => $assessment->created_at?->toIso8601String(),
             'updated_at' => $assessment->updated_at?->toIso8601String(),
@@ -770,253 +771,6 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
         }
 
         return [];
-
-        /* Legacy preview notification builder retained temporarily below for
-         * forensic comparison. It is unreachable: operational notifications
-         * are now generated exclusively from persisted database records. */
-        if (! $user) {
-            $user = auth()->user();
-            if (! $user && is_array(session('auth_user')) && Schema::hasTable('users')) {
-                $sessionUser = session('auth_user');
-                $user = User::where('email', $sessionUser['email'] ?? '')
-                    ->orWhere('nim_nidn', $sessionUser['number'] ?? '')
-                    ->first();
-            }
-        }
-
-        $readNotifs = session('learning.read_notifications', []);
-        $allRead = in_array('all', $readNotifs, true);
-        $clearedNotifs = session('learning.cleared_notifications', []);
-        $allCleared = in_array('all', $clearedNotifs, true);
-        $clearedTimestamp = session('learning.notifications_cleared_at');
-
-        $notifications = [];
-        $courses = [];
-        $items = [];
-        $studentScores = [];
-
-        if ($user && Schema::hasTable('student_assessment_scores')) {
-            $scoreQuery = StudentAssessmentScore::where('mahasiswa_id', $user->id);
-            if ($user->hasRole(Role::MAHASISWA)) {
-                $scoreQuery->where('status', StudentAssessmentScore::STATUS_PUBLISHED);
-            }
-            $studentScores = $scoreQuery->get()->keyBy('assessment_id');
-        }
-
-        if ($user && Schema::hasTable('class_sections')) {
-            $isDosen = $user->hasRole(Role::DOSEN);
-            $sections = $isDosen
-                ? ClassSection::where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->with(['mataKuliah', 'dosen'])->get()
-                : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
-
-            foreach ($sections as $sec) {
-                $courses[$sec->id] = [
-                    'id' => $sec->id,
-                    'code' => $sec->display_code,
-                    'title' => $sec->mataKuliah?->name ?? 'Mata Kuliah',
-                    'lecturer' => $sec->dosen?->name ?? 'Dosen Pengampu',
-                ];
-
-                if (Schema::hasTable('assessments')) {
-                    $assessments = Assessment::where('class_section_id', $sec->id)
-                        ->where(function ($q) {
-                            $q->whereNull('status')->orWhere('status', '!=', Assessment::STATUS_DRAFT);
-                        })->get();
-
-                    foreach ($assessments as $asm) {
-                        $items[$asm->id] = [
-                            'id' => $asm->id,
-                            'course' => $sec->id,
-                            'title' => $asm->name,
-                            'module' => $asm->code,
-                            'type' => in_array($asm->type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project']) ? (in_array($asm->type, ['project']) ? 'tugas' : $asm->type) : 'tugas',
-                            'due' => $asm->due_at?->format('Y-m-d H:i:s') ?? '',
-                            'points' => 100,
-                            'created_at' => $asm->created_at,
-                        ];
-                    }
-                }
-
-                // PERBAIKAN M-04: Jangan campur session preview items ke notifikasi user DB.
-                // Preview items adalah data contoh — bukan milik section DB ini.
-                // Dihapus untuk mencegah notifikasi tugas contoh muncul di akun nyata.
-            }
-        }
-
-        // PERBAIKAN M-04: Preview data hanya untuk user null (belum login).
-        // User login tanpa enrollment mendapat notifikasi kosong — bukan data contoh.
-        if (empty($courses) && ! $user) {
-            $courses = self::courses();
-        }
-        if (empty($items) && ! $user) {
-            $items = self::items();
-        }
-
-        foreach ($items as $item) {
-            $id = $item['id'];
-            $courseId = $item['course'] ?? 1;
-            $courseTitle = $courses[$courseId]['title'] ?? 'Mata Kuliah';
-            $courseCode = $courses[$courseId]['code'] ?? 'MK';
-            $type = $item['type'] ?? 'tugas';
-
-            if (! in_array($type, ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case'])) {
-                continue;
-            }
-
-            $hasDbScore = isset($studentScores[$id]) && $studentScores[$id]->score !== null;
-            $sessionGrade = session("learning.grades.{$id}") ?? session("academic.item_grades.{$id}.1");
-            $isGraded = $hasDbScore || $sessionGrade !== null;
-            $scoreVal = $hasDbScore ? (float) $studentScores[$id]->score : ($sessionGrade !== null ? (is_array($sessionGrade) ? array_sum($sessionGrade['points'] ?? []) : (float) $sessionGrade) : null);
-            $isSubmitted = session("learning.submissions.{$id}") || $isGraded;
-
-            $targetUrl = ($type === 'coding')
-                ? route('mahasiswa.assignment.code', $id)
-                : route('mahasiswa.course.item', [$courseId, $id]);
-
-            if ($isGraded) {
-                $notifKey = "grade_{$id}";
-                $scoreTimestamp = now()->subHours(2)->timestamp;
-                $feedbackMsg = '';
-
-                if ($hasDbScore && $studentScores[$id]->updated_at) {
-                    $scoreTimestamp = $studentScores[$id]->updated_at->timestamp;
-                    if (! empty($studentScores[$id]->feedback)) {
-                        $feedbackMsg = ' Catatan dosen: "'.Str::limit($studentScores[$id]->feedback, 80).'"';
-                    }
-                }
-
-                $isQuiz = in_array($type, ['kuis', 'uts', 'uas'], true);
-                $isTask = in_array($type, ['tugas', 'coding', 'pbl', 'case', 'project'], true);
-                $title = $isQuiz
-                    ? "Nilai Quiz Diperbarui: {$item['title']} ({$courseCode})"
-                    : ($isTask ? "Nilai Tugas Diperbarui: {$item['title']} ({$courseCode})" : "Nilai Diperbarui: {$item['title']} ({$courseCode})");
-                $message = $isQuiz
-                    ? 'Nilai quiz sudah diperbarui oleh dosen dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg
-                    : ($isTask ? 'Nilai tugas sudah dinilai dan diperbarui oleh dosen dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg : 'Nilai sudah dinilai dan diperbarui dengan perolehan nilai '.number_format($scoreVal, 0).'/100.'.$feedbackMsg);
-
-                $notifications[] = [
-                    'id' => $notifKey,
-                    'title' => $title,
-                    'message' => $message,
-                    'time' => self::formatNotificationTime($scoreTimestamp),
-                    'timestamp' => $scoreTimestamp,
-                    'icon_type' => 'grade',
-                    'link' => $targetUrl,
-                    'action_label' => 'Lihat Hasil Nilai',
-                    'category' => 'nilai',
-                    'is_read' => $allRead || in_array($notifKey, $readNotifs, true),
-                ];
-            } elseif ($isSubmitted) {
-                $notifKey = "submit_{$id}";
-                $submitTimestamp = session("learning.submissions.{$id}.timestamp", now()->subHours(5)->timestamp);
-                $notifications[] = [
-                    'id' => $notifKey,
-                    'title' => "Jawaban Terkirim: {$item['title']} ({$courseCode})",
-                    'message' => 'Berkas pengerjaan Anda berhasil diunggah ke sistem dan sedang menunggu proses penilaian dosen.',
-                    'time' => self::formatNotificationTime($submitTimestamp),
-                    'timestamp' => $submitTimestamp,
-                    'icon_type' => 'check',
-                    'link' => $targetUrl,
-                    'action_label' => 'Lihat Detail Submission',
-                    'category' => 'tugas',
-                    'is_read' => $allRead || in_array($notifKey, $readNotifs, true),
-                ];
-            } else {
-                $notifKey = "pending_{$id}";
-                $isQuiz = in_array($type, ['kuis', 'uts', 'uas']);
-                $hasDue = ! empty($item['due']);
-                $dueCarbon = $hasDue ? Carbon::parse($item['due']) : null;
-                $dueText = $dueCarbon ? $dueCarbon->translatedFormat('d M Y, H:i') : 'Tanpa batas tenggat';
-
-                $entryTimestamp = isset($item['created_at']) && $item['created_at']
-                    ? Carbon::parse($item['created_at'])->timestamp
-                    : (now()->timestamp - (($id % 5 + 1) * 3600));
-
-                $notifications[] = [
-                    'id' => $notifKey,
-                    'title' => ($isQuiz ? 'Kuis Tersedia: ' : 'Penugasan: ')."{$item['title']} ({$courseCode})",
-                    'message' => "Mata Kuliah {$courseTitle}. Batas tenggat: {$dueText}. Pastikan mempelajari materi pendukung sebelum mengerjakan.",
-                    'time' => self::formatNotificationTime($entryTimestamp),
-                    'timestamp' => $entryTimestamp,
-                    'icon_type' => $isQuiz ? 'quiz' : 'alert',
-                    'link' => $targetUrl,
-                    'action_label' => $isQuiz ? 'Mulai Kerjakan Kuis' : 'Buka Lembar Tugas',
-                    'category' => 'tugas',
-                    'is_read' => $allRead || in_array($notifKey, $readNotifs, true),
-                ];
-            }
-        }
-
-        foreach ($courses as $cId => $cMeta) {
-            $discussions = self::courseDiscussions($cId);
-            $unreadCount = self::unreadDiscussionCount($cId);
-            if ($unreadCount > 0 && ! empty($discussions)) {
-                $lastMsg = end($discussions);
-                $msgTimestamp = $lastMsg['timestamp'] ?? (now()->subMinutes(25)->timestamp);
-                $notifKey = "discuss_{$cId}_{$msgTimestamp}";
-                $targetCourseUrl = ($user && $user->hasRole(Role::DOSEN))
-                    ? route('dosen.course.show', $cId).'#diskusi-kelas'
-                    : route('mahasiswa.course.show', $cId).'#diskusi-kelas';
-
-                $isDiscussRead = $allRead
-                    || in_array($notifKey, $readNotifs, true)
-                    || in_array("discuss_{$cId}", $readNotifs, true);
-
-                $notifications[] = [
-                    'id' => $notifKey,
-                    'title' => "Diskusi Baru: {$cMeta['code']} - {$cMeta['title']}",
-                    'message' => "{$lastMsg['author']}: \"".Str::limit($lastMsg['message'], 100).'"',
-                    'time' => self::formatNotificationTime($msgTimestamp),
-                    'timestamp' => $msgTimestamp,
-                    'icon_type' => 'chat',
-                    'link' => $targetCourseUrl,
-                    'action_label' => 'Buka Forum Diskusi',
-                    'category' => 'diskusi',
-                    'is_read' => $isDiscussRead,
-                ];
-            }
-        }
-
-        // Notifikasi Sistem
-        $systemNotifs = [
-            [
-                'id' => 'system_calendar_update',
-                'title' => 'Pembaruan Kalender Akademik & Jadwal Kuliah',
-                'message' => 'Jadwal tatap muka, batas submisi tugas, dan periode evaluasi tengah semester telah diperbarui oleh Program Studi.',
-                'timestamp' => now()->subDays(1)->setHour(9)->setMinute(30)->timestamp,
-                'icon_type' => 'system',
-                'link' => route('mahasiswa.dashboard'),
-                'action_label' => 'Lihat Jadwal Kuliah',
-                'category' => 'sistem',
-            ],
-        ];
-
-        foreach ($systemNotifs as $sys) {
-            $notifKey = $sys['id'];
-            $sys['time'] = self::formatNotificationTime($sys['timestamp']);
-            $sys['is_read'] = $allRead || in_array($notifKey, $readNotifs, true);
-            $notifications[] = $sys;
-        }
-
-        if (! empty($clearedNotifs) || $clearedTimestamp) {
-            $notifications = array_values(array_filter($notifications, function ($n) use ($clearedNotifs, $allCleared, $clearedTimestamp) {
-                if ($allCleared) {
-                    return false;
-                }
-                if (in_array($n['id'], $clearedNotifs, true)) {
-                    return false;
-                }
-                if ($clearedTimestamp && ($n['timestamp'] ?? 0) <= $clearedTimestamp) {
-                    return false;
-                }
-
-                return true;
-            }));
-        }
-
-        usort($notifications, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
-
-        return $notifications;
     }
 
     public static function unreadNotificationCount(?User $user = null): int
@@ -1177,6 +931,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
             if (empty($meta['mime']) && ! empty($meta['name'])) {
                 $meta['mime'] = self::guessMimeType($meta['name']);
             }
+
             return $meta;
         }
 
@@ -1212,6 +967,7 @@ data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIH
     public static function guessMimeType(string $fileName): string
     {
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
         return match ($ext) {
             'pdf' => 'application/pdf',
             'png' => 'image/png',

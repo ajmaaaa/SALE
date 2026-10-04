@@ -37,39 +37,13 @@
 
     $uncompletedTasksCount = $tugasItems->reject(fn($item) => in_array((int)$item['id'], array_map('intval', $submittedAssessmentIds)))->count();
     $enrolledStudents = $enrolledStudents ?? [];
-    $courseMembers = $courseMembers ?? collect();
-    if (isset($classSection)) {
-        $classSection->loadMissing(['students', 'dosen', 'dosenPendamping', 'dosenAnggota']);
-        $enrolledStudents = $classSection->students->map(fn($user) => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'number' => $user->nim_nidn ?? $user->email,
-            'role' => 'mahasiswa',
-            'avatar_url' => $user->profile_photo_url,
-            'is_locked' => (bool) ($user->pivot->is_locked ?? false),
-        ])->values()->all();
-        $lecturers = collect([$classSection->dosen, $classSection->dosenPendamping])
-            ->concat($classSection->dosenAnggota ?? [])
-            ->filter()
-            ->unique('id')
-            ->map(fn($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'number' => $user->nim_nidn ?? $user->email,
-                'role' => 'dosen',
-                'avatar_url' => $user->profile_photo_url,
-                'is_locked' => false,
-            ]);
-        $courseMembers = $lecturers
-            ->concat($enrolledStudents)
-            ->values();
-    }
-    $discussionCount = \App\Models\Message::whereHas('room', fn($query) => $query->where('class_section_id', $course['id']))->count();
+    $courseMembers = collect($courseMembers ?? []);
+    $discussionCount = $discussionCount ?? 0;
     $courseVideo = $course['video'] ?? null;
     $courseVideoType = $course['video_type'] ?? (filter_var($courseVideo, FILTER_VALIDATE_URL) ? 'url' : 'file');
     $youtubeEmbed = $courseVideoType === 'url' ? \App\Support\LearningPreview::youtubeEmbedUrl($courseVideo) : null;
     $youtubePlayerUrl = $youtubeEmbed;
-    $courseVideoMeta = in_array($courseVideoType, ['file', 'image'], true) && $courseVideo ? (\App\Support\LearningPreview::fileMeta($courseVideo) ?? []) : [];
+    $courseVideoMeta = $courseVideoMeta ?? [];
 @endphp
 
 <div class="space-y-0">
@@ -137,12 +111,7 @@
                     @else
                         {{-- Tombol Keluar Kelas (PRD §5.3) — mahasiswa bisa keluar meski kelas diarsipkan --}}
                         @php
-                            $userId = auth()->id();
-                            $hasGrades = isset($classSection) && \Illuminate\Support\Facades\DB::table('student_assessment_scores')
-                                ->join('assessments', 'assessments.id', '=', 'student_assessment_scores.assessment_id')
-                                ->where('student_assessment_scores.mahasiswa_id', $userId)
-                                ->where('assessments.class_section_id', $classSection->id)
-                                ->exists();
+                            $hasGrades = $hasGrades ?? false;
                         @endphp
                         <button type="button"
                                 onclick="document.getElementById('leave-kelas-modal-{{ $course['id'] }}').showModal()"
@@ -391,7 +360,7 @@
                     @endforelse
                 </div>
 
-            <script>
+            <script nonce="{{ $cspNonce }}">
                 function switchCourseTab(tab) {
                     const btnMateri = document.getElementById('tab-btn-materi');
                     const btnTugas = document.getElementById('tab-btn-tugas');
@@ -440,12 +409,12 @@
         <aside data-discuss-aside class="lg:sticky lg:top-20 z-20 self-start w-full">
             <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-3.5 sm:p-5 rounded-xl border border-line/60 flex flex-col min-h-[400px] sm:min-h-[440px] max-h-[90vh]">
                 @php
-                    $hasChatTables = \Illuminate\Support\Facades\Schema::hasTable('rooms') && \Illuminate\Support\Facades\Schema::hasTable('messages');
-                    $chatRoom = $hasChatTables ? \App\Models\Room::forCourse($course['id'], $course['title']) : null;
+                    $hasChatTables = $hasChatTables ?? false;
+                    $chatRoom = $chatRoom ?? null;
                     $chatUser = auth()->user();
                     $isDosenUser = $chatUser?->hasRole(\App\Models\Role::DOSEN) ?? false;
                     $meName = $chatUser?->name ?? '';
-                    $initialTotalMessages = ($hasChatTables && $chatRoom) ? \App\Models\Message::where('room_id', $chatRoom->id)->count() : 0;
+                    $initialTotalMessages = $initialTotalMessages ?? 0;
                 @endphp
                 <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
                     <div class="flex items-center gap-2">
@@ -458,77 +427,10 @@
 
                 {{-- Messages List --}}
                 @php
-                    if ($hasChatTables && $chatRoom && \App\Models\Message::where('room_id', $chatRoom->id)->exists()) {
-                        $rawMessages = \App\Models\Message::where('room_id', $chatRoom->id)
-                            ->with(['user.role', 'replyTo.user', 'mentions.mentionedUser'])
-                            ->orderByDesc('id')
-                            ->limit(40)
-                            ->get();
-                        $initialMessages = $rawMessages->reverse()->values()->map(function ($m) use ($chatUser, $meName) {
-                            $p = $m->toChatPayload($chatUser);
-                            if (! $p['is_me'] && ! empty($meName) && trim($p['author']) === trim($meName)) {
-                                $p['is_me'] = true;
-                            }
-                            return $p;
-                        });
-                        $pinnedMessages = \App\Models\Message::where('room_id', $chatRoom->id)
-                            ->where('is_pinned', true)
-                            ->with(['user.role', 'replyTo.user'])
-                            ->orderByDesc('id')
-                            ->get()
-                            ->map(fn($m) => $m->toChatPayload($chatUser));
-                    } else {
-                        $initialMessages = collect();
-                        $pinnedMessages = collect();
-                    }
+                    $initialMessages = $initialMessages ?? collect();
+                    $pinnedMessages = $pinnedMessages ?? collect();
 
-                    $membersCollection = collect();
-                    if ($hasChatTables && $chatRoom) {
-                        $chatMembers = $chatRoom->members()->select('users.id', 'users.name')->get()->map(fn($u) => [
-                            'id' => $u->id,
-                            'name' => $u->name,
-                            'role' => $u->pivot->role ?? 'mahasiswa',
-                        ]);
-                        $membersCollection = $membersCollection->merge($chatMembers);
-                    }
-
-                    $targetSection = $classSection ?? ($section ?? (isset($course['id']) ? \App\Models\ClassSection::find($course['id']) : null));
-                    if ($targetSection) {
-                        if ($targetSection->dosen) {
-                            $membersCollection->push([
-                                'id' => $targetSection->dosen->id,
-                                'name' => $targetSection->dosen->name,
-                                'role' => 'dosen',
-                            ]);
-                        }
-                        if ($targetSection->dosenPendamping) {
-                            $membersCollection->push([
-                                'id' => $targetSection->dosenPendamping->id,
-                                'name' => $targetSection->dosenPendamping->name,
-                                'role' => 'dosen',
-                            ]);
-                        }
-                        if ($targetSection->relationLoaded('dosenAnggota') ? $targetSection->dosenAnggota->isNotEmpty() : $targetSection->dosenAnggota()->exists()) {
-                            $anggota = $targetSection->relationLoaded('dosenAnggota') ? $targetSection->dosenAnggota : $targetSection->dosenAnggota()->get();
-                            foreach ($anggota as $da) {
-                                $membersCollection->push([
-                                    'id' => $da->id,
-                                    'name' => $da->name,
-                                    'role' => 'dosen',
-                                ]);
-                            }
-                        }
-                        if ($targetSection->relationLoaded('students') ? $targetSection->students->isNotEmpty() : $targetSection->students()->exists()) {
-                            $students = $targetSection->relationLoaded('students') ? $targetSection->students : $targetSection->students()->select('users.id', 'users.name')->get();
-                            foreach ($students as $stu) {
-                                $membersCollection->push([
-                                    'id' => $stu->id,
-                                    'name' => $stu->name,
-                                    'role' => 'mahasiswa',
-                                ]);
-                            }
-                        }
-                    }
+                    $membersCollection = collect($chatMembers ?? []);
 
                     $roomMembersList = $membersCollection->unique('id')->values();
 
@@ -724,7 +626,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     (function() {
         const courseId = {{ $course['id'] }};
         const roomId = {{ $chatRoom?->id ?? 1 }};
@@ -1490,7 +1392,7 @@
         </div>
     </div>
 </dialog>
-<script>
+<script nonce="{{ $cspNonce }}">
     document.getElementById('enrolled-students-modal')?.addEventListener('click', function(e) {
         if (e.target === this) this.close();
     });
@@ -1499,12 +1401,7 @@
 {{-- Modal Keluar Kelas (PRD §5.3) — hanya tampil untuk Mahasiswa & jika kelas aktif --}}
 @if($role === 'mahasiswa' && isset($classSection) && ! $classSection->isArchived())
 @php
-    $userId2 = auth()->id();
-    $hasGradesForModal = \Illuminate\Support\Facades\DB::table('student_assessment_scores')
-        ->join('assessments', 'assessments.id', '=', 'student_assessment_scores.assessment_id')
-        ->where('student_assessment_scores.mahasiswa_id', $userId2)
-        ->where('assessments.class_section_id', $classSection->id)
-        ->exists();
+    $hasGradesForModal = $hasGrades ?? false;
 @endphp
 <dialog id="leave-kelas-modal-{{ $course['id'] }}" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 shadow-2xl backdrop:bg-slate-900/50 max-w-sm w-[calc(100%-2rem)] overflow-hidden">
     <div class="px-5 py-4 border-b border-line/60 flex items-center justify-between bg-canvas/30">
@@ -1530,7 +1427,7 @@
         </div>
     </div>
 </dialog>
-<script>
+<script nonce="{{ $cspNonce }}">
     document.getElementById('leave-kelas-modal-{{ $course['id'] }}')?.addEventListener('click', function(e) {
         if (e.target === this) this.close();
     });
@@ -1568,4 +1465,3 @@
 @endif
 
 @endsection
-

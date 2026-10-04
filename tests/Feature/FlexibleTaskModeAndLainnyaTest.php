@@ -9,6 +9,7 @@ use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
+use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,9 +19,13 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $mahasiswa;
+
     private ClassSection $section;
+
     private MataKuliah $mataKuliah;
+
     private Cpmk $cpmk1;
 
     protected function setUp(): void
@@ -331,7 +336,7 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $submitResponse->assertSessionHasNoErrors();
 
         // Verify pending score record exists (score = null, meaning waiting for lecturer grading)
-        $scoreRecord = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+        $scoreRecord = StudentAssessmentScore::where('assessment_id', $assessment->id)
             ->where('mahasiswa_id', $this->mahasiswa->id)
             ->first();
 
@@ -479,6 +484,3 @@ class FlexibleTaskModeAndLainnyaTest extends TestCase
         $this->assertMatchesRegularExpression('/<fieldset\s+data-manual-cpmk-settings[^>]*hidden/', $resLainnya->getContent());
     }
 }
-
-
-

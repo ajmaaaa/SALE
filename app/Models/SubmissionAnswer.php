@@ -28,12 +28,12 @@ class SubmissionAnswer extends Model
     {
         return [
             'question_index' => 'integer',
-            'version'        => 'integer',
-            'choices'        => 'array',
-            'matching'       => 'array',
-            'earned_score'   => 'decimal:2',
-            'max_score'      => 'decimal:2',
-            'graded_at'      => 'datetime',
+            'version' => 'integer',
+            'choices' => 'array',
+            'matching' => 'array',
+            'earned_score' => 'decimal:2',
+            'max_score' => 'decimal:2',
+            'graded_at' => 'datetime',
         ];
     }
 

@@ -4,18 +4,16 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\ClassSection;
-use App\Models\Cpl;
-use App\Models\Cpmk;
 use App\Models\MataKuliah;
 use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
-use App\Models\StudentAssessmentScore;
 use App\Models\User;
 use App\Services\ObeCalculationService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StudentGradebookAndObeProgressTest extends TestCase
@@ -121,7 +119,7 @@ class StudentGradebookAndObeProgressTest extends TestCase
     public function test_course_enrolled_members_modal_displays_profile_photo_from_database(): void
     {
         $this->seed(RoleSeeder::class);
-        \Illuminate\Support\Facades\Storage::fake('public');
+        Storage::fake('public');
 
         $dosenRole = Role::where('name', Role::DOSEN)->value('id');
         $mhsRole = Role::where('name', Role::MAHASISWA)->value('id');
@@ -131,7 +129,7 @@ class StudentGradebookAndObeProgressTest extends TestCase
         $matkul = MataKuliah::create(['code' => 'IF204', 'name' => 'Struktur Data & Algoritma', 'prodi_id' => $prodi->id, 'sks' => 3]);
 
         $photoPath = 'profile-photos/99/avatar.jpg';
-        \Illuminate\Support\Facades\Storage::disk('public')->put($photoPath, 'fake-image-content');
+        Storage::disk('public')->put($photoPath, 'fake-image-content');
 
         $dosen = User::create([
             'name' => 'Prof. Dosen',

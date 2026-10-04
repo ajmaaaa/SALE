@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Assessment;
 use App\Models\Attachment;
 use App\Models\ClassSection;
+use App\Support\LearningPreview;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
 
@@ -124,7 +125,7 @@ class DemoLearningContentSeeder extends Seeder
                         'points' => 100,
                         'duration_enabled' => true,
                         'duration_minutes' => 60,
-                        'questions' => \App\Support\LearningPreview::defaultQuizQuestions(),
+                        'questions' => LearningPreview::defaultQuizQuestions(),
                     ],
                     'final_weight' => 10,
                     'uses_rubric' => false,

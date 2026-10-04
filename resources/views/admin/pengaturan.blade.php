@@ -334,7 +334,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', () => {
     // Live preview dan manipulasi logo institusi (mirip photo profil)
     const logoInput = document.getElementById('app_logo');
@@ -488,9 +488,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modelSelect || !isApiSaved) return;
         const currentKey = keyInput?.value || '';
         try {
-            const url = "{{ route('admin.settings.ai-models') }}?ai_provider=" + encodeURIComponent(prov) + "&ai_api_key=" + encodeURIComponent(currentKey);
-            const res = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
+            const res = await fetch("{{ route('admin.settings.ai-models') }}", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ ai_provider: prov, ai_api_key: currentKey })
             });
             if (res.ok) {
                 const data = await res.json();

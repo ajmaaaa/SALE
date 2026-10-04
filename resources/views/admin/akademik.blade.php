@@ -100,7 +100,7 @@
             </div>
         </form>
 
-        <script>
+        <script nonce="{{ $cspNonce }}">
             function toggleAcademicFields(type) {
                 var parentContainer = document.getElementById('parent-field-container');
                 if (type === 'prodi') {
@@ -189,7 +189,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('q');
         const tbody = document.getElementById('academic-table-body');

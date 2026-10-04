@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\Attachment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
 use App\Models\Submission;
 use App\Models\SubmissionAnswer;
+use App\Models\User;
 use App\Services\ObeCalculationService;
 use App\Services\QuizGradingService;
+use App\Support\LearningPreview;
 use App\Support\QuizQuestion;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -21,12 +24,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InputNilaiController extends Controller
 {
@@ -56,8 +60,10 @@ class InputNilaiController extends Controller
 
             $findCpmk = function ($code) use ($allCpmks) {
                 $normTarget = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim((string) $code))));
+
                 return $allCpmks->first(function ($c) use ($normTarget) {
                     $normC = preg_replace('/^CPMK0*([0-9]+)$/', 'CPMK$1', preg_replace('/[^A-Za-z0-9]/', '', strtoupper(trim($c->code))));
+
                     return $normC === $normTarget;
                 }) ?? (Schema::hasTable('cpmks') ? Cpmk::where('code', $code)->orWhere('code', str_replace(' ', '-', $code))->first() : null);
             };
@@ -151,6 +157,7 @@ class InputNilaiController extends Controller
 
         $essayQuestions = collect($rawQuestions)->filter(function ($q) {
             $type = $q['type'] ?? '';
+
             return in_array($type, ['uraian', 'esai', 'essay'], true);
         })->values();
 
@@ -158,7 +165,7 @@ class InputNilaiController extends Controller
         $hasEssay = $hasEssayQuestions || $isAssignment;
 
         $dueAt = $assessment->due_at
-            ?? (! empty($payload['due']) ? \Carbon\Carbon::parse($payload['due']) : null);
+            ?? (! empty($payload['due']) ? Carbon::parse($payload['due']) : null);
 
         $submissions = Schema::hasTable('submissions')
             ? Submission::where('assessment_id', $assessment->id)
@@ -274,7 +281,7 @@ class InputNilaiController extends Controller
             if ($sub) {
                 $fileUuids = is_array($sub->file_ids) ? $sub->file_ids : (! empty($sub->file_ids) ? [$sub->file_ids] : []);
                 if (Schema::hasTable('attachments')) {
-                    $dbAttachments = \App\Models\Attachment::where('submission_id', $sub->id)->get();
+                    $dbAttachments = Attachment::where('submission_id', $sub->id)->get();
                     foreach ($dbAttachments as $dbAtt) {
                         if (! in_array($dbAtt->uuid, $fileUuids, true)) {
                             $fileUuids[] = $dbAtt->uuid;
@@ -282,7 +289,7 @@ class InputNilaiController extends Controller
                     }
                 }
                 $attachments = Schema::hasTable('attachments')
-                    ? \App\Models\Attachment::whereIn('uuid', $fileUuids)->get()
+                    ? Attachment::whereIn('uuid', $fileUuids)->get()
                     : collect();
                 foreach ($fileUuids as $fid) {
                     $fidStr = is_array($fid) ? ($fid['id'] ?? '') : (string) $fid;
@@ -290,7 +297,7 @@ class InputNilaiController extends Controller
                         continue;
                     }
                     $att = $attachments->firstWhere('uuid', $fidStr);
-                    $meta = \App\Support\LearningPreview::fileMeta($fidStr);
+                    $meta = LearningPreview::fileMeta($fidStr);
                     $name = $att?->name ?? ($meta['name'] ?? (is_array($fid) ? ($fid['name'] ?? $fidStr) : $fidStr));
                     $attachedFiles[] = [
                         'id' => $fidStr,
@@ -302,7 +309,7 @@ class InputNilaiController extends Controller
 
             $cpmkList = [];
             foreach ($cpmks as $cpmk) {
-                $cpmkScoreObj = $existingCpmkScores->get($cpmk->id . ':' . $student->id);
+                $cpmkScoreObj = $existingCpmkScores->get($cpmk->id.':'.$student->id);
                 $maxScore = (int) $this->obe->assessmentCpmkMaxScore($assessment, $cpmk);
                 $cpmkList[] = [
                     'id' => $cpmk->id,
@@ -332,7 +339,8 @@ class InputNilaiController extends Controller
                         if (is_array($decoded)) {
                             $parsedSubmittedFiles = $decoded;
                         }
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
                 }
 
                 foreach ($rawCodingSteps as $cIdx => $cStep) {
@@ -363,12 +371,12 @@ class InputNilaiController extends Controller
 
                     $matchedFile = collect($parsedSubmittedFiles)->first(function ($f) use ($stepNum) {
                         return (isset($f['step']) && (int) $f['step'] === $stepNum)
-                            || (! isset($f['step']) && preg_match('/_soal_' . $stepNum . '\./', $f['name'] ?? ''));
+                            || (! isset($f['step']) && preg_match('/_soal_'.$stepNum.'\./', $f['name'] ?? ''));
                     }) ?? ($parsedSubmittedFiles[$cIdx] ?? null);
 
                     $codingStepsData[] = [
                         'number' => $stepNum,
-                        'title' => $cStep['title'] ?? ('Soal ' . $stepNum),
+                        'title' => $cStep['title'] ?? ('Soal '.$stepNum),
                         'cpmk' => $stepCpmk,
                         'max_points' => $stepMaxPoints,
                         'current_score' => $stepAns?->earned_score !== null ? (float) $stepAns->earned_score : '',
@@ -392,7 +400,7 @@ class InputNilaiController extends Controller
                 'questions' => $processedQuestions,
                 'essays' => $essays,
                 'coding_steps' => $codingStepsData,
-                'editor_url' => route('course.assignment.code', [$section->id, $assessment->id]) . '?student=' . $student->id,
+                'editor_url' => route('course.assignment.code', [$section->id, $assessment->id]).'?student='.$student->id,
                 'score_url' => route('dosen.penilaian.asesmen.student.score', [$section->id, $assessment->id, $student->id]),
                 'coding_score_url' => route('dosen.penilaian.asesmen.student.coding_scores', [$section->id, $assessment->id, $student->id]),
                 'essay_score_url' => route('dosen.penilaian.asesmen.student.essay_scores', [$section->id, $assessment->id, $student->id]),
@@ -440,8 +448,7 @@ class InputNilaiController extends Controller
         );
 
         $payloadQuestions = QuizQuestion::canonicalizeQuestions($assessment->learning_payload['questions'] ?? []);
-        $question = collect($payloadQuestions)->first(fn (array $item, int $index) =>
-            ($answer->question_id !== null && (string) $item['id'] === (string) $answer->question_id)
+        $question = collect($payloadQuestions)->first(fn (array $item, int $index) => ($answer->question_id !== null && (string) $item['id'] === (string) $answer->question_id)
             || ($answer->question_index !== null && $index === (int) $answer->question_index)
         );
         abort_unless($question && in_array($question['type'] ?? '', ['uraian', 'esai', 'essay'], true), 422);
@@ -468,7 +475,7 @@ class InputNilaiController extends Controller
         Request $request,
         ClassSection $section,
         Assessment $assessment,
-        \App\Models\User $student
+        User $student
     ): RedirectResponse {
         $this->authorizeOwnership($section);
         $this->authorizeAssessmentBelongsToSection($section, $assessment);
@@ -510,8 +517,7 @@ class InputNilaiController extends Controller
             $maxScore = (float) ($q['points'] ?? 0);
             $qNumber = $index + 1;
 
-            $answer = $answers->first(fn ($a) =>
-                ($a->question_id !== null && (string) $a->question_id === $qId)
+            $answer = $answers->first(fn ($a) => ($a->question_id !== null && (string) $a->question_id === $qId)
                 || ($a->question_index !== null && (int) $a->question_index === (int) $index)
             );
 
@@ -552,8 +558,7 @@ class InputNilaiController extends Controller
                 $qId = (string) ($q['id'] ?? $index);
                 $maxScore = (float) ($q['points'] ?? 0);
 
-                $answer = $answers->first(fn ($a) =>
-                    ($a->question_id !== null && (string) $a->question_id === $qId)
+                $answer = $answers->first(fn ($a) => ($a->question_id !== null && (string) $a->question_id === $qId)
                     || ($a->question_index !== null && (int) $a->question_index === (int) $index)
                 );
 
@@ -623,7 +628,7 @@ class InputNilaiController extends Controller
         Request $request,
         ClassSection $section,
         Assessment $assessment,
-        \App\Models\User $student
+        User $student
     ): RedirectResponse {
         $this->authorizeOwnership($section);
         $this->authorizeAssessmentBelongsToSection($section, $assessment);
@@ -678,7 +683,7 @@ class InputNilaiController extends Controller
         Request $request,
         ClassSection $section,
         Assessment $assessment,
-        \App\Models\User $student
+        User $student
     ): RedirectResponse {
         $this->authorizeOwnership($section);
         $this->authorizeAssessmentBelongsToSection($section, $assessment);
@@ -922,7 +927,7 @@ class InputNilaiController extends Controller
 
         $filename = 'template_nilai_'.$assessment->code.'.xlsx';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Build header row
@@ -957,7 +962,7 @@ class InputNilaiController extends Controller
 
         // Header styling: background #4472C4, white bold Calibri 11
         $colCount = count($header);
-        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
+        $lastCol = Coordinate::stringFromColumnIndex($colCount);
         $headerRange = 'A1:'.$lastCol.'1';
         $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
@@ -978,7 +983,7 @@ class InputNilaiController extends Controller
 
         // Auto-width columns
         for ($i = 1; $i <= $colCount; $i++) {
-            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $col = Coordinate::stringFromColumnIndex($i);
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -1103,6 +1108,7 @@ class InputNilaiController extends Controller
                 $student = $studentsByNim[$nim] ?? null;
                 if (! $student) {
                     $errors[] = 'Baris '.($i + 1).": NIM '$nim' tidak ditemukan di kelas ini.";
+
                     continue;
                 }
 
@@ -1118,22 +1124,26 @@ class InputNilaiController extends Controller
                         $maxScore = $mapping['max'];
                         if ($rawVal === '') {
                             $cpmkScores[$cpmkId] = null;
+
                             continue;
                         }
                         if (! is_numeric($rawVal)) {
                             $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} ('$rawVal') tidak valid.";
                             $rowHasError = true;
+
                             continue;
                         }
                         $numVal = (float) $rawVal;
                         if ($numVal < 0) {
                             $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} tidak boleh kurang dari 0.";
                             $rowHasError = true;
+
                             continue;
                         }
                         if ($numVal > $maxScore) {
                             $errors[] = 'Baris '.($i + 1).": Nilai {$cpmkCode} ($numVal) melebihi batas maksimal ".(int) $maxScore.'.';
                             $rowHasError = true;
+
                             continue;
                         }
                         $cpmkScores[$cpmkId] = $numVal;
@@ -1157,6 +1167,7 @@ class InputNilaiController extends Controller
                     $feedback = $cols[3] ?? '';
                     if ($score !== '' && (! is_numeric($score) || (float) $score < 0 || (float) $score > 100)) {
                         $errors[] = 'Baris '.($i + 1).": Nilai '$score' tidak valid (harus 0-100).";
+
                         continue;
                     }
                     $scoreVal = $score !== '' ? (float) $score : null;

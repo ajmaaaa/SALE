@@ -169,7 +169,7 @@ class StudentCohortAndSemesterProgressionTest extends TestCase
 
     public function test_admin_prodi_can_import_excel_with_angkatan_column(): void
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray([
             ['NIM', 'Nama Mahasiswa', 'Email', 'Password', 'Tahun Masuk (Angkatan)'],
@@ -177,7 +177,7 @@ class StudentCohortAndSemesterProgressionTest extends TestCase
             ['20240102', 'Fajar Pratama', 'fajar@student.test', '', '2024'],
         ]);
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'import_test_') . '.xlsx';
+        $tempPath = tempnam(sys_get_temp_dir(), 'import_test_').'.xlsx';
         $writer = new Xlsx($spreadsheet);
         $writer->save($tempPath);
 

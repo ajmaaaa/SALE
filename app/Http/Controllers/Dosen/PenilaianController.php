@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
+use App\Models\StudentAssessmentCpmkScore;
+use App\Models\StudentAssessmentScore;
 use App\Services\ClassEnrollmentService;
 use App\Services\ObeCalculationService;
 use Illuminate\Http\RedirectResponse;
@@ -38,22 +40,22 @@ class PenilaianController extends Controller
     {
         $this->authorizeOwnership($section);
 
-        $cpmks       = $this->cpmksFor($section);
-        $students    = $section->students()->orderBy('name')->get();
-        $studentIds  = $students->pluck('id');
+        $cpmks = $this->cpmksFor($section);
+        $students = $section->students()->orderBy('name')->get();
+        $studentIds = $students->pluck('id');
         $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
         $assessmentIds = $assessments->pluck('id');
 
         // Pre-fetch semua skor sekaligus
-        $rawAssessmentScores = \App\Models\StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)
+        $rawAssessmentScores = StudentAssessmentScore::whereIn('assessment_id', $assessmentIds)
             ->get()
-            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->mahasiswa_id);
+            ->groupBy(fn ($r) => $r->assessment_id.'_'.$r->mahasiswa_id);
 
-        $rawCpmkScores = \App\Models\StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)
+        $rawCpmkScores = StudentAssessmentCpmkScore::whereIn('assessment_id', $assessmentIds)
             ->get()
-            ->groupBy(fn ($r) => $r->assessment_id . '_' . $r->cpmk_id . '_' . $r->mahasiswa_id);
+            ->groupBy(fn ($r) => $r->assessment_id.'_'.$r->cpmk_id.'_'.$r->mahasiswa_id);
 
-        $cpmkWeights    = $this->obe->cpmkWeightsFor($cpmks, $section);
+        $cpmkWeights = $this->obe->cpmkWeightsFor($cpmks, $section);
         $totalCpmkWeight = (float) $cpmkWeights->sum();
 
         // ----------------------------------------------------------------
@@ -82,9 +84,9 @@ class PenilaianController extends Controller
                     if ($pivotWeight > 0) {
                         $weightWithinAsmt = round(($pivotWeight / $totalPivot) * 100, 1);
                         $cpmkCols[] = [
-                            'cpmk'             => $cpmk,
-                            'weight'           => $weightWithinAsmt,
-                            'weight_fmt'       => rtrim(rtrim(number_format($weightWithinAsmt, 1), '0'), '.'),
+                            'cpmk' => $cpmk,
+                            'weight' => $weightWithinAsmt,
+                            'weight_fmt' => rtrim(rtrim(number_format($weightWithinAsmt, 1), '0'), '.'),
                             'effective_weight' => $this->obe->assessmentCpmkEffectiveWeight($asmt, $cpmk),
                         ];
                     }
@@ -93,7 +95,7 @@ class PenilaianController extends Controller
             if (count($cpmkCols) > 0) {
                 $columns[] = [
                     'assessment' => $asmt,
-                    'cpmk_cols'  => $cpmkCols,
+                    'cpmk_cols' => $cpmkCols,
                 ];
             }
         }
@@ -105,26 +107,26 @@ class PenilaianController extends Controller
         $rows = [];
         foreach ($students as $student) {
             // Nilai per sel: keyed "asmtId_cpmkId"
-            $cells   = [];
+            $cells = [];
             $statuses = []; // keyed "asmtId_cpmkId": 'scored'|'pending'|'no_submission'
             $asmtTotals = []; // keyed asmtId: ['score' => float|null, 'status' => 'scored'|'pending'|'no_submission']
 
             foreach ($columns as $col) {
-                $asmtId       = $col['assessment']->id;
-                $asmtScoreKey = $asmtId . '_' . $student->id;
-                $asmtRow      = $rawAssessmentScores->get($asmtScoreKey)?->first();
+                $asmtId = $col['assessment']->id;
+                $asmtScoreKey = $asmtId.'_'.$student->id;
+                $asmtRow = $rawAssessmentScores->get($asmtScoreKey)?->first();
 
-                $asmtHasPending    = false;
+                $asmtHasPending = false;
                 $allSubCellsGraded = true;
-                $sumCellScores     = 0.0;
-                $hasAnyCellScore   = false;
+                $sumCellScores = 0.0;
+                $hasAnyCellScore = false;
 
                 foreach ($col['cpmk_cols'] as $cc) {
-                    $cpmk         = $cc['cpmk'];
-                    $cellKey      = $asmtId . '_' . $cpmk->id;
-                    $cpmkKey      = $asmtId . '_' . $cpmk->id . '_' . $student->id;
+                    $cpmk = $cc['cpmk'];
+                    $cellKey = $asmtId.'_'.$cpmk->id;
+                    $cpmkKey = $asmtId.'_'.$cpmk->id.'_'.$student->id;
                     $cpmkSpecific = $rawCpmkScores->get($cpmkKey)?->first();
-                    $maxScore     = (float) $cc['weight'];
+                    $maxScore = (float) $cc['weight'];
 
                     if ($cpmkSpecific !== null && $cpmkSpecific->score !== null) {
                         $rawVal = (float) $cpmkSpecific->score;
@@ -133,47 +135,47 @@ class PenilaianController extends Controller
                         } else {
                             $cellScore = round($rawVal, 1);
                         }
-                        $cells[$cellKey]    = $cellScore;
+                        $cells[$cellKey] = $cellScore;
                         $statuses[$cellKey] = 'scored';
-                        $sumCellScores     += $cellScore;
-                        $hasAnyCellScore    = true;
+                        $sumCellScores += $cellScore;
+                        $hasAnyCellScore = true;
                     } elseif ($asmtRow === null) {
-                        $cells[$cellKey]    = null;
+                        $cells[$cellKey] = null;
                         $statuses[$cellKey] = 'no_submission';
-                        $allSubCellsGraded  = false;
+                        $allSubCellsGraded = false;
                     } elseif ($asmtRow->score !== null) {
-                        $cellScore          = round(((float) $asmtRow->score * $maxScore) / 100, 1);
-                        $cells[$cellKey]    = $cellScore;
+                        $cellScore = round(((float) $asmtRow->score * $maxScore) / 100, 1);
+                        $cells[$cellKey] = $cellScore;
                         $statuses[$cellKey] = 'scored';
-                        $sumCellScores     += $cellScore;
-                        $hasAnyCellScore    = true;
+                        $sumCellScores += $cellScore;
+                        $hasAnyCellScore = true;
                     } else {
                         // Record ada tapi score null → MENUNGGU (desain-flow-penilaian.md §4)
-                        $cells[$cellKey]    = null;
+                        $cells[$cellKey] = null;
                         $statuses[$cellKey] = 'pending';
-                        $asmtHasPending     = true;
-                        $allSubCellsGraded  = false;
+                        $asmtHasPending = true;
+                        $allSubCellsGraded = false;
                     }
                 }
 
                 if ($asmtHasPending || ($asmtRow !== null && $asmtRow->score === null)) {
                     $asmtTotals[$asmtId] = [
-                        'score'  => null,
+                        'score' => null,
                         'status' => 'pending',
                     ];
                 } elseif ($asmtRow !== null && $asmtRow->score !== null) {
                     $asmtTotals[$asmtId] = [
-                        'score'  => (float) $asmtRow->score,
+                        'score' => (float) $asmtRow->score,
                         'status' => 'scored',
                     ];
                 } elseif ($allSubCellsGraded && $hasAnyCellScore) {
                     $asmtTotals[$asmtId] = [
-                        'score'  => round($sumCellScores, 1),
+                        'score' => round($sumCellScores, 1),
                         'status' => 'scored',
                     ];
                 } else {
                     $asmtTotals[$asmtId] = [
-                        'score'  => null,
+                        'score' => null,
                         'status' => 'no_submission',
                     ];
                 }
@@ -189,9 +191,9 @@ class PenilaianController extends Controller
             $hasPending = in_array('pending', $statuses, true);
 
             $rows[] = [
-                'student'     => $student,
-                'cells'       => $cells,
-                'statuses'    => $statuses,
+                'student' => $student,
+                'cells' => $cells,
+                'statuses' => $statuses,
                 'asmt_totals' => $asmtTotals,
                 'cpmk_finals' => $cpmkFinals,
                 'has_pending' => $hasPending,
@@ -219,7 +221,7 @@ class PenilaianController extends Controller
             }
             $asmtAggregates[$asmtId] = [
                 'average' => count($scoredList) > 0 ? round(array_sum($scoredList) / count($scoredList), 1) : null,
-                'count'   => count($scoredList),
+                'count' => count($scoredList),
             ];
         }
 
@@ -228,7 +230,7 @@ class PenilaianController extends Controller
         foreach ($columns as $col) {
             $asmtId = $col['assessment']->id;
             foreach ($col['cpmk_cols'] as $cc) {
-                $cellKey = $asmtId . '_' . $cc['cpmk']->id;
+                $cellKey = $asmtId.'_'.$cc['cpmk']->id;
                 $cellScores = [];
                 foreach ($rows as $r) {
                     if (isset($r['cells'][$cellKey]) && $r['cells'][$cellKey] !== null) {
@@ -240,16 +242,16 @@ class PenilaianController extends Controller
         }
 
         return view('dosen.rekap', [
-            'section'          => $this->withHeaderCounts($section, null, $cpmks),
-            'cpmks'            => $cpmks,
-            'cpmkWeights'      => $cpmkWeights,
-            'totalCpmkWeight'  => $totalCpmkWeight,
-            'columns'          => $columns,
-            'rows'             => $rows,
-            'cpmkAggregates'   => $cpmkAggregates,
-            'asmtAggregates'   => $asmtAggregates,
-            'cellAverages'     => $cellAverages,
-            'obe'              => $this->obe,
+            'section' => $this->withHeaderCounts($section, null, $cpmks),
+            'cpmks' => $cpmks,
+            'cpmkWeights' => $cpmkWeights,
+            'totalCpmkWeight' => $totalCpmkWeight,
+            'columns' => $columns,
+            'rows' => $rows,
+            'cpmkAggregates' => $cpmkAggregates,
+            'asmtAggregates' => $asmtAggregates,
+            'cellAverages' => $cellAverages,
+            'obe' => $this->obe,
             // PRD §5.6 — mahasiswa non-aktif yang memiliki riwayat nilai
             'inactiveStudents' => $this->enrollment->inactiveStudentsWithRecords($section),
         ]);
@@ -330,7 +332,7 @@ class PenilaianController extends Controller
                 : "kurang {$diffFormatted}%";
 
             return back()->withErrors([
-                'matrix' => "Total bobot matriks penilaian harus tepat 100% (saat ini {$grandTotalFormatted}%, {$detail}). Matriks tidak dapat disimpan sebelum total tepat 100%."
+                'matrix' => "Total bobot matriks penilaian harus tepat 100% (saat ini {$grandTotalFormatted}%, {$detail}). Matriks tidak dapat disimpan sebelum total tepat 100%.",
             ])->withInput();
         }
 
@@ -352,7 +354,11 @@ class PenilaianController extends Controller
     {
         $this->authorizeOwnership($section);
 
-        $assessments = $section->gradableAssessments()->with('cpmks')->orderBy('code')->get();
+        $assessments = $section->gradableAssessments()
+            ->with('cpmks')
+            ->withCount(['studentScores as graded_count' => fn ($q) => $q->whereNotNull('score')])
+            ->orderBy('code')
+            ->get();
 
         return view('dosen.penilaian.asesmen', [
             'section' => $this->withHeaderCounts($section),

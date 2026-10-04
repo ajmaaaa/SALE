@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSection;
 use App\Models\Cpl;
 use App\Models\Cpmk;
+use App\Models\Role;
+use App\Models\SystemSetting;
+use App\Models\User;
 use App\Services\ObeCalculationService;
+use App\Services\ObeExcelExportService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -15,7 +19,7 @@ class ExportController extends Controller
 {
     public function __construct(
         private ObeCalculationService $obe,
-        private \App\Services\ObeExcelExportService $excelExport
+        private ObeExcelExportService $excelExport
     ) {}
 
     /**
@@ -48,6 +52,7 @@ class ExportController extends Controller
         $this->authorizeOwnership($section);
 
         $cpmkId = request('cpmk_id') ? (int) request('cpmk_id') : null;
+
         return $this->excelExport->exportCpmkExcel($section, $cpmkId);
     }
 
@@ -91,6 +96,11 @@ class ExportController extends Controller
 
         $classAverage = $rows->pluck('final_score')->filter(fn ($s) => $s !== null)->average();
 
+        $prodi = $section->mataKuliah?->prodi;
+        $dosenKaprodi = $prodi ? User::where('prodi_id', $prodi->id)
+            ->whereHas('role', fn ($q) => $q->where('name', Role::DOSEN))
+            ->first() : null;
+
         return view('dosen.penilaian.cetak-rekap', [
             'section' => $section,
             'title' => 'Laporan Rekap Nilai',
@@ -101,6 +111,7 @@ class ExportController extends Controller
             'rows' => $rows,
             'studentRows' => $rows,
             'classAverage' => $classAverage,
+            'dosenKaprodi' => $dosenKaprodi,
         ]);
     }
 
@@ -222,9 +233,9 @@ class ExportController extends Controller
         }
 
         fputcsv($handle, [mb_strtoupper($title, 'UTF-8')], ';');
-        $appN = \App\Models\SystemSetting::appName();
-        $instN = \App\Models\SystemSetting::valueFor('institution', '');
-        $csvHeader = $instN ? mb_strtoupper($instN, 'UTF-8') . ' - ' . mb_strtoupper($appN, 'UTF-8') : mb_strtoupper($appN, 'UTF-8');
+        $appN = SystemSetting::appName();
+        $instN = SystemSetting::valueFor('institution', '');
+        $csvHeader = $instN ? mb_strtoupper($instN, 'UTF-8').' - '.mb_strtoupper($appN, 'UTF-8') : mb_strtoupper($appN, 'UTF-8');
         fputcsv($handle, [$csvHeader], ';');
         fputcsv($handle, [], ';');
         fputcsv($handle, ['Mata Kuliah', $mkLabel], ';');

@@ -295,7 +295,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('q');
         const tbody = document.getElementById('user-table-body');

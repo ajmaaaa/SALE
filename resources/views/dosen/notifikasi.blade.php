@@ -100,7 +100,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         let currentFingerprint = '{{ md5(json_encode(collect($notifications)->map(fn ($n) => $n['id'] . ':' . (!empty($n['is_read']) ? '1' : '0'))->all())) }}';
 

@@ -5,12 +5,11 @@ namespace Tests\Feature;
 use App\Models\Assessment;
 use App\Models\ClassSection;
 use App\Models\MataKuliah;
-use App\Models\Message;
 use App\Models\Prodi;
 use App\Models\Role;
-use App\Models\Room;
 use App\Models\Semester;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,8 +19,11 @@ class RealtimeNotificationAndMenuTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $student;
+
     private User $admin;
+
     private ClassSection $section;
 
     protected function setUp(): void
@@ -115,6 +117,32 @@ class RealtimeNotificationAndMenuTest extends TestCase
         $this->assertTrue($data['success']);
         $this->assertArrayHasKey('unread_notif_count', $data);
         $this->assertArrayHasKey('pending_grading_count', $data);
+    }
+
+    public function test_live_status_materializes_notifications_once_per_student_request(): void
+    {
+        $service = $this->mock(DatabaseNotificationService::class);
+        $service->shouldReceive('forUser')->once()->withArgs(fn ($user, $role) => $user->is($this->student) && $role === Role::MAHASISWA)->andReturn([]);
+        $service->shouldReceive('pendingTaskCount')->once()->withArgs(fn ($user) => $user->is($this->student))->andReturn(0);
+        $service->shouldNotReceive('unreadCount');
+
+        $this->actingAs($this->student)->getJson(route('live-status'))
+            ->assertOk()
+            ->assertJsonPath('mhs_unread_notif_count', 0)
+            ->assertJsonPath('dosen_unread_notif_count', 0);
+    }
+
+    public function test_live_status_materializes_notifications_once_per_lecturer_request(): void
+    {
+        $service = $this->mock(DatabaseNotificationService::class);
+        $service->shouldReceive('forUser')->once()->withArgs(fn ($user, $role) => $user->is($this->dosen) && $role === Role::DOSEN)->andReturn([]);
+        $service->shouldNotReceive('pendingTaskCount');
+        $service->shouldNotReceive('unreadCount');
+
+        $this->actingAs($this->dosen)->getJson(route('live-status'))
+            ->assertOk()
+            ->assertJsonPath('dosen_unread_notif_count', 0)
+            ->assertJsonPath('mhs_unread_notif_count', 0);
     }
 
     public function test_mahasiswa_notifications_page_supports_ajax_and_returns_html_partial_with_fingerprint(): void

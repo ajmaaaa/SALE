@@ -11,12 +11,15 @@ use App\Models\Prodi;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\StudentAssessmentScore;
+use App\Models\SystemSetting;
 use App\Models\User;
+use App\Support\AdminPreview;
 use Database\Seeders\DosenAccountSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class AdminProdiManagementTest extends TestCase
@@ -117,16 +120,16 @@ class AdminProdiManagementTest extends TestCase
         // Global admin is blocked from admin-prodi interface
         $this->get(route('admin-prodi.dashboard'))->assertForbidden();
 
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_name'], ['value' => 'Fakultas Ilmu Komputer']);
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_code'], ['value' => 'FILKOM']);
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'faculty_status'], ['value' => 'aktif']);
+        SystemSetting::updateOrCreate(['key' => 'faculty_name'], ['value' => 'Fakultas Ilmu Komputer']);
+        SystemSetting::updateOrCreate(['key' => 'faculty_code'], ['value' => 'FILKOM']);
+        SystemSetting::updateOrCreate(['key' => 'faculty_status'], ['value' => 'aktif']);
 
         // Store prodi via Admin Sistem Akademik
         $response = $this->post(route('admin.academic.store'), [
             'type' => 'prodi',
             'code' => 'SI',
             'name' => 'Sistem Informasi',
-            'parent' => \App\Support\AdminPreview::FACULTY_ID,
+            'parent' => AdminPreview::FACULTY_ID,
             'status' => 'aktif',
         ]);
         $response->assertRedirect(route('admin.page', 'akademik'));
@@ -136,18 +139,18 @@ class AdminProdiManagementTest extends TestCase
 
         // Update prodi via Admin Sistem Akademik
         $response = $this->post(route('admin.academic.store'), [
-            'id' => \App\Support\AdminPreview::PRODI_OFFSET + $si->id,
+            'id' => AdminPreview::PRODI_OFFSET + $si->id,
             'type' => 'prodi',
             'code' => 'SI',
             'name' => 'Sistem Informasi Bisnis',
-            'parent' => \App\Support\AdminPreview::FACULTY_ID,
+            'parent' => AdminPreview::FACULTY_ID,
             'status' => 'aktif',
         ]);
         $response->assertRedirect(route('admin.page', 'akademik'));
         $this->assertDatabaseHas('prodis', ['code' => 'SI', 'name' => 'Sistem Informasi Bisnis']);
 
         // Destroy prodi via Admin Sistem Akademik
-        $response = $this->post(route('admin.academic.destroy', \App\Support\AdminPreview::PRODI_OFFSET + $si->id));
+        $response = $this->post(route('admin.academic.destroy', AdminPreview::PRODI_OFFSET + $si->id));
         $response->assertRedirect(route('admin.page', 'akademik'));
         $this->assertDatabaseMissing('prodis', ['id' => $si->id]);
     }
@@ -405,7 +408,7 @@ class AdminProdiManagementTest extends TestCase
         $response->assertStatus(200);
         $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
         file_put_contents($tempFile, $response->streamedContent());
-        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile)->getActiveSheet();
+        $sheet = IOFactory::load($tempFile)->getActiveSheet();
         $this->assertSame('NIDN_NIP', $sheet->getCell('A1')->getValue());
         @unlink($tempFile);
 
@@ -413,7 +416,7 @@ class AdminProdiManagementTest extends TestCase
         $response->assertStatus(200);
         $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
         file_put_contents($tempFile, $response->streamedContent());
-        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile)->getActiveSheet();
+        $sheet = IOFactory::load($tempFile)->getActiveSheet();
         $this->assertSame('NIM', $sheet->getCell('A1')->getValue());
         @unlink($tempFile);
 
@@ -568,7 +571,7 @@ class AdminProdiManagementTest extends TestCase
         $this->assertStringContainsString('laporan-prodi-', (string) $response->headers->get('content-disposition'));
         $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test');
         file_put_contents($tempFile, $response->streamedContent());
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile);
+        $spreadsheet = IOFactory::load($tempFile);
         $sheet = $spreadsheet->getActiveSheet();
         $this->assertSame('LAPORAN AKADEMIK & CAPAIAN PROGRAM STUDI', $sheet->getCell('A1')->getValue());
         $this->assertStringContainsString('Teknik Informatika', (string) $sheet->getCell('A2')->getValue());

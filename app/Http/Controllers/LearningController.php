@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
 use App\Models\Attachment;
+use App\Models\ChatNotification;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
-use App\Models\MataKuliah;
 use App\Models\Message;
-use App\Models\Prodi;
+use App\Models\MessageMention;
 use App\Models\Role;
 use App\Models\Room;
 use App\Models\Semester;
@@ -23,7 +23,6 @@ use App\Services\ObeCalculationService;
 use App\Services\QuizGradingService;
 use App\Support\AcademicPreview;
 use App\Support\DosenNavigation;
-use App\Support\LearningPreview;
 use App\Support\LearningPreview as Learning;
 use App\Support\QuizQuestion;
 use Carbon\Carbon;
@@ -124,9 +123,7 @@ class LearningController extends Controller
 
             $courses = $sections->map(function ($section) use ($isDosen, $submittedAssessmentIds, $scoredAssessmentIds) {
                 $payload = $section->learning_payload ?? [];
-                if (! $section->enrollment_code) {
-                    $section->update(['enrollment_code' => ClassSection::generateUniqueEnrollmentCode()]);
-                }
+                $enrollmentCode = $section->enrollment_code ?: '';
 
                 $secAssessments = $section->relationLoaded('assessments') ? $section->assessments : $section->assessments()->get();
 
@@ -170,6 +167,11 @@ class LearningController extends Controller
                     $sortKey = -1 * $section->id;
                 }
 
+                $secTasksAll = $secAssessments
+                    ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
+                    ->where('status', 'published');
+                $nextCandidate = $nearestUpcomingTask ?: $secTasksAll->sortBy('due_at')->first();
+
                 return [
                     'id' => $section->id,
                     'code' => $section->display_code,
@@ -196,6 +198,26 @@ class LearningController extends Controller
                     'svg_index' => ($section->id % 4) + 1,
                     '_priority' => $priorityLevel,
                     '_sort_key' => $sortKey,
+                    'uncompleted_task' => $nearestUpcomingTask ? [
+                        'id' => $nearestUpcomingTask->id,
+                        'title' => $nearestUpcomingTask->name,
+                        'type' => match ($nearestUpcomingTask->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nearestUpcomingTask->type,
+                        },
+                        'due' => $nearestUpcomingTask->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nearestUpcomingTask->due_at,
+                    ] : null,
+                    'next_task' => $nextCandidate ? [
+                        'id' => $nextCandidate->id,
+                        'title' => $nextCandidate->name,
+                        'type' => match ($nextCandidate->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nextCandidate->type,
+                        },
+                        'due' => $nextCandidate->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nextCandidate->due_at,
+                    ] : null,
                 ];
             })
                 ->sort(function ($a, $b) {
@@ -218,7 +240,7 @@ class LearningController extends Controller
     {
         $user = auth()->user();
         $section = Schema::hasTable('class_sections')
-            ? ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'assessments'])->find($course)
+            ? ClassSection::with(['mataKuliah.prodi', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota', 'students', 'assessments'])->find($course)
             : null;
 
         if ($section && $user) {
@@ -246,9 +268,18 @@ class LearningController extends Controller
 
                 $this->notifications->markDiscussionRead($user, $section->id);
 
+                $courseVideoMeta = [];
+                if (in_array($courseData['video_type'] ?? null, ['file', 'image'], true) && ! empty($courseData['video'])) {
+                    $videoAttachment = Attachment::where('uuid', $courseData['video'])->first();
+                    if ($videoAttachment) {
+                        $courseVideoMeta = $videoAttachment->only(['path', 'name', 'mime', 'size']);
+                    }
+                }
+
                 $submittedAssessmentIds = [];
                 $userSubmissions = collect();
                 $userScores = collect();
+                $hasGrades = false;
 
                 if ($user->hasRole(Role::MAHASISWA)) {
                     $itemIds = array_keys($items);
@@ -272,6 +303,12 @@ class LearningController extends Controller
                             ->get(['assessment_id', 'created_at', 'updated_at'])
                             ->keyBy('assessment_id');
                         $scoreIds = $userScores->keys()->map(fn ($id) => (int) $id)->all();
+
+                        $hasGrades = DB::table('student_assessment_scores')
+                            ->join('assessments', 'assessments.id', '=', 'student_assessment_scores.assessment_id')
+                            ->where('student_assessment_scores.mahasiswa_id', $user->id)
+                            ->where('assessments.class_section_id', $section->id)
+                            ->exists();
                     }
 
                     if (Schema::hasTable('assessment_attempts')) {
@@ -288,7 +325,7 @@ class LearningController extends Controller
                             ->get(['assessment_id', 'status', 'submitted_at', 'deadline_at', 'started_at']);
                         $attemptIds = $attempts->pluck('assessment_id')->map(fn ($id) => (int) $id)->all();
                         foreach ($attempts as $att) {
-                            if (!isset($userSubmissions[$att->assessment_id])) {
+                            if (! isset($userSubmissions[$att->assessment_id])) {
                                 $userSubmissions[$att->assessment_id] = (object) [
                                     'assessment_id' => $att->assessment_id,
                                     'submitted_at' => $att->submitted_at ?? $att->deadline_at ?? $att->started_at,
@@ -301,9 +338,96 @@ class LearningController extends Controller
                     $submittedAssessmentIds = array_values(array_unique(array_merge($subIds, $scoreIds, $attemptIds)));
                 }
 
+                $hasChatTables = Schema::hasTable('rooms') && Schema::hasTable('messages');
+                $chatRoom = $hasChatTables ? Room::forCourse($section->id, $section->mataKuliah?->name ?? '') : null;
+                $initialTotalMessages = 0;
+                $discussionCount = 0;
+                $initialMessages = collect();
+                $pinnedMessages = collect();
+                $chatMembers = collect();
+
+                if ($hasChatTables && $chatRoom) {
+                    $initialTotalMessages = Message::where('room_id', $chatRoom->id)->count();
+                    $discussionCount = $initialTotalMessages;
+                    $rawMessages = Message::where('room_id', $chatRoom->id)
+                        ->with(['user.role', 'replyTo.user', 'mentions.mentionedUser'])
+                        ->orderByDesc('id')
+                        ->limit(40)
+                        ->get();
+                    $meName = $user->name ?? '';
+                    $initialMessages = $rawMessages->reverse()->values()->map(function ($m) use ($user, $meName) {
+                        $p = $m->toChatPayload($user);
+                        if (! $p['is_me'] && ! empty($meName) && trim($p['author']) === trim($meName)) {
+                            $p['is_me'] = true;
+                        }
+
+                        return $p;
+                    });
+                    $pinnedMessages = Message::where('room_id', $chatRoom->id)
+                        ->where('is_pinned', true)
+                        ->with(['user.role', 'replyTo.user'])
+                        ->orderByDesc('id')
+                        ->get()
+                        ->map(fn ($m) => $m->toChatPayload($user));
+
+                    $chatMembers = $chatRoom->members()->select('users.id', 'users.name')->get()->map(fn ($u) => [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'role' => $u->pivot->role ?? 'mahasiswa',
+                    ]);
+                }
+
+                $sectionMembers = collect([$section->dosen, $section->dosenPendamping])
+                    ->concat($section->dosenAnggota)
+                    ->filter()
+                    ->map(fn ($member) => [
+                        'id' => $member->id,
+                        'name' => $member->name,
+                        'role' => Role::DOSEN,
+                    ])
+                    ->concat($section->students->map(fn ($member) => [
+                        'id' => $member->id,
+                        'name' => $member->name,
+                        'role' => Role::MAHASISWA,
+                    ]));
+                $chatMembers = $chatMembers->concat($sectionMembers)->unique('id')->values();
+
+                $enrolledStudents = $section->students->map(fn ($member) => [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'number' => $member->nim_nidn ?? $member->email,
+                    'role' => Role::MAHASISWA,
+                    'avatar_url' => $member->profile_photo_url,
+                    'is_locked' => (bool) ($member->pivot->is_locked ?? false),
+                ])->values()->all();
+                $courseMembers = collect([$section->dosen, $section->dosenPendamping])
+                    ->concat($section->dosenAnggota)
+                    ->filter()
+                    ->unique('id')
+                    ->map(fn ($member) => [
+                        'id' => $member->id,
+                        'name' => $member->name,
+                        'number' => $member->nim_nidn ?? $member->email,
+                        'role' => Role::DOSEN,
+                        'avatar_url' => $member->profile_photo_url,
+                        'is_locked' => false,
+                    ])
+                    ->concat($enrolledStudents)
+                    ->values();
+
                 return view('learning.course', compact('items', 'section', 'submittedAssessmentIds', 'userSubmissions', 'userScores') + [
                     'course' => $courseData,
                     'classSection' => $section,
+                    'hasGrades' => $hasGrades,
+                    'chatRoom' => $chatRoom,
+                    'discussionCount' => $discussionCount,
+                    'initialTotalMessages' => $initialTotalMessages,
+                    'initialMessages' => $initialMessages,
+                    'pinnedMessages' => $pinnedMessages,
+                    'chatMembers' => $chatMembers,
+                    'enrolledStudents' => $enrolledStudents,
+                    'courseMembers' => $courseMembers,
+                    'courseVideoMeta' => $courseVideoMeta,
                 ]);
             }
 
@@ -319,21 +443,119 @@ class LearningController extends Controller
         if ($user && Schema::hasTable('class_sections')) {
             $section = ClassSection::with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping'])->find($course);
             if ($section) {
-                $canAccess = $user->hasRole(Role::DOSEN)
-                ? $user->can('manage', $section)
-                : ($user->hasRole(Role::MAHASISWA)
-                    && $section->students()->where('users.id', $user->id)->exists());
+                $isLecturer = $user->hasRole(Role::DOSEN);
+                $canAccess = $isLecturer
+                    ? $user->can('manage', $section)
+                    : ($user->hasRole(Role::MAHASISWA)
+                        && $section->students()->where('users.id', $user->id)->exists());
 
                 abort_unless($canAccess, 403, 'Anda tidak terdaftar pada kelas ini.');
 
-                $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
+                $assessment = Assessment::with('cpmks')->where('class_section_id', $section->id)->findOrFail($item);
                 if ($user->hasRole(Role::MAHASISWA)) {
                     abort_unless($assessment->status === 'published', 403, 'Asesmen belum tersedia atau sudah ditutup.');
                 }
 
+                $studentId = $user->id;
+                $submission = null;
+                $dbSub = null;
+                if (Schema::hasTable('submissions')) {
+                    $dbSub = Submission::where('assessment_id', $assessment->id)
+                        ->where(fn ($q) => $q->where('user_id', $studentId)->orWhere('mahasiswa_id', $studentId))
+                        ->latest('id')
+                        ->first();
+                    if ($dbSub) {
+                        $submission = [
+                            'id' => $dbSub->id,
+                            'answer' => $dbSub->answer,
+                            'link' => $dbSub->link,
+                            'question_answers' => $dbSub->question_answers ?? [],
+                            'files' => $dbSub->file_ids ?? [],
+                            'student_number' => $dbSub->student_number,
+                            'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                            'submitted_at' => $dbSub->submitted_at,
+                            'status' => $dbSub->status,
+                            'attempt' => $dbSub->attempt,
+                            'version' => $dbSub->version,
+                        ];
+                    }
+                }
+
+                $dbScore = null;
+                if (Schema::hasTable('student_assessment_scores')) {
+                    $dbScore = StudentAssessmentScore::where('assessment_id', $assessment->id)
+                        ->where('mahasiswa_id', $studentId)
+                        ->where(function ($q) {
+                            $q->whereNotNull('score')
+                                ->orWhereIn('status', [
+                                    StudentAssessmentScore::STATUS_FINAL,
+                                    StudentAssessmentScore::STATUS_PUBLISHED,
+                                ]);
+                        })
+                        ->first();
+                }
+                $hasDbGrade = $dbScore && $dbScore->score !== null;
+                $isGraded = $hasDbGrade;
+                $scoreValue = $hasDbGrade ? (float) $dbScore->score : null;
+
+                $cpmkThreshold = 65.0;
+                $assessmentItemData = Learning::databaseAssessment($assessment);
+                if (! empty($assessmentItemData['cpmk_threshold'])) {
+                    $cpmkThreshold = (float) $assessmentItemData['cpmk_threshold'];
+                } elseif ($assessment->cpmks->isNotEmpty()) {
+                    $cpmkThreshold = (float) $assessment->cpmks->avg('threshold');
+                } elseif (! empty($assessmentItemData['cpmk']) && Schema::hasTable('cpmks')) {
+                    $cpmkObj = Cpmk::where('code', $assessmentItemData['cpmk'])->first();
+                    if ($cpmkObj && $cpmkObj->threshold !== null) {
+                        $cpmkThreshold = (float) $cpmkObj->threshold;
+                    }
+                }
+
+                $studentAttempt = null;
+                if (Schema::hasTable('assessment_attempts')) {
+                    $studentAttempt = AssessmentAttempt::where('assessment_id', $assessment->id)
+                        ->where('mahasiswa_id', $studentId)
+                        ->latest('attempt')
+                        ->first();
+                }
+
+                $totalEnrolled = 0;
+                $submittedCount = 0;
+                $lateCount = 0;
+                if ($isLecturer) {
+                    $totalEnrolled = $section->students()->count();
+                    if (Schema::hasTable('submissions')) {
+                        $allSubs = Submission::where('assessment_id', $assessment->id)->get();
+                        $submittedCount = $allSubs->count();
+                        $dueDate = $assessment->due_at;
+                        if ($dueDate) {
+                            $lateCount = $allSubs->filter(fn ($s) => $s->submitted_at && $s->submitted_at->greaterThan($dueDate))->count();
+                        }
+                    }
+                }
+
+                $attachmentsMap = collect();
+                if ($submission && ! empty($submission['files']) && Schema::hasTable('attachments')) {
+                    $fileUuids = collect($submission['files'])->map(fn ($sf) => is_array($sf) ? ($sf['id'] ?? '') : (string) $sf)->filter()->values()->all();
+                    if (! empty($fileUuids)) {
+                        $attachmentsMap = Attachment::whereIn('uuid', $fileUuids)->get()->keyBy('uuid');
+                    }
+                }
+
                 return view('learning.item', [
                     'course' => Learning::databaseCourse($section),
-                    'item' => Learning::databaseAssessment($assessment),
+                    'item' => $assessmentItemData,
+                    'submission' => $submission,
+                    'dbScore' => $dbScore,
+                    'isGraded' => $isGraded,
+                    'scoreValue' => $scoreValue,
+                    'cpmkThreshold' => $cpmkThreshold,
+                    'studentAttempt' => $studentAttempt,
+                    'isArchived' => $section->isArchived(),
+                    'totalEnrolled' => $totalEnrolled,
+                    'submittedCount' => $submittedCount,
+                    'lateCount' => $lateCount,
+                    'attachmentsMap' => $attachmentsMap,
                 ]);
             }
         }
@@ -438,14 +660,54 @@ class LearningController extends Controller
                 $assessmentAttempt = $this->startTimedAssessmentAttempt($assessment, $user, $resource);
             }
 
-            $hasExpired = $assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && $assessmentAttempt->deadline_at && now()->greaterThan($assessmentAttempt->deadline_at);
-            if ($hasExpired || $assessmentAttempt->status === AssessmentAttempt::STATUS_REJECTED || $assessmentAttempt->status === AssessmentAttempt::STATUS_SUBMITTED) {
-                if ($hasExpired) {
+            if ($assessmentAttempt->status === AssessmentAttempt::STATUS_REJECTED) {
+                $isAttemptRejected = true;
+                $attemptRejectionReason = $assessmentAttempt->rejection_reason ?? 'Submission ditolak karena melewati deadline attempt.';
+                $attemptDeadline = null;
+            } elseif ($assessmentAttempt->status === AssessmentAttempt::STATUS_IN_PROGRESS && $assessmentAttempt->deadline_at && now()->greaterThan($assessmentAttempt->deadline_at)) {
+                $pastGrace = now()->greaterThan($assessmentAttempt->deadline_at->copy()->addSeconds(30));
+                if ($pastGrace) {
+                    $assessmentAttempt->update([
+                        'status' => AssessmentAttempt::STATUS_REJECTED,
+                        'rejected_at' => now(),
+                        'rejection_reason' => 'Submission ditolak karena melewati deadline attempt.',
+                    ]);
+                    $isAttemptRejected = true;
+                    $attemptRejectionReason = 'Submission ditolak karena melewati deadline attempt.';
+                    $attemptDeadline = null;
+                } else {
                     $assessmentAttempt->update([
                         'status' => AssessmentAttempt::STATUS_SUBMITTED,
                         'submitted_at' => now(),
                     ]);
+                    if (Schema::hasTable('submissions')) {
+                        $dbSub = Submission::firstOrCreate(
+                            ['assessment_id' => $item, 'user_id' => $user->id],
+                            [
+                                'mahasiswa_id' => $user->id,
+                                'attempt' => $assessmentAttempt->attempt ?? 1,
+                                'version' => 1,
+                                'status' => 'pending',
+                                'submitted_at' => $assessmentAttempt->submitted_at ?? now(),
+                                'student_number' => $user->nim_nidn,
+                            ]
+                        );
+                        $submission = [
+                            'answer' => $dbSub->answer,
+                            'link' => $dbSub->link,
+                            'question_answers' => $dbSub->question_answers ?? [],
+                            'files' => $dbSub->file_ids ?? [],
+                            'student_number' => $dbSub->student_number,
+                            'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
+                            'status' => $dbSub->status,
+                            'attempt' => $dbSub->attempt,
+                            'version' => $dbSub->version,
+                            'answer_scores' => [],
+                        ];
+                    }
+                    $attemptDeadline = null;
                 }
+            } elseif ($assessmentAttempt->status === AssessmentAttempt::STATUS_SUBMITTED) {
                 if (Schema::hasTable('submissions')) {
                     $dbSub = Submission::firstOrCreate(
                         ['assessment_id' => $item, 'user_id' => $user->id],
@@ -555,7 +817,7 @@ class LearningController extends Controller
                 ->get(['assessment_id', 'status', 'submitted_at', 'deadline_at', 'started_at']);
             $attemptSubmittedIds = $attempts->pluck('assessment_id')->map(fn ($id) => (int) $id)->all();
             foreach ($attempts as $att) {
-                if (!isset($userSubmissions[$att->assessment_id])) {
+                if (! isset($userSubmissions[$att->assessment_id])) {
                     $userSubmissions[$att->assessment_id] = (object) [
                         'assessment_id' => $att->assessment_id,
                         'submitted_at' => $att->submitted_at ?? $att->deadline_at ?? $att->started_at,
@@ -755,8 +1017,8 @@ class LearningController extends Controller
                     $q->where('dosen_id', $user->id)
                         ->orWhere('dosen_pendamping_id', $user->id)
                         ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
-                })->with(['mataKuliah', 'dosen'])->get()
-                : $user->classSectionsEnrolled()->with(['mataKuliah', 'dosen'])->get();
+                })->notArchived()->with(['mataKuliah', 'dosen'])->get()
+                : $user->classSectionsEnrolled()->notArchived()->with(['mataKuliah', 'dosen'])->get();
 
             foreach ($sections as $sec) {
                 $courses[$sec->id] = [
@@ -768,97 +1030,11 @@ class LearningController extends Controller
             }
         }
 
-        return view('learning.discussions', ['items' => [], 'courses' => $courses]);
-    }
+        $discussionStats = collect($courses)->mapWithKeys(fn ($course) => [
+            $course['id'] => $this->notifications->discussionStatsForSection($user, (int) $course['id']),
+        ])->all();
 
-    public function createCourse()
-    {
-        return view('dosen.course-form');
-    }
-
-    public function storeCourse(Request $request)
-    {
-        if ($request->filled('video') && ! preg_match('#^https?://#i', (string) $request->input('video'))) {
-            $request->merge(['video' => 'https://'.ltrim((string) $request->input('video'), '/')]);
-        }
-
-        $data = $request->validate([
-            'title' => 'required|string|max:150',
-            'code' => 'required|string|max:20',
-            'description' => 'required|string|max:2000',
-            'lecturer' => 'required|string|max:120',
-            'cover' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|url:http,https|max:2000',
-            'video_file' => 'nullable|file|mimes:mp4,webm|max:20480',
-        ]);
-        $data['video'] ??= null;
-        $data['video_type'] = 'url';
-        if ($request->hasFile('video_file')) {
-            $data['video'] = $this->upload($request->file('video_file'));
-            $data['video_type'] = 'file';
-        }
-        unset($data['video_file']);
-        $data['cover'] = $request->hasFile('cover') ? $this->upload($request->file('cover')) : null;
-
-        $user = auth()->user();
-        abort_unless($user?->hasRole(Role::DOSEN), 403);
-
-        $section = DB::transaction(function () use ($data, $user) {
-            $prodi = $user->prodi ?? Prodi::first();
-            if (! $prodi && Schema::hasTable('prodis')) {
-                $prodi = Prodi::firstOrCreate(['code' => 'IF'], ['name' => 'Informatika']);
-            }
-
-            $mataKuliah = MataKuliah::firstOrCreate(
-                ['code' => strtoupper(trim($data['code']))],
-                [
-                    'name' => $data['title'],
-                    'prodi_id' => $prodi?->id,
-                    'sks' => 3,
-                ]
-            );
-
-            $semester = Semester::where('is_active', true)->first();
-            if (! $semester && Schema::hasTable('semesters')) {
-                $semester = Semester::firstOrCreate(['code' => '2026-1'], ['name' => 'Ganjil 2026/2027', 'is_active' => true]);
-            }
-
-            $existingCodes = ClassSection::where('mata_kuliah_id', $mataKuliah->id)
-                ->where('semester_id', $semester?->id)
-                ->pluck('section_code')
-                ->map(fn ($c) => strtoupper(trim((string) $c)))
-                ->all();
-
-            $letterAscii = 65;
-            while (in_array(chr($letterAscii), $existingCodes, true) && $letterAscii <= 90) {
-                $letterAscii++;
-            }
-            $sectionCode = chr($letterAscii);
-
-            $section = ClassSection::create([
-                'mata_kuliah_id' => $mataKuliah->id,
-                'semester_id' => $semester?->id,
-                'section_code' => $sectionCode,
-                'dosen_id' => $user->id,
-                'capacity' => 40,
-                'enrollment_code' => ClassSection::generateUniqueEnrollmentCode(),
-                'learning_payload' => [
-                    'description' => $data['description'],
-                    'cover' => $data['cover'],
-                    'video' => $data['video'],
-                    'video_type' => $data['video_type'],
-                    'video_title' => $data['title'],
-                    'media_kind' => 'video',
-                ],
-            ]);
-
-            Attachment::whereIn('uuid', array_filter([$data['cover'], $data['video_type'] === 'file' ? $data['video'] : null]))
-                ->update(['class_section_id' => $section->id]);
-
-            return $section;
-        });
-
-        return redirect()->route('dosen.course.show', $section->id)->with('notice', 'Course berhasil ditambahkan ke database.');
+        return view('learning.discussions', ['items' => [], 'courses' => $courses, 'discussionStats' => $discussionStats]);
     }
 
     public function createItem(int $course)
@@ -1139,7 +1315,7 @@ class LearningController extends Controller
                 }
                 $existingStepAtts = array_values(array_filter(array_merge(
                     (array) ($step['existing_attachments'] ?? []),
-                    !empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
+                    ! empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
                 )));
                 $mergedStepAtts = array_values(array_unique(array_merge($existingStepAtts, $stepUuids)));
                 $step['attachments'] = $mergedStepAtts;
@@ -1282,7 +1458,7 @@ class LearningController extends Controller
                 $asmCount = Assessment::where('class_section_id', $section->id)->count();
                 $questionImages = collect($data['questions'] ?? [])->pluck('image')->filter();
                 $stepAttachments = collect($data['coding_steps'] ?? [])
-                    ->flatMap(fn($st) => array_merge($st['attachments'] ?? [], !empty($st['attachment']) ? [$st['attachment']] : []))
+                    ->flatMap(fn ($st) => array_merge($st['attachments'] ?? [], ! empty($st['attachment']) ? [$st['attachment']] : []))
                     ->filter();
                 $fileIds = collect($data['attachments'])
                     ->merge($data['option_images'])
@@ -1327,6 +1503,7 @@ class LearningController extends Controller
                         ->update([
                             'class_section_id' => $section->id,
                             'assessment_id' => $assessment->id,
+                            'status' => Attachment::STATUS_ATTACHED,
                         ]);
                 }
 
@@ -1708,12 +1885,12 @@ class LearningController extends Controller
                 }
                 $existingStepAtts = array_values(array_filter(array_merge(
                     (array) ($step['existing_attachments'] ?? []),
-                    !empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
+                    ! empty($step['existing_attachment']) ? [$step['existing_attachment']] : []
                 )));
-                if (!isset($step['existing_attachments']) && !isset($step['existing_attachment'])) {
+                if (! isset($step['existing_attachments']) && ! isset($step['existing_attachment'])) {
                     $existingStepAtts = array_values(array_filter(array_merge(
-                        !empty($existingItem['coding_steps'][$index]['attachments']) ? (array)$existingItem['coding_steps'][$index]['attachments'] : [],
-                        !empty($existingItem['coding_steps'][$index]['attachment']) ? [$existingItem['coding_steps'][$index]['attachment']] : []
+                        ! empty($existingItem['coding_steps'][$index]['attachments']) ? (array) $existingItem['coding_steps'][$index]['attachments'] : [],
+                        ! empty($existingItem['coding_steps'][$index]['attachment']) ? [$existingItem['coding_steps'][$index]['attachment']] : []
                     )));
                 }
                 $mergedStepAtts = array_values(array_unique(array_merge($existingStepAtts, $stepUuids)));
@@ -1843,7 +2020,7 @@ class LearningController extends Controller
             $fileIds = collect($data['attachments'] ?? [])
                 ->merge([$data['question_image'] ?? null])
                 ->merge(collect($data['questions'] ?? [])->pluck('image'))
-                ->merge(collect($data['coding_steps'] ?? [])->flatMap(fn($st) => array_merge($st['attachments'] ?? [], !empty($st['attachment']) ? [$st['attachment']] : [])))
+                ->merge(collect($data['coding_steps'] ?? [])->flatMap(fn ($st) => array_merge($st['attachments'] ?? [], ! empty($st['attachment']) ? [$st['attachment']] : [])))
                 ->filter()
                 ->unique();
 
@@ -1875,6 +2052,7 @@ class LearningController extends Controller
                     ->update([
                         'class_section_id' => $section->id,
                         'assessment_id' => $assessment->id,
+                        'status' => Attachment::STATUS_ATTACHED,
                     ]);
             }
 
@@ -1946,12 +2124,25 @@ class LearningController extends Controller
         abort_if($section->isArchived(), 403, 'Kelas telah diarsipkan (read-only). Tidak dapat menghapus konten.');
         $assessment = Assessment::where('class_section_id', $section->id)->findOrFail($item);
 
-        DB::transaction(function () use ($assessment) {
+        $attachmentsToDelete = Attachment::where('assessment_id', $assessment->id)->get();
+
+        DB::transaction(function () use ($assessment, $attachmentsToDelete) {
             StudentAssessmentScore::where('assessment_id', $assessment->id)->delete();
             StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)->delete();
             $assessment->cpmks()->detach();
             Attachment::where('assessment_id', $assessment->id)->delete();
             $assessment->delete();
+
+            DB::afterCommit(function () use ($attachmentsToDelete) {
+                foreach ($attachmentsToDelete as $att) {
+                    if (! empty($att->path) && Storage::disk('local')->exists($att->path)) {
+                        $isShared = Attachment::where('path', $att->path)->exists();
+                        if (! $isShared) {
+                            Storage::disk('local')->delete($att->path);
+                        }
+                    }
+                }
+            });
         });
 
         return redirect()->route('dosen.course.show', $course)->with('notice', 'Konten berhasil dihapus.');
@@ -2015,13 +2206,13 @@ class LearningController extends Controller
             $roomMembers = $room->members()->get();
             foreach ($roomMembers as $member) {
                 if ($member->id !== $user->id && str_contains(mb_strtolower($content), '@'.mb_strtolower($member->name))) {
-                    \App\Models\MessageMention::firstOrCreate([
+                    MessageMention::firstOrCreate([
                         'message_id' => $message->id,
                         'mentioned_user_id' => $member->id,
                     ]);
 
                     if (Schema::hasTable('chat_notifications')) {
-                        \App\Models\ChatNotification::create([
+                        ChatNotification::create([
                             'user_id' => $member->id,
                             'type' => 'mention',
                             'message_id' => $message->id,
@@ -2100,6 +2291,7 @@ class LearningController extends Controller
                     return redirect()->route('mahasiswa.quiz.room', [$course, $item])->with('notice', 'Kuis sudah diserahkan dan selesai.');
                 }
                 $rejectMsg = $assessmentAttempt->rejection_reason ?? 'Attempt ini sudah selesai dan tidak dapat dikirim ulang.';
+
                 return back()->withErrors([
                     'submission' => $rejectMsg,
                 ])->withInput();
@@ -2219,6 +2411,7 @@ class LearningController extends Controller
             if ($request->boolean('from_code_editor')) {
                 return redirect()->route('mahasiswa.course.code.submitted', [$course, $item])->with('notice', 'Tugas coding ini sudah diserahkan dan terkunci.');
             }
+
             return back()->withErrors(['answer' => 'Tugas coding ini sudah diserahkan dan terkunci, tidak dapat dikerjakan atau diperbaiki lagi.'])->withInput();
         }
         $previousFiles = $dbSub?->file_ids ?? [];
@@ -2256,16 +2449,21 @@ class LearningController extends Controller
             // Only write to the submissions table when the assessment exists in the database;
             // session-only (preview) items must not trigger FK violations.
             if ($user && $assessment && Schema::hasTable('submissions')) {
+                // Serialize submissions for this assessment before checking or
+                // creating the row. Together with the unique DB constraint,
+                // this prevents parallel autosubmit/manual requests from
+                // creating duplicate submissions.
+                Assessment::whereKey($item)->lockForUpdate()->firstOrFail();
                 $existing = Submission::where('assessment_id', $item)
-                    ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                    ->where('user_id', $user->id)
+                    ->lockForUpdate()
                     ->first();
 
                 $attempt = $existing ? ($existing->attempt + 1) : 1;
                 $version = $existing ? ($existing->version + 1) : 1;
 
-                $submission = Submission::updateOrCreate(
-                    ['assessment_id' => $item, 'user_id' => $user->id],
-                    [
+                if ($existing) {
+                    $existing->fill([
                         'mahasiswa_id' => $user->id,
                         'attempt' => $attempt,
                         'version' => $version,
@@ -2276,8 +2474,24 @@ class LearningController extends Controller
                         'question_answers' => $data['question_answers'] ?? null,
                         'file_ids' => $data['files'] ?? [],
                         'student_number' => $data['student_number'] ?? null,
-                    ]
-                );
+                    ])->save();
+                    $submission = $existing;
+                } else {
+                    $submission = Submission::create([
+                        'assessment_id' => $item,
+                        'user_id' => $user->id,
+                        'mahasiswa_id' => $user->id,
+                        'attempt' => $attempt,
+                        'version' => $version,
+                        'status' => 'pending',
+                        'submitted_at' => now(),
+                        'answer' => $data['answer'] ?? null,
+                        'link' => $data['link'] ?? null,
+                        'question_answers' => $data['question_answers'] ?? null,
+                        'file_ids' => $data['files'] ?? [],
+                        'student_number' => $data['student_number'] ?? null,
+                    ]);
+                }
 
                 // Simpan versi jawaban ke tabel submission_answers
                 if (Schema::hasTable('submission_answers')) {
@@ -2323,6 +2537,7 @@ class LearningController extends Controller
                                 'path' => $attachmentMeta?->path ?? '',
                                 'name' => $attachmentMeta?->name ?? '',
                                 'mime' => $attachmentMeta?->mime,
+                                'status' => Attachment::STATUS_ATTACHED,
                             ]
                         );
                     }
@@ -2447,7 +2662,17 @@ class LearningController extends Controller
             return back()->with('notice', 'Batas waktu pengumpulan telah berakhir. Pengampu tidak mengizinkan pengumpulan terlambat sehingga penyerahan tugas tidak dapat dibatalkan.');
         }
 
-        DB::transaction(function () use ($user, $item) {
+        $attachmentsToDelete = [];
+        if (Schema::hasTable('submissions')) {
+            $existingSubmission = Submission::where('assessment_id', $item)
+                ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
+                ->first();
+            if ($existingSubmission && Schema::hasTable('attachments')) {
+                $attachmentsToDelete = Attachment::where('submission_id', $existingSubmission->id)->get();
+            }
+        }
+
+        DB::transaction(function () use ($user, $item, $attachmentsToDelete) {
             if (Schema::hasTable('submissions')) {
                 $submission = Submission::where('assessment_id', $item)
                     ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('mahasiswa_id', $user->id))
@@ -2479,6 +2704,17 @@ class LearningController extends Controller
                         'submitted_at' => null,
                     ]);
             }
+
+            DB::afterCommit(function () use ($attachmentsToDelete) {
+                foreach ($attachmentsToDelete as $att) {
+                    if (! empty($att->path) && Storage::disk('local')->exists($att->path)) {
+                        $isShared = Attachment::where('path', $att->path)->exists();
+                        if (! $isShared) {
+                            Storage::disk('local')->delete($att->path);
+                        }
+                    }
+                }
+            });
         });
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])
@@ -2501,6 +2737,7 @@ class LearningController extends Controller
                     'name' => $name,
                     'mime' => $mime,
                     'size' => $file->getSize(),
+                    'status' => Attachment::STATUS_PENDING,
                 ]);
             } catch (\Throwable) {
             }
@@ -2518,12 +2755,13 @@ class LearningController extends Controller
         $attachment = null;
         try {
             if (Schema::hasTable('attachments')) {
-                $attachment = Attachment::where('uuid', $file)->orWhere('id', $file)->first();
+                $attachment = Attachment::where('uuid', $file)->first();
             }
         } catch (\Throwable) {
             // Database may be inaccessible during unit testing
         }
         if ($attachment) {
+            abort_unless($attachment->status === Attachment::STATUS_ATTACHED, 404);
             $user = auth()->user();
             abort_unless($user, 401);
             $this->authorizeAttachmentAccess($attachment, $user);
@@ -2537,23 +2775,16 @@ class LearningController extends Controller
                 $assessment = $fileWithAssessment['assessment'];
                 $sectionId = $assessment->class_section_id;
 
-                if ($user && $sectionId && Schema::hasTable('class_sections')) {
-                    $section = ClassSection::find($sectionId);
-                    if ($section) {
-                        $authorized = $user->hasRole(Role::DOSEN)
-                            ? $user->can('manage', $section)
-                            : ($user->hasRole(Role::MAHASISWA)
-                                && $section->students()->where('users.id', $user->id)->exists());
-                        abort_unless($authorized, 403);
-                    }
-                }
+                abort_unless($user && $sectionId && Schema::hasTable('class_sections'), 403);
+                $section = ClassSection::with('mataKuliah:id,prodi_id')->find($sectionId);
+                abort_unless($section, 403);
+                $this->authorizeSectionFileAccess($section, $user);
 
                 $meta = $fileWithAssessment['meta'];
             } else {
-                $sessionMeta = session("learning.files.$file")
-                    ?? LearningPreview::sampleFiles()[$file]
-                    ?? LearningPreview::fileMeta($file)
-                    ?? null;
+                // Session-only preview uploads are accessible only from the
+                // browser session that uploaded them.
+                $sessionMeta = session("learning.files.$file");
                 abort_unless($sessionMeta !== null, 404);
                 $meta = $sessionMeta;
             }
@@ -2659,7 +2890,7 @@ class LearningController extends Controller
 
     private function authorizeAttachmentAccess(Attachment $attachment, User $user): void
     {
-        if ($user->hasRole(Role::ADMIN) || $user->hasRole(Role::ADMIN_PRODI)) {
+        if ($user->hasRole(Role::ADMIN)) {
             return;
         }
 
@@ -2668,78 +2899,28 @@ class LearningController extends Controller
             return;
         }
 
-        $submission = $attachment->submission_id && Schema::hasTable('submissions')
-            ? Submission::with('assessment')->find($attachment->submission_id)
+        $submission = $attachment->submission_id
+            ? Submission::with('assessment.classSection.mataKuliah')->find($attachment->submission_id)
             : null;
+        $assessment = $attachment->assessment_id
+            ? Assessment::with('classSection.mataKuliah')->find($attachment->assessment_id)
+            : $submission?->assessment;
+        $section = $attachment->class_section_id
+            ? ClassSection::with('mataKuliah:id,prodi_id')->find($attachment->class_section_id)
+            : $assessment?->classSection;
 
-        if (! $submission && Schema::hasTable('submissions')) {
-            $submission = Submission::with('assessment')
-                ->where(function ($q) use ($attachment) {
-                    $q->whereJsonContains('file_ids', $attachment->uuid)
-                        ->orWhere('file_ids', 'like', '%'.$attachment->uuid.'%');
-                })
-                ->latest('id')
-                ->first();
+        if ($user->hasRole(Role::ADMIN_PRODI)) {
+            abort_unless($section && $section->mataKuliah, 403);
+            $managedProdiId = (int) ($user->managing_prodi_id ?: $user->prodi_id);
+            abort_unless($managedProdiId > 0 && $managedProdiId === (int) $section->mataKuliah->prodi_id, 403);
+
+            return;
         }
-
-        $assessmentId = $attachment->assessment_id ?? $submission?->assessment_id;
-        if (! $assessmentId && Schema::hasTable('assessments')) {
-            $assessmentId = Assessment::where(function ($q) use ($attachment) {
-                $q->whereJsonContains('attachments', $attachment->uuid)
-                    ->orWhere('attachments', 'like', '%'.$attachment->uuid.'%')
-                    ->orWhere('learning_payload', 'like', '%'.$attachment->uuid.'%')
-                    ->orWhere('question_image', $attachment->uuid);
-            })->value('id');
-        }
-
-        $sectionId = $attachment->class_section_id
-            ?? $attachment->assessment?->class_section_id
-            ?? $submission?->assessment?->class_section_id;
-
-        if (! $sectionId && $assessmentId && Schema::hasTable('assessments')) {
-            $sectionId = Assessment::where('id', $assessmentId)->value('class_section_id');
-        }
-
-        $section = $sectionId && Schema::hasTable('class_sections')
-            ? ClassSection::find($sectionId)
-            : null;
 
         if ($user->hasRole(Role::DOSEN)) {
-            if ($section) {
-                $canManage = $user->can('manage', $section)
-                    || in_array((int) $user->id, array_map('intval', array_filter([(int) $section->dosen_id, (int) $section->dosen_pendamping_id])), true);
-                if ($canManage) {
-                    return;
-                }
-            }
+            abort_unless($section && $user->can('manage', $section), 403);
 
-            if ($submission && ($submission->mahasiswa_id || $submission->user_id)) {
-                $studentId = $submission->mahasiswa_id ?: $submission->user_id;
-                $isStudentInDosenCourse = ClassSection::where(function ($q) use ($user) {
-                    $q->where('dosen_id', $user->id)
-                        ->orWhere('dosen_pendamping_id', $user->id)
-                        ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id));
-                })->whereHas('students', function ($q) use ($studentId) {
-                    $q->where('users.id', $studentId);
-                })->exists();
-
-                if ($isStudentInDosenCourse) {
-                    return;
-                }
-            }
-
-            if ($assessmentId && Schema::hasTable('assessments')) {
-                $ass = Assessment::find($assessmentId);
-                if ($ass && ($ass->user_id == $user->id || ($ass->class_section_id && ClassSection::where('id', $ass->class_section_id)->where(fn ($q) => $q->where('dosen_id', $user->id)->orWhere('dosen_pendamping_id', $user->id)->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $user->id)))->exists()))) {
-                    return;
-                }
-            }
-
-            if (! $sectionId && ! $submission) {
-                return;
-            }
-
-            abort(403);
+            return;
         }
 
         if ($submission) {
@@ -2767,20 +2948,33 @@ class LearningController extends Controller
             return;
         }
 
-        if ($assessmentId && Schema::hasTable('class_sections')) {
-            $isEnrolledInAssessment = ClassSection::whereHas('assessments', fn ($q) => $q->where('id', $assessmentId))
-                ->whereHas('students', fn ($q) => $q->where('users.id', $user->id))
-                ->exists();
-            if ($isEnrolledInAssessment) {
-                return;
-            }
-        }
+        abort(403);
+    }
 
-        if (! $sectionId && ! $attachment->submission_id && ! $submission) {
+    private function authorizeSectionFileAccess(ClassSection $section, User $user): void
+    {
+        if ($user->hasRole(Role::ADMIN)) {
             return;
         }
 
-        abort_unless((int) $attachment->user_id === (int) $user->id, 403);
+        if ($user->hasRole(Role::ADMIN_PRODI)) {
+            $managedProdiId = (int) ($user->managing_prodi_id ?: $user->prodi_id);
+            abort_unless($managedProdiId > 0 && $managedProdiId === (int) $section->mataKuliah?->prodi_id, 403);
+
+            return;
+        }
+
+        if ($user->hasRole(Role::DOSEN)) {
+            abort_unless($user->can('manage', $section), 403);
+
+            return;
+        }
+
+        abort_unless(
+            $user->hasRole(Role::MAHASISWA)
+            && $section->students()->where('users.id', $user->id)->exists(),
+            403
+        );
     }
 
     public function notifications(Request $request)
@@ -2996,13 +3190,10 @@ class LearningController extends Controller
         $pendingTaskCount = $user->hasRole(Role::MAHASISWA) ? $this->notifications->pendingTaskCount($user) : 0;
         $pendingGradingCount = $user->hasRole(Role::DOSEN) ? DosenNavigation::pendingGradingCount() : 0;
 
-        $dosenUnreadNotifCount = $user->hasRole(Role::DOSEN)
-            ? $this->notifications->unreadCount($user, Role::DOSEN)
-            : 0;
-
-        $mhsUnreadNotifCount = $user->hasRole(Role::MAHASISWA)
-            ? $this->notifications->unreadCount($user, Role::MAHASISWA)
-            : 0;
+        // A polling request materializes exactly one role-specific collection.
+        // The inactive workspace is refreshed by its own poll when opened.
+        $dosenUnreadNotifCount = $role === Role::DOSEN ? $unreadCount : 0;
+        $mhsUnreadNotifCount = $role === Role::MAHASISWA ? $unreadCount : 0;
 
         return response()->json([
             'success' => true,
@@ -3037,12 +3228,19 @@ class LearningController extends Controller
         $sessionRead = array_values(array_unique(array_merge($sessionRead, $id === 'all' ? ['all'] : $keys)));
         session(['learning.read_notifications' => $sessionRead]);
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'marked_keys' => $keys,
+            ]);
+        }
+
         $fallbackRoute = $request->user()?->hasRole(Role::DOSEN)
             ? 'dosen.notifications'
             : 'mahasiswa.notifications';
 
-        $target = $request->query('target');
-        $backCategory = $request->query('back_category', $request->input('category', $request->query('category')));
+        $target = $request->input('target') ?: $request->query('target');
+        $backCategory = $request->input('back_category') ?: $request->query('back_category', $request->input('category', $request->query('category')));
         $backCategory = (! empty($backCategory) && in_array($backCategory, ['tugas', 'nilai', 'sistem', 'diskusi'], true))
             ? $backCategory
             : null;

@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attachment extends Model
 {
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_ATTACHED = 'attached';
+
     protected $fillable = [
         'uuid',
         'user_id',
@@ -17,6 +21,7 @@ class Attachment extends Model
         'name',
         'mime',
         'size',
+        'status',
     ];
 
     protected function casts(): array

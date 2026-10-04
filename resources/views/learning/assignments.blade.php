@@ -130,7 +130,7 @@
     </section>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('q');
         const container = document.getElementById('assignment-list-container');

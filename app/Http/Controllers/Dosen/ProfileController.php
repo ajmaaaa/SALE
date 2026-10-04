@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Semester;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -111,8 +112,8 @@ class ProfileController extends Controller
             'photo.mimes' => 'Format foto profil harus berupa JPG, PNG, atau WebP.',
         ]);
 
-        if ($user->profile_photo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->profile_photo_path)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_photo_path);
+        if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
+            Storage::disk('public')->delete($user->profile_photo_path);
         }
 
         $path = $validated['photo']->storePublicly('profile-photos/'.$user->id, 'public');
@@ -120,7 +121,7 @@ class ProfileController extends Controller
             return back()->withErrors(['photo' => 'Foto gagal disimpan. Coba lagi.'])->withFragment('profil');
         }
 
-        self::optimizeAvatar(\Illuminate\Support\Facades\Storage::disk('public')->path($path));
+        self::optimizeAvatar(Storage::disk('public')->path($path));
 
         $user->forceFill(['profile_photo_path' => $path])->save();
 
@@ -133,8 +134,8 @@ class ProfileController extends Controller
         $user = $request->user();
         abort_unless($user?->hasRole(Role::DOSEN), 403);
 
-        if ($user->profile_photo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->profile_photo_path)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_photo_path);
+        if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
+            Storage::disk('public')->delete($user->profile_photo_path);
         }
 
         $user->forceFill(['profile_photo_path' => null])->save();

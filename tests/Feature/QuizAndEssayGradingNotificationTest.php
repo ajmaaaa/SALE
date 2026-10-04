@@ -23,8 +23,11 @@ class QuizAndEssayGradingNotificationTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $student;
+
     private ClassSection $section;
+
     private Cpmk $cpmk;
 
     protected function setUp(): void

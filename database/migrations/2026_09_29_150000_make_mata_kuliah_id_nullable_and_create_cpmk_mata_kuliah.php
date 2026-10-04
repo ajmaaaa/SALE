@@ -11,7 +11,7 @@ return new class extends Migration
     {
         // 1. Add prodi_id to cpmks and make mata_kuliah_id nullable
         Schema::table('cpmks', function (Blueprint $table) {
-            if (!Schema::hasColumn('cpmks', 'prodi_id')) {
+            if (! Schema::hasColumn('cpmks', 'prodi_id')) {
                 $table->foreignId('prodi_id')->nullable()->after('id')->constrained('prodis')->cascadeOnDelete();
             }
             $table->foreignId('mata_kuliah_id')->nullable()->change();
@@ -19,11 +19,26 @@ return new class extends Migration
 
         // Backfill prodi_id from mata_kuliahs if available
         if (Schema::hasColumn('cpmks', 'prodi_id')) {
-            DB::statement("UPDATE cpmks JOIN mata_kuliahs ON mata_kuliahs.id = cpmks.mata_kuliah_id SET cpmks.prodi_id = mata_kuliahs.prodi_id WHERE cpmks.prodi_id IS NULL");
+            DB::table('cpmks')
+                ->whereNull('prodi_id')
+                ->whereNotNull('mata_kuliah_id')
+                ->orderBy('id')
+                ->chunkById(500, function ($cpmks): void {
+                    $prodiByCourse = DB::table('mata_kuliahs')
+                        ->whereIn('id', $cpmks->pluck('mata_kuliah_id')->filter()->unique())
+                        ->pluck('prodi_id', 'id');
+
+                    foreach ($cpmks as $cpmk) {
+                        $prodiId = $prodiByCourse->get($cpmk->mata_kuliah_id);
+                        if ($prodiId !== null) {
+                            DB::table('cpmks')->where('id', $cpmk->id)->update(['prodi_id' => $prodiId]);
+                        }
+                    }
+                });
         }
 
         // 2. Create pivot table cpmk_mata_kuliah
-        if (!Schema::hasTable('cpmk_mata_kuliah')) {
+        if (! Schema::hasTable('cpmk_mata_kuliah')) {
             Schema::create('cpmk_mata_kuliah', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('mata_kuliah_id')->constrained('mata_kuliahs')->cascadeOnDelete();
@@ -33,8 +48,21 @@ return new class extends Migration
                 $table->unique(['mata_kuliah_id', 'cpmk_id']);
             });
 
-            // Populate existing associations from cpmks into cpmk_mata_kuliah
-            DB::statement("INSERT IGNORE INTO cpmk_mata_kuliah (mata_kuliah_id, cpmk_id, created_at, updated_at) SELECT mata_kuliah_id, id, NOW(), NOW() FROM cpmks WHERE mata_kuliah_id IS NOT NULL");
+            // Populate existing associations portably across MySQL and SQLite.
+            DB::table('cpmks')
+                ->whereNotNull('mata_kuliah_id')
+                ->orderBy('id')
+                ->chunkById(500, function ($cpmks): void {
+                    $timestamp = now();
+                    $rows = $cpmks->map(fn ($cpmk) => [
+                        'mata_kuliah_id' => $cpmk->mata_kuliah_id,
+                        'cpmk_id' => $cpmk->id,
+                        'created_at' => $timestamp,
+                        'updated_at' => $timestamp,
+                    ])->all();
+
+                    DB::table('cpmk_mata_kuliah')->insertOrIgnore($rows);
+                });
         }
     }
 

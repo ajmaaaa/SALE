@@ -173,7 +173,7 @@ class KurikulumController extends AdminProdiController
         $this->assertMataKuliahScope($mataKuliah);
         $cpmkIds = $request->input('cpmk_ids', []);
 
-        if (!empty($cpmkIds)) {
+        if (! empty($cpmkIds)) {
             $validCount = Cpmk::where('prodi_id', $mataKuliah->prodi_id)->whereIn('id', $cpmkIds)->count();
             abort_unless($validCount === count($cpmkIds), 403, 'CPMK yang dipilih bukan milik program studi ini.');
         }

@@ -7,6 +7,7 @@ use App\Services\Ai\AiTutor;
 use App\Services\Ai\ContextBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AiEvalController extends Controller
@@ -18,16 +19,53 @@ class AiEvalController extends Controller
      */
     public function evaluate(Request $request, AiTutor $tutor, ContextBuilder $contextBuilder): JsonResponse
     {
-        // 1. Only active in non-production environments
-        if (app()->environment('production')) {
+        // 1. Strict environment allowlist (only local and testing)
+        if (! in_array(app()->environment(), ['local', 'testing'], true)) {
             abort(404, 'Not Found');
         }
 
-        // 2. Protected by X-Eval-Token
+        // 2. IP allowlist (when configured and not in testing)
+        $allowedIps = config('ai.eval_allowed_ips', ['127.0.0.1', '::1']);
+        $clientIp = $request->ip();
+        if (! app()->environment('testing') && ! empty($allowedIps) && ! in_array($clientIp, $allowedIps, true)) {
+            return response()->json([
+                'message' => 'Forbidden. Request IP not allowed.',
+            ], 403);
+        }
+
+        // 3. Require an authenticated System Admin in addition to the eval token.
+        if (! auth()->check()) {
+            return response()->json([
+                'message' => 'Unauthenticated. AI evaluation requires a System Admin session.',
+            ], 401);
+        }
+
+        $user = auth()->user();
+        if (! $user->hasRole('admin')) {
+            return response()->json([
+                'message' => 'Forbidden. AI evaluation requires System Admin role.',
+            ], 403);
+        }
+
+        // 4. Protected by X-Eval-Token: fail closed on empty, <32 chars, or sample values
         $expectedToken = (string) (config('ai.eval_token') ?: env('AI_EVAL_TOKEN', ''));
         $providedToken = (string) $request->header('X-Eval-Token');
 
-        if ($expectedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+        $sampleTokens = [
+            'sale-eval-secret-token',
+            'test-secret-eval-token',
+            'sample-token',
+            'your-eval-token-here',
+            'change-me',
+        ];
+
+        if (empty($expectedToken) || strlen($expectedToken) < 32 || in_array(strtolower($expectedToken), $sampleTokens, true)) {
+            return response()->json([
+                'message' => 'Evaluation service unavailable: token unconfigured, insecure, or sample token prohibited.',
+            ], 503);
+        }
+
+        if ($providedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
             return response()->json([
                 'message' => 'Unauthorized. Invalid or missing X-Eval-Token.',
             ], 401);
@@ -35,7 +73,7 @@ class AiEvalController extends Controller
 
         config(['ai.v2' => true, 'ai.single_call' => true]);
 
-        // 3. Validate input
+        // 5. Validate input
         $validated = $request->validate([
             'assessment_id' => 'nullable|integer',
             'question' => 'required|string',
@@ -57,9 +95,18 @@ class AiEvalController extends Controller
         $turns = (int) ($validated['turns'] ?? 0);
         $history = $validated['history'] ?? [];
 
-        // 4. Resolve assessment or standalone task context
+        // 6. Resolve assessment or standalone task context with tenant scope
         $assessmentId = $validated['assessment_id'] ?? null;
-        $assessment = $assessmentId ? Assessment::with('classSection')->find($assessmentId) : null;
+        $assessment = null;
+        if ($assessmentId !== null) {
+            $assessment = Assessment::with('classSection.mataKuliah')->find($assessmentId);
+            if (! $assessment && $assessmentId !== 81 && empty($validated['task_title'])) {
+                return response()->json([
+                    'message' => 'Assessment tidak ditemukan atau tidak sah.',
+                ], 404);
+            }
+
+        }
 
         $inputData = [
             'question' => $validated['question'],
@@ -123,6 +170,14 @@ class AiEvalController extends Controller
                 null,
                 null
             );
+
+            Log::info('AI evaluation completed successfully', [
+                'assessment_id' => $assessment?->id ?? null,
+                'user_id' => auth()->id(),
+                'verdict' => $result['verdict'] ?? null,
+                'hint_level' => $result['hint_level'] ?? null,
+                'ip' => $request->ip(),
+            ]);
 
             return response()->json([
                 'verdict' => $result['verdict'],

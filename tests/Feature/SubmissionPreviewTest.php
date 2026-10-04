@@ -45,12 +45,12 @@ class SubmissionPreviewTest extends TestCase
         $this->withSession(["learning.files.$id" => [
             'path' => 'learning-preview/document.pdf', 'name' => 'document.pdf', 'mime' => 'application/pdf',
         ]]);
-        $this->get(route('preview.file', ['file' => $id, 'inline' => 1]))
+        $pdfResponse = $this->get(route('preview.file', ['file' => $id, 'inline' => 1]))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Security-Policy', "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'")
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
             ->assertHeader('Content-Disposition', 'inline; filename=document.pdf');
+        $this->assertStringContainsString("frame-ancestors 'self'", (string) $pdfResponse->headers->get('Content-Security-Policy'));
         $this->get(route('preview.file', ['file' => $id, 'download' => 1]))->assertDownload('document.pdf');
         session()->forget('learning.files');
         $this->get(route('preview.file', ['file' => $id, 'inline' => 1]))->assertNotFound();

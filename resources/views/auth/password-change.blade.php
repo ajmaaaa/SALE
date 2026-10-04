@@ -6,6 +6,12 @@
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#102f50">
     <title>Ganti Password | SALE - Smart Academic Learning Ecosystem</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v=4">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-gradient-to-br from-[#0e2740] via-[#12385b] to-[#1c5384] font-sans antialiased text-white flex flex-col justify-between items-center p-6 sm:p-10 relative overflow-x-hidden select-none">
@@ -106,7 +112,7 @@
         Smart Academic Learning Ecosystem &copy; {{ date('Y') }}
     </footer>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
             button.addEventListener('click', function () {
                 const input = document.getElementById(button.dataset.passwordToggle);

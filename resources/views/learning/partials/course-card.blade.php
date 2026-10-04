@@ -3,64 +3,13 @@
     $currentRole = $passedRole ?: (request()->is('dosen*') ? 'dosen' : 'mahasiswa');
     $isDosen = ($passedRole === 'dosen') || request()->is('dosen*') || ($currentRole === 'dosen');
 
-    $contents = collect();
-    if (\Illuminate\Support\Facades\Schema::hasTable('assessments')) {
-        $contents = \App\Models\Assessment::where('class_section_id', $course['id'])
-            ->where('status', 'published')
-            ->whereNotNull('due_at')
-            ->orderBy('due_at')
-            ->get()
-            ->map(function ($a) {
-                return [
-                    'id' => $a->id,
-                    'course' => $a->class_section_id,
-                    'type' => match ($a->type) {
-                        'pbl', 'case', 'project', 'proyek' => 'tugas',
-                        default => $a->type,
-                    },
-                    'title' => $a->name,
-                    'due' => $a->due_at?->format('Y-m-d\TH:i'),
-                    'due_at' => $a->due_at,
-                    'updated_at' => $a->updated_at,
-                    'created_at' => $a->created_at,
-                ];
-            });
+    if (array_key_exists('uncompleted_task', $course) || array_key_exists('next_task', $course)) {
+        $uncompletedTask = $course['uncompleted_task'] ?? null;
+        $next = $course['next_task'] ?? $uncompletedTask;
+    } else {
+        $uncompletedTask = null;
+        $next = null;
     }
-
-    $sortTaskFn = function ($a, $b) {
-        $dueA = !empty($a['due']) ? \Carbon\Carbon::parse($a['due']) : null;
-        $dueB = !empty($b['due']) ? \Carbon\Carbon::parse($b['due']) : null;
-        $isPastA = $dueA && $dueA->isPast();
-        $isPastB = $dueB && $dueB->isPast();
-
-        $isUpcomingA = $dueA && !$isPastA;
-        $isUpcomingB = $dueB && !$isPastB;
-
-        if ($isUpcomingA !== $isUpcomingB) {
-            return $isUpcomingA ? -1 : 1;
-        }
-
-        if ($isUpcomingA && $isUpcomingB) {
-            return $dueA <=> $dueB;
-        }
-
-        $actA = isset($a['updated_at']) && $a['updated_at'] ? \Carbon\Carbon::parse($a['updated_at'])->timestamp : (isset($a['created_at']) && $a['created_at'] ? \Carbon\Carbon::parse($a['created_at'])->timestamp : ($a['id'] ?? 0));
-        $actB = isset($b['updated_at']) && $b['updated_at'] ? \Carbon\Carbon::parse($b['updated_at'])->timestamp : (isset($b['created_at']) && $b['created_at'] ? \Carbon\Carbon::parse($b['created_at'])->timestamp : ($b['id'] ?? 0));
-
-        if ($actA !== $actB) {
-            return $actB <=> $actA;
-        }
-
-        return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
-    };
-
-    // Untuk mahasiswa: cek apakah ada tugas/kuis aktif yang belum diserahkan
-    $uncompletedTask = $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])
-        ->filter(fn($item) => $isDosen || !\App\Models\Submission::where('assessment_id', $item['id'])->where('mahasiswa_id', auth()->id())->exists())
-        ->sort($sortTaskFn)
-        ->first();
-
-    $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])->sort($sortTaskFn)->first();
 
     $isArchived = !empty($course['is_archived']);
     $sks = $course['sks'] ?? '3 SKS';
@@ -256,7 +205,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     let currentEnrollmentUrl = '';
     let currentEnrollmentCode = '';
 

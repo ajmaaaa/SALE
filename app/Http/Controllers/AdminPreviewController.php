@@ -7,12 +7,17 @@ use App\Models\Role;
 use App\Models\Semester;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\Ai\AiModelFetcher;
+use App\Services\Ai\AiUsageRecorder;
+use App\Services\BackupService;
 use App\Support\AdminPreview;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -23,8 +28,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use App\Services\Ai\AiModelFetcher;
-use App\Services\Ai\AiUsageRecorder;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminPreviewController extends Controller
@@ -68,38 +72,7 @@ class AdminPreviewController extends Controller
         $aiMetrics['quota'] = $quota;
         $aiMetrics['remaining_tokens'] = $aiRemainingTokens;
 
-        $backupList = collect();
-        $backupDir = self::getBackupDirectory();
-        $dirsToScan = array_unique([$backupDir, storage_path('app/private/backups'), storage_path('app/backups')]);
-        $seenFiles = [];
-        foreach ($dirsToScan as $d) {
-            if (is_dir($d)) {
-                $files = glob($d . '/*.sql');
-                foreach ($files as $f) {
-                    $bName = basename($f);
-                    if (isset($seenFiles[$bName])) {
-                        continue;
-                    }
-                    $seenFiles[$bName] = true;
-                    $backupList->push([
-                        'filename' => $bName,
-                        'size' => round(filesize($f) / 1024, 0) . ' KB',
-                        'created_at' => date('d F Y, H:i', filemtime($f)) . ' WIB',
-                        'timestamp' => filemtime($f),
-                    ]);
-                }
-            }
-        }
-        $baseline = base_path('sale-2026-09-28.sql');
-        if (file_exists($baseline)) {
-            $backupList->push([
-                'filename' => 'sale-2026-09-28.sql',
-                'size' => round(filesize($baseline) / 1024, 0) . ' KB',
-                'created_at' => '28 September 2026, 20:44 WIB',
-                'timestamp' => strtotime('2026-09-28 20:44:00'),
-            ]);
-        }
-        $backupList = $backupList->sortByDesc('timestamp')->values();
+        $backupList = BackupService::listBackups();
         $latestBackup = $backupList->first();
 
         $diskPath = storage_path();
@@ -114,13 +87,16 @@ class AdminPreviewController extends Controller
         }
 
         $formatBytes = function ($bytes, $precision = 1) {
-            if ($bytes <= 0) return '0 B';
+            if ($bytes <= 0) {
+                return '0 B';
+            }
             $units = ['B', 'KB', 'MB', 'GB', 'TB'];
             $i = min((int) floor(log($bytes, 1024)), count($units) - 1);
             $val = round($bytes / pow(1024, $i), $precision);
             $formatted = number_format($val, $precision, ',', '.');
             $formatted = str_replace(',0', '', $formatted);
-            return $formatted . ' ' . $units[$i];
+
+            return $formatted.' '.$units[$i];
         };
 
         $appStorageBytes = 0;
@@ -133,7 +109,8 @@ class AdminPreviewController extends Controller
                         $appStorageBytes += $file->getSize();
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $storageMetrics = [
@@ -162,7 +139,7 @@ class AdminPreviewController extends Controller
                     'remaining_tokens_formatted' => number_format($aiRemainingTokens, 0, ',', '.').' token',
                     'quota' => number_format($aiQuota, 0, ',', '.'),
                     'requests_description' => number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan bulan ini',
-                    'remaining_description' => 'Terpakai ' . number_format((int) $aiMetrics['total_tokens'], 0, ',', '.') . ' dari ' . number_format($aiQuota, 0, ',', '.') . ' kuota (' . number_format((int) $aiMetrics['requests'], 0, ',', '.') . ' permintaan)',
+                    'remaining_description' => 'Terpakai '.number_format((int) $aiMetrics['total_tokens'], 0, ',', '.').' dari '.number_format($aiQuota, 0, ',', '.').' kuota ('.number_format((int) $aiMetrics['requests'], 0, ',', '.').' permintaan)',
                 ],
                 'requests_html' => view('admin.partials.monitoring-ai-requests', ['aiRequestRows' => $aiRequestRows, 'demo' => false])->render(),
                 'latestBackup' => $latestBackup,
@@ -303,7 +280,7 @@ class AdminPreviewController extends Controller
 
     public function downloadUserTemplate(): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template Import Pengguna');
 
@@ -496,6 +473,7 @@ class AdminPreviewController extends Controller
 
                 if ($idNum === '' || $name === '' || $email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -522,6 +500,7 @@ class AdminPreviewController extends Controller
                 $existing = User::where('email', strtolower($email))->orWhere('nim_nidn', $idNum)->first();
                 if ($existing && (strcasecmp($existing->email, $email) !== 0 || $existing->nim_nidn !== $idNum)) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -614,6 +593,7 @@ class AdminPreviewController extends Controller
             $user->delete();
             AdminPreview::log('Menghapus pengguna '.$name.'.');
         });
+
         return redirect('/admin/pengguna')->with('notice', 'Pengguna '.$name.' berhasil dihapus dari database.');
     }
 
@@ -648,7 +628,7 @@ class AdminPreviewController extends Controller
                 if (preg_match('/(\d{4}\/\d{4})/', $data['name'], $m)) {
                     $academicYear = $m[1];
                 } elseif (preg_match('/(\d{4})/', $data['name'], $m)) {
-                    $academicYear = $m[1] . '/' . ((int) $m[1] + 1);
+                    $academicYear = $m[1].'/'.((int) $m[1] + 1);
                 }
                 $term = str_contains(strtolower($data['name']), 'genap') ? 2 : 1;
 
@@ -689,6 +669,7 @@ class AdminPreviewController extends Controller
             abort(404);
         }
         AdminPreview::log('Menghapus data akademik dari database.', ['encoded_id' => $id]);
+
         return redirect('/admin/akademik')->with('notice', 'Data akademik berhasil dihapus dari database.');
     }
 
@@ -716,9 +697,11 @@ class AdminPreviewController extends Controller
                 'string',
                 'max:100',
                 function ($attribute, $value, $fail) {
-                    if (blank($value)) return;
+                    if (blank($value)) {
+                        return;
+                    }
                     if (preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', (string) $value)) {
-                        $fail('Model AI yang dipilih (' . $value . ') tidak mendukung luaran teks (text generation) untuk evaluasi dan AI tutor.');
+                        $fail('Model AI yang dipilih ('.$value.') tidak mendukung luaran teks (text generation) untuk evaluasi dan AI tutor.');
                     }
                 },
             ],
@@ -768,9 +751,9 @@ class AdminPreviewController extends Controller
             }
             AdminPreview::log('Memperbarui pengaturan institusi di database.');
         });
+
         return back()->with('notice', 'Pengaturan sistem berhasil disimpan ke database.');
     }
-
 
     public function testAiConnection(Request $request)
     {
@@ -823,8 +806,8 @@ class AdminPreviewController extends Controller
                     ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengosongan kunci API dikirim dari browser.'],
                     ['step' => 'Backend', 'status' => 'ok', 'detail' => "Controller memperbarui konfigurasi untuk model {$provider}."],
                     ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kunci API berhasil dikosongkan dari database sistem.'],
-                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => 'Koneksi ke gateway AI dinonaktifkan karena kunci API kosong.']
-                ]
+                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => 'Koneksi ke gateway AI dinonaktifkan karena kunci API kosong.'],
+                ],
             ]);
         }
 
@@ -848,9 +831,9 @@ class AdminPreviewController extends Controller
                 'flow' => [
                     ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari antarmuka browser.'],
                     ['step' => 'Backend', 'status' => 'ok', 'detail' => "Controller memproses permintaan untuk model {$provider}."],
-                    ['step' => 'Database', 'status' => 'failed', 'detail' => "Kunci API belum diisi di form maupun database."],
-                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => "Permintaan dibatalkan sebelum menghubungi gateway penyedia AI."]
-                ]
+                    ['step' => 'Database', 'status' => 'failed', 'detail' => 'Kunci API belum diisi di form maupun database.'],
+                    ['step' => 'AI API', 'status' => 'skipped', 'detail' => 'Permintaan dibatalkan sebelum menghubungi gateway penyedia AI.'],
+                ],
             ], 422);
         }
 
@@ -865,15 +848,15 @@ class AdminPreviewController extends Controller
 
         try {
             if ($provider === 'Google AI') {
-                $response = Http::withoutVerifying()->timeout(12)
+                $response = Http::timeout(12)
                     ->withHeaders(['x-goog-api-key' => $key])
                     ->get('https://generativelanguage.googleapis.com/v1beta/models');
             } elseif ($provider === 'Open AI') {
-                $response = Http::withoutVerifying()->timeout(12)
+                $response = Http::timeout(12)
                     ->withToken($key)
                     ->get('https://api.openai.com/v1/models');
             } else {
-                $response = Http::withoutVerifying()->timeout(12)
+                $response = Http::timeout(12)
                     ->withToken($key)
                     ->get('https://api.deepseek.com/models');
             }
@@ -896,7 +879,7 @@ class AdminPreviewController extends Controller
                         $modelsToTry = array_values(array_unique(array_filter([$activeModel, 'gemini-3.6-flash', 'gemini-3.8-flash'])));
                         foreach ($modelsToTry as $tryModel) {
                             $mStart = microtime(true);
-                            $genRes = Http::withoutVerifying()->timeout(15)
+                            $genRes = Http::timeout(15)
                                 ->withHeaders(['x-goog-api-key' => $key])
                                 ->post("https://generativelanguage.googleapis.com/v1beta/models/{$tryModel}:generateContent", [
                                     'contents' => [['role' => 'user', 'parts' => [['text' => $testPrompt]]]],
@@ -935,7 +918,7 @@ class AdminPreviewController extends Controller
                         }
                     } elseif ($provider === 'Open AI') {
                         $mStart = microtime(true);
-                        $genRes = Http::withoutVerifying()->timeout(15)
+                        $genRes = Http::timeout(15)
                             ->withToken($key)
                             ->post('https://api.openai.com/v1/chat/completions', [
                                 'model' => $activeModel,
@@ -968,7 +951,7 @@ class AdminPreviewController extends Controller
                         }
                     } else { // DeepSeek
                         $mStart = microtime(true);
-                        $genRes = Http::withoutVerifying()->timeout(15)
+                        $genRes = Http::timeout(15)
                             ->withToken($key)
                             ->post('https://api.deepseek.com/chat/completions', [
                                 'model' => $activeModel,
@@ -1001,7 +984,7 @@ class AdminPreviewController extends Controller
                         }
                     }
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('Gagal uji generateContent AI: ' . $e->getMessage());
+                    Log::warning('Gagal uji generateContent AI: '.$e->getMessage());
                 }
 
                 $msg = "Koneksi ke {$provider} API berhasil terhubung aktif (HTTP {$response->status()} OK).";
@@ -1021,8 +1004,8 @@ class AdminPreviewController extends Controller
                         ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian berhasil diinisiasi.'],
                         ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses autentikasi dan rute sistem.'],
                         ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kredensial berhasil dimuat dari database sistem.'],
-                        ['step' => 'AI API', 'status' => 'ok', 'detail' => "Respons 200 OK diterima dari gateway resmi {$provider}." . ($testSuccess ? " Token tercatat ({$testedTokens} token)." : '')]
-                    ]
+                        ['step' => 'AI API', 'status' => 'ok', 'detail' => "Respons 200 OK diterima dari gateway resmi {$provider}.".($testSuccess ? " Token tercatat ({$testedTokens} token)." : '')],
+                    ],
                 ]);
             }
 
@@ -1031,6 +1014,7 @@ class AdminPreviewController extends Controller
                 ?? "Gagal autentikasi ke server penyedia {$provider} (HTTP {$response->status()}).";
 
             AdminPreview::log("Uji koneksi ke {$provider} API gagal (HTTP {$response->status()}).");
+
             return response()->json([
                 'success' => false,
                 'provider' => $provider,
@@ -1041,25 +1025,26 @@ class AdminPreviewController extends Controller
                 'flow' => [
                     ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari browser.'],
                     ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses permintaan dan rute sistem.'],
-                    ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
-                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Gateway {$provider} menolak akses: {$errorMsg}"]
-                ]
+                    ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kredensial berhasil dimuat dari database sistem.'],
+                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Gateway {$provider} menolak akses: {$errorMsg}"],
+                ],
             ], 400);
         } catch (\Throwable $e) {
-            AdminPreview::log("Uji koneksi ke {$provider} API error: " . $e->getMessage());
+            AdminPreview::log("Uji koneksi ke {$provider} API error: ".$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'provider' => $provider,
                 'source' => $source,
                 'status_code' => 504,
                 'failed_at' => 'AI API',
-                'message' => "Gagal terhubung ke jaringan endpoint {$provider}: " . $e->getMessage(),
+                'message' => "Gagal terhubung ke jaringan endpoint {$provider}: ".$e->getMessage(),
                 'flow' => [
                     ['step' => 'Frontend', 'status' => 'ok', 'detail' => 'Permintaan pengujian dikirim dari browser.'],
                     ['step' => 'Backend', 'status' => 'ok', 'detail' => 'Controller memproses permintaan dan rute sistem.'],
-                    ['step' => 'Database', 'status' => 'ok', 'detail' => "Kredensial berhasil dimuat dari database sistem."],
-                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Koneksi timeout/terputus saat menghubungi gateway {$provider}."]
-                ]
+                    ['step' => 'Database', 'status' => 'ok', 'detail' => 'Kredensial berhasil dimuat dari database sistem.'],
+                    ['step' => 'AI API', 'status' => 'failed', 'detail' => "Koneksi timeout/terputus saat menghubungi gateway {$provider}."],
+                ],
             ], 504);
         }
     }
@@ -1096,7 +1081,7 @@ class AdminPreviewController extends Controller
     public function export()
     {
         AdminPreview::log('Mengunduh rekap data akademik Excel.');
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Akademik');
 
@@ -1120,7 +1105,7 @@ class AdminPreviewController extends Controller
         ]);
         $sheet->getRowDimension(2)->setRowHeight(20);
 
-        $sheet->setCellValue('A3', 'Tanggal Unduh: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheet->setCellValue('A3', 'Tanggal Unduh: '.now()->translatedFormat('d F Y, H:i'));
         $sheet->mergeCells('A3:E3');
         $sheet->getStyle('A3')->applyFromArray([
             'font' => ['size' => 9, 'color' => ['rgb' => '64748B']],
@@ -1132,7 +1117,7 @@ class AdminPreviewController extends Controller
         // 3. Header Tabel
         $tableHeaderRow = 5;
         $headers = ['Jenis', 'Kode', 'Nama', 'Status', 'Jumlah Peserta'];
-        $sheet->fromArray([$headers], null, 'A' . $tableHeaderRow);
+        $sheet->fromArray([$headers], null, 'A'.$tableHeaderRow);
         $sheet->getStyle("A{$tableHeaderRow}:E{$tableHeaderRow}")->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -1207,7 +1192,7 @@ class AdminPreviewController extends Controller
     public function exportAi(): StreamedResponse
     {
         AdminPreview::log('Mengunduh rekap pemakaian token AI Excel.');
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         // Sheet 1: Rincian Log Panggilan AI
         $sheet = $spreadsheet->getActiveSheet();
@@ -1233,7 +1218,7 @@ class AdminPreviewController extends Controller
         ]);
         $sheet->getRowDimension(2)->setRowHeight(20);
 
-        $sheet->setCellValue('A3', 'Tanggal Unduh: ' . now()->translatedFormat('d F Y, H:i') . ' | Filter: Seluruh Riwayat Pemakaian');
+        $sheet->setCellValue('A3', 'Tanggal Unduh: '.now()->translatedFormat('d F Y, H:i').' | Filter: Seluruh Riwayat Pemakaian');
         $sheet->mergeCells('A3:J3');
         $sheet->getStyle('A3')->applyFromArray([
             'font' => ['size' => 9, 'color' => ['rgb' => '64748B']],
@@ -1256,7 +1241,7 @@ class AdminPreviewController extends Controller
             'Total Token',
             'Latensi (ms)',
         ];
-        $sheet->fromArray([$headers], null, 'A' . $tableHeaderRow);
+        $sheet->fromArray([$headers], null, 'A'.$tableHeaderRow);
         $sheet->getStyle("A{$tableHeaderRow}:J{$tableHeaderRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '15803D']],
@@ -1280,7 +1265,7 @@ class AdminPreviewController extends Controller
         foreach ($calls as $call) {
             $row = [
                 $num++,
-                \Carbon\Carbon::parse($call->created_at)->format('Y-m-d H:i:s'),
+                Carbon::parse($call->created_at)->format('Y-m-d H:i:s'),
                 ucwords(str_replace('_', ' ', $call->feature ?? '-')),
                 $call->stage ?? '-',
                 $call->model ?? '-',
@@ -1290,7 +1275,7 @@ class AdminPreviewController extends Controller
                 (int) $call->total_tokens,
                 (int) $call->latency_ms,
             ];
-            $sheet->fromArray([$row], null, 'A' . $rowIdx);
+            $sheet->fromArray([$row], null, 'A'.$rowIdx);
             $bgZebra = ($rowIdx % 2 === 0) ? 'F8FAFC' : 'FFFFFF';
             $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->applyFromArray($borderThin);
             $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->getFill()
@@ -1309,10 +1294,10 @@ class AdminPreviewController extends Controller
         if ($calls->isNotEmpty()) {
             $sheet->setCellValue("A{$rowIdx}", 'TOTAL');
             $sheet->mergeCells("A{$rowIdx}:F{$rowIdx}");
-            $sheet->setCellValue("G{$rowIdx}", "=SUM(G6:G" . ($rowIdx - 1) . ")");
-            $sheet->setCellValue("H{$rowIdx}", "=SUM(H6:H" . ($rowIdx - 1) . ")");
-            $sheet->setCellValue("I{$rowIdx}", "=SUM(I6:I" . ($rowIdx - 1) . ")");
-            $sheet->setCellValue("J{$rowIdx}", "=AVERAGE(J6:J" . ($rowIdx - 1) . ")");
+            $sheet->setCellValue("G{$rowIdx}", '=SUM(G6:G'.($rowIdx - 1).')');
+            $sheet->setCellValue("H{$rowIdx}", '=SUM(H6:H'.($rowIdx - 1).')');
+            $sheet->setCellValue("I{$rowIdx}", '=SUM(I6:I'.($rowIdx - 1).')');
+            $sheet->setCellValue("J{$rowIdx}", '=AVERAGE(J6:J'.($rowIdx - 1).')');
             $sheet->getStyle("A{$rowIdx}:J{$rowIdx}")->applyFromArray([
                 'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '15803D']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DCFCE7']],
@@ -1323,9 +1308,9 @@ class AdminPreviewController extends Controller
             $sheet->getStyle("G{$rowIdx}:J{$rowIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             $sheet->getRowDimension($rowIdx)->setRowHeight(22);
         } else {
-            $sheet->setCellValue("A6", "Belum ada catatan log pemakaian AI pada sistem.");
-            $sheet->mergeCells("A6:J6");
-            $sheet->getStyle("A6:J6")->applyFromArray([
+            $sheet->setCellValue('A6', 'Belum ada catatan log pemakaian AI pada sistem.');
+            $sheet->mergeCells('A6:J6');
+            $sheet->getStyle('A6:J6')->applyFromArray([
                 'font' => ['italic' => true, 'color' => ['rgb' => '64748B']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
@@ -1373,14 +1358,14 @@ class AdminPreviewController extends Controller
         $allTotalTokens = $featureRows->sum('total_tokens');
         $rIdx = 4;
         foreach ($featureRows as $f) {
-            $pct = $allTotalTokens > 0 ? round(($f->total_tokens / $allTotalTokens) * 100, 1) . '%' : '0%';
+            $pct = $allTotalTokens > 0 ? round(($f->total_tokens / $allTotalTokens) * 100, 1).'%' : '0%';
             $sheet2->fromArray([[
                 ucwords(str_replace('_', ' ', $f->feature)),
                 (int) $f->requests,
                 (int) $f->total_tokens,
                 round((float) $f->avg_tokens, 0),
                 $pct,
-            ]], null, 'A' . $rIdx);
+            ]], null, 'A'.$rIdx);
             $sheet2->getStyle("A{$rIdx}:E{$rIdx}")->applyFromArray($borderThin);
             $sheet2->getStyle("B{$rIdx}:E{$rIdx}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             $sheet2->getRowDimension($rIdx)->setRowHeight(20);
@@ -1388,9 +1373,9 @@ class AdminPreviewController extends Controller
         }
 
         if ($featureRows->isEmpty()) {
-            $sheet2->setCellValue("A4", "Belum ada data modul AI.");
-            $sheet2->mergeCells("A4:E4");
-            $sheet2->getStyle("A4:E4")->applyFromArray([
+            $sheet2->setCellValue('A4', 'Belum ada data modul AI.');
+            $sheet2->mergeCells('A4:E4');
+            $sheet2->getStyle('A4:E4')->applyFromArray([
                 'font' => ['italic' => true, 'color' => ['rgb' => '64748B']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
@@ -1417,142 +1402,72 @@ class AdminPreviewController extends Controller
 
     public static function getBackupDirectory(): string
     {
-        $custom = SystemSetting::where('key', 'backup_path')->value('value');
-        if ($custom && is_string($custom) && trim($custom) !== '') {
-            $trimmed = trim($custom);
-            if (str_starts_with($trimmed, '/')) {
-                return $trimmed;
-            }
-            return base_path($trimmed);
-        }
-        return storage_path('app/private/backups');
+        return BackupService::getBackupDirectory();
     }
 
-    public function downloadBackupSql(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function downloadBackupSql(Request $request): Response
     {
-        $requested = basename($request->query('file', ''));
+        $requested = (string) $request->query('file', '');
         if ($requested) {
-            $path = self::getBackupDirectory() . '/' . $requested;
-            if (! file_exists($path) && file_exists(storage_path('app/backups/' . $requested))) {
-                $path = storage_path('app/backups/' . $requested);
-            }
-            if (! file_exists($path) && $requested === 'sale-2026-09-28.sql') {
-                $path = base_path('sale-2026-09-28.sql');
-            }
-            if (file_exists($path)) {
-                AdminPreview::log("Mengunduh berkas cadangan database: {$requested}");
-                return response()->download($path, $requested, [
+            $path = BackupService::getVerifiedFilePath($requested);
+            if ($path && file_exists($path)) {
+                AdminPreview::log("Mengunduh berkas cadangan database: {$requested}", [
+                    'result' => 'success',
+                    'checksum_sha256' => hash_file('sha256', $path),
+                    'size_bytes' => filesize($path),
+                ]);
+
+                return response()->download($path, basename($path), [
                     'Content-Type' => 'application/sql',
                 ]);
             }
+            abort(404, 'Berkas cadangan tidak ditemukan.');
         }
 
-        AdminPreview::log('Mengunduh cadangan database .sql lengkap.');
+        $result = BackupService::createBackup();
+        if ($result['success'] && file_exists($result['path'])) {
+            AdminPreview::log("Mengunduh cadangan database server: {$result['filename']}", [
+                'result' => 'success',
+                'checksum_sha256' => $result['checksum'] ?? hash_file('sha256', $result['path']),
+                'size_bytes' => $result['size'] ?? filesize($result['path']),
+            ]);
 
-        $fileName = 'sale-database-backup-' . now()->format('Y-m-d_His') . '.sql';
+            return response()->download($result['path'], $result['filename'], [
+                'Content-Type' => 'application/sql',
+            ]);
+        }
 
-        return response()->streamDownload(function () {
-            $driver = DB::connection()->getDriverName();
-            if ($driver === 'mysql') {
-                $dbConfig = config('database.connections.mysql');
-                $host = $dbConfig['host'] ?? '127.0.0.1';
-                $port = $dbConfig['port'] ?? 3306;
-                $database = $dbConfig['database'] ?? 'sale';
-                $username = $dbConfig['username'] ?? 'root';
-                $password = $dbConfig['password'] ?? '';
-
-                $binary = is_executable('/usr/bin/mariadb-dump')
-                    ? '/usr/bin/mariadb-dump'
-                    : (is_executable('/usr/bin/mysqldump') ? '/usr/bin/mysqldump' : null);
-
-                if ($binary) {
-                    $cmd = sprintf(
-                        '%s --user=%s --password=%s --host=%s --port=%s --single-transaction --quick --skip-lock-tables %s 2>/dev/null',
-                        $binary,
-                        escapeshellarg($username),
-                        escapeshellarg($password),
-                        escapeshellarg($host),
-                        escapeshellarg($port),
-                        escapeshellarg($database)
-                    );
-                    $proc = popen($cmd, 'r');
-                    if ($proc) {
-                        while (! feof($proc)) {
-                            echo fread($proc, 8192);
-                            flush();
-                        }
-                        pclose($proc);
-                        return;
-                    }
-                }
-            }
-
-            $fallbackFile = base_path('sale-2026-09-28.sql');
-            if (file_exists($fallbackFile)) {
-                readfile($fallbackFile);
-                return;
-            }
-
-            echo "-- SALE Database Backup Dump\n";
-            echo "-- Waktu Ekspor: " . now()->toIso8601String() . "\n";
-            echo "-- Driver: " . $driver . "\n";
-        }, $fileName, [
-            'Content-Type' => 'application/sql',
-            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
-            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        AdminPreview::log('Gagal membuat cadangan database untuk diunduh.', [
+            'result' => 'failed',
+            'error_code' => 'backup_failed',
+            'error' => $result['error'] ?? null,
         ]);
+        abort(500, 'Gagal membuat file cadangan database.');
     }
 
     public function createBackup(): RedirectResponse
     {
-        $dir = self::getBackupDirectory();
-        if (! is_dir($dir)) {
-            mkdir($dir, 0700, true);
-        }
-        $filename = 'sale-backup-' . now()->format('Y-m-d_His') . '.sql';
-        $path = $dir . '/' . $filename;
+        $result = BackupService::createBackup();
 
-        $driver = DB::connection()->getDriverName();
-        if ($driver === 'mysql') {
-            $dbConfig = config('database.connections.mysql');
-            $host = $dbConfig['host'] ?? '127.0.0.1';
-            $port = $dbConfig['port'] ?? 3306;
-            $database = $dbConfig['database'] ?? 'sale';
-            $username = $dbConfig['username'] ?? 'root';
-            $password = $dbConfig['password'] ?? '';
+        if (! $result['success']) {
+            AdminPreview::log('Gagal membuat cadangan database.', [
+                'result' => 'failed',
+                'error_code' => 'backup_failed',
+                'error' => $result['error'] ?? null,
+            ]);
 
-            $binary = is_executable('/usr/bin/mariadb-dump')
-                ? '/usr/bin/mariadb-dump'
-                : (is_executable('/usr/bin/mysqldump') ? '/usr/bin/mysqldump' : null);
-
-            if ($binary) {
-                $cmd = sprintf(
-                    '%s --user=%s --password=%s --host=%s --port=%s --single-transaction --quick --skip-lock-tables %s > %s 2>/dev/null',
-                    $binary,
-                    escapeshellarg($username),
-                    escapeshellarg($password),
-                    escapeshellarg($host),
-                    escapeshellarg($port),
-                    escapeshellarg($database),
-                    escapeshellarg($path)
-                );
-                exec($cmd, $out, $code);
-            }
+            return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
+                ->with('status', 'Gagal membuat cadangan database: '.($result['error'] ?? 'Terjadi kesalahan sistem.'));
         }
 
-        if (! file_exists($path) || filesize($path) === 0) {
-            $fallbackFile = base_path('sale-2026-09-28.sql');
-            if (file_exists($fallbackFile)) {
-                copy($fallbackFile, $path);
-            } else {
-                file_put_contents($path, "-- SALE Database Backup\n-- " . now()->toIso8601String() . "\n");
-            }
-        }
-
-        AdminPreview::log("Membuat cadangan database server: {$filename}");
+        AdminPreview::log("Membuat cadangan database server: {$result['filename']}", [
+            'result' => 'success',
+            'checksum_sha256' => $result['checksum'] ?? null,
+            'size_bytes' => $result['size'] ?? null,
+        ]);
 
         return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
-            ->with('status', "Cadangan database server berhasil dibuat dan tersimpan: {$filename}");
+            ->with('status', "Cadangan database server berhasil dibuat dan tersimpan: {$result['filename']}");
     }
 
     public function restoreBackup(Request $request): RedirectResponse
@@ -1560,84 +1475,99 @@ class AdminPreviewController extends Controller
         $targetPath = null;
         $displayName = '';
 
-        if ($request->hasFile('sql_file')) {
+        if ($request->file('sql_file') !== null) {
             $file = $request->file('sql_file');
+            $request->validate([
+                'sql_file' => [
+                    'required',
+                    'file',
+                    'max:'.(int) config('backup.max_restore_kb', 51200),
+                    'mimetypes:text/plain,application/sql,application/x-sql,application/octet-stream',
+                    function ($attribute, $value, $fail) {
+                        $ext = strtolower((string) $value->getClientOriginalExtension());
+                        if ($ext !== 'sql') {
+                            $fail('Berkas cadangan harus berekstensi .sql.');
+
+                            return;
+                        }
+                        if ($value->getSize() === 0) {
+                            $fail('Berkas cadangan kosong (0 byte).');
+
+                            return;
+                        }
+                        $handle = @fopen($value->getRealPath(), 'rb');
+                        if ($handle) {
+                            $sample = fread($handle, 4096);
+                            fclose($handle);
+                            $sqlMarkers = ['--', '/*', 'create', 'insert', 'drop', 'set', 'table', 'database', 'use'];
+                            $hasSqlMarker = false;
+                            $lowerSample = strtolower($sample);
+                            foreach ($sqlMarkers as $marker) {
+                                if (str_contains($lowerSample, $marker)) {
+                                    $hasSqlMarker = true;
+                                    break;
+                                }
+                            }
+                            if (! $hasSqlMarker) {
+                                $fail('Format berkas cadangan tidak valid (bukan SQL).');
+                            }
+                        }
+                    },
+                ],
+            ]);
+
             $displayName = $file->getClientOriginalName();
             $targetPath = $file->getRealPath();
         } elseif ($request->filled('filename')) {
-            $filename = basename($request->string('filename'));
-            $displayName = $filename;
-            $candidate = self::getBackupDirectory() . '/' . $filename;
-            if (! file_exists($candidate) && file_exists(storage_path('app/backups/' . $filename))) {
-                $candidate = storage_path('app/backups/' . $filename);
-            }
-            if (! file_exists($candidate) && $filename === 'sale-2026-09-28.sql') {
-                $candidate = base_path('sale-2026-09-28.sql');
-            }
-            if (file_exists($candidate)) {
-                $targetPath = $candidate;
+            $filename = (string) $request->string('filename');
+            $verified = BackupService::getVerifiedFilePath($filename);
+            if ($verified) {
+                $targetPath = $verified;
+                $displayName = basename($verified);
             }
         }
 
         if (! $targetPath || ! file_exists($targetPath)) {
             return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
-                ->with('status', 'Berkas cadangan tidak ditemukan untuk dipulihkan.');
+                ->with('status', 'Berkas cadangan tidak ditemukan atau tidak valid untuk dipulihkan.');
         }
 
-        $driver = DB::connection()->getDriverName();
-        if ($driver === 'mysql') {
-            $dbConfig = config('database.connections.mysql');
-            $host = $dbConfig['host'] ?? '127.0.0.1';
-            $port = $dbConfig['port'] ?? 3306;
-            $database = $dbConfig['database'] ?? 'sale';
-            $username = $dbConfig['username'] ?? 'root';
-            $password = $dbConfig['password'] ?? '';
+        $result = BackupService::restoreBackup($targetPath, $displayName);
 
-            $binary = is_executable('/usr/bin/mariadb')
-                ? '/usr/bin/mariadb'
-                : (is_executable('/usr/bin/mysql') ? '/usr/bin/mysql' : null);
+        if (! $result['success']) {
+            AdminPreview::log("Gagal memulihkan basis data dari berkas cadangan: {$displayName}", [
+                'result' => 'failed',
+                'error_code' => 'restore_failed',
+                'checksum_sha256' => is_file($targetPath) ? hash_file('sha256', $targetPath) : null,
+                'size_bytes' => is_file($targetPath) ? filesize($targetPath) : null,
+                'error' => $result['error'] ?? null,
+            ]);
 
-            if ($binary) {
-                $cmd = sprintf(
-                    '%s --user=%s --password=%s --host=%s --port=%s %s < %s 2>/dev/null',
-                    $binary,
-                    escapeshellarg($username),
-                    escapeshellarg($password),
-                    escapeshellarg($host),
-                    escapeshellarg($port),
-                    escapeshellarg($database),
-                    escapeshellarg($targetPath)
-                );
-                exec($cmd, $out, $code);
-            }
+            return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
+                ->with('status', 'Gagal memulihkan database: '.($result['error'] ?? 'Proses restore gagal.'));
         }
 
-        AdminPreview::log("Memulihkan basis data dari berkas cadangan: {$displayName}");
+        AdminPreview::log("Memulihkan basis data dari berkas cadangan: {$displayName}", [
+            'result' => 'success',
+            'checksum_sha256' => hash_file('sha256', $targetPath),
+            'size_bytes' => filesize($targetPath),
+        ]);
 
         return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
-            ->with('status', "Basis data berhasil dipulihkan dari cadangan: {$displayName}");
+            ->with('status', $result['message']);
     }
 
     public function deleteBackup(Request $request): RedirectResponse
     {
-        $filename = basename($request->string('filename'));
-        if (! $filename) {
+        $filename = (string) $request->string('filename');
+        if (! BackupService::isValidFilename($filename)) {
             return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
                 ->with('status', 'Nama berkas tidak valid.');
         }
 
-        $dir = self::getBackupDirectory();
-        $target = $dir . '/' . $filename;
-        if (! file_exists($target) && file_exists(storage_path('app/backups/' . $filename))) {
-            $target = storage_path('app/backups/' . $filename);
-        }
-        if (! file_exists($target) && $filename === 'sale-2026-09-28.sql') {
-            $target = base_path('sale-2026-09-28.sql');
-        }
-
-        if (file_exists($target)) {
-            @unlink($target);
+        if (BackupService::deleteBackup($filename)) {
             AdminPreview::log("Menghapus berkas cadangan database: {$filename}");
+
             return redirect()->route('admin.page', ['section' => 'monitoring', 'detail' => 'backup'])
                 ->with('status', "Berkas cadangan {$filename} berhasil dihapus dari server.");
         }
@@ -1655,9 +1585,19 @@ class AdminPreviewController extends Controller
                 'max:255',
                 function ($attribute, $value, $fail) {
                     $normalized = str_replace('\\', '/', trim((string) $value));
-                    $resolved = str_starts_with($normalized, '/') ? $normalized : base_path($normalized);
+                    if (str_contains($normalized, '..') || str_contains($normalized, "\0")) {
+                        $fail('Path penyimpanan tidak boleh mengandung traversal .. atau karakter null.');
+
+                        return;
+                    }
+                    if (str_starts_with($normalized, '/')) {
+                        $fail('Path penyimpanan harus berupa subdirektori relatif, bukan absolute path.');
+
+                        return;
+                    }
                     $publicPath = rtrim(str_replace('\\', '/', public_path()), '/');
                     $publicStorage = rtrim(str_replace('\\', '/', storage_path('app/public')), '/');
+                    $resolved = BackupService::getBackupRoot().'/'.$normalized;
 
                     if (
                         str_starts_with($resolved, $publicPath) ||
@@ -1676,10 +1616,11 @@ class AdminPreviewController extends Controller
             SystemSetting::updateOrCreate(['key' => $key], ['value' => (string) $val]);
         }
 
-        $dir = self::getBackupDirectory();
+        $dir = BackupService::getBackupDirectory();
         if (! is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+            @mkdir($dir, 0700, true);
         }
+        @chmod($dir, 0700);
 
         AdminPreview::log('Memperbarui konfigurasi jadwal dan direktori backup database.');
 

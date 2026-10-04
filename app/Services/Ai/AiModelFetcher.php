@@ -15,7 +15,7 @@ class AiModelFetcher
     public static function getModels(string $provider, ?string $apiKey = null, bool $forceRefresh = false): array
     {
         $providerKey = self::normalizeProvider($provider);
-        $cacheKey = 'ai_models_cache_' . $providerKey;
+        $cacheKey = 'ai_models_cache_'.$providerKey;
 
         // 1. Cek memory cache jika tidak dipaksa refresh
         if (! $forceRefresh) {
@@ -25,11 +25,12 @@ class AiModelFetcher
             }
 
             // Cek persistensi cache di database SystemSetting
-            $dbCached = SystemSetting::valueFor('cached_models_' . $providerKey);
+            $dbCached = SystemSetting::valueFor('cached_models_'.$providerKey);
             if (! empty($dbCached)) {
                 $decoded = json_decode($dbCached, true);
                 if (is_array($decoded) && count($decoded) > 0) {
                     Cache::put($cacheKey, $decoded, 86400);
+
                     return $decoded;
                 }
             }
@@ -43,15 +44,16 @@ class AiModelFetcher
             if (! empty($fetched)) {
                 Cache::put($cacheKey, $fetched, 86400);
                 SystemSetting::updateOrCreate(
-                    ['key' => 'cached_models_' . $providerKey],
+                    ['key' => 'cached_models_'.$providerKey],
                     ['value' => json_encode($fetched, JSON_UNESCAPED_UNICODE)]
                 );
+
                 return $fetched;
             }
         }
 
         // 3. Fallback jika gagal fetch atau belum ada API Key
-        $dbCached = SystemSetting::valueFor('cached_models_' . $providerKey);
+        $dbCached = SystemSetting::valueFor('cached_models_'.$providerKey);
         if (! empty($dbCached)) {
             $decoded = json_decode($dbCached, true);
             if (is_array($decoded) && count($decoded) > 0) {
@@ -74,6 +76,7 @@ class AiModelFetcher
         if (str_contains($lower, 'deep')) {
             return 'deepseek';
         }
+
         return 'google';
     }
 
@@ -85,7 +88,7 @@ class AiModelFetcher
         try {
             if ($providerKey === 'google') {
                 // Endpoint Google Gemini: GET https://generativelanguage.googleapis.com/v1beta/models
-                $res = Http::withoutVerifying()->timeout(10)
+                $res = Http::timeout(10)
                     ->withHeaders(['x-goog-api-key' => $key])
                     ->get('https://generativelanguage.googleapis.com/v1beta/models');
 
@@ -95,7 +98,7 @@ class AiModelFetcher
                     foreach ($raw as $m) {
                         $methods = $m['supportedGenerationMethods'] ?? [];
                         $name = $m['name'] ?? '';
-                        $desc = strtolower(($m['displayName'] ?? '') . ' ' . ($m['description'] ?? ''));
+                        $desc = strtolower(($m['displayName'] ?? '').' '.($m['description'] ?? ''));
 
                         // Hanya model yang mendukung generateContent
                         if (! in_array('generateContent', $methods)) {
@@ -108,7 +111,7 @@ class AiModelFetcher
                         }
 
                         // Filter ketat: tolak model gambar, audio, TTS, transkripsi, video, embedding, dll yang tidak menghasilkan teks
-                        if (preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', $name . ' ' . $desc)) {
+                        if (preg_match('/(image|imagen|banana|tts|transcribe|audio|music|lyria|video|veo|embed|robotics|computer-use|aqa|customtools)/i', $name.' '.$desc)) {
                             continue;
                         }
 
@@ -119,11 +122,12 @@ class AiModelFetcher
                             'displayName' => "{$displayName} ({$id})",
                         ];
                     }
+
                     return $models;
                 }
             } elseif ($providerKey === 'openai') {
                 // Endpoint OpenAI: GET https://api.openai.com/v1/models
-                $res = Http::withoutVerifying()->timeout(10)
+                $res = Http::timeout(10)
                     ->withToken($key)
                     ->get('https://api.openai.com/v1/models');
 
@@ -143,11 +147,12 @@ class AiModelFetcher
                         }
                     }
                     usort($models, fn ($a, $b) => strcmp($a['id'], $b['id']));
+
                     return $models;
                 }
             } elseif ($providerKey === 'deepseek') {
                 // Endpoint DeepSeek: GET https://api.deepseek.com/models
-                $res = Http::withoutVerifying()->timeout(10)
+                $res = Http::timeout(10)
                     ->withToken($key)
                     ->get('https://api.deepseek.com/models');
 
@@ -164,11 +169,12 @@ class AiModelFetcher
                             'displayName' => $displayName,
                         ];
                     }
+
                     return $models;
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning("Gagal fetch models dari provider {$providerKey}: " . $e->getMessage());
+            Log::warning("Gagal fetch models dari provider {$providerKey}: ".$e->getMessage());
         }
 
         return [];

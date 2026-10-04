@@ -23,8 +23,9 @@ return [
     'total_timeout' => (int) env('AI_TOTAL_TIMEOUT', 60),
     'chars_per_token' => (int) env('AI_CHARS_PER_TOKEN', 4),
     'reserve_padding' => (int) env('AI_RESERVE_PADDING', 256),
-    'eval_token' => env('AI_EVAL_TOKEN', 'sale-eval-secret-token'),
     'rpm' => (int) env('AI_RPM', 0),
+    'eval_token' => env('AI_EVAL_TOKEN', ''),
+    'eval_allowed_ips' => array_filter(array_map('trim', explode(',', (string) env('AI_EVAL_ALLOWED_IPS', '127.0.0.1,::1')))),
     'benchmark_retries' => (int) env('AI_BENCHMARK_RETRIES', 2),
     // Gemini 3.6 Flash Standard paid-tier rates through 2026-12-31.
     // Keep these environment-configurable because provider prices can change.

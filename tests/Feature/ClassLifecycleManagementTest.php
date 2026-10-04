@@ -21,6 +21,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
 class ClassLifecycleManagementTest extends TestCase
@@ -28,14 +30,23 @@ class ClassLifecycleManagementTest extends TestCase
     use RefreshDatabase;
 
     private User $adminProdi;
+
     private User $dosen;
+
     private User $mahasiswa1;
+
     private User $mahasiswa2;
+
     private Prodi $prodi;
+
     private Semester $semester;
+
     private MataKuliah $mataKuliah;
+
     private ClassSection $section;
+
     private ClassEnrollmentService $enrollmentService;
+
     private DatabaseNotificationService $notificationService;
 
     protected function setUp(): void
@@ -616,7 +627,7 @@ class ClassLifecycleManagementTest extends TestCase
         // Test export Excel memuat sheet "Riwayat Peserta Non-Aktif"
         $excelService = app(ObeExcelExportService::class);
         $response = $excelService->exportCpmkExcel($this->section);
-        $this->assertInstanceOf(\Symfony\Component\HttpFoundation\StreamedResponse::class, $response);
+        $this->assertInstanceOf(StreamedResponse::class, $response);
 
         ob_start();
         $response->sendContent();
@@ -625,7 +636,7 @@ class ClassLifecycleManagementTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'excel_test');
         file_put_contents($tempFile, $content);
 
-        $loadedSpreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile);
+        $loadedSpreadsheet = IOFactory::load($tempFile);
         $sheetNames = $loadedSpreadsheet->getSheetNames();
         $this->assertContains('Riwayat Peserta Non-Aktif', $sheetNames);
 
@@ -715,7 +726,7 @@ class ClassLifecycleManagementTest extends TestCase
         $this->enrollmentService->kick($this->section, $this->mahasiswa1, $this->dosen, 'Tidak sesuai RPS kelas A.');
 
         // 2. Cek notifikasi untuk mahasiswa
-        $notifService = app(\App\Services\DatabaseNotificationService::class);
+        $notifService = app(DatabaseNotificationService::class);
         $notifications = $notifService->forUser($this->mahasiswa1, 'mahasiswa');
 
         $kickedNotif = collect($notifications)->first(fn ($n) => str_starts_with($n['id'], "kicked_{$this->section->id}_"));
@@ -796,7 +807,7 @@ class ClassLifecycleManagementTest extends TestCase
         $this->enrollmentService->join($this->section, $this->mahasiswa1);
         $this->enrollmentService->join($this->section, $this->mahasiswa2);
 
-        $quiz = \App\Models\Assessment::create([
+        $quiz = Assessment::create([
             'class_section_id' => $this->section->id,
             'code' => 'KUIS-01',
             'name' => 'Kuis Tengah Semester',
@@ -890,7 +901,7 @@ class ClassLifecycleManagementTest extends TestCase
         $submitResponse->assertStatus(403);
 
         // 7. Mahasiswa yang sudah mengerjakan kuis sebelumnya dapat melihat lembar jawaban & nilainya di quiz-room tanpa 403
-        \App\Models\Submission::create([
+        Submission::create([
             'assessment_id' => $quiz->id,
             'user_id' => $this->mahasiswa2->id,
             'mahasiswa_id' => $this->mahasiswa2->id,
@@ -901,7 +912,7 @@ class ClassLifecycleManagementTest extends TestCase
                 102 => ['question_id' => 102, 'text' => 'Stack LIFO, Queue FIFO.'],
             ],
         ]);
-        \App\Models\StudentAssessmentScore::create([
+        StudentAssessmentScore::create([
             'class_section_id' => $this->section->id,
             'assessment_id' => $quiz->id,
             'mahasiswa_id' => $this->mahasiswa2->id,
@@ -929,7 +940,7 @@ class ClassLifecycleManagementTest extends TestCase
         $this->assertEquals(2, $this->section->students()->count());
 
         // Mahasiswa ketiga mencoba join kelas
-        $mhsRole = \App\Models\Role::firstOrCreate(['name' => \App\Models\Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
         $newStudent = User::factory()->create([
             'role_id' => $mhsRole->id,
             'name' => 'Mahasiswa Ketiga',
@@ -950,5 +961,3 @@ class ClassLifecycleManagementTest extends TestCase
         $this->assertFalse($this->section->students()->where('users.id', $newStudent->id)->exists());
     }
 }
-
-

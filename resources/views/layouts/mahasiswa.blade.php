@@ -7,6 +7,12 @@
     <meta name="theme-color" content="#f4f5f7">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', \App\Models\SystemSetting::appName())</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v=4">
     @auth
         @if(!empty(auth()->user()?->profile_photo_url))
             <link rel="preload" as="image" href="{{ auth()->user()->profile_photo_url }}" fetchpriority="high">
@@ -16,6 +22,25 @@
     <style>
         html { scrollbar-gutter: stable; color-scheme: light; }
         dialog { position: fixed !important; inset: 0 !important; margin: auto !important; }
+
+        @media (max-width: 1023px) {
+            [data-sidebar-backdrop] {
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.25s ease-in-out;
+            }
+            [data-sidebar-backdrop][data-open="true"] {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            [data-sidebar] {
+                transform: translateX(-100%);
+                transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            [data-sidebar][data-open="true"] {
+                transform: translateX(0);
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen font-sans antialiased">
@@ -23,27 +48,21 @@
         Lewati ke konten utama
     </a>
 
-    <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 hidden bg-ink/30 data-[open=true]:block lg:hidden"></div>
+    <div data-sidebar-backdrop data-open="false" class="fixed inset-0 z-40 bg-ink/40 backdrop-blur-[2px] cursor-pointer lg:hidden" aria-hidden="true" role="button" tabindex="-1"></div>
 
     <aside data-sidebar data-open="false" class="fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-white shadow-[2px_0_16px_rgba(29,39,48,0.03)] overscroll-contain overflow-hidden max-lg:-translate-x-full max-lg:transition-transform max-lg:data-[open=true]:translate-x-0">
-        <div class="px-6 pb-4 pt-6 flex items-start justify-between">
-            <div>
-                @php
-                    $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
-                        (request()->is('admin*') ? route('admin.page', 'dashboard') :
-                        (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
-                @endphp
-                <a href="{{ $brandHome }}" class="block" aria-label="SALE, halaman utama">
-                    <span class="block text-xl font-semibold tracking-[-0.03em] text-ink">{{ \App\Models\SystemSetting::appName() }}</span>
-                    <span class="mt-0.5 block text-xs text-muted">{{ \App\Models\SystemSetting::valueFor('institution', 'Smart Academic Learning Ecosystem') }}</span>
-                </a>
-            </div>
-            <button type="button" data-sidebar-close class="lg:hidden -mr-2 -mt-1 p-2 rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup navigasi">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect width="18" height="18" x="3" y="3" rx="2"/>
-                    <path d="M9 3v18"/>
-                </svg>
-            </button>
+        <div class="px-6 pb-4 pt-6 flex items-center">
+            @php
+                $brandHome = request()->is('admin-prodi*') ? route('admin-prodi.dashboard') :
+                    (request()->is('admin*') ? route('admin.page', 'dashboard') :
+                    (request()->is('dosen*') ? route('dosen.dashboard') : route('mahasiswa.dashboard')));
+            @endphp
+            <a href="{{ $brandHome }}" class="flex items-center gap-2.5 focus:outline-none group min-w-0" aria-label="Smart Academic Learning Ecosystem, halaman utama">
+                <img src="{{ asset('icon/blue_icon.svg') }}" alt="Logo SALE" class="h-9 w-9 shrink-0 object-contain">
+                <span class="text-xs font-bold leading-tight text-[#153556] transition-colors">
+                    Smart Academic Learning Ecosystem
+                </span>
+            </a>
         </div>
 
         @if(request()->is('admin-prodi*'))
@@ -52,9 +71,7 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang Admin Prodi</p>
                 @php
                     $sidebarProdi = auth()->user()?->managingProdi ?? auth()->user()?->prodi;
-                    $pendingAppealCount = \App\Models\ClassEnrollmentAppeal::where('status', \App\Models\ClassEnrollmentAppeal::STATUS_PENDING)
-                        ->when($sidebarProdi, fn ($q) => $q->whereHas('classSection.mataKuliah', fn ($mk) => $mk->where('prodi_id', $sidebarProdi->id)))
-                        ->count();
+                    $pendingAppealCount = $pendingAppealCount ?? 0;
                 @endphp
                 @if($sidebarProdi)
                     <p class="mt-1.5 text-sm font-semibold text-ink truncate" title="{{ $sidebarProdi->name }}">
@@ -114,7 +131,6 @@
             $isRekapActive = request()->routeIs('dosen.rekap.*', 'dosen.penilaian.rekap', 'dosen.penilaian.cpmk', 'dosen.penilaian.cpl', 'dosen.penilaian.export*');
             $isCpmkActive = request()->routeIs('dosen.penilaian.rekap', 'dosen.penilaian.cpmk');
             $isCplActive = request()->routeIs('dosen.penilaian.cpl');
-            $pendingGradingCount = \App\Support\DosenNavigation::pendingGradingCount();
         @endphp
         <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi dosen">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang mengajar</p>
@@ -147,15 +163,6 @@
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
                     Rekap Nilai
                 </a>
-                @php
-                    $notificationService = app(\App\Services\DatabaseNotificationService::class);
-                    $dosenNotifications = auth()->check() ? collect($notificationService->forUser(auth()->user(), 'dosen')) : collect();
-                    $dosenForumUnread = (int) $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->sum('unread_count');
-                    if ($dosenForumUnread === 0) {
-                        $dosenForumUnread = $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->count();
-                    }
-                    $dosenForumMention = (int) $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->sum('mention_count');
-                @endphp
                 <a href="{{ route('dosen.discussion.index') }}"
                    @if(request()->routeIs('dosen.discussion.*')) aria-current="page" @endif
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -168,11 +175,7 @@
 
             <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Akun</p>
             <div class="space-y-1">
-                @php
-                    $notificationService = app(\App\Services\DatabaseNotificationService::class);
-                    $dosenUnreadNotifCount = auth()->check() ? $notificationService->unreadCount(auth()->user(), 'dosen') : 0;
-                    $isDosenNotifActive = request()->routeIs('dosen.notifications*') || request()->is('*notifikasi*');
-                @endphp
+                @php $isDosenNotifActive = request()->routeIs('dosen.notifications*') || request()->is('*notifikasi*'); @endphp
                 <a href="{{ route('dosen.notifications') }}" @if($isDosenNotifActive) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ $isDosenNotifActive ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8zM10 20h4"/></svg>
                     <span class="min-w-0 flex-1">Notifikasi</span>
@@ -186,17 +189,6 @@
             <p class="px-3 pt-5 text-xs leading-5 text-muted">Materi, tugas, RPS, dan pengumuman dikelola dari course masing-masing.</p>
         </nav>
         @else
-        @php
-            $notificationService = app(\App\Services\DatabaseNotificationService::class);
-            $studentNotifications = auth()->check() ? collect($notificationService->forUser(auth()->user(), 'mahasiswa')) : collect();
-            $forumUnreadCount = (int) $studentNotifications->where('category', 'diskusi')->where('is_read', false)->sum('unread_count');
-            if ($forumUnreadCount === 0) {
-                $forumUnreadCount = $studentNotifications->where('category', 'diskusi')->where('is_read', false)->count();
-            }
-            $forumMentionCount = (int) $studentNotifications->where('category', 'diskusi')->where('is_read', false)->sum('mention_count');
-            $pendingTaskCount = auth()->check() ? $notificationService->pendingTaskCount(auth()->user()) : 0;
-            $unreadNotifCount = $studentNotifications->where('is_read', false)->count();
-        @endphp
         <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 [scrollbar-width:thin]" aria-label="Navigasi mahasiswa">
             <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Ruang belajar</p>
             <div class="space-y-1">
@@ -306,15 +298,16 @@
         <header class="sticky top-0 z-30 bg-white border-b border-line/60 shadow-xs">
             <div class="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10">
                 <div class="flex min-w-0 items-center gap-3">
-                    <button data-sidebar-toggle type="button" aria-label="Buka navigasi" aria-expanded="false" class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-ink shadow-sm hover:bg-brand-soft lg:hidden">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect width="18" height="18" x="3" y="3" rx="2"/>
-                            <path d="M9 3v18"/>
+                    <button data-sidebar-toggle type="button" aria-label="Buka navigasi" aria-expanded="false" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line/70 bg-white text-ink shadow-xs hover:bg-brand-soft hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition cursor-pointer lg:hidden">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="4" y1="6" x2="20" y2="6"></line>
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                            <line x1="4" y1="18" x2="20" y2="18"></line>
                         </svg>
                     </button>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-ink">@yield('header', 'Dashboard')</p>
-                        <p class="hidden truncate text-xs text-muted sm:block">Semester {{ \App\Models\Semester::where('is_active', true)->value('name') ?? 'Belum ditetapkan' }}</p>
+                        <p class="hidden truncate text-xs text-muted sm:block">Semester {{ $activeSemesterName ?? 'Belum ditetapkan' }}</p>
                     </div>
                 </div>
                 <div class="relative">
@@ -334,7 +327,7 @@
                                      decoding="sync"
                                      fetchpriority="high"
                                      class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
-                                <script>
+                                <script nonce="{{ $cspNonce }}">
                                     try {
                                         localStorage.removeItem('sale_avatar_data_{{ auth()->id() }}');
                                         localStorage.removeItem('sale_avatar_url_{{ auth()->id() }}');
@@ -406,7 +399,7 @@
         </span>
         <span>{{ session('notice') ?? session('success') ?? 'Preferensi notifikasi berhasil disimpan.' }}</span>
     </div>
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function () {
             var toast = document.getElementById('toast-notice');
             if (!toast) return;
@@ -440,7 +433,7 @@
         </div>
     </dialog>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (() => {
             const dialog = document.getElementById('sale-dialog');
             const title = dialog?.querySelector('[data-sale-dialog-title]');
@@ -553,7 +546,7 @@
         })();
     </script>
     @auth
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             function updateBadgeEl(el, count, singularLabel) {
                 if (!el) return;
@@ -666,13 +659,85 @@
         })();
     </script>
     @endauth
-    <script>
+    <script nonce="{{ $cspNonce }}">
         // Tangani navigasi kembali browser (BFCache) agar token CSRF tidak kedaluwarsa (mencegah 419)
         window.addEventListener('pageshow', function (event) {
             if (event.persisted) {
                 window.location.reload();
             }
         });
+    </script>
+    <script nonce="{{ $cspNonce }}">
+        (function() {
+            function initSidebar() {
+                if (window.__sidebarInitialized) return;
+                const sb = document.querySelector('[data-sidebar]');
+                const bd = document.querySelector('[data-sidebar-backdrop]');
+                const tg = document.querySelector('[data-sidebar-toggle]');
+                if (!sb || !bd) return;
+                window.__sidebarInitialized = true;
+
+                window.__setSidebar = function(open) {
+                    const isOpen = Boolean(open);
+                    sb.dataset.open = String(isOpen);
+                    bd.dataset.open = String(isOpen);
+                    if (tg) tg.setAttribute('aria-expanded', String(isOpen));
+                    document.body.classList.toggle('overflow-hidden', isOpen);
+                };
+
+                tg?.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    window.__setSidebar(sb.dataset.open !== 'true');
+                });
+
+                bd.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.__setSidebar(false);
+                });
+                bd.addEventListener('touchstart', function() {
+                    window.__setSidebar(false);
+                }, { passive: true });
+
+                document.querySelectorAll('[data-sidebar-close]').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        window.__setSidebar(false);
+                    });
+                });
+
+                function handleOutside(e) {
+                    if (sb.dataset.open !== 'true') return;
+                    if (!sb.contains(e.target) && !tg?.contains(e.target)) {
+                        window.__setSidebar(false);
+                    }
+                }
+
+                document.addEventListener('click', handleOutside);
+                document.addEventListener('touchstart', handleOutside, { passive: true });
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') window.__setSidebar(false);
+                });
+
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth >= 1024 && sb.dataset.open === 'true') {
+                        window.__setSidebar(false);
+                    }
+                });
+
+                sb.querySelectorAll('a').forEach(function(link) {
+                    link.addEventListener('click', function() {
+                        if (window.innerWidth < 1024) window.__setSidebar(false);
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
     </script>
 </body>
 </html>

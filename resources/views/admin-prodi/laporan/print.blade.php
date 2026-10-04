@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Akademik &amp; Capaian Prodi {{ $activeProdi?->code }} - {{ $activeSemester?->name }} | UMRAH</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
     @php
         $logoBase64 = \App\Models\SystemSetting::logoBase64();
     @endphp
@@ -588,7 +593,7 @@
         </div><!-- #paper -->
     </div><!-- #paper-wrap -->
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         const paperSizes = {
             a4:     { width: '210mm', height: '297mm', padding: '20mm 20mm 25mm 25mm' },
             f4:     { width: '215mm', height: '330mm', padding: '20mm 20mm 25mm 25mm' },

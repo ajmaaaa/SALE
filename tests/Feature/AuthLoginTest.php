@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Database\Seeders\DosenAccountSeeder;
 use Database\Seeders\RoleSeeder;
@@ -163,7 +164,7 @@ class AuthLoginTest extends TestCase
 
     public function test_session_expires_after_configured_timeout_and_redirects_on_reload_or_path_access(): void
     {
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
+        SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
 
         $this->post('/login', [
             'login_id' => 'admin@example.test',
@@ -188,7 +189,7 @@ class AuthLoginTest extends TestCase
 
     public function test_background_poll_does_not_extend_user_inactivity_timer_and_returns_401_when_expired(): void
     {
-        \App\Models\SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
+        SystemSetting::updateOrCreate(['key' => 'session_lifetime'], ['value' => '5']);
 
         $this->post('/login', [
             'login_id' => 'admin@example.test',
@@ -212,52 +213,63 @@ class AuthLoginTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_wrong_password_five_times_locks_account_for_five_hours_without_deactivating_user(): void
+    public function test_failed_login_is_rate_limited_briefly_per_identifier_and_ip_without_locking_the_account_globally(): void
     {
         $user = User::where('email', 'budi@example.test')->firstOrFail();
         $this->assertTrue($user->is_active);
 
-        // Percobaan salah 1 sampai 4
-        for ($i = 1; $i <= 4; $i++) {
-            $res = $this->post('/login', [
+        for ($i = 1; $i <= 5; $i++) {
+            $res = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])->post('/login', [
                 'login_id' => 'budi@example.test',
-                'password' => 'wrongpass' . $i,
+                'password' => 'wrongpass'.$i,
             ]);
             $res->assertSessionHasErrors(['login_id', 'password']);
             $this->assertGuest();
         }
 
-        // Percobaan salah ke-5
-        $res5 = $this->post('/login', [
+        $blocked = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])->post('/login', [
             'login_id' => 'budi@example.test',
-            'password' => 'wrongpass5',
+            'password' => 'password',
         ]);
-        $res5->assertSessionHasErrors(['login_id', 'password']);
+        $blocked->assertSessionHasErrors(['login_id', 'password']);
         $this->assertGuest();
-        $errorMsg = session('errors')->get('login_id')[0];
-        $this->assertStringContainsString('lebih dari 5 kali', $errorMsg);
-        $this->assertStringContainsString('admin prodi', $errorMsg);
-
-        // Akun tetap aktif di DB (tidak diblokir permanen / ganti password admin)
         $this->assertTrue($user->fresh()->is_active);
 
-        // Percobaan ke-6 terkunci meskipun mencoba dengan password benar
-        $res6 = $this->post('/login', [
-            'login_id' => $user->nim_nidn ?: 'budi@example.test',
-            'password' => 'password',
-        ]);
-        $res6->assertSessionHasErrors(['login_id', 'password']);
-        $this->assertGuest();
-
-        // Majukan waktu 5 jam (18.001 detik)
-        $this->travel(18001)->seconds();
-
-        // Setelah 5 jam, pengguna dapat mencoba login kembali dengan password benar
-        $resUnlock = $this->post('/login', [
+        // Percobaan penyerang dari satu IP tidak mengunci akun korban secara global.
+        $otherIp = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.20'])->post('/login', [
             'login_id' => 'budi@example.test',
             'password' => 'password',
         ]);
-        $resUnlock->assertRedirect('/dosen/dashboard');
-        $this->assertAuthenticated();
+        $otherIp->assertRedirect('/dosen/dashboard');
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_failures_use_the_same_generic_message(): void
+    {
+        $inactive = User::where('email', 'budi@example.test')->firstOrFail();
+        $inactive->update(['is_active' => false]);
+
+        $unknown = $this->post('/login', [
+            'login_id' => 'unknown@example.test',
+            'password' => 'wrong-password',
+        ]);
+        $unknownMessage = $unknown->getSession()->get('errors')->first('login_id');
+
+        $inactiveResponse = $this->post('/login', [
+            'login_id' => $inactive->email,
+            'password' => 'password',
+        ]);
+        $inactiveMessage = $inactiveResponse->getSession()->get('errors')->first('login_id');
+
+        $wrongPassword = $this->post('/login', [
+            'login_id' => 'admin@example.test',
+            'password' => 'wrong-password',
+        ]);
+        $wrongMessage = $wrongPassword->getSession()->get('errors')->first('login_id');
+
+        $this->assertSame($unknownMessage, $inactiveMessage);
+        $this->assertSame($unknownMessage, $wrongMessage);
+        $this->assertStringNotContainsString('tersisa', $unknownMessage);
+        $this->assertStringNotContainsString('dinonaktifkan', $unknownMessage);
     }
 }

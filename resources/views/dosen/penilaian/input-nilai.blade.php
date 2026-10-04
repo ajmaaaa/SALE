@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="space-y-6 w-full">
-    @php $obeService = $obe ?? app(\App\Services\ObeCalculationService::class); @endphp
+    @php $obeService = $obe; @endphp
 
     {{-- Header Asesmen Kompak --}}
     <div>
@@ -253,7 +253,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     // ─── Modal Tinjau Jawaban & Input Nilai ──────────────────────────────────
     const studentEssayMap = @json($studentEssayData ?? []);
     const csrfToken = @json(csrf_token());

@@ -26,12 +26,21 @@ class Submission extends Model
     protected function casts(): array
     {
         return [
-            'attempt'          => 'integer',
-            'version'          => 'integer',
+            'attempt' => 'integer',
+            'version' => 'integer',
             'question_answers' => 'array',
-            'file_ids'         => 'array',
-            'submitted_at'     => 'datetime',
+            'file_ids' => 'array',
+            'submitted_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Submission $submission): void {
+            if ($submission->user_id && ! $submission->mahasiswa_id) {
+                $submission->mahasiswa_id = $submission->user_id;
+            }
+        });
     }
 
     public function assessment(): BelongsTo

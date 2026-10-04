@@ -30,9 +30,7 @@
 
         @forelse($courses as $c)
             @php
-                $stats = auth()->check()
-                    ? app(\App\Services\DatabaseNotificationService::class)->discussionStatsForSection(auth()->user(), (int) $c['id'])
-                    : ['unread_count' => 0, 'mention_count' => 0, 'latest_message' => null, 'is_read' => true];
+                $stats = $discussionStats[$c['id']] ?? ['unread_count' => 0, 'mention_count' => 0, 'latest_message' => null, 'is_read' => true];
                 $msgCount = $stats['unread_count'];
                 $mentionCount = $stats['mention_count'];
             @endphp
@@ -73,7 +71,7 @@
     </section>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         window.addEventListener('sale:live-status', function(e) {
             if (!e.detail) return;

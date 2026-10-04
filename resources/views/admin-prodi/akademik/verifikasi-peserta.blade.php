@@ -249,7 +249,7 @@
         </dialog>
         @endif
     @endforeach
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.querySelectorAll('dialog[id^="reject-modal-"], dialog[id^="preview-bukti-modal-"]').forEach(dialog => {
             dialog.addEventListener('click', function(e) {
                 if (e.target === this) this.close();

@@ -8,21 +8,71 @@ const sidebarBackdrop = document.querySelector('[data-sidebar-backdrop]');
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 
 const setSidebar = (open) => {
-    if (!sidebar || !sidebarBackdrop || !sidebarToggle) return;
+    if (typeof window.__setSidebar === 'function') {
+        window.__setSidebar(open);
+        return;
+    }
+    if (!sidebar || !sidebarBackdrop) return;
 
-    sidebar.dataset.open = String(open);
-    sidebarBackdrop.dataset.open = String(open);
-    sidebarToggle.setAttribute('aria-expanded', String(open));
-    document.body.classList.toggle('overflow-hidden', open);
+    const isOpen = Boolean(open);
+    sidebar.dataset.open = String(isOpen);
+    sidebarBackdrop.dataset.open = String(isOpen);
+    if (sidebarToggle) {
+        sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+    }
+    document.body.classList.toggle('overflow-hidden', isOpen);
 };
 
-sidebarToggle?.addEventListener('click', () => setSidebar(sidebar?.dataset.open !== 'true'));
-sidebarBackdrop?.addEventListener('click', () => setSidebar(false));
-document.querySelectorAll('[data-sidebar-close]').forEach(btn => btn.addEventListener('click', () => setSidebar(false)));
+if (!window.__sidebarInitialized) {
+    window.__sidebarInitialized = true;
 
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') setSidebar(false);
-});
+    sidebarToggle?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSidebar(sidebar?.dataset.open !== 'true');
+    });
+
+    sidebarBackdrop?.addEventListener('click', (e) => {
+        e.preventDefault();
+        setSidebar(false);
+    });
+    sidebarBackdrop?.addEventListener('touchstart', () => {
+        setSidebar(false);
+    }, { passive: true });
+
+    document.querySelectorAll('[data-sidebar-close]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setSidebar(false);
+        });
+    });
+
+    const handleOutsideInteraction = (event) => {
+        if (!sidebar || sidebar.dataset.open !== 'true') return;
+        const target = event.target;
+        if (!sidebar.contains(target) && !sidebarToggle?.contains(target)) {
+            setSidebar(false);
+        }
+    };
+
+    document.addEventListener('click', handleOutsideInteraction);
+    document.addEventListener('touchstart', handleOutsideInteraction, { passive: true });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setSidebar(false);
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024 && sidebar?.dataset.open === 'true') {
+            setSidebar(false);
+        }
+    });
+
+    sidebar?.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 1024) setSidebar(false);
+        });
+    });
+}
 
 if (sidebar) {
     sidebar.addEventListener('wheel', (e) => {
@@ -781,7 +831,7 @@ if (editorMount && editorSource) {
             core.replaceWith(input);
             renameInput = input;
             input.focus();
-            
+
             const dotIdx = currentFullName.lastIndexOf('.');
             if (dotIdx > 0) {
                 input.setSelectionRange(0, dotIdx);
@@ -811,7 +861,7 @@ if (editorMount && editorSource) {
         function commitRename(index, candidate) {
             if (!candidate) return setStatus('Nama berkas tidak boleh kosong.', true);
             if (candidate.includes('/') || candidate.includes('\\')) return setStatus('Nama berkas tidak boleh memuat jalur folder.', true);
-            
+
             const currentExt = String(files[index].name).split('.').pop().toLowerCase();
             const lastDot = candidate.lastIndexOf('.');
             let ext = '';
@@ -1279,7 +1329,7 @@ if (editorMount && editorSource) {
             if (currentFetchCtrl) {
                 try {
                     currentFetchCtrl.abort();
-                } catch (e) {}
+                } catch (e) { }
             }
             removeThinking();
             bubble('AI Asisten', 'Bantuan AI dibatalkan.', false);
@@ -1303,7 +1353,7 @@ if (editorMount && editorSource) {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': token
                     }
-                }).catch(() => {});
+                }).catch(() => { });
             }
             updateAssistantSubmitVisibility();
         };
@@ -1315,7 +1365,7 @@ if (editorMount && editorSource) {
             thinkingEl = document.createElement('article');
             thinkingEl.className = 'self-start mr-auto rounded-2xl rounded-tl-xs bg-white border border-line/70 p-3 shadow-xs flex items-center gap-2 text-xs text-muted max-w-sm';
             thinkingEl.innerHTML = `
-                <span class="font-medium text-slate-600">Menyiapkan balasan</span>
+                <span class="font-medium text-slate-600">thinking</span>
                 <span class="inline-flex items-center gap-1 pl-1 py-0.5" aria-hidden="true">
                     <span class="typing-dot"></span>
                     <span class="typing-dot"></span>
@@ -1583,7 +1633,7 @@ if (editorMount && editorSource) {
             if (!selectedLine && typeof editor !== 'undefined' && editor?.state?.selection?.main) {
                 try {
                     selectedLine = editor.state.doc.lineAt(editor.state.selection.main.from).number;
-                } catch (e) {}
+                } catch (e) { }
             }
             const consoleOutput = terminalOutput ? (terminalOutput.innerText || terminalOutput.textContent || '').trim().slice(-2000) : '';
 
@@ -1732,9 +1782,9 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
             const isImg = f.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
             const isVid = f.type.startsWith('video/') || ['mp4', 'webm'].includes(ext);
             if (isImg) {
-                candidates.push({ type: 'foto', value: f.name, label: `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)` });
+                candidates.push({ type: 'foto', value: f.name, label: `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)` });
             } else if (isVid) {
-                candidates.push({ type: 'video', value: f.name, label: `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)` });
+                candidates.push({ type: 'video', value: f.name, label: `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)` });
             }
         });
 
@@ -1773,18 +1823,18 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
 
     const render = () => {
         const transfer = new DataTransfer(); files.forEach(file => transfer.items.add(file)); input.files = transfer.files;
-        input.setCustomValidity(files.length > 5 ? 'Maksimal 5 berkas lampiran.' : (files.some(file => file.size > 5*1024*1024) ? 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.' : ''));
-        urls.forEach(url=>URL.revokeObjectURL(url)); urls=[];
+        input.setCustomValidity(files.length > 5 ? 'Maksimal 5 berkas lampiran.' : (files.some(file => file.size > 5 * 1024 * 1024) ? 'File tidak dapat diunggah jika ukurannya lebih dari 5 MB.' : ''));
+        urls.forEach(url => URL.revokeObjectURL(url)); urls = [];
         if (!list) return;
         list.replaceChildren();
-        files.forEach((file,index)=>{
-            const row=document.createElement('div'); row.className='flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm';
+        files.forEach((file, index) => {
+            const row = document.createElement('div'); row.className = 'flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm';
             const ext = file.name.split('.').pop()?.toLowerCase() || '';
-            const isImage = ['image/jpeg','image/png','image/webp'].includes(file.type) || ['jpg','jpeg','png','webp'].includes(ext);
+            const isImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
             const isVideo = file.type.startsWith('video/') || ext === 'mp4' || ext === 'webm';
 
             if (isImage) {
-                const img=document.createElement('img'); const url=URL.createObjectURL(file);urls.push(url);img.src=url;img.alt='';img.className='h-12 w-12 shrink-0 rounded object-cover';row.append(img);
+                const img = document.createElement('img'); const url = URL.createObjectURL(file); urls.push(url); img.src = url; img.alt = ''; img.className = 'h-12 w-12 shrink-0 rounded object-cover'; row.append(img);
             } else {
                 const extension = ext.toUpperCase() || 'FILE';
                 const badge = document.createElement('span');
@@ -1795,16 +1845,16 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
                 badge.textContent = extension.slice(0, 4);
                 row.append(badge);
             }
-            const name=document.createElement('span');name.className='min-w-0 flex-1 break-all text-xs';name.textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;
+            const name = document.createElement('span'); name.className = 'min-w-0 flex-1 break-all text-xs'; name.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
             row.append(name);
 
-            const remove=document.createElement('button');remove.type='button';remove.className='p-2 text-sm text-muted shrink-0';remove.textContent='×';remove.setAttribute('aria-label',`Hapus ${file.name}`);remove.addEventListener('click',()=>{files.splice(index,1);render();});
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'p-2 text-sm text-muted shrink-0'; remove.textContent = '×'; remove.setAttribute('aria-label', `Hapus ${file.name}`); remove.addEventListener('click', () => { files.splice(index, 1); render(); });
             row.append(remove);
             list.append(row);
         });
         syncPinMedia();
     };
-    input.addEventListener('change',()=>{
+    input.addEventListener('change', () => {
         const maxAttachmentSize = 5 * 1024 * 1024; // 5 MB
         const oversized = [...input.files].filter(f => f.size > maxAttachmentSize);
         if (oversized.length > 0) {
@@ -1821,7 +1871,7 @@ document.querySelectorAll('[data-file-input]').forEach((input) => {
             }
             return;
         }
-        for(const file of input.files) if(!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) files.push(file);
+        for (const file of input.files) if (!files.some(existing => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) files.push(file);
         render();
     });
 });
@@ -2747,12 +2797,12 @@ if (contentForm) {
         let cpmkDefs = [];
         try {
             cpmkDefs = JSON.parse(manualCpmkSettings.querySelector('[data-cpmk-meta-dictionary]')?.textContent || '[]');
-        } catch (_) {}
+        } catch (_) { }
 
         let preloadedWeights = {};
         try {
             preloadedWeights = JSON.parse(manualCpmkSettings.querySelector('[data-cpmk-preloaded-weights]')?.textContent || '{}');
-        } catch (_) {}
+        } catch (_) { }
 
         // State CPMK terpilih: Map<code, { description, cpl, weight }>
         const selectedCpmks = new Map();
@@ -3119,13 +3169,12 @@ if (codingStepBuilder) {
                 left.append(img);
             } else {
                 const badge = document.createElement('span');
-                badge.className = `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${
-                    isPdf ? 'bg-rose-50 text-rose-700' :
+                badge.className = `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${isPdf ? 'bg-rose-50 text-rose-700' :
                     isWord ? 'bg-blue-50 text-blue-700' :
-                    isSlides ? 'bg-orange-50 text-orange-700' :
-                    isVideo ? 'bg-violet-50 text-violet-700' :
-                    'bg-slate-100 text-slate-700'
-                }`;
+                        isSlides ? 'bg-orange-50 text-orange-700' :
+                            isVideo ? 'bg-violet-50 text-violet-700' :
+                                'bg-slate-100 text-slate-700'
+                    }`;
                 badge.textContent = ext.toUpperCase().slice(0, 4);
                 left.append(badge);
             }
@@ -3397,7 +3446,7 @@ if (codingStepBuilder) {
     let oldSteps = [];
     try {
         oldSteps = JSON.parse(codingStepBuilder.querySelector('[data-old-coding-steps]')?.textContent || '[]');
-    } catch (_) {}
+    } catch (_) { }
 
     if (oldSteps.length > 0) {
         oldSteps.forEach(step => add(step, false));
@@ -3468,7 +3517,7 @@ academicChart?.querySelectorAll('[data-chart-mode]').forEach(button => {
         academicChart.querySelector('[data-chart-line]').setAttribute('d', path);
         academicChart.querySelector('[data-chart-area]').setAttribute('d', `${path}V197H60Z`);
         academicChart.querySelector('#chart-title').textContent = mode === 'ips' ? 'IP semester' : 'IPK kumulatif';
-        academicChart.querySelector('#chart-description').textContent = [...academicChart.querySelectorAll('[data-chart-point]')].map((p,i) => `Semester ${i+1}: ${p.dataset[mode]}`).join('; ');
+        academicChart.querySelector('#chart-description').textContent = [...academicChart.querySelectorAll('[data-chart-point]')].map((p, i) => `Semester ${i + 1}: ${p.dataset[mode]}`).join('; ');
     });
 });
 
@@ -3476,14 +3525,14 @@ const academicType = document.querySelector('[data-academic-type]');
 if (academicType) {
     const syncAcademic = () => {
         const type = academicType.value;
-        document.querySelector('[data-academic-parent]').hidden = !['prodi','kelas'].includes(type);
+        document.querySelector('[data-academic-parent]').hidden = !['prodi', 'kelas'].includes(type);
         document.querySelector('[data-academic-course]').hidden = type !== 'kelas';
         document.querySelector('[data-academic-students]').hidden = type !== 'kelas';
         const parent = document.querySelector('#parent');
         [...parent.options].forEach(option => { option.hidden = !!option.value && option.dataset.parentType !== (type === 'kelas' ? 'prodi' : 'fakultas'); });
         if (parent.selectedOptions[0]?.hidden) parent.value = '';
     };
-    academicType.addEventListener('change',syncAcademic);
+    academicType.addEventListener('change', syncAcademic);
     syncAcademic();
 }
 
@@ -3533,7 +3582,7 @@ if (questionImage) {
             }
             return;
         }
-        if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
             questionImage.setCustomValidity('Gambar harus JPG, PNG, atau WebP.'); questionImage.reportValidity(); return;
         }
         url = URL.createObjectURL(file); preview.src = url; preview.hidden = false; remove.hidden = false;
@@ -3544,33 +3593,33 @@ const optionsInput = document.querySelector('#options');
 if (optionsInput) {
     const container = document.querySelector('[data-option-images]');
     const syncOptions = () => {
-        const options = optionsInput.value.split('\n').map(v=>v.trim()).filter(Boolean);
+        const options = optionsInput.value.split('\n').map(v => v.trim()).filter(Boolean);
         while (container.children.length > options.length) container.lastElementChild.remove();
-        options.forEach((value,index) => {
+        options.forEach((value, index) => {
             let row = container.children[index];
             if (!row) {
                 row = document.createElement('div'); row.className = 'rounded-lg bg-canvas p-3';
-                const label = document.createElement('label');label.className = 'form-label';label.htmlFor = `option-image-${index}`;
-                const input = document.createElement('input');input.type='file';input.accept='image/jpeg,image/png,image/webp';input.name=`option_images[${index}]`;input.id=`option-image-${index}`;input.className='field text-xs';
-                const preview = document.createElement('img');preview.hidden=true;preview.className='mt-3 max-h-32 rounded object-contain';
-                const remove = document.createElement('button');remove.type='button';remove.textContent='Hapus gambar pilihan';remove.className='quiet-link mt-2';remove.hidden=true;
+                const label = document.createElement('label'); label.className = 'form-label'; label.htmlFor = `option-image-${index}`;
+                const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp'; input.name = `option_images[${index}]`; input.id = `option-image-${index}`; input.className = 'field text-xs';
+                const preview = document.createElement('img'); preview.hidden = true; preview.className = 'mt-3 max-h-32 rounded object-contain';
+                const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Hapus gambar pilihan'; remove.className = 'quiet-link mt-2'; remove.hidden = true;
                 let url;
-                input.addEventListener('change',()=>{if(url)URL.revokeObjectURL(url);const file=input.files[0];preview.hidden=!file;remove.hidden=!file;input.setCustomValidity(file && (file.size>2*1024*1024 || !['image/jpeg','image/png','image/webp'].includes(file.type)) ? 'Gunakan gambar maksimal 2 MB.' : '');if(file){url=URL.createObjectURL(file);preview.src=url;preview.alt=value;}});
-                remove.addEventListener('click',()=>{if(url)URL.revokeObjectURL(url);input.value='';input.setCustomValidity('');preview.hidden=true;remove.hidden=true;});
-                row.append(label,input,preview,remove);container.append(row);
+                input.addEventListener('change', () => { if (url) URL.revokeObjectURL(url); const file = input.files[0]; preview.hidden = !file; remove.hidden = !file; input.setCustomValidity(file && (file.size > 2 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) ? 'Gunakan gambar maksimal 2 MB.' : ''); if (file) { url = URL.createObjectURL(file); preview.src = url; preview.alt = value; } });
+                remove.addEventListener('click', () => { if (url) URL.revokeObjectURL(url); input.value = ''; input.setCustomValidity(''); preview.hidden = true; remove.hidden = true; });
+                row.append(label, input, preview, remove); container.append(row);
             }
-            row.querySelector('label').textContent = `Gambar pilihan ${index+1} · ${value}`;
+            row.querySelector('label').textContent = `Gambar pilihan ${index + 1} · ${value}`;
         });
     };
-    optionsInput.addEventListener('change',syncOptions);syncOptions();
+    optionsInput.addEventListener('change', syncOptions); syncOptions();
 }
 
 // Repeatable academic settings keep submitted indexes contiguous.
-document.querySelectorAll('[data-repeat-group]').forEach(group=>{
-    const rows=group.querySelector('[data-rows]');
-    const renumber=()=>{[...rows.children].forEach((row,index)=>row.querySelectorAll('[name]').forEach(input=>input.name=input.name.replace(/\[\d+\]/,`[${index}]`)));const total=group.querySelector('[data-weight-total]');if(total)total.textContent=`Total bobot: ${[...group.querySelectorAll('[data-weight]')].reduce((sum,input)=>sum+Number(input.value||0),0)}%`;};
-    group.querySelector('[data-add-row]').addEventListener('click',()=>{const clone=rows.firstElementChild.cloneNode(true);clone.querySelectorAll('input').forEach(input=>input.value=input.type==='number'?'0':'');rows.append(clone);renumber();});
-    rows.addEventListener('click',event=>{if(event.target.closest('[data-remove-row]') && rows.children.length>1){event.target.closest('[data-row]').remove();renumber();}});rows.addEventListener('input',renumber);
+document.querySelectorAll('[data-repeat-group]').forEach(group => {
+    const rows = group.querySelector('[data-rows]');
+    const renumber = () => { [...rows.children].forEach((row, index) => row.querySelectorAll('[name]').forEach(input => input.name = input.name.replace(/\[\d+\]/, `[${index}]`))); const total = group.querySelector('[data-weight-total]'); if (total) total.textContent = `Total bobot: ${[...group.querySelectorAll('[data-weight]')].reduce((sum, input) => sum + Number(input.value || 0), 0)}%`; };
+    group.querySelector('[data-add-row]').addEventListener('click', () => { const clone = rows.firstElementChild.cloneNode(true); clone.querySelectorAll('input').forEach(input => input.value = input.type === 'number' ? '0' : ''); rows.append(clone); renumber(); });
+    rows.addEventListener('click', event => { if (event.target.closest('[data-remove-row]') && rows.children.length > 1) { event.target.closest('[data-row]').remove(); renumber(); } }); rows.addEventListener('input', renumber);
 });
 const builder = document.querySelector('[data-question-builder]');
 if (builder) {
@@ -3722,13 +3771,13 @@ if (builder) {
             const l = p.left || '';
             const r = p.right || '';
             return (l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/')) &&
-                   (r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/'));
+                (r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/'));
         });
         const hasAnyImg = !isImgImg && pairs.some(p => {
             const l = p.left || '';
             const r = p.right || '';
             return l.startsWith('http') || l.startsWith('data:image') || l.startsWith('/') ||
-                   r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/');
+                r.startsWith('http') || r.startsWith('data:image') || r.startsWith('/');
         });
 
         const modeRadios = row.querySelectorAll('[data-pair-mode]');
@@ -4500,7 +4549,7 @@ if (builder) {
     let old = [];
     try {
         old = JSON.parse(builder.querySelector('[data-old-questions]')?.textContent || '[]');
-    } catch (_) {}
+    } catch (_) { }
     if (Array.isArray(old) && old.length) {
         if (activeCategory) categoryQuestionsMap[activeCategory] = old;
         old.forEach((question, index) => add(question, index === 0));

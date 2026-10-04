@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Message extends Model
 {
@@ -78,7 +79,7 @@ class Message extends Model
             $replyInfo = [
                 'id' => $this->replyTo->id,
                 'sender_name' => $replySender?->name ?? 'Pengguna',
-                'excerpt' => \Illuminate\Support\Str::limit($this->replyTo->content, 60),
+                'excerpt' => Str::limit($this->replyTo->content, 60),
             ];
         }
 

@@ -49,14 +49,14 @@
     </form>
 </dialog>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.getElementById(@js($joinDialogId))?.addEventListener('click', function(e) {
         if (e.target === this) this.close();
     });
 </script>
 
 @if(session('join_error'))
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById(@js($joinDialogId))?.showModal();
         });

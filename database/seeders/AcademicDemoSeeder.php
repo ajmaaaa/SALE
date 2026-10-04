@@ -95,9 +95,8 @@ class AcademicDemoSeeder extends Seeder
             $lecturer = $lecturers->get($mk['lecturer']) ?? $dosen;
             $isAdminOnly = in_array($mk['code'], $adminOnlyCodes, true);
             $model = MataKuliah::updateOrCreate(
-                ['code' => $mk['code']],
+                ['prodi_id' => $prodi->id, 'code' => $mk['code']],
                 [
-                    'prodi_id' => $prodi->id,
                     'name' => $mk['name'],
                     'sks' => $mk['sks'],
                     'semester_paket' => $mk['semester_paket'] ?? null,
@@ -108,6 +107,7 @@ class AcademicDemoSeeder extends Seeder
                 // Course tambahan ini hanya ada di Admin Prodi, tidak dibuatkan kelas,
                 // sehingga tidak otomatis masuk ke mahasiswa maupun dosen.
                 ClassSection::where('mata_kuliah_id', $model->id)->delete();
+
                 continue;
             }
 

@@ -76,7 +76,7 @@ class ClassSectionController extends Controller
                         $mk->whereRaw('LOWER(name) LIKE ?', ["%{$lower}%"])
                             ->orWhereRaw('LOWER(code) LIKE ?', ["%{$lower}%"]);
                     })
-                    ->orWhereRaw('LOWER(section_code) LIKE ?', ["%{$lower}%"]);
+                        ->orWhereRaw('LOWER(section_code) LIKE ?', ["%{$lower}%"]);
                 });
             })
             ->orderByDesc('id')

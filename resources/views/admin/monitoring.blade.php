@@ -183,7 +183,7 @@
                                     <svg class="h-5 w-5 text-muted shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 4h16v5H4zM6 9v11h12V9M10 13h4"/></svg>
                                     <div>
                                         <p class="text-sm font-semibold">{{ $backup['filename'] }}</p>
-                                        <p class="mt-0.5 text-xs text-muted">{{ $backup['created_at'] }} · {{ $backup['size'] }}</p>
+                                        <p class="mt-0.5 text-xs text-muted">{{ $backup['created_at'] ?? $backup['date_formatted'] ?? '-' }} · {{ $backup['size'] ?? $backup['size_formatted'] ?? '-' }}</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -267,7 +267,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         async function refreshMonitoringData() {
             if (document.visibilityState !== 'visible') return;

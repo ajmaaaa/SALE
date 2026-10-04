@@ -47,7 +47,9 @@
         <div class="min-w-0 flex-1 space-y-1.5">
             <div class="flex items-center gap-2 flex-wrap">
                 <h3 class="text-sm sm:text-[15px] font-bold transition-colors leading-snug {{ $isRead ? 'text-slate-500 font-semibold' : 'text-slate-900 group-hover:text-[#102f50]' }}">
-                    <a href="{{ route('dosen.notifications.read', [$notif['id'], 'target' => $notif['link'], 'back_category' => request('category')]) }}" class="hover:underline">
+                    <a href="{{ $notif['link'] ?: '#' }}"
+                       @if(!$isRead) onclick="fetch('{{ route('dosen.notifications.read', $notif['id']) }}',{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}})" @endif
+                       class="hover:underline">
                         {{ $notif['title'] }}
                     </a>
                 </h3>
@@ -65,7 +67,8 @@
             <!-- Actions Row -->
             <div class="flex items-center gap-2.5 pt-1 flex-wrap">
                 @if(!empty($notif['action_label']))
-                    <a href="{{ route('dosen.notifications.read', [$notif['id'], 'target' => $notif['link'], 'back_category' => request('category')]) }}"
+                    <a href="{{ $notif['link'] ?: '#' }}"
+                       @if(!$isRead) onclick="fetch('{{ route('dosen.notifications.read', $notif['id']) }}',{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}})" @endif
                        class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs active:scale-[0.98] transition-all {{ $isRead ? 'bg-slate-600 hover:bg-slate-800' : 'bg-[#102f50] hover:bg-[#081d33]' }}">
                         <span>{{ $notif['action_label'] }}</span>
                     </a>

@@ -6,6 +6,12 @@
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#ffffff">
     <title>{{ $item['title'] }} - Ruang Ujian | SALE</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=4">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=4">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}?v=4">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=4">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}?v=4">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v=4">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         .match-canvas-container {
@@ -49,7 +55,7 @@
         $rejectionReason = $rejectionReason ?? null;
         $isLecturerPreview = $isLecturerPreview ?? false;
         $reviewUser = $reviewUser ?? auth()->user();
-        $isArchived = $isArchived ?? (!empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false));
+        $isArchived = $isArchived ?? (!empty($course['is_archived']));
         $courseBackUrl = $isLecturerPreview
             ? route('dosen.course.show', $course['id']).'?tab=tugas'
             : route('mahasiswa.course.show', $course['id']).'?tab=tugas';
@@ -945,7 +951,7 @@
 
 
         {{-- SCRIPT ENGINE RUANG UJIAN --}}
-        <script>
+        <script nonce="{{ $cspNonce }}">
             document.addEventListener('DOMContentLoaded', () => {
                 const isArchived = {{ $isArchived ? 'true' : 'false' }};
                 const form = document.getElementById('exam-form');

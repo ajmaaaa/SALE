@@ -13,8 +13,10 @@ use App\Models\Role;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
@@ -46,6 +48,7 @@ class ChatController extends Controller
             if ($room && $room->members()->where('user_id', $user->id)->exists()) {
                 return true;
             }
+
             return false;
         }
 
@@ -140,7 +143,7 @@ class ChatController extends Controller
         $totalCount = Message::where('room_id', $room->id)->count();
 
         // Mark discussions as read when reading messages
-        app(\App\Services\DatabaseNotificationService::class)->markDiscussionRead($user, $course);
+        app(DatabaseNotificationService::class)->markDiscussionRead($user, $course);
 
         return response()->json([
             'success' => true,
@@ -168,9 +171,9 @@ class ChatController extends Controller
 
         $validated = $request->validate([
             'content' => 'required|string|max:3000',
-            'reply_to_message_id' => 'nullable|integer|exists:messages,id',
+            'reply_to_message_id' => 'nullable|integer',
             'mentioned_user_ids' => 'nullable|array',
-            'mentioned_user_ids.*' => 'integer|exists:users,id',
+            'mentioned_user_ids.*' => 'integer',
         ]);
 
         $user = $this->currentUser();
@@ -191,30 +194,52 @@ class ChatController extends Controller
 
         $room = $this->ensureRoomAndMembership($course, $user);
 
-        $message = Message::create([
-            'room_id' => $room->id,
-            'user_id' => $user->id,
-            'content' => $validated['content'],
-            'reply_to_message_id' => $validated['reply_to_message_id'] ?? null,
-            'is_pinned' => false,
-        ]);
-
-        // Simpan Mention (@user)
-        $mentionedIds = $validated['mentioned_user_ids'] ?? [];
-
-        // Auto-detect mention dari teks jika user tidak sengaja melewatkan array mentioned_user_ids
-        if (empty($mentionedIds) && str_contains($validated['content'], '@')) {
-            $roomMembers = $room->members()->get();
-            foreach ($roomMembers as $member) {
-                if ($member->id !== $user->id && str_contains(mb_strtolower($validated['content']), '@'.mb_strtolower($member->name))) {
-                    $mentionedIds[] = $member->id;
-                }
+        $message = DB::transaction(function () use ($room, $user, $validated) {
+            $repliedMessage = null;
+            if (! empty($validated['reply_to_message_id'])) {
+                $repliedMessage = $room->messages()
+                    ->whereKey($validated['reply_to_message_id'])
+                    ->firstOrFail();
             }
-            $mentionedIds = array_unique($mentionedIds);
-        }
 
-        foreach ($mentionedIds as $targetUserId) {
-            if ((int) $targetUserId !== (int) $user->id) {
+            $activeMemberIds = $room->members()->pluck('users.id')->map(fn ($id) => (int) $id);
+            $section = $room->classSection ?? ($room->course_id ? ClassSection::find($room->course_id) : null);
+            if ($section) {
+                $activeAcademicIds = $section->students()->pluck('users.id')
+                    ->merge(array_filter([$section->dosen_id, $section->dosen_pendamping_id]))
+                    ->merge($section->dosenAnggota()->pluck('users.id'))
+                    ->map(fn ($id) => (int) $id)
+                    ->unique();
+                $activeMemberIds = $activeMemberIds->intersect($activeAcademicIds);
+            }
+            $mentionedIds = collect($validated['mentioned_user_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->intersect($activeMemberIds)
+                ->reject(fn ($id) => $id === (int) $user->id)
+                ->unique()
+                ->values();
+
+            // Auto-detect mention only among members of this room.
+            if ($mentionedIds->isEmpty() && str_contains($validated['content'], '@')) {
+                foreach ($room->members()->get() as $member) {
+                    if ($activeMemberIds->contains((int) $member->id)
+                        && (int) $member->id !== (int) $user->id
+                        && str_contains(mb_strtolower($validated['content']), '@'.mb_strtolower($member->name))) {
+                        $mentionedIds->push((int) $member->id);
+                    }
+                }
+                $mentionedIds = $mentionedIds->unique()->values();
+            }
+
+            $message = Message::create([
+                'room_id' => $room->id,
+                'user_id' => $user->id,
+                'content' => $validated['content'],
+                'reply_to_message_id' => $repliedMessage?->id,
+                'is_pinned' => false,
+            ]);
+
+            foreach ($mentionedIds as $targetUserId) {
                 MessageMention::firstOrCreate([
                     'message_id' => $message->id,
                     'mentioned_user_id' => $targetUserId,
@@ -227,12 +252,8 @@ class ChatController extends Controller
                     'is_read' => false,
                 ]);
             }
-        }
 
-        // Jika ini balasan (reply) pesan orang lain, buat notifikasi reply
-        if (! empty($validated['reply_to_message_id'])) {
-            $repliedMessage = Message::find($validated['reply_to_message_id']);
-            if ($repliedMessage && $repliedMessage->user_id !== $user->id) {
+            if ($repliedMessage && (int) $repliedMessage->user_id !== (int) $user->id) {
                 ChatNotification::create([
                     'user_id' => $repliedMessage->user_id,
                     'type' => 'reply',
@@ -240,7 +261,9 @@ class ChatController extends Controller
                     'is_read' => false,
                 ]);
             }
-        }
+
+            return $message;
+        });
 
         $payload = $message->toChatPayload($user);
 

@@ -11,6 +11,8 @@ use App\Models\StudentAssessmentCpmkScore;
 use App\Models\StudentAssessmentScore;
 use App\Models\StudentRubricScore;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -602,13 +604,13 @@ class ObeCalculationService
         if ($classSectionId !== null) {
             $section = ClassSection::find($classSectionId);
             if ($section && $section->mata_kuliah_id) {
-                $assignedCpmkIds = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah')
+                $assignedCpmkIds = DB::table('cpmk_mata_kuliah')
                     ->where('mata_kuliah_id', $section->mata_kuliah_id)
                     ->where('cpl_id', $cpl->id)
                     ->pluck('cpmk_id')
                     ->all();
 
-                $hasAnyContextual = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah')
+                $hasAnyContextual = DB::table('cpmk_mata_kuliah')
                     ->where('mata_kuliah_id', $section->mata_kuliah_id)
                     ->whereNotNull('cpl_id')
                     ->exists();
@@ -618,8 +620,8 @@ class ObeCalculationService
                 }
             }
         } else {
-            if (\Illuminate\Support\Facades\Schema::hasTable('class_section_student')) {
-                $enrolledContextualCpmkIds = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah as cmk')
+            if (Schema::hasTable('class_section_student')) {
+                $enrolledContextualCpmkIds = DB::table('cpmk_mata_kuliah as cmk')
                     ->join('class_sections as cs', 'cmk.mata_kuliah_id', '=', 'cs.mata_kuliah_id')
                     ->join('class_section_student as css', 'cs.id', '=', 'css.class_section_id')
                     ->where('css.mahasiswa_id', $studentId)
@@ -628,7 +630,7 @@ class ObeCalculationService
                     ->unique()
                     ->all();
 
-                $hasAnyEnrolledContextual = \Illuminate\Support\Facades\DB::table('cpmk_mata_kuliah as cmk')
+                $hasAnyEnrolledContextual = DB::table('cpmk_mata_kuliah as cmk')
                     ->join('class_sections as cs', 'cmk.mata_kuliah_id', '=', 'cs.mata_kuliah_id')
                     ->join('class_section_student as css', 'cs.id', '=', 'css.class_section_id')
                     ->where('css.mahasiswa_id', $studentId)

@@ -19,7 +19,7 @@ class AiTutorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['ai.enabled' => true, 'ai.key' => 'test-secret', 'ai.daily_tokens' => 100000, 'ai.global_daily_tokens' => 1000000]);
+        config(['ai.enabled' => true, 'ai.v2' => false, 'ai.key' => 'test-secret', 'ai.daily_tokens' => 100000, 'ai.global_daily_tokens' => 1000000]);
         Http::preventStrayRequests();
         DB::table('ai_tasks')->insert(['id' => 1, 'title' => 'BST', 'body' => 'Implement insert in BST.']);
     }
@@ -88,17 +88,19 @@ class AiTutorTest extends TestCase
         $this->postJson('/ai/tasks/1', ['question' => 'Jelaskan binary tree.'])->assertForbidden();
     }
 
-    public function test_quick_demo_ai_login_provisions_account_and_access(): void
+    public function test_web_login_never_auto_provisions_demo_ai_account_or_access(): void
     {
+        config(['app.demo_mode' => true]);
+
         $this->post('/ai/login', [
             'assignment' => 1,
             'email' => 'demo.ai@sale.test',
             'password' => 'password123456',
-        ])->assertRedirect(route('mahasiswa.assignment.code', 1));
+        ])->assertSessionHasErrors('ai');
 
-        $this->assertAuthenticated();
-        $this->assertDatabaseHas('users', ['email' => 'demo.ai@sale.test']);
-        $this->assertDatabaseHas('ai_access', ['task_id' => 1]);
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'demo.ai@sale.test']);
+        $this->assertDatabaseCount('ai_access', 0);
     }
 
     public function test_tutor_uses_authoritative_task_and_accounts_for_all_three_calls(): void
@@ -205,12 +207,12 @@ class AiTutorTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_provider_failure_keeps_reservation_and_is_not_retried(): void
+    public function test_provider_failure_refunds_reservation_and_is_not_retried(): void
     {
         $user = $this->student();
         Http::fakeSequence()->push(['error' => ['message' => 'secret provider detail']], 500);
         $this->postJson('/ai/tasks/1', ['question' => 'rekursi'])->assertStatus(503)->assertDontSee('secret provider detail');
-        $this->assertGreaterThan(0, DB::table('ai_usage')->where('scope', 'user:'.$user->id)->value('tokens'));
+        $this->assertSame(0, (int) DB::table('ai_usage')->where('scope', 'user:'.$user->id)->value('tokens'));
         $this->assertDatabaseHas('ai_turns', ['status' => 'failed']);
         Http::assertSentCount(1);
     }

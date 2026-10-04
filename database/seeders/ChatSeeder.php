@@ -77,7 +77,7 @@ class ChatSeeder extends Seeder
                         'room_id' => $room->id,
                         'user_id' => $dosenUser->id,
                         'reply_to_message_id' => $msg2->id,
-                        'content' => "Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu ya.",
+                        'content' => 'Untuk evaluasi modul ini fokus utama pada operasi dasar insertion dan traversal terlebih dahulu ya.',
                         'is_pinned' => false,
                         'created_at' => now()->subHours(2),
                     ]);
@@ -95,7 +95,7 @@ class ChatSeeder extends Seeder
                         $msg2 = Message::create([
                             'room_id' => $room->id,
                             'user_id' => $siti->id,
-                            'content' => "Pak, untuk laporan usability testing apakah jumlah partisipan minimal 5 orang?",
+                            'content' => 'Pak, untuk laporan usability testing apakah jumlah partisipan minimal 5 orang?',
                             'is_pinned' => false,
                             'created_at' => now()->subHours(4),
                         ]);

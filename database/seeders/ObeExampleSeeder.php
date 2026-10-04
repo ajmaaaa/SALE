@@ -23,7 +23,9 @@ class ObeExampleSeeder extends Seeder
 {
     public function run(): void
     {
-        $mataKuliah = MataKuliah::where('code', 'IF204')->first();
+        $mataKuliah = MataKuliah::where('code', 'IF204')
+            ->whereHas('prodi', fn ($query) => $query->where('code', 'IF'))
+            ->first();
 
         if (! $mataKuliah) {
             $this->command?->warn('Mata kuliah IF204 belum ada. Jalankan AcademicDemoSeeder terlebih dahulu.');

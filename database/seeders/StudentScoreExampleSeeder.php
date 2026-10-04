@@ -17,7 +17,8 @@ class StudentScoreExampleSeeder extends Seeder
 {
     public function run(): void
     {
-        $section = ClassSection::whereHas('mataKuliah', fn ($q) => $q->where('code', 'IF204'))
+        $section = ClassSection::whereHas('mataKuliah', fn ($q) => $q->where('code', 'IF204')
+            ->whereHas('prodi', fn ($prodi) => $prodi->where('code', 'IF')))
             ->where('section_code', 'A')
             ->first();
 

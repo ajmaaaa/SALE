@@ -4,15 +4,18 @@ namespace App\Http\Controllers\AdminProdi;
 
 use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -51,7 +54,7 @@ class UserProdiController extends AdminProdiController
                 ->orderBy('nim_nidn')
                 ->paginate(25)
                 ->withQueryString()
-            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
+            : new LengthAwarePaginator([], 0, 25);
 
         return view('admin-prodi.users.index', compact(
             'prodis',
@@ -103,7 +106,7 @@ class UserProdiController extends AdminProdiController
                 }
             }
             if (! $angkatan) {
-                $activeSem = \App\Models\Semester::where('is_active', true)->first();
+                $activeSem = Semester::where('is_active', true)->first();
                 if ($activeSem && ! empty($activeSem->academic_year)) {
                     $angkatan = (int) explode('/', $activeSem->academic_year)[0];
                 } else {
@@ -222,7 +225,7 @@ class UserProdiController extends AdminProdiController
             ->orderBy('nim_nidn')
             ->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         $borderThin = ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']];
         $borderMedium = ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF000000']];
@@ -242,7 +245,7 @@ class UserProdiController extends AdminProdiController
         ]);
         $sheetDosen->getRowDimension(1)->setRowHeight(26);
 
-        $sheetDosen->setCellValue('A2', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheetDosen->setCellValue('A2', 'Tanggal Ekspor: '.now()->translatedFormat('d F Y, H:i'));
         $sheetDosen->mergeCells('A2:F2');
         $sheetDosen->getStyle('A2:F2')->applyFromArray([
             'font' => ['size' => 10, 'italic' => true],
@@ -254,7 +257,7 @@ class UserProdiController extends AdminProdiController
         $dosenHeaders = ['No', 'NIDN / NIP', 'Nama Lengkap & Gelar', 'Email Institusi', 'Program Studi', 'Status Akun'];
         $cols = ['A', 'B', 'C', 'D', 'E', 'F'];
         foreach ($dosenHeaders as $k => $head) {
-            $sheetDosen->setCellValue($cols[$k] . '4', $head);
+            $sheetDosen->setCellValue($cols[$k].'4', $head);
         }
         $sheetDosen->getStyle('A4:F4')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
@@ -267,12 +270,12 @@ class UserProdiController extends AdminProdiController
 
         $rowD = 5;
         foreach ($dosens as $i => $d) {
-            $sheetDosen->setCellValue('A' . $rowD, $i + 1);
-            $sheetDosen->setCellValueExplicit('B' . $rowD, $d->nim_nidn ?? '-', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheetDosen->setCellValue('C' . $rowD, $d->name);
-            $sheetDosen->setCellValue('D' . $rowD, $d->email);
-            $sheetDosen->setCellValue('E' . $rowD, $d->prodi?->name ?? 'Semua / Lintas Prodi');
-            $sheetDosen->setCellValue('F' . $rowD, $d->is_active ? 'Aktif' : 'Nonaktif');
+            $sheetDosen->setCellValue('A'.$rowD, $i + 1);
+            $sheetDosen->setCellValueExplicit('B'.$rowD, $d->nim_nidn ?? '-', DataType::TYPE_STRING);
+            $sheetDosen->setCellValue('C'.$rowD, $d->name);
+            $sheetDosen->setCellValue('D'.$rowD, $d->email);
+            $sheetDosen->setCellValue('E'.$rowD, $d->prodi?->name ?? 'Semua / Lintas Prodi');
+            $sheetDosen->setCellValue('F'.$rowD, $d->is_active ? 'Aktif' : 'Nonaktif');
 
             $sheetDosen->getStyle("A{$rowD}:F{$rowD}")->applyFromArray([
                 'borders' => ['allBorders' => $borderThin],
@@ -304,7 +307,7 @@ class UserProdiController extends AdminProdiController
         ]);
         $sheetMhs->getRowDimension(1)->setRowHeight(26);
 
-        $sheetMhs->setCellValue('A2', 'Tanggal Ekspor: ' . now()->translatedFormat('d F Y, H:i'));
+        $sheetMhs->setCellValue('A2', 'Tanggal Ekspor: '.now()->translatedFormat('d F Y, H:i'));
         $sheetMhs->mergeCells('A2:G2');
         $sheetMhs->getStyle('A2:G2')->applyFromArray([
             'font' => ['size' => 10, 'italic' => true],
@@ -316,7 +319,7 @@ class UserProdiController extends AdminProdiController
         $mhsHeaders = ['No', 'NIM', 'Nama Mahasiswa', 'Email Mahasiswa', 'Program Studi', 'Angkatan', 'Status Akun'];
         $colsMhs = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
         foreach ($mhsHeaders as $k => $head) {
-            $sheetMhs->setCellValue($colsMhs[$k] . '4', $head);
+            $sheetMhs->setCellValue($colsMhs[$k].'4', $head);
         }
         $sheetMhs->getStyle('A4:G4')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
@@ -329,13 +332,13 @@ class UserProdiController extends AdminProdiController
 
         $rowM = 5;
         foreach ($mahasiswas as $i => $m) {
-            $sheetMhs->setCellValue('A' . $rowM, $i + 1);
-            $sheetMhs->setCellValueExplicit('B' . $rowM, $m->nim_nidn ?? '-', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheetMhs->setCellValue('C' . $rowM, $m->name);
-            $sheetMhs->setCellValue('D' . $rowM, $m->email);
-            $sheetMhs->setCellValue('E' . $rowM, $m->prodi?->name ?? '-');
-            $sheetMhs->setCellValue('F' . $rowM, $m->angkatan ?? '-');
-            $sheetMhs->setCellValue('G' . $rowM, $m->is_active ? 'Aktif' : 'Nonaktif');
+            $sheetMhs->setCellValue('A'.$rowM, $i + 1);
+            $sheetMhs->setCellValueExplicit('B'.$rowM, $m->nim_nidn ?? '-', DataType::TYPE_STRING);
+            $sheetMhs->setCellValue('C'.$rowM, $m->name);
+            $sheetMhs->setCellValue('D'.$rowM, $m->email);
+            $sheetMhs->setCellValue('E'.$rowM, $m->prodi?->name ?? '-');
+            $sheetMhs->setCellValue('F'.$rowM, $m->angkatan ?? '-');
+            $sheetMhs->setCellValue('G'.$rowM, $m->is_active ? 'Aktif' : 'Nonaktif');
 
             $sheetMhs->getStyle("A{$rowM}:G{$rowM}")->applyFromArray([
                 'borders' => ['allBorders' => $borderThin],
@@ -357,7 +360,7 @@ class UserProdiController extends AdminProdiController
         $spreadsheet->setActiveSheetIndex(0);
 
         $safeProdi = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activeProdi?->code ?? 'SEMUA');
-        $fileName = "data-pengguna-{$safeProdi}-" . date('Ymd_His') . ".xlsx";
+        $fileName = "data-pengguna-{$safeProdi}-".date('Ymd_His').'.xlsx';
 
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
@@ -374,7 +377,7 @@ class UserProdiController extends AdminProdiController
         $type = in_array($type, ['dosen', 'mahasiswa']) ? $type : 'mahasiswa';
         $fileName = "template-import-{$type}.xlsx";
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template Import');
 
@@ -412,7 +415,7 @@ class UserProdiController extends AdminProdiController
         foreach ($samples as $sample) {
             $sheet->fromArray([$sample], null, "A{$row}");
             // Nomor NIM/NIDN sebagai teks agar tidak dipotong
-            $sheet->getCell("A{$row}")->setValueExplicit($sample[0], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->getCell("A{$row}")->setValueExplicit($sample[0], DataType::TYPE_STRING);
             $sheet->getRowDimension($row)->setRowHeight(20);
             $row++;
         }
@@ -471,7 +474,7 @@ class UserProdiController extends AdminProdiController
         // Parsing baris data: support xlsx/xls dan csv/txt
         $rows = [];
         if (in_array($extension, ['xlsx', 'xls'])) {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($uploadedFile->getRealPath());
+            $spreadsheet = IOFactory::load($uploadedFile->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
             foreach ($sheet->getRowIterator(2) as $row) {
                 $cellIter = $row->getCellIterator();
@@ -516,9 +519,9 @@ class UserProdiController extends AdminProdiController
                 $rowNum = $idx + 2; // +2: baris 1 adalah header, index 0 = baris data ke-2
 
                 $idNum = isset($cols[0]) ? trim($cols[0], "'\"\t\n\r\0\x0B ") : '';
-                $name  = isset($cols[1]) ? trim($cols[1], "'\"\t\n\r\0\x0B ") : '';
+                $name = isset($cols[1]) ? trim($cols[1], "'\"\t\n\r\0\x0B ") : '';
                 $email = isset($cols[2]) ? trim($cols[2], "'\"\t\n\r\0\x0B ") : '';
-                $pass  = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : null;
+                $pass = (isset($cols[3]) && trim($cols[3]) !== '') ? trim($cols[3]) : null;
 
                 if ($idNum === '' || $name === '' || $email === '') {
                     $skippedCount++;
@@ -570,7 +573,7 @@ class UserProdiController extends AdminProdiController
                             }
                         }
                         if (! $angkatan) {
-                            $activeSem = \App\Models\Semester::where('is_active', true)->first();
+                            $activeSem = Semester::where('is_active', true)->first();
                             if ($activeSem && ! empty($activeSem->academic_year)) {
                                 $angkatan = (int) explode('/', $activeSem->academic_year)[0];
                             } else {
@@ -581,22 +584,22 @@ class UserProdiController extends AdminProdiController
                 }
 
                 $createdUser = User::create([
-                    'name'                 => $name,
-                    'email'                => strtolower($email),
-                    'nim_nidn'             => $idNum,
-                    'angkatan'             => $angkatan,
-                    'prodi_id'             => $prodiId,
-                    'role_id'              => $role->id,
-                    'password'             => Hash::make($pass),
+                    'name' => $name,
+                    'email' => strtolower($email),
+                    'nim_nidn' => $idNum,
+                    'angkatan' => $angkatan,
+                    'prodi_id' => $prodiId,
+                    'role_id' => $role->id,
+                    'password' => Hash::make($pass),
                     'must_change_password' => true,
-                    'email_verified_at'    => now(),
+                    'email_verified_at' => now(),
                 ]);
                 $createdUser->roles()->sync([$role->id]);
 
                 if ($autoGenerated) {
                     $temporaryCredentials[] = [
                         'identity' => $idNum,
-                        'email'    => strtolower($email),
+                        'email' => strtolower($email),
                         'password' => $pass,
                     ];
                 }

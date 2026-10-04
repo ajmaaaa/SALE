@@ -23,11 +23,17 @@ class DiscussionMentionAndUnreadCountTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $mahasiswaAgus;
+
     private User $mahasiswaBudi;
+
     private Prodi $prodi;
+
     private Semester $semester;
+
     private ClassSection $section;
+
     private Room $room;
 
     protected function setUp(): void
@@ -285,5 +291,33 @@ class DiscussionMentionAndUnreadCountTest extends TestCase
 
         // Check that full name @Budi Santoso is wrapped in mention span
         $courseResponse->assertSee('<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@Budi Santoso</span>', false);
+    }
+
+    public function test_archived_class_is_not_displayed_in_discussions_list_for_student_and_dosen(): void
+    {
+        // Active class appears on discussions page
+        $this->actingAs($this->mahasiswaAgus)
+            ->get(route('mahasiswa.discussion.index'))
+            ->assertOk()
+            ->assertSee($this->section->mataKuliah->name);
+
+        $this->actingAs($this->dosen)
+            ->get(route('dosen.discussion.index'))
+            ->assertOk()
+            ->assertSee($this->section->mataKuliah->name);
+
+        // Archive the class section
+        $this->section->update(['archived_at' => now()]);
+
+        // Archived class MUST NOT appear on discussions page
+        $this->actingAs($this->mahasiswaAgus)
+            ->get(route('mahasiswa.discussion.index'))
+            ->assertOk()
+            ->assertDontSee($this->section->mataKuliah->name);
+
+        $this->actingAs($this->dosen)
+            ->get(route('dosen.discussion.index'))
+            ->assertOk()
+            ->assertDontSee($this->section->mataKuliah->name);
     }
 }

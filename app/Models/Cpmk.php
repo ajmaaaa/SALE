@@ -36,7 +36,7 @@ class Cpmk extends Model
     {
         return $query->where(function ($q) use ($mataKuliahId) {
             $q->where('cpmks.mata_kuliah_id', $mataKuliahId)
-              ->orWhereHas('mataKuliahs', fn ($m) => $m->where('mata_kuliahs.id', $mataKuliahId));
+                ->orWhereHas('mataKuliahs', fn ($m) => $m->where('mata_kuliahs.id', $mataKuliahId));
         });
     }
 

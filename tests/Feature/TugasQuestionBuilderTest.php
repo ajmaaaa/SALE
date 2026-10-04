@@ -3,12 +3,23 @@
 namespace Tests\Feature;
 
 use App\Models\Assessment;
+use App\Models\AssessmentAttempt;
+use App\Models\Attachment;
 use App\Models\ClassSection;
 use App\Models\Cpmk;
 use App\Models\MataKuliah;
+use App\Models\Prodi;
 use App\Models\Role;
+use App\Models\Semester;
+use App\Models\StudentAssessmentCpmkScore;
+use App\Models\StudentAssessmentScore;
+use App\Models\Submission;
+use App\Models\SubmissionAnswer;
 use App\Models\User;
+use App\Services\DatabaseNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TugasQuestionBuilderTest extends TestCase
@@ -16,9 +27,13 @@ class TugasQuestionBuilderTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private ClassSection $section;
+
     private MataKuliah $mataKuliah;
+
     private Cpmk $cpmk1;
+
     private Cpmk $cpmk2;
 
     protected function setUp(): void
@@ -35,7 +50,7 @@ class TugasQuestionBuilderTest extends TestCase
             'email' => 'dosen.tugas@example.test',
         ]);
 
-        $prodi = \App\Models\Prodi::create([
+        $prodi = Prodi::create([
             'code' => 'TI',
             'name' => 'Teknik Informatika',
         ]);
@@ -64,7 +79,7 @@ class TugasQuestionBuilderTest extends TestCase
 
         $this->mataKuliah->cpmks()->attach([$this->cpmk1->id, $this->cpmk2->id]);
 
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'code' => '20261',
             'name' => 'Ganjil 2026/2027',
             'academic_year' => '2026/2027',
@@ -265,10 +280,10 @@ class TugasQuestionBuilderTest extends TestCase
 
     public function test_student_sees_coding_step_attachment_card(): void
     {
-        $file = \Illuminate\Http\UploadedFile::fake()->create('panduan_lab.pdf', 500, 'application/pdf');
-        $attachment = \App\Models\Attachment::create([
+        $file = UploadedFile::fake()->create('panduan_lab.pdf', 500, 'application/pdf');
+        $attachment = Attachment::create([
             'user_id' => $this->dosen->id,
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'name' => 'panduan_lab.pdf',
             'path' => 'testing/panduan_lab.pdf',
             'mime' => 'application/pdf',
@@ -633,7 +648,7 @@ class TugasQuestionBuilderTest extends TestCase
         );
 
         $response->assertSessionHasNoErrors();
-        $assessment = \App\Models\Assessment::where('class_section_id', $this->section->id)
+        $assessment = Assessment::where('class_section_id', $this->section->id)
             ->where('name', 'Tutorial Dasar Algoritma Pohon')
             ->first();
 
@@ -704,7 +719,7 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertEquals(60.0, (float) $pivotCpmk2->pivot->weight);
 
         // 2. Mahasiswa mengumpulkan jawaban coding
-        $submission = \App\Models\Submission::create([
+        $submission = Submission::create([
             'assessment_id' => $assessment->id,
             'user_id' => $student->id,
             'mahasiswa_id' => $student->id,
@@ -732,23 +747,23 @@ class TugasQuestionBuilderTest extends TestCase
         $gradeResponse->assertSessionHasNoErrors();
 
         // Verifikasi SubmissionAnswer tersimpan
-        $ans1 = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '1')->firstOrFail();
-        $ans2 = \App\Models\SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '2')->firstOrFail();
+        $ans1 = SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '1')->firstOrFail();
+        $ans2 = SubmissionAnswer::where('submission_id', $submission->id)->where('question_id', '2')->firstOrFail();
         $this->assertEquals(35.0, (float) $ans1->earned_score);
         $this->assertEquals(55.0, (float) $ans2->earned_score);
 
         // Verifikasi StudentAssessmentScore dan StudentAssessmentCpmkScore
-        $totalScoreRec = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+        $totalScoreRec = StudentAssessmentScore::where('assessment_id', $assessment->id)
             ->where('mahasiswa_id', $student->id)
             ->firstOrFail();
         $this->assertEquals(90.0, (float) $totalScoreRec->score);
-        $this->assertSame(\App\Models\StudentAssessmentScore::STATUS_PUBLISHED, $totalScoreRec->status);
+        $this->assertSame(StudentAssessmentScore::STATUS_PUBLISHED, $totalScoreRec->status);
 
-        $cpmk1Score = \App\Models\StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
+        $cpmk1Score = StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
             ->where('cpmk_id', $this->cpmk1->id)
             ->where('mahasiswa_id', $student->id)
             ->firstOrFail();
-        $cpmk2Score = \App\Models\StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
+        $cpmk2Score = StudentAssessmentCpmkScore::where('assessment_id', $assessment->id)
             ->where('cpmk_id', $this->cpmk2->id)
             ->where('mahasiswa_id', $student->id)
             ->firstOrFail();
@@ -827,7 +842,7 @@ class TugasQuestionBuilderTest extends TestCase
         );
         $gradeRes->assertRedirect();
 
-        $totalScoreRec = \App\Models\StudentAssessmentScore::where('assessment_id', $assessment->id)
+        $totalScoreRec = StudentAssessmentScore::where('assessment_id', $assessment->id)
             ->where('mahasiswa_id', $student->id)
             ->firstOrFail();
         $this->assertEquals(88.0, (float) $totalScoreRec->score);
@@ -869,9 +884,9 @@ class TugasQuestionBuilderTest extends TestCase
         $assessment->cpmks()->attach($this->cpmk1->id, ['weight' => 100]);
 
         // 1. Kasus Nilai Rendah (50 < 65) -> Warna MERAH (text-rose-600 / bg-rose-50)
-        \App\Models\StudentAssessmentScore::updateOrCreate(
+        StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $assessment->id, 'mahasiswa_id' => $student->id],
-            ['score' => 50, 'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED]
+            ['score' => 50, 'status' => StudentAssessmentScore::STATUS_PUBLISHED]
         );
 
         $itemViewLow = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
@@ -884,9 +899,9 @@ class TugasQuestionBuilderTest extends TestCase
         $codeViewLow->assertSee('bg-rose-50 border-rose-200 text-rose-700', false);
 
         // 2. Kasus Nilai Tinggi (85 >= 65) -> Warna HIJAU (text-emerald-600 / bg-emerald-50)
-        \App\Models\StudentAssessmentScore::updateOrCreate(
+        StudentAssessmentScore::updateOrCreate(
             ['assessment_id' => $assessment->id, 'mahasiswa_id' => $student->id],
-            ['score' => 85, 'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED]
+            ['score' => 85, 'status' => StudentAssessmentScore::STATUS_PUBLISHED]
         );
 
         $itemViewHigh = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
@@ -899,7 +914,7 @@ class TugasQuestionBuilderTest extends TestCase
         $codeViewHigh->assertSee('bg-emerald-50 border-emerald-200 text-emerald-800', false);
 
         // 3. Verifikasi badge notifikasi di sidebar jika 0 tidak muncul / hidden
-        $notifService = app(\App\Services\DatabaseNotificationService::class);
+        $notifService = app(DatabaseNotificationService::class);
         $notifs = $notifService->forUser($student, 'mahasiswa');
         $notifService->markRead($student, array_column($notifs, 'id'));
 
@@ -924,7 +939,7 @@ class TugasQuestionBuilderTest extends TestCase
         $this->section->students()->attach($student->id, ['status' => 'enrolled']);
 
         // Buat kuis tanpa butir soal
-        $quiz = \App\Models\Assessment::create([
+        $quiz = Assessment::create([
             'class_section_id' => $this->section->id,
             'name' => 'Kuis Logika Tanpa Soal',
             'code' => 'KUIS-001',
@@ -945,7 +960,7 @@ class TugasQuestionBuilderTest extends TestCase
         $itemView->assertSee('opacity-50 cursor-not-allowed', false);
         $itemView->assertSee('disabled', false);
         $itemView->assertSee('title="Soal belum tersedia"', false);
-        $itemView->assertDontSee('href="' . route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]) . '"', false);
+        $itemView->assertDontSee('href="'.route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]).'"', false);
 
         // 2. Jika mahasiswa langsung mengakses URL quiz-room, tidak menampilkan page "Soal Belum Tersedia"
         // melainkan diarahkan kembali (redirect) ke halaman item
@@ -1130,8 +1145,8 @@ class TugasQuestionBuilderTest extends TestCase
         $codeEditorView2->assertOk();
         $codeEditorView2->assertSee('data-deadline=', false);
 
-        $attempt1 = \App\Models\AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student->id)->firstOrFail();
-        $attempt2 = \App\Models\AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student2->id)->firstOrFail();
+        $attempt1 = AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student->id)->firstOrFail();
+        $attempt2 = AssessmentAttempt::where('assessment_id', $codingAssessment->id)->where('mahasiswa_id', $student2->id)->firstOrFail();
         $this->assertSame($student->id, $attempt1->mahasiswa_id);
         $this->assertSame($student2->id, $attempt2->mahasiswa_id);
 
@@ -1169,4 +1184,3 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertTrue($builderPos < $codingBuilderPos, 'Question builder and coding builder must follow downwards.');
     }
 }
-

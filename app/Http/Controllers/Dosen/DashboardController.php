@@ -99,12 +99,33 @@ class DashboardController extends Controller
                     'svg_index' => ($section->id % 4) + 1,
                     '_priority' => $priorityLevel,
                     '_sort_key' => $sortKey,
+                    'uncompleted_task' => $nearestUpcomingTask ? [
+                        'id' => $nearestUpcomingTask->id,
+                        'title' => $nearestUpcomingTask->name,
+                        'type' => match ($nearestUpcomingTask->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nearestUpcomingTask->type,
+                        },
+                        'due' => $nearestUpcomingTask->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nearestUpcomingTask->due_at,
+                    ] : null,
+                    'next_task' => $nearestUpcomingTask ? [
+                        'id' => $nearestUpcomingTask->id,
+                        'title' => $nearestUpcomingTask->name,
+                        'type' => match ($nearestUpcomingTask->type) {
+                            'pbl', 'case', 'project', 'proyek' => 'tugas',
+                            default => $nearestUpcomingTask->type,
+                        },
+                        'due' => $nearestUpcomingTask->due_at?->format('Y-m-d\TH:i'),
+                        'due_at' => $nearestUpcomingTask->due_at,
+                    ] : null,
                 ];
             })
             ->sort(function ($a, $b) {
                 if ($a['_priority'] !== $b['_priority']) {
                     return $a['_priority'] <=> $b['_priority'];
                 }
+
                 return $a['_sort_key'] <=> $b['_sort_key'];
             })
             ->values();

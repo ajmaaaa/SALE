@@ -239,7 +239,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
 function showDashboardQrModal(classCode, mkName, code, url, qrSrc) {
     document.getElementById('dash_qr_subtitle').textContent = mkName + ' (' + classCode + ')';
     document.getElementById('dash_qr_code_display').textContent = code;

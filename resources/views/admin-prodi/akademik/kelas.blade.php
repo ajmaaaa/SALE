@@ -433,7 +433,7 @@
 </div>
 
 
-<script>
+<script nonce="{{ $cspNonce }}">
     const activeProdiId = {{ $activeProdi ? (int) $activeProdi->id : 'null' }};
     const availableDosens = [
         @foreach($dosens as $dsn)

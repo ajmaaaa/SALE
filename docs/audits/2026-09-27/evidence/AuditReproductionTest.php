@@ -2,11 +2,29 @@
 
 namespace Tests\Audit;
 
+use App\Events\MessageDeleted;
+use App\Events\MessagePinned;
 use App\Events\MessageSent;
-use App\Models\{Assessment, ClassSection, Cpl, Cpmk, Message, Prodi, Role, Room, Semester, StudentAssessmentScore, StudentAssessmentCpmkScore, User};
-use App\Support\{AcademicPreview, LearningPreview};
+use App\Models\Assessment;
+use App\Models\ClassSection;
+use App\Models\Cpmk;
+use App\Models\MataKuliah;
+use App\Models\Message;
+use App\Models\Prodi;
+use App\Models\Role;
+use App\Models\Room;
+use App\Models\Rubric;
+use App\Models\RubricCriterion;
+use App\Models\Semester;
+use App\Models\StudentAssessmentCpmkScore;
+use App\Models\StudentAssessmentScore;
+use App\Models\User;
+use App\Support\AcademicPreview;
+use App\Support\LearningPreview;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\{Auth, DB, Event, Hash, Storage};
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -20,9 +38,13 @@ class AuditReproductionTest extends TestCase
     use RefreshDatabase;
 
     private User $lecturer;
+
     private User $student;
+
     private User $outsider;
+
     private ClassSection $section;
+
     private Prodi $prodi;
 
     protected function setUp(): void
@@ -31,7 +53,7 @@ class AuditReproductionTest extends TestCase
         $this->assertSame('sqlite', config('database.default'));
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
         config(['app.demo_mode' => false, 'ai.enabled' => false, 'ai.key' => null]);
-        Event::fake([MessageSent::class, \App\Events\MessagePinned::class, \App\Events\MessageDeleted::class]);
+        Event::fake([MessageSent::class, MessagePinned::class, MessageDeleted::class]);
         foreach (['dosen', 'mahasiswa', 'admin_prodi', 'admin'] as $role) {
             Role::firstOrCreate(['name' => $role], ['label' => $role]);
         }
@@ -39,7 +61,7 @@ class AuditReproductionTest extends TestCase
         $this->lecturer = $this->user('dosen');
         $this->student = $this->user('mahasiswa');
         $this->outsider = $this->user('dosen');
-        $mk = \App\Models\MataKuliah::create(['prodi_id' => $this->prodi->id, 'code' => 'AUDIT-MK', 'name' => 'Audit Course', 'sks' => 3]);
+        $mk = MataKuliah::create(['prodi_id' => $this->prodi->id, 'code' => 'AUDIT-MK', 'name' => 'Audit Course', 'sks' => 3]);
         $semester = Semester::create(['code' => 'AUDIT-SEM', 'name' => 'Audit Semester', 'is_active' => true]);
         $this->section = ClassSection::create(['mata_kuliah_id' => $mk->id, 'semester_id' => $semester->id, 'dosen_id' => $this->lecturer->id, 'section_code' => 'A', 'capacity' => 30]);
         $this->section->students()->attach($this->student);
@@ -376,8 +398,8 @@ class AuditReproductionTest extends TestCase
     public function test_a33_rubric_input_through_grade_route_can_exceed_criterion_max(): void
     {
         $assessment = $this->assessment(['uses_rubric' => true]);
-        $rubric = \App\Models\Rubric::create(['assessment_id' => $assessment->id, 'name' => 'Audit Rubric']);
-        $criterion = \App\Models\RubricCriterion::create(['rubric_id' => $rubric->id, 'name' => 'Audit Criterion', 'weight' => 100, 'max_score' => 10]);
+        $rubric = Rubric::create(['assessment_id' => $assessment->id, 'name' => 'Audit Rubric']);
+        $criterion = RubricCriterion::create(['rubric_id' => $rubric->id, 'name' => 'Audit Criterion', 'weight' => 100, 'max_score' => 10]);
         $this->actingAs($this->lecturer)->post("/dosen/penilaian-kelas/{$this->section->id}/asesmen/{$assessment->id}/nilai", ['rubric_scores' => [$this->student->id => [$criterion->id => 100]]])->assertSessionHasNoErrors()->assertRedirect();
         $this->assertDatabaseHas('student_assessment_scores', ['assessment_id' => $assessment->id, 'score' => 1000]);
     }

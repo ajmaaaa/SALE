@@ -19,7 +19,9 @@ class CodingTaskOverviewAndNotificationTest extends TestCase
     use RefreshDatabase;
 
     private User $dosen;
+
     private User $mahasiswa;
+
     private ClassSection $section;
 
     protected function setUp(): void
@@ -313,4 +315,3 @@ class CodingTaskOverviewAndNotificationTest extends TestCase
         $directRes->assertSessionHas('notice', 'Kelas telah diarsipkan. Halaman pemrograman tidak dapat diakses.');
     }
 }
-

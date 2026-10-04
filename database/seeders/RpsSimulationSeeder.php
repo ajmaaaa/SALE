@@ -98,9 +98,8 @@ class RpsSimulationSeeder extends Seeder
 
         // 5. Mata Kuliah Baru Sesuai RPS
         $mataKuliah = MataKuliah::updateOrCreate(
-            ['code' => 'IF305'],
+            ['prodi_id' => $prodi->id, 'code' => 'IF305'],
             [
-                'prodi_id' => $prodi->id,
                 'name' => 'Pengembangan Aplikasi Terdistribusi',
                 'sks' => 3,
                 'semester_paket' => 5,

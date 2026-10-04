@@ -14,6 +14,7 @@ class MessageDeleted implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public int $roomId;
+
     public int $messageId;
 
     public function __construct(Message $message)

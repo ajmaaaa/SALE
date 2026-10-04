@@ -196,7 +196,7 @@
                         @if(!empty($item['attachments']))
                             @foreach($item['attachments'] as $existingAttUuid)
                                 @php
-                                    $existingMeta = \App\Support\LearningPreview::fileMeta($existingAttUuid);
+                                    $existingMeta = $item['file_meta'][$existingAttUuid] ?? [];
                                     $existingName = $existingMeta['name'] ?? 'Berkas Terlampir';
                                     $existingExt = strtolower(pathinfo($existingName, PATHINFO_EXTENSION) ?: '');
                                     $existingSize = !empty($existingMeta['size']) ? number_format($existingMeta['size'] / 1048576, 1) . ' MB' : '';
@@ -394,8 +394,8 @@
                         $preloadedWeights = [$item['cpmk'] => 100];
                     }
                 @endphp
-                <script type="application/json" data-cpmk-meta-dictionary>@json(\App\Support\AcademicPreview::config($course['id'])['cpmk'])</script>
-                <script type="application/json" data-cpmk-preloaded-weights>@json($preloadedWeights)</script>
+                <script nonce="{{ $cspNonce }}" type="application/json" data-cpmk-meta-dictionary>@json(\App\Support\AcademicPreview::config($course['id'])['cpmk'])</script>
+                <script nonce="{{ $cspNonce }}" type="application/json" data-cpmk-preloaded-weights>@json($preloadedWeights)</script>
             </fieldset>
 
             @foreach(['file', 'image', 'link', 'text'] as $format)
@@ -418,7 +418,7 @@
                 </label>
 
                 @php
-                    $availableMaterials = $classMaterials ?? \App\Models\Assessment::where('class_section_id', $course['id'])->where('type', 'materi')->orderBy('id')->get(['id', 'name']);
+                    $availableMaterials = $classMaterials ?? collect();
                     $selectedLinkedMaterials = (array) old('linked_material_ids', $item['linked_material_ids'] ?? ($item['learning_payload']['linked_material_ids'] ?? []));
                 @endphp
                 <div class="mt-3.5 pt-3.5 border-t border-line/60 space-y-2">
@@ -635,7 +635,7 @@
                     </div>
                 </section>
             </template>
-            <script type="application/json" data-old-questions>@json(old('questions', $item['questions'] ?? []))</script>
+            <script nonce="{{ $cspNonce }}" type="application/json" data-old-questions>@json(old('questions', $item['questions'] ?? []))</script>
         </section>
 
         {{-- Paket Tahapan Pemrograman (Materi / Tugas Pemrograman) --}}
@@ -797,7 +797,7 @@
                     ]];
                 }
             @endphp
-            <script type="application/json" data-old-coding-steps>@json($oldCodingSteps)</script>
+            <script nonce="{{ $cspNonce }}" type="application/json" data-old-coding-steps>@json($oldCodingSteps)</script>
         </section>
 
         <input type="hidden" id="cpmk" name="cpmk" value="{{ old('cpmk', $item['cpmk'] ?? (\App\Support\AcademicPreview::config($course['id'])['cpmk'][0]['code'] ?? 'CPMK')) }}">

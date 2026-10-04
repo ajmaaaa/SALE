@@ -20,59 +20,15 @@
         || ($item['question_type'] ?? null) === 'coding'
         || !empty($item['coding_steps'])
         || collect($item['questions'] ?? [])->contains(fn($q) => ($q['type'] ?? '') === 'coding');
-    $submission = null;
+    $submission = $submission ?? null;
     $studentId = auth()->id();
-    if (empty($submission) && auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('submissions')) {
-        $dbSub = \App\Models\Submission::where('assessment_id', $item['id'])
-            ->where(fn ($q) => $q->where('user_id', $studentId)->orWhere('mahasiswa_id', $studentId))
-            ->latest('id')
-            ->first();
-        if ($dbSub) {
-            $submission = [
-                'id' => $dbSub->id,
-                'answer' => $dbSub->answer,
-                'link' => $dbSub->link,
-                'question_answers' => $dbSub->question_answers ?? [],
-                'files' => $dbSub->file_ids ?? [],
-                'student_number' => $dbSub->student_number,
-                'time' => $dbSub->submitted_at?->format('d M Y, H:i') ?? '',
-                'submitted_at' => $dbSub->submitted_at,
-                'status' => $dbSub->status,
-                'attempt' => $dbSub->attempt,
-                'version' => $dbSub->version,
-            ];
-        }
-    }
-    $dbScore = null;
-    if (\Illuminate\Support\Facades\Schema::hasTable('student_assessment_scores')) {
-        $dbScore = \App\Models\StudentAssessmentScore::where('assessment_id', $item['id'])
-            ->where('mahasiswa_id', $studentId)
-            ->where(function ($q) {
-                $q->whereNotNull('score')
-                  ->orWhereIn('status', [
-                      \App\Models\StudentAssessmentScore::STATUS_FINAL,
-                      \App\Models\StudentAssessmentScore::STATUS_PUBLISHED,
-                  ]);
-            })
-            ->first();
-    }
-    $hasDbGrade = $dbScore && $dbScore->score !== null;
-    $isGraded = $hasDbGrade;
-    $scoreValue = $hasDbGrade ? (float)$dbScore->score : null;
+    $hasDbGrade = ($isGraded ?? false) || (($dbScore ?? null) && $dbScore->score !== null);
+    $isGraded = $isGraded ?? $hasDbGrade;
+    $scoreValue = $scoreValue ?? ($hasDbGrade ? (float)$dbScore->score : null);
 
-    $cpmkThreshold = 65.0;
-    if (!empty($item['cpmk_threshold'])) {
+    $cpmkThreshold = $cpmkThreshold ?? 65.0;
+    if (!isset($cpmkThreshold) && !empty($item['cpmk_threshold'])) {
         $cpmkThreshold = (float) $item['cpmk_threshold'];
-    } elseif (!empty($item['id']) && \Illuminate\Support\Facades\Schema::hasTable('assessments')) {
-        $assessmentModel = \App\Models\Assessment::with('cpmks')->find($item['id']);
-        if ($assessmentModel && $assessmentModel->cpmks->isNotEmpty()) {
-            $cpmkThreshold = (float) $assessmentModel->cpmks->avg('threshold');
-        } elseif (!empty($item['cpmk'])) {
-            $cpmkObj = \App\Models\Cpmk::where('code', $item['cpmk'])->first();
-            if ($cpmkObj && $cpmkObj->threshold !== null) {
-                $cpmkThreshold = (float) $cpmkObj->threshold;
-            }
-        }
     }
     $maxItemPoints = (float)($item['points'] ?? 100);
     $scorePct = ($scoreValue !== null && $maxItemPoints > 0) ? (($scoreValue / $maxItemPoints) * 100) : ($scoreValue ?? 0);
@@ -82,13 +38,7 @@
 
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
     $allowLate = (bool) ($item['allow_late'] ?? true);
-    $studentAttempt = null;
-    if (auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('assessment_attempts')) {
-        $studentAttempt = \App\Models\AssessmentAttempt::where('assessment_id', $item['id'])
-            ->where('mahasiswa_id', $studentId)
-            ->latest('attempt')
-            ->first();
-    }
+    $studentAttempt = $studentAttempt ?? null;
     $isAttemptExpired = $studentAttempt && (
         in_array($studentAttempt->status, [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED], true)
         || ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $studentAttempt->deadline_at && now()->greaterThan($studentAttempt->deadline_at))
@@ -101,7 +51,7 @@
     $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
     $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
     $courseBackUrl = $courseBaseUrl . '?tab=' . $targetTab;
-    $isArchived = !empty($course['is_archived']) || (!empty($course['id']) && (\App\Models\ClassSection::find($course['id'])?->isArchived() ?? false));
+    $isArchived = $isArchived ?? (!empty($course['is_archived']));
 @endphp
 
 <div class="space-y-6">
@@ -209,7 +159,9 @@
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($isLecturer)
                                             {{-- Tombol Lihat Jawaban dihapus; gunakan "Lihat dan Nilai Mahasiswa" di halaman penilaian --}}
-                                        @elseif($isGraded || $submission || $isAttemptExpired || $isAttemptRejected)
+                                        @elseif($isAttemptRejected)
+                                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Kuis Ditutup</a>
+                                        @elseif($isGraded || $submission || $isAttemptExpired)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
                                         @elseif(empty($item['questions']) || !empty($item['questions_empty']))
                                             <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed" title="Soal belum tersedia">Mulai Kerjakan Kuis</button>
@@ -369,7 +321,8 @@
                             {{-- Lampiran Gambar Soal / Materi --}}
                             @if(!empty($item['question_image']))
                                 @php
-                                    $imageMeta = \App\Support\LearningPreview::fileMeta($item['question_image']);
+                                    $imageAttachment = $attachmentsMap[$item['question_image']] ?? null;
+                                    $imageMeta = $item['file_meta'][$item['question_image']] ?? ($imageAttachment ? $imageAttachment->only(['path', 'name', 'mime', 'size']) : []);
                                     $imageAlt = $item['image_alt'] ?? 'Gambar pendukung';
                                     $imageName = !empty($item['image_alt']) ? $item['image_alt'] : ($imageMeta['name'] ?? 'Gambar pendukung');
                                     $imgUrl = route('preview.file', ['file' => $item['question_image'], 'inline' => 1], false);
@@ -395,7 +348,8 @@
                             @foreach($cleanAttachments as $file)
                                 @php
                                     $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
-                                    $fileMeta = \App\Support\LearningPreview::fileMeta($file);
+                                    $itemAttachment = $attachmentsMap[$fileId] ?? null;
+                                    $fileMeta = $item['file_meta'][$fileId] ?? ($itemAttachment ? $itemAttachment->only(['path', 'name', 'mime', 'size']) : []);
                                     $fileMime = $fileMeta['mime'] ?? '';
                                     $fileName = $fileMeta['name'] ?? (is_string($file) && !\Illuminate\Support\Str::isUuid($file) ? basename($file) : 'Berkas lampiran');
                                     $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: (pathinfo($fileMeta['path'] ?? '', PATHINFO_EXTENSION) ?: ''));
@@ -704,23 +658,9 @@
                         </div>
 
                         @php
-                            $totalEnrolled = 0;
-                            $submittedCount = 0;
-                            $lateCount = 0;
-                            if ($isLecturer && \Illuminate\Support\Facades\Schema::hasTable('class_sections')) {
-                                $sectionModel = \App\Models\ClassSection::find($course['id']);
-                                if ($sectionModel) {
-                                    $totalEnrolled = $sectionModel->students()->count();
-                                    if (\Illuminate\Support\Facades\Schema::hasTable('submissions')) {
-                                        $allSubs = \App\Models\Submission::where('assessment_id', $item['id'])->get();
-                                        $submittedCount = $allSubs->count();
-                                        $dueDate = !empty($item['due']) ? \Carbon\Carbon::parse($item['due']) : null;
-                                        if ($dueDate) {
-                                            $lateCount = $allSubs->filter(fn($s) => $s->submitted_at && $s->submitted_at->greaterThan($dueDate))->count();
-                                        }
-                                    }
-                                }
-                            }
+                            $totalEnrolled = $totalEnrolled ?? 0;
+                            $submittedCount = $submittedCount ?? 0;
+                            $lateCount = $lateCount ?? 0;
                         @endphp
 
                         <div class="rounded-lg bg-canvas p-3 text-xs space-y-1.5 border border-line/60">
@@ -815,8 +755,9 @@
                             @foreach($submission['files'] as $sf)
                                 @php
                                     $fileId = is_array($sf) ? ($sf['id'] ?? '') : (string) $sf;
-                                    $fileMeta = \App\Support\LearningPreview::fileMeta($fileId);
-                                    $fileName = is_array($sf) ? ($sf['name'] ?? $fileId) : ($fileMeta['name'] ?? (\App\Models\Attachment::where('uuid', $fileId)->value('name') ?? $fileId));
+                                    $attachmentModel = $attachmentsMap[$fileId] ?? null;
+                                    $fileMeta = $attachmentModel ? $attachmentModel->only(['path', 'name', 'mime', 'size']) : [];
+                                    $fileName = is_array($sf) ? ($sf['name'] ?? $fileId) : ($fileMeta['name'] ?? (($attachmentsMap[$fileId] ?? null)?->name ?? $fileId));
                                     $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: '');
                                     $isSubImg = in_array($fileExt, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
                                     $subFileUrl = route('preview.file', ['file' => $fileId, 'inline' => 1], false);
@@ -1074,7 +1015,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     function openAttachmentPreview(e, fileData) {
         if (e) {
             e.preventDefault();

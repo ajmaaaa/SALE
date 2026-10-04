@@ -590,7 +590,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     const cplData = @json($cplCpmkData);
     const allCpmkData = @json($allCpmkData);
 
