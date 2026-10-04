@@ -80,7 +80,6 @@
     $scoreColorClass = $isScorePassed ? 'text-emerald-600' : 'text-rose-600';
     $scoreBadgeClass = $isScorePassed ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200';
 
-    $isSubmitted = !empty($submission) || $isGraded;
     $isPast = !empty($item['due']) && \Carbon\Carbon::parse($item['due'])->isPast();
     $allowLate = (bool) ($item['allow_late'] ?? true);
     $studentAttempt = null;
@@ -90,9 +89,14 @@
             ->latest('attempt')
             ->first();
     }
+    $isAttemptExpired = $studentAttempt && (
+        in_array($studentAttempt->status, [\App\Models\AssessmentAttempt::STATUS_SUBMITTED, \App\Models\AssessmentAttempt::STATUS_REJECTED], true)
+        || ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $studentAttempt->deadline_at && now()->greaterThan($studentAttempt->deadline_at))
+    );
     $isAttemptRejected = $studentAttempt && ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_REJECTED || ($studentAttempt->status === \App\Models\AssessmentAttempt::STATUS_IN_PROGRESS && $studentAttempt->deadline_at && now()->greaterThan($studentAttempt->deadline_at->copy()->addSeconds(30))));
+    $isSubmitted = !empty($submission) || $isGraded || $isAttemptExpired || $isAttemptRejected;
     $isLocked = !$isSubmitted && $isPast && !$allowLate;
-    $isInputsDisabled = !empty($submission) || $isLocked || $isGraded || $isAttemptRejected;
+    $isInputsDisabled = !empty($submission) || $isLocked || $isGraded || $isAttemptRejected || $isAttemptExpired;
     $isTaskOrQuiz = in_array($item['type'], ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'], true);
     $targetTab = $isTaskOrQuiz ? 'tugas' : 'materi';
     $courseBaseUrl = $isLecturer ? route('dosen.course.show', $course['id']) : route('mahasiswa.course.show', $course['id']);
@@ -205,16 +209,20 @@
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($isLecturer)
                                             {{-- Tombol Lihat Jawaban dihapus; gunakan "Lihat dan Nilai Mahasiswa" di halaman penilaian --}}
-                                        @elseif($isGraded || $submission)
+                                        @elseif($isGraded || $submission || $isAttemptExpired || $isAttemptRejected)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat Jawaban</a>
                                         @elseif(empty($item['questions']) || !empty($item['questions_empty']))
                                             <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed" title="Soal belum tersedia">Mulai Kerjakan Kuis</button>
                                         @elseif($isArchived)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Lembar Kuis (Read-Only)</a>
-                                        @elseif($isLocked || $isAttemptRejected)
+                                        @elseif($isLocked)
                                             <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed">Kuis Ditutup</button>
                                         @else
-                                            <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
+                                            @if(!empty($item['duration_enabled']))
+                                                <button type="button" onclick="document.getElementById('quiz-start-confirm-modal')?.showModal()" class="button-primary text-xs py-2.5 px-5 font-semibold cursor-pointer">Mulai Kerjakan Kuis</button>
+                                            @else
+                                                <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -253,7 +261,7 @@
                                                     <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '('.$submission['time'].')' : '' }}</span>
                                                 @endif
                                             </div>
-                                        @elseif($submission)
+                                        @elseif($submission || $isAttemptExpired || $isAttemptRejected)
                                             <div class="mt-3.5 pt-3 border-t border-line/60 flex items-center gap-1.5">
                                                 <span class="text-xs font-semibold text-emerald-600">Sudah diserahkan {{ !empty($submission['time']) ? '· '.$submission['time'] : '' }}</span>
                                                 <span class="text-xs text-slate-300">·</span>
@@ -273,13 +281,17 @@
                                         @if($isLecturer)
                                             <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Praktikum Kode</a>
                                         @elseif($isArchived)
-                                            <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-40 cursor-not-allowed select-none" title="Kelas telah diarsipkan. Halaman pemrograman ditutup.">{{ $isGraded || $submission ? 'Buka Editor Kode / Jawaban' : ($isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding') }}</button>
-                                        @elseif($isGraded || $submission)
+                                            <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-40 cursor-not-allowed select-none" title="Kelas telah diarsipkan. Halaman pemrograman ditutup.">{{ $isGraded || $submission || $isAttemptExpired || $isAttemptRejected ? 'Buka Editor Kode / Jawaban' : ($isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding') }}</button>
+                                        @elseif($isGraded || $submission || $isAttemptExpired || $isAttemptRejected)
                                             <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Editor Kode / Jawaban</a>
                                         @elseif($isLocked)
                                             <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-60">Tugas Ditutup</button>
                                         @else
-                                            <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">{{ $isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding' }}</a>
+                                            @if(!$isCodingMaterial && !empty($item['duration_enabled']))
+                                                <button type="button" onclick="document.getElementById('code-start-confirm-modal')?.showModal()" class="button-primary text-xs py-2.5 px-5 font-semibold cursor-pointer">Mulai Kerjakan Tugas Koding</button>
+                                            @else
+                                                <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">{{ $isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding' }}</a>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -289,7 +301,14 @@
                     @endif
 
                     @php
-                        $hasAttachments = !empty($item['question_image']) || !empty($item['attachments']) || !empty($item['link']);
+                        $studentSubmissionFileIds = array_map(function($f) {
+                            return is_array($f) ? ($f['uuid'] ?? $f['id'] ?? '') : (string) $f;
+                        }, $submission['files'] ?? []);
+                        $cleanAttachments = array_values(array_filter($item['attachments'] ?? [], function($f) use ($studentSubmissionFileIds) {
+                            $fId = is_array($f) ? ($f['uuid'] ?? $f['id'] ?? $f['path'] ?? '') : (string) $f;
+                            return !in_array($fId, $studentSubmissionFileIds, true);
+                        }));
+                        $hasAttachments = !empty($item['question_image']) || !empty($cleanAttachments) || !empty($item['link']);
                         $youtubeAttachment = \App\Support\LearningPreview::youtubeEmbedUrl($item['link'] ?? null);
                         $youtubeAttachmentUrl = $youtubeAttachment ? $youtubeAttachment.'&'.http_build_query([
                             'origin' => request()->getSchemeAndHttpHost(),
@@ -373,7 +392,7 @@
                             @endif
 
                             {{-- Lampiran Berkas Dokumen / PDF / Gambar / Video / Slide Tambahan --}}
-                            @foreach($item['attachments'] ?? [] as $file)
+                            @foreach($cleanAttachments as $file)
                                 @php
                                     $fileId = is_array($file) ? ($file['uuid'] ?? $file['id'] ?? $file['path'] ?? '') : (string) $file;
                                     $fileMeta = \App\Support\LearningPreview::fileMeta($file);
@@ -985,6 +1004,74 @@
             <!-- Dynamic Preview Content injected via JS -->
         </div>
     </dialog>
+
+    {{-- MODAL KONFIRMASI MULAI TUGAS PEMROGRAMAN --}}
+    @if(!$isLecturer && !$isCodingMaterial && !empty($item['duration_enabled']) && !$isGraded && !$submission && !$isArchived && !$isLocked)
+    <dialog id="code-start-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/60 max-w-md w-[calc(100%-2rem)] h-fit max-h-[90vh] z-50">
+        <div class="p-6">
+            <h3 class="text-base font-bold text-ink leading-snug">Konfirmasi Mulai Praktikum</h3>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Tugas pemrograman ini memiliki batas waktu pengerjaan.</p>
+
+            <div class="mt-4 rounded-xl border border-line/60 bg-canvas/40 p-4 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Judul Tugas:</span>
+                    <span class="font-semibold text-ink text-right truncate max-w-[200px]" title="{{ $item['title'] }}">{{ $item['title'] }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Durasi Pengerjaan:</span>
+                    <span class="font-semibold text-rose-600">{{ $item['duration_minutes'] ?? 60 }} Menit</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Total Instruksi / Soal:</span>
+                    <span class="font-medium text-ink">{{ count($item['coding_steps'] ?? []) ?: (count($item['questions'] ?? []) ?: 1) }} Soal ({{ $item['points'] ?? 100 }} Poin)</span>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('code-start-confirm-modal')?.close()" class="button-secondary text-xs py-2 px-4 font-semibold text-muted hover:text-ink cursor-pointer">
+                    Batal
+                </button>
+                <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2 px-5 font-bold shadow-xs cursor-pointer">
+                    Mulai Kerjakan Sekarang
+                </a>
+            </div>
+        </div>
+    </dialog>
+    @endif
+
+    {{-- MODAL KONFIRMASI MULAI KUIS --}}
+    @if(!$isLecturer && !empty($item['duration_enabled']) && !$isGraded && !$submission && !$isArchived && !$isLocked && !$isAttemptRejected)
+    <dialog id="quiz-start-confirm-modal" class="fixed inset-0 m-auto rounded-2xl border border-line bg-white p-0 overflow-hidden shadow-2xl backdrop:bg-slate-900/60 max-w-md w-[calc(100%-2rem)] h-fit max-h-[90vh] z-50">
+        <div class="p-6">
+            <h3 class="text-base font-bold text-ink leading-snug">Konfirmasi Mulai Kuis</h3>
+            <p class="mt-1 text-xs text-muted leading-relaxed">Kuis ini memiliki batas waktu pengerjaan.</p>
+
+            <div class="mt-4 rounded-xl border border-line/60 bg-canvas/40 p-4 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Judul Kuis:</span>
+                    <span class="font-semibold text-ink text-right truncate max-w-[200px]" title="{{ $item['title'] }}">{{ $item['title'] }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Durasi Pengerjaan:</span>
+                    <span class="font-semibold text-rose-600">{{ $item['duration_minutes'] ?? 60 }} Menit</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-muted font-medium">Total Soal:</span>
+                    <span class="font-medium text-ink">{{ count($item['questions'] ?? []) }} Soal ({{ array_sum(array_column($item['questions'] ?? [], 'points')) }} Poin)</span>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('quiz-start-confirm-modal')?.close()" class="button-secondary text-xs py-2 px-4 font-semibold text-muted hover:text-ink cursor-pointer">
+                    Batal
+                </button>
+                <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2 px-5 font-bold shadow-xs cursor-pointer">
+                    Mulai Kerjakan Sekarang
+                </a>
+            </div>
+        </div>
+    </dialog>
+    @endif
 </div>
 
 <script>
@@ -1142,6 +1229,15 @@
             });
             document.getElementById('modal-link-close-btn')?.addEventListener('click', () => linkModal.close());
         }
+
+        ['code-start-confirm-modal', 'quiz-start-confirm-modal'].forEach(function(modalId) {
+            const m = document.getElementById(modalId);
+            if (m) {
+                m.addEventListener('click', function(e) {
+                    if (e.target === m) m.close();
+                });
+            }
+        });
 
         const subFileInput = document.querySelector('[data-submission-files]');
         if (subFileInput) {

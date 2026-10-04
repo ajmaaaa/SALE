@@ -525,11 +525,6 @@
                               data-duration="{{ $durationMinutes * 60 }}"
                               @if($attemptDeadline ?? null) data-deadline="{{ $attemptDeadline->toIso8601String() }}" @endif>00:00</span>
                     </div>
-                @else
-                    <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded text-xs text-slate-600 border border-slate-200">
-                        <svg class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        <span>Durasi Bebas</span>
-                    </div>
                 @endif
 
                 {{-- TOMBOL DAFTAR SOAL (Grid Popover Trigger) --}}
@@ -947,6 +942,8 @@
             </div>
         </dialog>
 
+
+
         {{-- SCRIPT ENGINE RUANG UJIAN --}}
         <script>
             document.addEventListener('DOMContentLoaded', () => {
@@ -1085,11 +1082,23 @@
                     submitModal?.showModal();
                 };
 
+                const currentUserId = '{{ auth()->id() ?? "guest" }}';
+                const deadlineKey = `sale.exam.deadline.{{ $item['id'] }}.${currentUserId}`;
+                const startedKey = `sale.exam.started.{{ $item['id'] }}.${currentUserId}`;
+                const timerSessionKey = `sale.exam.timer.{{ $item['id'] }}.${currentUserId}`;
+
+                const cleanupStorage = () => {
+                    localStorage.removeItem(deadlineKey);
+                    localStorage.removeItem(startedKey);
+                    localStorage.removeItem(`sale.exam.deadline.{{ $item['id'] }}`);
+                    sessionStorage.removeItem(timerSessionKey);
+                    sessionStorage.removeItem(`sale.exam.timer.{{ $item['id'] }}`);
+                };
+
                 submitBtn?.addEventListener('click', openSubmitModal);
                 modalCancelBtn?.addEventListener('click', () => submitModal?.close());
                 modalConfirmBtn?.addEventListener('click', () => {
-                    localStorage.removeItem(`sale.exam.deadline.{{ $item['id'] }}`);
-                    sessionStorage.removeItem(`sale.exam.timer.{{ $item['id'] }}`);
+                    cleanupStorage();
                     form.requestSubmit();
                 });
 
@@ -1130,8 +1139,7 @@
                 });
 
                 modalExitConfirmBtn?.addEventListener('click', () => {
-                    localStorage.removeItem(`sale.exam.deadline.{{ $item['id'] }}`);
-                    sessionStorage.removeItem(`sale.exam.timer.{{ $item['id'] }}`);
+                    cleanupStorage();
                     form.requestSubmit();
                 });
 
@@ -1140,57 +1148,71 @@
                 });
 
                 // ==========================================
-                // 5. COUNTDOWN TIMER (PERSISTEN BERJALAN MESKI KELUAR ROOM)
+                // 5. COUNTDOWN TIMER
                 // ==========================================
                 const timerEl = document.getElementById('quiz-countdown');
+
                 if (timerEl && !isArchived) {
                     const totalDurationSeconds = Number(timerEl.dataset.duration || 3600);
-                    const deadlineKey = `sale.exam.deadline.{{ $item['id'] }}`;
                     const now = Date.now();
                     const serverDeadline = Date.parse(timerEl.dataset.deadline || '');
                     let deadline = Number.isFinite(serverDeadline) ? serverDeadline : localStorage.getItem(deadlineKey);
 
-                    if (!Number.isFinite(serverDeadline) && (!deadline || isNaN(Number(deadline)))) {
-                        // Pertama kali masuk: tentukan batas akhir waktu absolut
+                    if (Number.isFinite(serverDeadline)) {
+                        deadline = serverDeadline;
+                        localStorage.setItem(deadlineKey, String(deadline));
+                    } else if (!deadline || isNaN(Number(deadline))) {
                         deadline = now + (totalDurationSeconds * 1000);
                         localStorage.setItem(deadlineKey, String(deadline));
                     } else {
                         deadline = Number(deadline);
                     }
 
+                    localStorage.setItem(startedKey, '1');
+                    localStorage.removeItem(`sale.exam.deadline.{{ $item['id'] }}`);
+
                     const formatTime = (seconds) => {
-                        const m = Math.floor(seconds / 60);
+                        const h = Math.floor(seconds / 3600);
+                        const m = Math.floor((seconds % 3600) / 60);
                         const s = seconds % 60;
+                        if (h > 0) {
+                            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                        }
                         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                     };
 
+                    let timerInterval = null;
                     let hasTriggeredEnd = false;
 
-                    const updateTimer = async () => {
-                        const currentNow = Date.now();
-                        const remainingSeconds = Math.max(0, Math.floor((deadline - currentNow) / 1000));
-                        timerEl.textContent = formatTime(remainingSeconds);
+                    const startCountdown = (activeDeadline) => {
+                        const updateTimer = async () => {
+                            const currentNow = Date.now();
+                            const remainingSeconds = Math.max(0, Math.floor((activeDeadline - currentNow) / 1000));
+                            timerEl.textContent = formatTime(remainingSeconds);
 
-                        if (remainingSeconds <= 300) {
-                            const badge = document.getElementById('timer-badge');
-                            if (badge) {
-                                badge.classList.add('text-danger', 'font-bold');
+                            if (remainingSeconds <= 300) {
+                                const badge = document.getElementById('timer-badge');
+                                if (badge) {
+                                    badge.classList.add('text-danger', 'font-bold');
+                                }
                             }
-                        }
 
-                        if (remainingSeconds <= 0) {
-                            clearInterval(timerInterval);
-                            localStorage.removeItem(deadlineKey);
-                            if (!hasTriggeredEnd) {
-                                hasTriggeredEnd = true;
-                                await window.saleNotice({ title: 'Waktu kuis berakhir', message: 'Jawaban Anda akan otomatis dikumpulkan.' });
-                                form.requestSubmit();
+                            if (remainingSeconds <= 0) {
+                                clearInterval(timerInterval);
+                                cleanupStorage();
+                                if (!hasTriggeredEnd) {
+                                    hasTriggeredEnd = true;
+                                    await window.saleNotice({ title: 'Waktu kuis berakhir', message: 'Jawaban Anda akan otomatis dikumpulkan.' });
+                                    form.requestSubmit();
+                                }
                             }
-                        }
+                        };
+
+                        updateTimer();
+                        timerInterval = setInterval(updateTimer, 1000);
                     };
 
-                    updateTimer();
-                    const timerInterval = setInterval(updateTimer, 1000);
+                    startCountdown(deadline);
                 }
 
                 // ==========================================

@@ -11,14 +11,21 @@
     </header>
 
     {{-- Tab Navigasi --}}
+    @php
+        $activeTab = request('tab', 'terbaru');
+        if (!in_array($activeTab, ['terbaru', 'semua', 'nilai'], true)) {
+            $activeTab = 'terbaru';
+        }
+    @endphp
     <nav aria-label="Tampilan tugas" class="flex gap-6 text-sm font-semibold border-b border-line/60">
-        <a href="{{ route('mahasiswa.assignment.index') }}" class="pb-3 {{ request('tab') !== 'nilai' ? 'border-b-2 border-brand text-brand' : 'text-muted hover:text-ink' }}">Semua pekerjaan</a>
-        <a href="{{ route('mahasiswa.assignment.index', ['tab'=>'nilai']) }}" class="pb-3 {{ request('tab') === 'nilai' ? 'border-b-2 border-brand text-brand' : 'text-muted hover:text-ink' }}">Nilai</a>
+        <a href="{{ route('mahasiswa.assignment.index', array_merge(request()->except(['tab', 'page']), ['tab' => 'terbaru'])) }}" class="pb-3 {{ $activeTab === 'terbaru' ? 'border-b-2 border-brand text-brand' : 'text-muted hover:text-ink' }}">Terbaru</a>
+        <a href="{{ route('mahasiswa.assignment.index', array_merge(request()->except(['tab', 'page']), ['tab' => 'semua'])) }}" class="pb-3 {{ $activeTab === 'semua' ? 'border-b-2 border-brand text-brand' : 'text-muted hover:text-ink' }}">Semua</a>
+        <a href="{{ route('mahasiswa.assignment.index', array_merge(request()->except(['tab', 'page']), ['tab' => 'nilai'])) }}" class="pb-3 {{ $activeTab === 'nilai' ? 'border-b-2 border-brand text-brand' : 'text-muted hover:text-ink' }}">Nilai</a>
     </nav>
 
     {{-- Filter Form --}}
     <form class="flex flex-wrap items-center gap-3" method="get">
-        <input type="hidden" name="tab" value="{{ request('tab') }}">
+        <input type="hidden" name="tab" value="{{ $activeTab }}">
         <label class="sr-only" for="q">Cari tugas</label>
         <div class="relative w-full sm:w-64">
             <input id="q" name="q" class="field w-full" value="{{ request('q') }}" placeholder="Cari tugas atau kuis..." autocomplete="off">
@@ -39,8 +46,8 @@
         </select>
         <label class="sr-only" for="sort">Urutkan</label>
         <select id="sort" name="sort" class="field sm:w-44" onchange="this.form.submit()">
-            <option value="terdekat" @selected(request('sort', 'terdekat') === 'terdekat')>Waktu terdekat</option>
-            <option value="terbaru" @selected(request('sort') === 'terbaru')>Terbaru</option>
+            <option value="terbaru" @selected(request('sort', 'terbaru') === 'terbaru')>Terbaru</option>
+            <option value="terdekat" @selected(request('sort') === 'terdekat')>Waktu terdekat</option>
         </select>
     </form>
 
@@ -52,7 +59,7 @@
                 $hasDbGrade = $dbScore && $dbScore->score !== null;
                 $isGraded = $hasDbGrade;
                 $scoreValue = $hasDbGrade ? (float)$dbScore->score : null;
-                $isSubmitted = in_array($item['id'], $submittedAssessmentIds ?? [], true) || $isGraded;
+                $isSubmitted = in_array((int)$item['id'], array_map('intval', $submittedAssessmentIds ?? [])) || $isGraded;
                 $isCoding = !empty($item['is_coding'])
                     || ($item['type'] === 'coding')
                     || (($item['task_mode'] ?? null) === 'coding')
