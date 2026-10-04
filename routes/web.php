@@ -69,6 +69,7 @@ Route::get('/mahasiswa/assignment/{assignment}/code', [AssignmentController::cla
 
 Route::middleware('role:mahasiswa')->group(function () {
     Route::get('/mahasiswa/course/{course}/item/{item}/quiz', [LearningController::class, 'quizRoom'])->whereNumber(['course', 'item'])->name('mahasiswa.quiz.room');
+    Route::get('/mahasiswa/course/{course}/item/{item}/code-submitted', [AssignmentController::class, 'codeSubmittedResult'])->whereNumber(['course', 'item'])->name('mahasiswa.course.code.submitted');
     Route::post('/mahasiswa/course/{course}/discussion', [LearningController::class, 'discussCourse'])->whereNumber('course')->name('mahasiswa.course.discuss.class');
     Route::post('/mahasiswa/course/{course}/item/{item}/submission', [LearningController::class, 'submit'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submit');
     Route::post('/mahasiswa/course/{course}/item/{item}/submission/cancel', [LearningController::class, 'cancelSubmission'])->whereNumber(['course', 'item'])->name('mahasiswa.course.submission.cancel');
