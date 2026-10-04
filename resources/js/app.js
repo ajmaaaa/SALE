@@ -443,7 +443,7 @@ if (editorMount && editorSource) {
             return { name: String(file?.name || DEFAULT_FILE_NAME), code };
         });
         const draftKey = `sale.code.assignment.${editorMount.dataset.assignmentId}.${editorMount.dataset.codeLanguage || 'python'}`;
-        if (hasDuration && !isLecturer && !isReadOnly) {
+        if (!isLecturer && !isReadOnly) {
             try {
                 const raw = localStorage.getItem(draftKey);
                 if (raw) {
@@ -474,7 +474,7 @@ if (editorMount && editorSource) {
             ? 'Mode Peninjauan Berkas Mahasiswa'
             : (isReadOnly
                 ? 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)'
-                : (hasDuration ? 'Draf tersimpan di browser ini' : 'Editor siap pakai'));
+                : 'Draf tersimpan di browser ini');
 
         const flush = () => { if (files[active] && !isReadOnly) files[active].code = editor.state.doc.toString(); };
         const updateCounter = () => {
@@ -494,14 +494,10 @@ if (editorMount && editorSource) {
             if (isReadOnly) {
                 if (saveStatus) saveStatus.textContent = 'Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)';
             } else if (!isLecturer) {
-                if (hasDuration) {
-                    try {
-                        localStorage.setItem(draftKey, JSON.stringify(files));
-                        if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
-                    } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
-                } else if (saveStatus) {
-                    saveStatus.textContent = 'Editor siap pakai';
-                }
+                try {
+                    localStorage.setItem(draftKey, JSON.stringify(files));
+                    if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
             } else if (saveStatus) {
                 saveStatus.textContent = 'Mode Peninjauan Berkas Mahasiswa';
             }
@@ -625,14 +621,10 @@ if (editorMount && editorSource) {
                 if (update.docChanged && !isReadOnly) {
                     files[active].code = update.state.doc.toString();
                     if (!isLecturer) {
-                        if (hasDuration) {
-                            try {
-                                localStorage.setItem(draftKey, JSON.stringify(files));
-                                if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
-                            } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
-                        } else if (saveStatus) {
-                            saveStatus.textContent = 'Editor siap pakai';
-                        }
+                        try {
+                            localStorage.setItem(draftKey, JSON.stringify(files));
+                            if (saveStatus) saveStatus.textContent = 'Draf tersimpan di browser ini';
+                        } catch { if (saveStatus) saveStatus.textContent = 'Draf belum tersimpan; penyimpanan browser tidak tersedia'; }
                     }
                     updateCounter();
                     refreshLanguageBadge();
@@ -643,6 +635,7 @@ if (editorMount && editorSource) {
             editorExtensions.push(EditorView.editable.of(false));
         }
 
+        editorMount.innerHTML = '';
         editor = new EditorView({
             doc: files[active].code,
             extensions: editorExtensions,
@@ -981,6 +974,51 @@ if (editorMount && editorSource) {
         const terminalResizer = document.querySelector('[data-resizer="terminal"]');
         let execution = null;
 
+        const terminalFullscreenToggle = document.querySelector('[data-terminal-fullscreen-toggle]');
+        const iconFullscreen = terminalFullscreenToggle?.querySelector('[data-icon-fullscreen]');
+        const iconUnfullscreen = terminalFullscreenToggle?.querySelector('[data-icon-unfullscreen]');
+        const textFullscreen = terminalFullscreenToggle?.querySelector('[data-text-fullscreen]');
+        let isTerminalFullscreen = false;
+
+        const setTerminalFullscreen = (fullscreen) => {
+            if (!panelTerminal) return;
+            isTerminalFullscreen = Boolean(fullscreen);
+            panelTerminal.classList.toggle('is-fullscreen', isTerminalFullscreen);
+            terminalWrapper?.classList.toggle('has-fullscreen', isTerminalFullscreen);
+
+            if (iconFullscreen) iconFullscreen.classList.toggle('hidden', isTerminalFullscreen);
+            if (iconUnfullscreen) iconUnfullscreen.classList.toggle('hidden', !isTerminalFullscreen);
+            if (textFullscreen) {
+                textFullscreen.textContent = isTerminalFullscreen ? 'Kecilkan' : 'Layar Penuh';
+            }
+            if (terminalFullscreenToggle) {
+                terminalFullscreenToggle.title = isTerminalFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh (Fullscreen)';
+                terminalFullscreenToggle.setAttribute('aria-label', isTerminalFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh');
+            }
+
+            if (isTerminalFullscreen) {
+                openTerminal();
+            }
+
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        window.exitTerminalFullscreen = () => {
+            if (isTerminalFullscreen) {
+                setTerminalFullscreen(false);
+            }
+        };
+
+        terminalFullscreenToggle?.addEventListener('click', () => {
+            setTerminalFullscreen(!isTerminalFullscreen);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isTerminalFullscreen) {
+                setTerminalFullscreen(false);
+            }
+        });
+
         // Terminal On-Demand Toggle Logic
         const updateTerminalToggleState = (isOpen) => {
             if (!terminalToggleBtn) return;
@@ -999,6 +1037,9 @@ if (editorMount && editorSource) {
 
         const closeTerminal = () => {
             if (!terminalWrapper) return;
+            if (isTerminalFullscreen) {
+                setTerminalFullscreen(false);
+            }
             terminalWrapper.hidden = true;
             updateTerminalToggleState(false);
         };
@@ -1015,14 +1056,7 @@ if (editorMount && editorSource) {
         terminalToggleBtn?.addEventListener('click', toggleTerminal);
         terminalCloseBtns.forEach((btn) => btn.addEventListener('click', closeTerminal));
         terminalMaximizeBtn?.addEventListener('click', () => {
-            if (!panelTerminal) return;
-            const currentH = panelTerminal.offsetHeight;
-            if (currentH < 360) {
-                panelTerminal.style.height = '420px';
-            } else {
-                panelTerminal.style.height = '240px';
-            }
-            openTerminal();
+            setTerminalFullscreen(!isTerminalFullscreen);
         });
 
         // Vertical Resizing for Terminal
@@ -1161,7 +1195,8 @@ if (editorMount && editorSource) {
             if (testBtn) testBtn.disabled = true;
             terminalOutput.replaceChildren();
             stopBtn.hidden = false;
-            const progress = appendOutput(runAsWeb ? 'Menyiapkan pratinjau…' : 'Sedang mengompilasi…');
+            openTerminal();
+            const progress = appendOutput(runAsWeb ? 'Menyiapkan pratinjau…' : 'Memuat runtime Python & menyiapkan eksekusi…');
             progress.dataset.executionProgress = '';
             progress.setAttribute('role', 'status');
             try {
@@ -1197,7 +1232,7 @@ if (editorMount && editorSource) {
                         onReady: (version) => {
                             const pyVerEl = document.querySelector('[data-python-version]');
                             if (pyVerEl) pyVerEl.textContent = `Python ${version}`;
-                            progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : `Sedang menjalankan ${activeFileName}…`;
+                            progress.textContent = testAssignment ? 'Sedang menguji tugas BST…' : `Python ${version} siap · Menjalankan ${activeFileName}…`;
                         },
                     });
                     progress.remove();
@@ -1652,6 +1687,14 @@ if (settingsLinks.length && settingsPanels.length) {
         });
 
         settingsPanels.forEach((panel) => panel.classList.toggle('hidden', `#${panel.id}` !== target));
+        if (target === '#keamanan') {
+            ['current-password', 'new-password', 'confirm-password'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el && !el.dataset.userTyped) {
+                    el.value = '';
+                }
+            });
+        }
     };
 
     settingsLinks.forEach((link) => {
@@ -2019,8 +2062,9 @@ if (contentForm) {
         const taskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const isTimed = (mainCat === 'asesmen' && subCat === 'kuis')
             || (mainCat === 'asesmen' && ['uts', 'uas'].includes(subCat) && taskMode === 'quiz')
-            || (mainCat === 'asesmen' && taskMode === 'coding');
-        const enabled = isTimed && !!durationToggle?.checked;
+            || (mainCat === 'asesmen' && taskMode === 'coding')
+            || (subCat === 'coding');
+        const enabled = isTimed && Boolean(durationToggle?.checked);
         if (durationMode) durationMode.value = enabled ? 'enabled' : 'disabled';
         if (durationOptions) durationOptions.hidden = !durationToggle?.checked;
         if (durationInput) durationInput.disabled = !enabled;
@@ -2158,11 +2202,11 @@ if (contentForm) {
             questionType.value = isCoding ? 'coding' : 'uraian';
         }
 
-        // Setup vs Step 2 views
-        if (setup) setup.hidden = questionsStep;
+        // Setup vs Step 2 views: pertahankan setup tetap terlihat agar form mengalir ke bawah secara alami
+        if (setup) setup.hidden = false;
 
         if (builder) {
-            const showQuestions = questionsStep && mode === 'questions';
+            const showQuestions = (mode === 'questions');
             builder.hidden = !showQuestions;
             if (showQuestions) {
                 builder.style.opacity = '1';
@@ -2174,7 +2218,7 @@ if (contentForm) {
         }
 
         if (codingStepBuilder) {
-            const showCoding = questionsStep && mode === 'coding';
+            const showCoding = (mode === 'coding');
             codingStepBuilder.hidden = !showCoding;
             if (showCoding) {
                 codingStepBuilder.style.opacity = '1';
@@ -2194,9 +2238,9 @@ if (contentForm) {
         syncDuration();
 
         if (progress) progress.hidden = !twoStepActive;
-        if (nextButton) nextButton.hidden = questionsStep || !twoStepActive;
-        if (backButton) backButton.hidden = !questionsStep || !twoStepActive;
-        if (submitButton) submitButton.hidden = twoStepActive && !questionsStep;
+        if (nextButton) nextButton.hidden = !twoStepActive || (step === 'questions');
+        if (backButton) backButton.hidden = !twoStepActive || (step !== 'questions');
+        if (submitButton) submitButton.hidden = false;
 
         if (step2Label) {
             step2Label.textContent = mainCat === 'materi' ? 'Susun materi' : 'Susun soal';
@@ -2313,22 +2357,43 @@ if (contentForm) {
             return;
         }
 
-        // 3. Materi / Instruksi
-        if (!bodyInput?.value.trim()) {
-            bodyInput?.classList.add('ring-2', 'ring-danger/40', 'border-danger');
-            bodyInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            bodyInput?.focus();
-            showFormError('Isi materi, instruksi, atau stimulus soal.');
-            return;
-        }
-
         showStep('questions');
-        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const mode = getStepMode();
+        const targetBuilder = (mode === 'coding') ? codingStepBuilder : builder;
+        if (targetBuilder) {
+            requestAnimationFrame(() => {
+                targetBuilder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     });
 
     backButton?.addEventListener('click', () => {
         showStep('setup');
-        contentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (setup) {
+            setup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    contentForm.querySelectorAll('[data-step-indicator]').forEach(indicator => {
+        indicator.classList.add('cursor-pointer');
+        indicator.addEventListener('click', () => {
+            const step = indicator.dataset.stepIndicator;
+            if (step === 'questions') {
+                const mode = getStepMode();
+                if (mode !== 'none') {
+                    showStep('questions');
+                    const targetBuilder = (mode === 'coding') ? codingStepBuilder : builder;
+                    requestAnimationFrame(() => {
+                        targetBuilder?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                }
+            } else {
+                showStep('setup');
+                requestAnimationFrame(() => {
+                    setup?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+        });
     });
 
     contentForm.querySelectorAll('[data-content-addon]').forEach(button => {
@@ -2358,12 +2423,34 @@ if (contentForm) {
     contentForm.querySelectorAll('[data-duration-preset]').forEach(button => {
         button.addEventListener('click', () => {
             if (durationInput) durationInput.value = button.dataset.durationPreset;
+            if (durationToggle && !durationToggle.checked) {
+                durationToggle.checked = true;
+            }
+            syncDuration();
         });
     });
     dueToggle?.addEventListener('change', syncDue);
 
     // Initial render
     showStep(contentForm.dataset.step || 'setup');
+
+    if (window.IntersectionObserver) {
+        const stepObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.2) {
+                    if (entry.target === builder || entry.target === codingStepBuilder) {
+                        paintProgress('questions');
+                    } else if (entry.target === setup) {
+                        paintProgress('setup');
+                    }
+                }
+            });
+        }, { threshold: [0.2, 0.5] });
+
+        if (setup) stepObserver.observe(setup);
+        if (builder) stepObserver.observe(builder);
+        if (codingStepBuilder) stepObserver.observe(codingStepBuilder);
+    }
 
     contentForm.addEventListener('submit', (e) => {
         clearHighlights();
@@ -2638,8 +2725,13 @@ if (contentForm) {
         }
         const selectedTaskMode = contentForm.querySelector('[data-task-mode]:checked')?.value || 'regular';
         const isQuizMode = (currentCat === 'kuis') || (['uts', 'uas'].includes(currentCat) && selectedTaskMode === 'quiz');
-        if (!isQuizMode || !durationToggle?.checked) {
-            if (durationInput) durationInput.disabled = true;
+        const isTimedMode = isQuizMode || (currentCat === 'coding' || selectedTaskMode === 'coding');
+        if (durationToggle) {
+            const isDurationActive = isTimedMode && Boolean(durationToggle.checked);
+            if (durationMode) durationMode.value = isDurationActive ? 'enabled' : 'disabled';
+            if (durationInput) {
+                durationInput.disabled = !isDurationActive;
+            }
         }
 
         if (stepMode !== 'coding' && codingStepBuilder) {

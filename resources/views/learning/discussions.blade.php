@@ -5,7 +5,6 @@
 
 @section('content')
 @php
-    $selectedCourseId = request('course');
     $courseMap = collect($courses)->keyBy('id');
     $isDosenRoute = request()->is('dosen*');
     $discussionRoute = $isDosenRoute ? 'dosen.discussion.index' : 'mahasiswa.discussion.index';
@@ -13,80 +12,59 @@
 
     // Filter non-announcement items
     $discussionItems = collect($items)->filter(fn($i) => ($i['type'] ?? '') !== 'pengumuman');
-
-    if ($selectedCourseId) {
-        $discussionItems = $discussionItems->filter(fn($i) => (string)$i['course'] === (string)$selectedCourseId);
-    }
 @endphp
 
 <div class="space-y-6">
-    {{-- Clean Header with Course Selector --}}
-    <header class="flex flex-col gap-4 pb-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <h1 class="page-heading">Forum Diskusi Perkuliahan</h1>
-            <p class="page-description">Ruang tanya jawab dan diskusi materi antar mahasiswa dan dosen pengampu.</p>
-        </div>
-
-        {{-- Filter Mata Kuliah (Minimalis) --}}
-        <form method="get" action="{{ route($discussionRoute) }}" class="flex items-center gap-2">
-            <label for="course-filter" class="sr-only">Filter Mata Kuliah</label>
-            <select id="course-filter" name="course" onchange="this.form.submit()" class="field py-1.5 text-xs font-semibold min-h-9 sm:w-64">
-                <option value="">Semua Mata Kuliah ({{ count($courses) }})</option>
-                @foreach($courses as $c)
-                    <option value="{{ $c['id'] }}" @selected((string)$selectedCourseId === (string)$c['id'])>
-                        {{ $c['code'] }} - {{ $c['title'] }}
-                    </option>
-                @endforeach
-            </select>
-            @if($selectedCourseId)
-                <a href="{{ route($discussionRoute) }}" class="button-secondary py-1.5 text-xs">Reset</a>
-            @endif
-        </form>
+    {{-- Clean Header --}}
+    <header class="pb-1">
+        <h1 class="page-heading">Forum Diskusi Perkuliahan</h1>
+        <p class="page-description">Ruang tanya jawab dan diskusi materi antar mahasiswa dan dosen pengampu.</p>
     </header>
 
     {{-- Clean Discussion Thread List per Course (Entire row is clickable) --}}
     <section class="surface overflow-hidden divide-y divide-line/40" aria-label="Daftar Forum Diskusi Kelas">
-        <div class="px-5 py-3 bg-white border-b border-line/60 flex items-center justify-between text-xs text-muted font-bold uppercase tracking-wider">
+        <div class="px-4 py-3 sm:px-5 bg-white border-b border-line/60 flex items-center justify-between text-xs text-muted font-bold uppercase tracking-wider">
             <span>Daftar Forum Diskusi Kelas</span>
-            <span>Aktivitas Pesan</span>
+            <span class="hidden sm:inline">Aktivitas Pesan</span>
         </div>
 
         @forelse($courses as $c)
-            @if(!$selectedCourseId || (string)$selectedCourseId === (string)$c['id'])
-                @php
-                    $msgCount = auth()->check()
-                        ? collect(app(\App\Services\DatabaseNotificationService::class)->forUser(auth()->user()))
-                            ->where('category', 'diskusi')
-                            ->where('class_section_id', $c['id'])
-                            ->where('is_read', false)
-                            ->count()
-                        : 0;
-                @endphp
-                <a href="{{ route($courseRoute, $c['id']) }}#diskusi-kelas"
-                   class="group flex items-center justify-between gap-3 px-5 py-4 hover:bg-canvas transition">
+            @php
+                $stats = auth()->check()
+                    ? app(\App\Services\DatabaseNotificationService::class)->discussionStatsForSection(auth()->user(), (int) $c['id'])
+                    : ['unread_count' => 0, 'mention_count' => 0, 'latest_message' => null, 'is_read' => true];
+                $msgCount = $stats['unread_count'];
+                $mentionCount = $stats['mention_count'];
+            @endphp
+            <a href="{{ route($courseRoute, $c['id']) }}#diskusi-kelas"
+                   class="group flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4 hover:bg-canvas transition">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs font-bold text-brand">{{ $c['code'] }}</span>
-                            <h3 class="text-sm font-semibold text-ink group-hover:text-brand transition">
+                            <span class="font-mono text-xs font-bold text-brand shrink-0">{{ $c['code'] }}</span>
+                            <h3 class="text-sm font-semibold text-ink group-hover:text-brand transition truncate">
                                 {{ $c['title'] }}
                             </h3>
                         </div>
-                        <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
+                        <p class="mt-1 text-xs text-muted flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <span>Pengampu: {{ $c['lecturer'] ?? 'Dosen Pengampu' }}</span>
-                            <span>(Forum Diskusi &amp; Konsultasi Akademik)</span>
+                            <span class="hidden sm:inline">(Forum Diskusi &amp; Konsultasi Akademik)</span>
                         </p>
                     </div>
-                    <div data-course-msg-badge="{{ $c['id'] }}" class="shrink-0 flex items-center justify-center">
+                    <div data-course-msg-badge="{{ $c['id'] }}" class="shrink-0 flex items-center gap-1.5 sm:gap-2 justify-end">
+                        @if($mentionCount > 0)
+                            <span data-course-mention-pill="{{ $c['id'] }}" class="inline-flex h-6 items-center justify-center rounded-full bg-[#102f50] px-2 text-xs font-bold text-white shadow-2xs gap-0.5" title="{{ $mentionCount }} sebutan (@) untuk Anda">
+                                <span class="font-mono font-black">@</span>{{ $mentionCount }}
+                            </span>
+                        @endif
                         @if($msgCount > 0)
-                            <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white" title="{{ $msgCount }} pesan belum dibaca">
+                            <span data-course-unread-pill="{{ $c['id'] }}" class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white whitespace-nowrap" title="{{ $msgCount }} pesan belum dibaca">
                                 {{ $msgCount }} belum dibaca
                             </span>
                         @else
-                            <span class="text-xs text-muted font-normal">Tidak ada pesan baru</span>
+                            <span data-course-unread-pill="{{ $c['id'] }}" class="text-xs text-muted font-normal whitespace-nowrap">Tidak ada pesan baru</span>
                         @endif
                     </div>
                 </a>
-            @endif
         @empty
             <div class="p-8 text-center text-xs text-muted">
                 Belum ada mata kuliah yang terdaftar.
@@ -98,16 +76,25 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         window.addEventListener('sale:live-status', function(e) {
-            if (!e.detail || e.detail.course_discussion_counts === undefined) return;
-            const counts = e.detail.course_discussion_counts || {};
-            document.querySelectorAll('[data-course-msg-badge]').forEach(el => {
-                const courseId = el.getAttribute('data-course-msg-badge');
-                const count = Number(counts[courseId]) || 0;
-                if (count > 0) {
-                    el.innerHTML = `<span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white" title="${count} pesan belum dibaca">${count} belum dibaca</span>`;
-                } else {
-                    el.innerHTML = `<span class="text-xs text-muted font-normal">Tidak ada pesan baru</span>`;
+            if (!e.detail) return;
+            const discussionCounts = e.detail.course_discussion_counts || {};
+            const mentionCounts = e.detail.course_mention_counts || {};
+
+            document.querySelectorAll('[data-course-msg-badge]').forEach(container => {
+                const courseId = container.getAttribute('data-course-msg-badge');
+                const msgCount = Number(discussionCounts[courseId]) || 0;
+                const mentionCount = Number(mentionCounts[courseId]) || 0;
+
+                let html = '';
+                if (mentionCount > 0) {
+                    html += `<span data-course-mention-pill="${courseId}" class="inline-flex h-6 items-center justify-center rounded-full bg-[#102f50] px-2 text-xs font-bold text-white shadow-2xs gap-0.5" title="${mentionCount} sebutan (@) untuk Anda"><span class="font-mono font-black">@</span>${mentionCount}</span>`;
                 }
+                if (msgCount > 0) {
+                    html += `<span data-course-unread-pill="${courseId}" class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#4c1d95] px-2.5 text-xs font-bold text-white whitespace-nowrap" title="${msgCount} pesan belum dibaca">${msgCount} belum dibaca</span>`;
+                } else {
+                    html += `<span data-course-unread-pill="${courseId}" class="text-xs text-muted font-normal whitespace-nowrap">Tidak ada pesan baru</span>`;
+                }
+                container.innerHTML = html;
             });
         });
     });

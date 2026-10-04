@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#ffffff">
     <title>{{ $item['title'] }} - Ruang Ujian | SALE</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -135,16 +136,17 @@
 
         <div class="h-screen w-screen flex flex-col bg-slate-100/90 overflow-y-auto">
             {{-- Top Header Minimalis --}}
-            <header class="h-14 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <a href="{{ $courseBackUrl }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+            <header class="h-14 shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <a href="{{ $courseBackUrl }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5 shrink-0">
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-                        <span>Kembali ke Course</span>
+                        <span class="hidden sm:inline">Kembali ke Course</span>
+                        <span class="sm:hidden">Kembali</span>
                     </a>
                     <span class="text-slate-300">|</span>
                     <span class="text-xs font-bold text-slate-700 truncate">{{ $course['code'] }} - {{ $item['title'] }}</span>
                 </div>
-                <span class="status font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                <span class="hidden sm:inline-flex status font-semibold text-slate-700 bg-slate-100 border border-slate-200 shrink-0">
                     <svg class="h-3.5 w-3.5 text-slate-500 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     {{ $isLecturerPreview ? 'Pratinjau Kunci Jawaban' : 'Kuis Terkunci (Telah Selesai)' }}
                 </span>
@@ -204,13 +206,13 @@
                         </div>
 
                         {{-- Tombol Navigasi --}}
-                        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                        <div class="flex flex-wrap items-center justify-end sm:justify-between gap-3 pt-4 border-t border-slate-100">
                             <p class="text-xs text-slate-500"></p>
-                            <div class="flex items-center gap-2.5">
-                                <a href="{{ $itemBackUrl }}" class="button-secondary text-xs py-2 px-4 font-semibold">
+                            <div class="flex items-center gap-2.5 w-full sm:w-auto">
+                                <a href="{{ $itemBackUrl }}" class="button-secondary text-xs py-2 px-3 sm:px-4 font-semibold text-center flex-1 sm:flex-initial">
                                     Lihat Rincian Tugas
                                 </a>
-                                <a href="{{ $courseBackUrl }}" class="button-primary text-xs py-2 px-4 font-bold shadow-xs">
+                                <a href="{{ $courseBackUrl }}" class="button-primary text-xs py-2 px-3 sm:px-4 font-bold shadow-xs text-center flex-1 sm:flex-initial">
                                      Kembali ke Course
                                 </a>
                             </div>
@@ -219,12 +221,12 @@
 
                     {{-- Daftar Rincian Soal: Hasil Jawaban Mahasiswa vs Kunci Jawaban Benar --}}
                     <div class="space-y-5">
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                             <div>
                                 <h2 class="text-base font-bold text-slate-900">Hasil Pemeriksaan Lembar Jawaban</h2>
                                 <p class="text-xs text-slate-500 mt-0.5">Sistem telah mencocokkan jawaban yang Anda serahkan dengan kunci jawaban evaluasi.</p>
                             </div>
-                            <span class="text-xs font-semibold text-slate-500">{{ $totalQuestions }} Butir Soal</span>
+                            <span class="text-xs font-semibold text-slate-500 shrink-0 mt-1 sm:mt-0">{{ $totalQuestions }} Butir Soal</span>
                         </div>
 
                         <div class="space-y-4">
@@ -235,11 +237,11 @@
                                     $qType = $q['type'] ?? 'pilihan';
                                     $ans = $submission['question_answers'][(string) $q['id']] ?? $submission['question_answers'][$qIdx] ?? [];
                                 @endphp
-                                <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-4">
+                                <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-4 sm:p-6 space-y-4">
                                     {{-- Header Soal --}}
-                                    <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
-                                        <div class="flex items-center gap-2.5">
-                                            <span class="h-6 w-6 rounded bg-slate-100 text-slate-800 text-xs font-bold font-mono flex items-center justify-center">
+                                    <div class="flex flex-col xs:flex-row sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-slate-100 pb-3.5">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <span class="h-6 w-6 rounded bg-slate-100 text-slate-800 text-xs font-bold font-mono flex items-center justify-center shrink-0">
                                                 {{ $qIdx + 1 }}
                                             </span>
                                             <div>

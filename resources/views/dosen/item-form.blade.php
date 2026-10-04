@@ -296,7 +296,7 @@
                             <span class="block text-xs font-bold text-ink">Pakai batas durasi pengerjaan (Timer)</span>
                             <span class="mt-0.5 block text-[11px] text-muted">Aktifkan timer hitung mundur saat mahasiswa mulai membuka lembar pengerjaan.</span>
                         </span>
-                        <input type="checkbox" data-duration-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) === 'enabled')>
+                        <input type="checkbox" name="duration_toggle" value="1" data-duration-toggle class="h-4 w-4 rounded border-line text-brand" @checked(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) === 'enabled')>
                     </label>
                     <div data-duration-options class="border-t border-line/50 pt-3" @if(old('duration_mode', (!empty($item['duration_enabled']) ? 'enabled' : 'disabled')) !== 'enabled') hidden @endif>
                         <label class="form-label text-xs" for="duration_minutes">Durasi pengerjaan</label>
@@ -401,42 +401,42 @@
             @foreach(['file', 'image', 'link', 'text'] as $format)
                 <input type="hidden" name="formats[]" value="{{ $format }}">
             @endforeach
-        </div>
 
-        {{-- Pengaturan Bantuan AI untuk Pemrograman (Materi & Tugas) --}}
-        @php
-            $aiEnabledVal = (bool) old('ai_enabled', $item['ai_enabled'] ?? true);
-            $isCodingSelected = $taskModeVal === 'coding' || $matModeVal === 'coding' || ($item['type'] ?? '') === 'coding';
-        @endphp
-        <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs" @if(!$isCodingSelected) hidden @endif>
-            <label class="flex cursor-pointer items-center justify-between gap-4">
-                <span>
-                    <span class="block text-sm font-bold text-ink">Izinkan Bantuan AI Asisten</span>
-                    <span class="mt-0.5 block text-xs text-muted">Aktifkan AI Asisten untuk membimbing konsep pemrograman mahasiswa selama praktikum atau pengerjaan tugas/materi ini.</span>
-                </span>
-                <input type="hidden" name="ai_enabled" value="0" @if(!$isCodingSelected) disabled @endif>
-                <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal) @if(!$isCodingSelected) disabled @endif>
-            </label>
-
+            {{-- Pengaturan Bantuan AI untuk Pemrograman (Materi & Tugas) --}}
             @php
-                $availableMaterials = $classMaterials ?? \App\Models\Assessment::where('class_section_id', $course['id'])->where('type', 'materi')->orderBy('id')->get(['id', 'name']);
-                $selectedLinkedMaterials = (array) old('linked_material_ids', $item['linked_material_ids'] ?? ($item['learning_payload']['linked_material_ids'] ?? []));
+                $aiEnabledVal = (bool) old('ai_enabled', $item['ai_enabled'] ?? true);
+                $isCodingSelected = $taskModeVal === 'coding' || $matModeVal === 'coding' || ($item['type'] ?? '') === 'coding';
             @endphp
-            <div class="mt-3.5 pt-3.5 border-t border-line/60 space-y-2">
-                <label class="block text-xs font-bold text-ink">Materi Kuliah Tertaut (RAG AI Asisten)</label>
-                <p class="text-[11px] text-muted">Pilih materi pembelajaran dari kelas ini yang menjadi acuan konteks pengetahuan AI untuk membimbing tugas ini. Jika kosong, sistem otomatis merujuk seluruh materi yang terbit di kelas.</p>
-                @if(!empty($availableMaterials) && count($availableMaterials) > 0)
-                    <div class="grid gap-1.5 sm:grid-cols-2 max-h-48 overflow-y-auto rounded-lg border border-line/60 p-2.5 bg-canvas/30">
-                        @foreach($availableMaterials as $cMat)
-                            <label class="flex items-center gap-2 text-xs text-ink cursor-pointer hover:bg-white p-1 rounded">
-                                <input type="checkbox" name="linked_material_ids[]" value="{{ $cMat->id }}" @checked(in_array($cMat->id, $selectedLinkedMaterials)) class="rounded border-line text-brand">
-                                <span class="truncate">{{ $cMat->name }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                @else
-                    <p class="text-xs text-muted italic">Belum ada materi pembelajaran yang dibuat pada kelas ini.</p>
-                @endif
+            <div data-coding-ai-setting class="rounded-xl border border-line/70 bg-white p-4 shadow-2xs" @if(!$isCodingSelected) hidden @endif>
+                <label class="flex cursor-pointer items-center justify-between gap-4">
+                    <span>
+                        <span class="block text-sm font-bold text-ink">Izinkan Bantuan AI Asisten</span>
+                        <span class="mt-0.5 block text-xs text-muted">Aktifkan AI Asisten untuk membimbing konsep pemrograman mahasiswa selama praktikum atau pengerjaan tugas/materi ini.</span>
+                    </span>
+                    <input type="hidden" name="ai_enabled" value="0" @if(!$isCodingSelected) disabled @endif>
+                    <input type="checkbox" name="ai_enabled" value="1" class="h-4 w-4 rounded border-line text-brand" @checked($aiEnabledVal) @if(!$isCodingSelected) disabled @endif>
+                </label>
+
+                @php
+                    $availableMaterials = $classMaterials ?? \App\Models\Assessment::where('class_section_id', $course['id'])->where('type', 'materi')->orderBy('id')->get(['id', 'name']);
+                    $selectedLinkedMaterials = (array) old('linked_material_ids', $item['linked_material_ids'] ?? ($item['learning_payload']['linked_material_ids'] ?? []));
+                @endphp
+                <div class="mt-3.5 pt-3.5 border-t border-line/60 space-y-2">
+                    <label class="block text-xs font-bold text-ink">Materi Kuliah Tertaut (RAG AI Asisten)</label>
+                    <p class="text-[11px] text-muted">Pilih materi pembelajaran dari kelas ini yang menjadi acuan konteks pengetahuan AI untuk membimbing tugas ini. Jika kosong, sistem otomatis merujuk seluruh materi yang terbit di kelas.</p>
+                    @if(!empty($availableMaterials) && count($availableMaterials) > 0)
+                        <div class="grid gap-1.5 sm:grid-cols-2 max-h-48 overflow-y-auto rounded-lg border border-line/60 p-2.5 bg-canvas/30">
+                            @foreach($availableMaterials as $cMat)
+                                <label class="flex items-center gap-2 text-xs text-ink cursor-pointer hover:bg-white p-1 rounded">
+                                    <input type="checkbox" name="linked_material_ids[]" value="{{ $cMat->id }}" @checked(in_array($cMat->id, $selectedLinkedMaterials)) class="rounded border-line text-brand">
+                                    <span class="truncate">{{ $cMat->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-xs text-muted italic">Belum ada materi pembelajaran yang dibuat pada kelas ini.</p>
+                    @endif
+                </div>
             </div>
         </div>
 

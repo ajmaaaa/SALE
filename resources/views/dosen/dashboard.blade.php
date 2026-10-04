@@ -21,16 +21,16 @@
         <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
             <div>
                 <p class="text-sm text-muted">Jumlah Course (Matkul)</p>
-                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">mata kuliah aktif</span></p>
+                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $totalCourses }} <span class="text-sm font-normal text-muted">mata kuliah</span></p>
             </div>
-            <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs shrink-0">Kelola Mata Kuliah</a>
+            <a href="{{ route('dosen.course.index') }}" class="button-secondary text-xs shrink-0 w-[130px] sm:w-36 justify-center text-center">Kelola Course</a>
         </div>
         <div class="surface p-5 flex items-center justify-between gap-4 border border-line/50">
             <div>
                 <p class="text-sm text-muted">Penilaian Belum Dinilai</p>
                 <p class="mt-0.5 text-xl font-semibold text-ink">{{ $pendingCount }} <span class="text-sm font-normal text-muted">kelas</span></p>
             </div>
-            <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs shrink-0">Lihat Penilaian</a>
+            <a href="{{ route('dosen.penilaian.index') }}" class="button-secondary text-xs shrink-0 w-[130px] sm:w-36 justify-center text-center">Kelola Penilaian</a>
         </div>
     </div>
 

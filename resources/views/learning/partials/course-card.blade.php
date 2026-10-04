@@ -62,15 +62,16 @@
 
     $next = $uncompletedTask ?: $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])->sort($sortTaskFn)->first();
 
+    $isArchived = !empty($course['is_archived']);
     $sks = $course['sks'] ?? '3 SKS';
     $studentsCount = $course['students_count'] ?? 0;
     $assessmentsCount = $course['assessments_count'] ?? $contents->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl'])->count();
     $type = $course['type'] ?? ($next ? \App\Support\LearningPreview::labels()[$next['type']] : 'Materi kelas');
-    $work = $course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif');
-    $rawDue = $next['due'] ?? null;
+    $work = $isArchived ? 'Kelas telah diarsipkan' : ($course['work'] ?? ($next['title'] ?? 'Belum ada tugas aktif'));
+    $rawDue = $isArchived ? null : ($next['due'] ?? null);
     $isDuePast = !empty($rawDue) && \Carbon\Carbon::parse($rawDue)->isPast();
     $dueFormatted = !empty($rawDue) ? \Carbon\Carbon::parse($rawDue)->translatedFormat('d M, H:i') : '';
-    $hasPendingTask = $isDosen ? !empty($rawDue) : !empty($uncompletedTask);
+    $hasPendingTask = $isArchived ? false : ($isDosen ? !empty($rawDue) : !empty($uncompletedTask));
 
     $targetRole = $isDosen ? 'dosen' : 'mahasiswa';
     $targetUrl = route($targetRole . '.course.show', $course['id']);
@@ -142,7 +143,16 @@
 
             {{-- Baris jam (tenggat merah jika ada tugas yang harus dikumpulkan) + QR sejajar --}}
             <div class="mt-2 flex min-h-7 items-center justify-between gap-2">
-                @if($hasPendingTask && !empty($dueFormatted))
+                @if($isArchived)
+                    <span class="text-xs text-muted leading-5 flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="21 8 21 21 3 21 3 8"/>
+                            <rect x="1" y="3" width="22" height="5"/>
+                            <line x1="10" y1="12" x2="14" y2="12"/>
+                        </svg>
+                        <span>Kelas Diarsipkan</span>
+                    </span>
+                @elseif($hasPendingTask && !empty($dueFormatted))
                     <a href="{{ $targetUrl }}" class="text-xs font-semibold leading-5 text-rose-600 flex items-center gap-1.5" title="Tenggat Pengumpulan">
                         <svg class="h-3.5 w-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"/>

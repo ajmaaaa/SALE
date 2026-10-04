@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Assessment;
 use App\Models\ClassEnrollmentAppeal;
 use App\Models\ClassSection;
+use App\Models\ChatNotification;
 use App\Models\Message;
+use App\Models\MessageMention;
 use App\Models\Role;
+use App\Models\Room;
 use App\Models\StudentAssessmentScore;
 use App\Models\Submission;
 use App\Models\User;
@@ -14,6 +17,7 @@ use App\Models\UserNotificationState;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class DatabaseNotificationService
@@ -29,28 +33,52 @@ class DatabaseNotificationService
             $notifications = $this->studentNotifications($user);
         }
 
+        $discussSectionKeys = collect($notifications)
+            ->where('category', 'diskusi')
+            ->map(fn ($n) => 'discuss_section_' . ($n['class_section_id'] ?? 0))
+            ->unique()
+            ->all();
+
+        $allKeysToQuery = collect($notifications)->pluck('id')->merge($discussSectionKeys)->all();
+
         $states = UserNotificationState::query()
             ->where('user_id', $user->id)
-            ->whereIn('notification_key', collect($notifications)->pluck('id'))
+            ->whereIn('notification_key', $allKeysToQuery)
             ->get()
             ->keyBy('notification_key');
 
         $notifications = array_values(array_filter(array_map(function (array $notification) use ($states) {
             $state = $states->get($notification['id']);
+            $secState = ($notification['category'] ?? '') === 'diskusi'
+                ? $states->get('discuss_section_' . ($notification['class_section_id'] ?? 0))
+                : null;
+
             $eventAt = Carbon::createFromTimestamp((int) $notification['timestamp']);
 
-            if ($state?->deleted_at && $state->deleted_at->greaterThanOrEqualTo($eventAt)) {
+            $isDeleted = ($state?->deleted_at && $state->deleted_at->greaterThanOrEqualTo($eventAt))
+                || ($secState?->deleted_at && $secState->deleted_at->greaterThanOrEqualTo($eventAt));
+
+            if ($isDeleted) {
                 return null;
             }
 
-            $notification['is_read'] = (bool) ($state?->read_at && $state->read_at->greaterThanOrEqualTo($eventAt));
+            $isRead = ($state?->read_at && $state->read_at->greaterThanOrEqualTo($eventAt))
+                || ($secState?->read_at && $secState->read_at->greaterThanOrEqualTo($eventAt))
+                || (! empty($notification['is_read']));
+
+            $notification['is_read'] = (bool) $isRead;
+
+            if ($notification['is_read'] && ($notification['category'] ?? '') === 'diskusi') {
+                $notification['unread_count'] = 0;
+                $notification['mention_count'] = 0;
+            }
 
             return $notification;
         }, $notifications)));
 
         usort($notifications, fn (array $a, array $b) => $b['timestamp'] <=> $a['timestamp']);
 
-        return $notifications;
+        return $this->filterByPreferences($notifications, $user, $workspaceRole);
     }
 
     public function unreadCount(User $user, ?string $workspaceRole = null): int
@@ -90,6 +118,15 @@ class DatabaseNotificationService
                 ['user_id' => $user->id, 'notification_key' => $key],
                 ['read_at' => now(), 'deleted_at' => null]
             );
+
+            if (preg_match('/^discuss_(\d+)/', $key, $matches)) {
+                $sectionId = (int) $matches[1];
+                UserNotificationState::updateOrCreate(
+                    ['user_id' => $user->id, 'notification_key' => "discuss_section_{$sectionId}"],
+                    ['read_at' => now(), 'deleted_at' => null]
+                );
+                $this->markChatNotificationsReadForSection($user, $sectionId);
+            }
         }
     }
 
@@ -101,7 +138,10 @@ class DatabaseNotificationService
             ->pluck('id')
             ->all();
 
+        $keys[] = "discuss_section_{$sectionId}";
+
         $this->markRead($user, $keys);
+        $this->markChatNotificationsReadForSection($user, $sectionId);
     }
 
     public function delete(User $user, array $keys): void
@@ -112,6 +152,29 @@ class DatabaseNotificationService
                 ['user_id' => $user->id, 'notification_key' => $key],
                 ['deleted_at' => now()]
             );
+
+            if (preg_match('/^discuss_(\d+)/', $key, $matches)) {
+                $sectionId = (int) $matches[1];
+                UserNotificationState::updateOrCreate(
+                    ['user_id' => $user->id, 'notification_key' => "discuss_section_{$sectionId}"],
+                    ['deleted_at' => now()]
+                );
+                $this->markChatNotificationsReadForSection($user, $sectionId);
+            }
+        }
+    }
+
+    public function markChatNotificationsReadForSection(User $user, int $sectionId): void
+    {
+        if (! Schema::hasTable('chat_notifications') || ! Schema::hasTable('rooms') || ! Schema::hasTable('messages')) {
+            return;
+        }
+
+        $room = Room::where('class_section_id', $sectionId)->orWhere('course_id', $sectionId)->first();
+        if ($room) {
+            ChatNotification::where('user_id', $user->id)
+                ->whereHas('message', fn ($q) => $q->where('room_id', $room->id))
+                ->update(['is_read' => true]);
         }
     }
 
@@ -474,28 +537,152 @@ class DatabaseNotificationService
         return $notifications;
     }
 
-    private function appendDiscussionNotification(array &$notifications, User $user, ClassSection $section): void
+    public function discussionStatsForSection(User $user, int $sectionId): array
     {
-        $message = Message::query()
-            ->whereHas('room', fn ($query) => $query->where('class_section_id', $section->id)->orWhere('course_id', $section->id))
+        if (! Schema::hasTable('rooms') || ! Schema::hasTable('messages')) {
+            return [
+                'unread_count' => 0,
+                'mention_count' => 0,
+                'latest_message' => null,
+                'is_read' => true,
+            ];
+        }
+
+        $room = Room::where('class_section_id', $sectionId)
+            ->orWhere('course_id', $sectionId)
+            ->first();
+
+        if (! $room) {
+            return [
+                'unread_count' => 0,
+                'mention_count' => 0,
+                'latest_message' => null,
+                'is_read' => true,
+            ];
+        }
+
+        $latestMessage = Message::query()
+            ->where('room_id', $room->id)
             ->where('user_id', '!=', $user->id)
-            ->with('user')
+            ->with(['user', 'mentions'])
             ->latest('created_at')
             ->first();
 
-        if ($message) {
-            $eventAt = $message->created_at;
-            $author = $message->user?->name ?? 'Pengguna';
-            $body = $message->content;
-            $key = "discuss_{$section->id}_message_{$message->id}";
-        } else {
+        if (! $latestMessage) {
+            return [
+                'unread_count' => 0,
+                'mention_count' => 0,
+                'latest_message' => null,
+                'is_read' => true,
+            ];
+        }
+
+        // Determine cutoff timestamp from user notification state
+        $cutoff = null;
+        if (Schema::hasTable('user_notification_states')) {
+            $states = UserNotificationState::query()
+                ->where('user_id', $user->id)
+                ->where(function ($q) use ($sectionId) {
+                    $q->where('notification_key', "discuss_section_{$sectionId}")
+                      ->orWhere('notification_key', 'like', "discuss_{$sectionId}_message_%");
+                })
+                ->get();
+
+            foreach ($states as $st) {
+                if ($st->deleted_at && ($cutoff === null || $st->deleted_at->gt($cutoff))) {
+                    $cutoff = $st->deleted_at;
+                }
+                if ($st->read_at && ($cutoff === null || $st->read_at->gt($cutoff))) {
+                    $cutoff = $st->read_at;
+                }
+            }
+        }
+
+        $unreadQuery = Message::query()
+            ->where('room_id', $room->id)
+            ->where('user_id', '!=', $user->id);
+
+        if ($cutoff) {
+            $unreadQuery->where('created_at', '>', $cutoff);
+        }
+
+        $unreadMessages = $unreadQuery->with(['mentions'])->get();
+        $unreadCount = $unreadMessages->count();
+
+        if ($unreadCount === 0) {
+            return [
+                'unread_count' => 0,
+                'mention_count' => 0,
+                'latest_message' => $latestMessage,
+                'is_read' => true,
+            ];
+        }
+
+        // Calculate mention count among unread messages
+        $mentionCount = 0;
+        $userNameLower = mb_strtolower(trim($user->name));
+        $nameParts = preg_split('/\s+/', $userNameLower);
+        $firstName = $nameParts[0] ?? '';
+
+        foreach ($unreadMessages as $msg) {
+            $isMentioned = false;
+
+            // 1. Check MessageMention relation
+            if ($msg->mentions && $msg->mentions->contains('mentioned_user_id', $user->id)) {
+                $isMentioned = true;
+            } elseif (Schema::hasTable('chat_notifications') && ChatNotification::where('user_id', $user->id)->where('message_id', $msg->id)->where('type', 'mention')->exists()) {
+                $isMentioned = true;
+            } else {
+                // 2. Text fallback: check content for @Name or @NIM
+                $contentLower = mb_strtolower($msg->content);
+                if (str_contains($contentLower, '@'.$userNameLower)) {
+                    $isMentioned = true;
+                } elseif ($user->number && str_contains($contentLower, '@'.mb_strtolower($user->number))) {
+                    $isMentioned = true;
+                } elseif ($firstName !== '' && mb_strlen($firstName) >= 3) {
+                    if (preg_match('/@'.preg_quote($firstName, '/').'(\b|$)/i', $contentLower)) {
+                        $isMentioned = true;
+                    }
+                }
+            }
+
+            if ($isMentioned) {
+                $mentionCount++;
+            }
+        }
+
+        return [
+            'unread_count' => $unreadCount,
+            'mention_count' => $mentionCount,
+            'latest_message' => $latestMessage,
+            'is_read' => false,
+        ];
+    }
+
+    private function appendDiscussionNotification(array &$notifications, User $user, ClassSection $section): void
+    {
+        $stats = $this->discussionStatsForSection($user, $section->id);
+        $message = $stats['latest_message'];
+
+        if (! $message) {
             return;
         }
 
+        $eventAt = $message->created_at;
+        $author = $message->user?->name ?? 'Pengguna';
+        $body = $message->content;
+        $key = "discuss_{$section->id}_message_{$message->id}";
+
         $route = $user->hasRole(Role::DOSEN) ? 'dosen.course.show' : 'mahasiswa.course.show';
-        $notifications[] = $this->notification(
+
+        $unreadCount = $stats['unread_count'];
+        $mentionCount = $stats['mention_count'];
+
+        $title = "Diskusi Baru: {$section->display_code} - {$section->mataKuliah->name}";
+
+        $notif = $this->notification(
             $key,
-            "Diskusi Baru: {$section->display_code} - {$section->mataKuliah->name}",
+            $title,
             $author.': "'.Str::limit($body, 100).'"',
             $eventAt,
             'chat',
@@ -504,6 +691,12 @@ class DatabaseNotificationService
             'diskusi',
             $section->id
         );
+
+        $notif['unread_count'] = $unreadCount;
+        $notif['mention_count'] = $mentionCount;
+        $notif['is_read'] = $stats['is_read'];
+
+        $notifications[] = $notif;
     }
 
     private function notification(string $id, string $title, string $message, $eventAt, string $icon, string $link, string $action, string $category, int $sectionId): array
@@ -539,5 +732,52 @@ class DatabaseNotificationService
         }
 
         return $date->isToday() ? $date->format('H:i') : $date->translatedFormat('d M, H:i');
+    }
+
+    private function filterByPreferences(array $notifications, User $user, ?string $workspaceRole): array
+    {
+        $prefs = $user->notification_preferences;
+        if (empty($prefs) || ! is_array($prefs)) {
+            return $notifications;
+        }
+
+        if ($workspaceRole === Role::DOSEN) {
+            return array_values(array_filter($notifications, function (array $n) use ($prefs) {
+                $category = $n['category'] ?? '';
+                $id = $n['id'] ?? '';
+
+                if (str_starts_with($id, 'submission_') && isset($prefs['notif_submission']) && ! $prefs['notif_submission']) {
+                    return false;
+                }
+                if ($category === 'diskusi' && isset($prefs['notif_forum']) && ! $prefs['notif_forum']) {
+                    return false;
+                }
+                if (str_starts_with($id, 'rejoin_') && isset($prefs['notif_rekap']) && ! $prefs['notif_rekap']) {
+                    return false;
+                }
+
+                return true;
+            }));
+        }
+
+        return array_values(array_filter($notifications, function (array $n) use ($prefs) {
+            $category = $n['category'] ?? '';
+            $id = $n['id'] ?? '';
+
+            if (($category === 'nilai' || str_starts_with($id, 'grade_')) && isset($prefs['grade']) && ! $prefs['grade']) {
+                return false;
+            }
+            if (str_starts_with($id, 'announcement_') && isset($prefs['announcement']) && ! $prefs['announcement']) {
+                return false;
+            }
+            if ($category === 'diskusi' && isset($prefs['forum']) && ! $prefs['forum']) {
+                return false;
+            }
+            if (str_starts_with($id, 'pending_') && isset($prefs['deadline']) && ! $prefs['deadline']) {
+                return false;
+            }
+
+            return true;
+        }));
     }
 }

@@ -57,9 +57,9 @@
                 <table class="border-separate border-spacing-0 text-xs w-full" style="min-width: max-content;">
                     <thead>
                         <tr class="bg-slate-100 dark:bg-slate-800 text-left">
-                            <th class="py-3 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 border-b border-r border-line/50">No</th>
-                            <th class="py-3 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-slate-100 dark:bg-slate-800 z-20 border-b border-r border-line/40">NIM</th>
-                            <th class="py-3 px-3 text-left text-muted font-semibold w-[200px] min-w-[200px] max-w-[220px] sticky left-[178px] bg-slate-100 dark:bg-slate-800 z-20 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">Nama</th>
+                            <th class="py-3 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] md:sticky md:left-0 bg-slate-100 dark:bg-slate-800 md:z-20 border-b border-r border-line/50">No</th>
+                            <th class="py-3 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] md:sticky md:left-[48px] bg-slate-100 dark:bg-slate-800 md:z-20 border-b border-r border-line/40">NIM</th>
+                            <th class="py-3 px-3 text-left text-muted font-semibold w-[200px] min-w-[200px] max-w-[220px] md:sticky md:left-[178px] bg-slate-100 dark:bg-slate-800 md:z-20 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">Nama</th>
                             @foreach($criteria as $criterion)
                                 <th class="py-3 px-3 text-center min-w-[100px] border-b border-l border-line/40 bg-slate-100 dark:bg-slate-800">
                                     <div class="text-xs font-semibold text-ink">{{ $criterion->name }}</div>
@@ -71,9 +71,9 @@
                     <tbody>
                         @foreach($students as $i => $student)
                             <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                <td class="py-2.5 px-3 text-center text-muted w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r border-line/40">{{ $i + 1 }}</td>
-                                <td class="py-2.5 px-3 font-mono text-xs text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r border-line/40">{{ $student->nim_nidn ?? '' }}</td>
-                                <td class="py-2.5 px-3 font-medium text-ink w-[200px] min-w-[200px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 z-10 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                                <td class="py-2.5 px-3 text-center text-muted w-12 min-w-[48px] max-w-[48px] md:sticky md:left-0 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 md:z-10 border-b border-r border-line/40">{{ $i + 1 }}</td>
+                                <td class="py-2.5 px-3 font-mono text-xs text-muted w-[130px] min-w-[130px] max-w-[130px] md:sticky md:left-[48px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 md:z-10 border-b border-r border-line/40">{{ $student->nim_nidn ?? '' }}</td>
+                                <td class="py-2.5 px-3 font-medium text-ink w-[200px] min-w-[200px] max-w-[220px] md:sticky md:left-[178px] bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800 md:z-10 border-b border-r-2 border-line/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
                                     <div class="truncate" title="{{ $student->name }}">{{ $student->name }}</div>
                                 </td>
                                 @foreach($criteria as $criterion)
@@ -99,14 +99,14 @@
                 </table>
             </div>
 
-            <div class="flex items-center justify-between mt-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
                 <p class="text-xs text-muted max-w-lg">
                     Nilai kosong berarti "belum dinilai". Setelah disimpan, nilai asesmen akan otomatis dihitung dari bobot kriteria rubrik.
                 </p>
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="quiet-link text-sm">Kembali</a>
-                    <button type="submit" name="intent" value="save" class="button-secondary">Simpan Draft</button>
-                    <button type="submit" name="intent" value="publish" class="button-primary">Simpan &amp; Terbitkan</button>
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+                    <a href="{{ route('dosen.penilaian.asesmen', $section->id) }}" class="quiet-link text-sm mr-1">Kembali</a>
+                    <button type="submit" name="intent" value="save" class="button-secondary text-xs flex-1 sm:flex-initial">Simpan Draft</button>
+                    <button type="submit" name="intent" value="publish" class="button-primary text-xs flex-1 sm:flex-initial">Simpan &amp; Terbitkan</button>
                 </div>
             </div>
         </form>

@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f5f5f2">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f4f5f7">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', \App\Models\SystemSetting::appName())</title>
+    @auth
+        @if(!empty(auth()->user()?->profile_photo_url))
+            <link rel="preload" as="image" href="{{ auth()->user()->profile_photo_url }}" fetchpriority="high">
+        @endif
+    @endauth
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
-        html { scrollbar-gutter: stable; }
+        html { scrollbar-gutter: stable; color-scheme: light; }
         dialog { position: fixed !important; inset: 0 !important; margin: auto !important; }
     </style>
 </head>
@@ -33,7 +39,10 @@
                 </a>
             </div>
             <button type="button" data-sidebar-close class="lg:hidden -mr-2 -mt-1 p-2 rounded-lg text-muted hover:text-ink hover:bg-canvas transition cursor-pointer" aria-label="Tutup navigasi">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect width="18" height="18" x="3" y="3" rx="2"/>
+                    <path d="M9 3v18"/>
+                </svg>
             </button>
         </div>
 
@@ -138,11 +147,22 @@
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3v18h18M7 16l4-4 4 4 5-6"/></svg>
                     Rekap Nilai
                 </a>
+                @php
+                    $notificationService = app(\App\Services\DatabaseNotificationService::class);
+                    $dosenNotifications = auth()->check() ? collect($notificationService->forUser(auth()->user(), 'dosen')) : collect();
+                    $dosenForumUnread = (int) $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->sum('unread_count');
+                    if ($dosenForumUnread === 0) {
+                        $dosenForumUnread = $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->count();
+                    }
+                    $dosenForumMention = (int) $dosenNotifications->where('category', 'diskusi')->where('is_read', false)->sum('mention_count');
+                @endphp
                 <a href="{{ route('dosen.discussion.index') }}"
                    @if(request()->routeIs('dosen.discussion.*')) aria-current="page" @endif
                    class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('dosen.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
-                    Forum Diskusi
+                    <span class="min-w-0 flex-1">Forum Diskusi</span>
+                    <span id="sidebar-dosen-forum-mention-badge" data-badge="dosen-forum-mention" style="{{ $dosenForumMention > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#102f50] px-1.5 text-[11px] font-bold leading-none text-white {{ $dosenForumMention > 0 ? '' : 'hidden' }}" aria-label="{{ $dosenForumMention }} sebutan (@) untuk Anda">{{ $dosenForumMention > 0 ? ($dosenForumMention > 99 ? '99+' : '@'.$dosenForumMention) : '' }}</span>
+                    <span id="sidebar-dosen-forum-badge" data-badge="dosen-forum" style="{{ $dosenForumUnread > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $dosenForumUnread > 0 ? '' : 'hidden' }}" aria-label="{{ $dosenForumUnread }} pesan belum dibaca">{{ $dosenForumUnread > 0 ? ($dosenForumUnread > 99 ? '99+' : $dosenForumUnread) : '' }}</span>
                 </a>
             </div>
 
@@ -169,7 +189,11 @@
         @php
             $notificationService = app(\App\Services\DatabaseNotificationService::class);
             $studentNotifications = auth()->check() ? collect($notificationService->forUser(auth()->user(), 'mahasiswa')) : collect();
-            $forumUnreadCount = $studentNotifications->where('category', 'diskusi')->where('is_read', false)->count();
+            $forumUnreadCount = (int) $studentNotifications->where('category', 'diskusi')->where('is_read', false)->sum('unread_count');
+            if ($forumUnreadCount === 0) {
+                $forumUnreadCount = $studentNotifications->where('category', 'diskusi')->where('is_read', false)->count();
+            }
+            $forumMentionCount = (int) $studentNotifications->where('category', 'diskusi')->where('is_read', false)->sum('mention_count');
             $pendingTaskCount = auth()->check() ? $notificationService->pendingTaskCount(auth()->user()) : 0;
             $unreadNotifCount = $studentNotifications->where('is_read', false)->count();
         @endphp
@@ -191,6 +215,7 @@
                 <a href="{{ route('mahasiswa.discussion.index') }}" @if(request()->routeIs('mahasiswa.discussion.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.discussion.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
                     <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
                     <span class="min-w-0 flex-1">Forum Diskusi</span>
+                    <span id="sidebar-mhs-forum-mention-badge" data-badge="mhs-forum-mention" style="{{ $forumMentionCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#102f50] px-1.5 text-[11px] font-bold leading-none text-white {{ $forumMentionCount > 0 ? '' : 'hidden' }}" aria-label="{{ $forumMentionCount }} sebutan (@) untuk Anda">{{ $forumMentionCount > 0 ? ($forumMentionCount > 99 ? '99+' : '@'.$forumMentionCount) : '' }}</span>
                     <span id="sidebar-mhs-forum-badge" data-badge="mhs-forum" style="{{ $forumUnreadCount > 0 ? '' : 'display: none !important;' }}" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#4c1d95] px-1.5 text-[11px] font-bold leading-none text-white {{ $forumUnreadCount > 0 ? '' : 'hidden' }}" aria-label="{{ $forumUnreadCount }} pesan belum dibaca">{{ $forumUnreadCount > 0 ? ($forumUnreadCount > 99 ? '99+' : $forumUnreadCount) : '' }}</span>
                 </a>
                 <a href="{{ route('mahasiswa.assignment.index') }}" @if(request()->routeIs('mahasiswa.assignment.*')) aria-current="page" @endif class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-medium {{ request()->routeIs('mahasiswa.assignment.*') ? 'bg-brand-dark font-semibold text-white' : 'text-[#4d5964] hover:bg-brand-soft hover:text-ink' }}">
@@ -282,54 +307,83 @@
             <div class="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10">
                 <div class="flex min-w-0 items-center gap-3">
                     <button data-sidebar-toggle type="button" aria-label="Buka navigasi" aria-expanded="false" class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-ink shadow-sm hover:bg-brand-soft lg:hidden">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect width="18" height="18" x="3" y="3" rx="2"/>
+                            <path d="M9 3v18"/>
+                        </svg>
                     </button>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-ink">@yield('header', 'Dashboard')</p>
                         <p class="hidden truncate text-xs text-muted sm:block">Semester {{ \App\Models\Semester::where('is_active', true)->value('name') ?? 'Belum ditetapkan' }}</p>
                     </div>
                 </div>
-                @php
-                    $profileRoute = null;
-                    if (request()->is('dosen*') || (auth()->check() && auth()->user()->hasRole('dosen') && !request()->is('mahasiswa*'))) {
-                        $profileRoute = route('dosen.profile.index');
-                    } elseif (request()->is('mahasiswa*') || (auth()->check() && auth()->user()->hasRole('mahasiswa'))) {
-                        $profileRoute = route('mahasiswa.profile.index');
-                    }
-                @endphp
-                <div class="flex items-center gap-2 sm:gap-3">
-                    @if($profileRoute)
-                        <a href="{{ $profileRoute }}" class="flex items-center gap-2.5 rounded-lg py-1.5 pl-2 pr-2.5 hover:bg-[#eceeeb] transition group" title="Lihat Profil &amp; Pengaturan">
-                    @else
-                        <div class="flex items-center gap-2.5 py-1.5 pl-2 pr-2.5">
-                    @endif
-                            <span class="text-right">
-                                <span class="block text-sm font-semibold leading-4 text-ink group-hover:text-brand transition max-w-[130px] sm:max-w-[180px] md:max-w-[240px] truncate">{{ $activeUser['name'] }}</span>
+                <div class="relative">
+                    <details class="group relative">
+                        <summary class="flex cursor-pointer list-none items-center gap-2.5 sm:gap-3 rounded-lg p-1 sm:py-1.5 sm:pl-2 sm:pr-2.5 hover:bg-[#eceeeb] focus:outline-none select-none [&::-webkit-details-marker]:hidden">
+                            <span class="max-sm:hidden sm:!block text-right">
+                                <span class="block text-sm font-semibold leading-4 text-ink max-w-[130px] sm:max-w-[180px] md:max-w-[240px] truncate">{{ $activeUser['name'] }}</span>
                                 <span class="block text-xs text-muted truncate">{{ $roleLabel }}{{ !empty($activeUser['number']) ? ' (' . $activeUser['number'] . ')' : '' }}</span>
                             </span>
                             @if(!empty(auth()->user()?->profile_photo_url))
-                                <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ $activeUser['name'] }}" class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
+                                <img id="topbar-avatar-img"
+                                     src="{{ auth()->user()->profile_photo_url }}"
+                                     alt="{{ $activeUser['name'] }}"
+                                     width="36"
+                                     height="36"
+                                     loading="eager"
+                                     decoding="sync"
+                                     fetchpriority="high"
+                                     class="h-9 w-9 shrink-0 rounded-full border border-[#cbd1d0] object-cover">
+                                <script>
+                                    try {
+                                        localStorage.removeItem('sale_avatar_data_{{ auth()->id() }}');
+                                        localStorage.removeItem('sale_avatar_url_{{ auth()->id() }}');
+                                    } catch (e) {}
+                                </script>
                             @else
                                 <span class="flex h-9 w-9 items-center justify-center rounded-full border border-[#cbd1d0] bg-white text-sm font-semibold text-brand-dark shrink-0">
                                     {{ $initials }}
                                 </span>
                             @endif
-                    @if($profileRoute)
-                        </a>
-                    @else
+                        </summary>
+                        <div class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-line bg-white p-3 shadow-xl">
+                            <div class="border-b border-line/60 pb-3">
+                                <p class="text-sm font-bold text-ink">{{ $activeUser['name'] }}</p>
+                                <p class="text-xs text-muted">{{ $activeUser['email'] ?? 'user@example.test' }}</p>
+                                <p class="mt-1 text-xs text-muted">{{ $roleLabel }} ({{ $activeUser['number'] ?? '' }})</p>
+                            </div>
+                            @php
+                                $accessibleRoleCount = auth()->check()
+                                    ? auth()->user()->roles()->pluck('roles.name')->push(auth()->user()->role?->name)->filter()->unique()->count()
+                                    : 0;
+                            @endphp
+                            @if(auth()->check() && $accessibleRoleCount > 1)
+                                <div class="border-b border-line/60 py-2.5">
+                                    <p class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">Ruang kerja yang dapat diakses</p>
+                                    <div class="space-y-1 text-xs">
+                                        @if(auth()->user()->hasRole('dosen'))
+                                            <a href="{{ route('dosen.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Dosen</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('admin_prodi'))
+                                            <a href="{{ route('admin-prodi.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Program Studi</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('admin'))
+                                            <a href="{{ route('admin.page', 'dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Administrasi Sistem</a>
+                                        @endif
+                                        @if(auth()->user()->hasRole('mahasiswa'))
+                                            <a href="{{ route('mahasiswa.dashboard') }}" class="block rounded-lg px-2 py-1.5 text-ink hover:bg-canvas">Ruang Mahasiswa</a>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                            <div class="pt-2">
+                                <form method="post" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold text-danger hover:bg-danger/10">Keluar (Logout)</button>
+                                </form>
+                            </div>
                         </div>
-                    @endif
-
-                    <form method="post" action="{{ route('logout') }}" onsubmit="event.preventDefault(); window.saleConfirm ? window.saleConfirm({title: 'Konfirmasi Keluar', message: 'Apakah Anda yakin ingin keluar dari sistem?', confirmLabel: 'Keluar', isDestructive: true}).then(ok => ok && this.submit()) : (confirm('Apakah Anda yakin ingin keluar?') && this.submit())" class="inline-flex items-center m-0 p-0">
-                        @csrf
-                        <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-muted hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 transition shadow-2xs" title="Keluar (Logout)" aria-label="Keluar (Logout)">
-                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                                <polyline points="16 17 21 12 16 7"/>
-                                <line x1="21" y1="12" x2="9" y2="12"/>
-                            </svg>
-                        </button>
-                    </form>
+                    </details>
                 </div>
             </div>
         </header>
@@ -341,16 +395,16 @@
     </div>
 
     {{-- Toast Notification --}}
-    @if(session('notice') || session('success'))
+    @if(session('notice') || session('success') || session('status') === 'notification-preferences-updated')
     <div id="toast-notice"
          role="status"
          aria-live="polite"
-         class="fixed top-20 left-1/2 z-[9999] flex items-center gap-3 rounded-xl bg-[#1a2e44] px-4 py-3 shadow-xl text-white text-sm font-medium"
+         class="fixed top-20 left-1/2 z-[9999] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl bg-[#1a2e44] px-4 py-3 shadow-xl text-white text-sm font-medium"
          style="transform: translateX(-50%) translateY(0); transition: opacity 0.4s ease, transform 0.4s ease; opacity: 1;">
         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
             <svg class="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
         </span>
-        <span>{{ session('notice') ?? session('success') }}</span>
+        <span>{{ session('notice') ?? session('success') ?? 'Preferensi notifikasi berhasil disimpan.' }}</span>
     </div>
     <script>
         (function () {
@@ -476,6 +530,13 @@
                 complete(false);
             });
 
+            document.addEventListener('click', event => {
+                const openDetails = document.querySelector('header details[open]');
+                if (openDetails && !openDetails.contains(event.target)) {
+                    openDetails.removeAttribute('open');
+                }
+            });
+
             document.addEventListener('submit', async event => {
                 const form = event.target.closest('form[data-confirm]');
                 if (!form || form.dataset.confirmed === 'true') return;
@@ -510,6 +571,22 @@
                 }
             }
 
+            function updateMentionBadgeEl(el, count) {
+                if (!el) return;
+                const num = Number(count) || 0;
+                if (num > 0) {
+                    el.textContent = num > 99 ? '99+' : '@' + num;
+                    el.classList.remove('hidden');
+                    el.style.setProperty('display', 'inline-flex');
+                    el.setAttribute('aria-label', `${num} sebutan (@) untuk Anda`);
+                } else {
+                    el.textContent = '';
+                    el.classList.add('hidden');
+                    el.style.setProperty('display', 'none', 'important');
+                    el.removeAttribute('aria-label');
+                }
+            }
+
             function applyLiveStatus(data) {
                 if (!data) return;
 
@@ -524,6 +601,11 @@
 
                 if (data.forum_unread_count !== undefined) {
                     updateBadgeEl(document.getElementById('sidebar-mhs-forum-badge'), data.forum_unread_count, 'pesan belum dibaca');
+                    updateBadgeEl(document.getElementById('sidebar-dosen-forum-badge'), data.forum_unread_count, 'pesan belum dibaca');
+                }
+                if (data.forum_mention_count !== undefined) {
+                    updateMentionBadgeEl(document.getElementById('sidebar-mhs-forum-mention-badge'), data.forum_mention_count);
+                    updateMentionBadgeEl(document.getElementById('sidebar-dosen-forum-mention-badge'), data.forum_mention_count);
                 }
                 if (data.pending_task_count !== undefined) {
                     updateBadgeEl(document.getElementById('sidebar-mhs-task-badge'), data.pending_task_count, 'tugas dan kuis belum dikerjakan');

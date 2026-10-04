@@ -438,24 +438,26 @@
 
         {{-- KOLOM KANAN (SIDEBAR DI SAMPING): Forum Diskusi Kelas Saja --}}
         <aside data-discuss-aside class="lg:sticky lg:top-20 z-20 self-start w-full">
-            <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-5 rounded-xl border border-line/60 flex flex-col min-h-[440px] max-h-[90vh]">
-                <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
-                    <div class="flex items-center gap-2">
-                        <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
-                    </div>
-                    <span id="chat-total-badge" class="text-[11px] font-medium text-muted">
-                        0 pesan
-                    </span>
-                </div>
-
-                {{-- Messages List --}}
+            <section id="diskusi-kelas" aria-labelledby="discuss-heading" class="surface scroll-mt-24 p-3.5 sm:p-5 rounded-xl border border-line/60 flex flex-col min-h-[400px] sm:min-h-[440px] max-h-[90vh]">
                 @php
                     $hasChatTables = \Illuminate\Support\Facades\Schema::hasTable('rooms') && \Illuminate\Support\Facades\Schema::hasTable('messages');
                     $chatRoom = $hasChatTables ? \App\Models\Room::forCourse($course['id'], $course['title']) : null;
                     $chatUser = auth()->user();
                     $isDosenUser = $chatUser?->hasRole(\App\Models\Role::DOSEN) ?? false;
                     $meName = $chatUser?->name ?? '';
+                    $initialTotalMessages = ($hasChatTables && $chatRoom) ? \App\Models\Message::where('room_id', $chatRoom->id)->count() : 0;
+                @endphp
+                <div class="shrink-0 flex items-center justify-between border-b border-line/50 pb-3">
+                    <div class="flex items-center gap-2">
+                        <h2 id="discuss-heading" class="text-sm font-bold text-ink">Forum Diskusi Kelas</h2>
+                    </div>
+                    <span id="chat-total-badge" class="text-[11px] font-medium text-muted">
+                        {{ $initialTotalMessages }} pesan
+                    </span>
+                </div>
 
+                {{-- Messages List --}}
+                @php
                     if ($hasChatTables && $chatRoom && \App\Models\Message::where('room_id', $chatRoom->id)->exists()) {
                         $rawMessages = \App\Models\Message::where('room_id', $chatRoom->id)
                             ->with(['user.role', 'replyTo.user', 'mentions.mentionedUser'])
@@ -475,20 +477,79 @@
                             ->orderByDesc('id')
                             ->get()
                             ->map(fn($m) => $m->toChatPayload($chatUser));
-
-                        $roomMembersList = $chatRoom->members()->select('users.id', 'users.name')->get()->map(fn($u) => [
-                            'id' => $u->id,
-                            'name' => $u->name,
-                            'role' => $u->pivot->role ?? 'mahasiswa'
-                        ]);
                     } else {
                         $initialMessages = collect();
                         $pinnedMessages = collect();
-                        $roomMembersList = collect();
                     }
+
+                    $membersCollection = collect();
+                    if ($hasChatTables && $chatRoom) {
+                        $chatMembers = $chatRoom->members()->select('users.id', 'users.name')->get()->map(fn($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'role' => $u->pivot->role ?? 'mahasiswa',
+                        ]);
+                        $membersCollection = $membersCollection->merge($chatMembers);
+                    }
+
+                    $targetSection = $classSection ?? ($section ?? (isset($course['id']) ? \App\Models\ClassSection::find($course['id']) : null));
+                    if ($targetSection) {
+                        if ($targetSection->dosen) {
+                            $membersCollection->push([
+                                'id' => $targetSection->dosen->id,
+                                'name' => $targetSection->dosen->name,
+                                'role' => 'dosen',
+                            ]);
+                        }
+                        if ($targetSection->dosenPendamping) {
+                            $membersCollection->push([
+                                'id' => $targetSection->dosenPendamping->id,
+                                'name' => $targetSection->dosenPendamping->name,
+                                'role' => 'dosen',
+                            ]);
+                        }
+                        if ($targetSection->relationLoaded('dosenAnggota') ? $targetSection->dosenAnggota->isNotEmpty() : $targetSection->dosenAnggota()->exists()) {
+                            $anggota = $targetSection->relationLoaded('dosenAnggota') ? $targetSection->dosenAnggota : $targetSection->dosenAnggota()->get();
+                            foreach ($anggota as $da) {
+                                $membersCollection->push([
+                                    'id' => $da->id,
+                                    'name' => $da->name,
+                                    'role' => 'dosen',
+                                ]);
+                            }
+                        }
+                        if ($targetSection->relationLoaded('students') ? $targetSection->students->isNotEmpty() : $targetSection->students()->exists()) {
+                            $students = $targetSection->relationLoaded('students') ? $targetSection->students : $targetSection->students()->select('users.id', 'users.name')->get();
+                            foreach ($students as $stu) {
+                                $membersCollection->push([
+                                    'id' => $stu->id,
+                                    'name' => $stu->name,
+                                    'role' => 'mahasiswa',
+                                ]);
+                            }
+                        }
+                    }
+
+                    $roomMembersList = $membersCollection->unique('id')->values();
 
                     $currentUserId = $chatUser?->id ?? 0;
                     $previousMessageDate = null;
+
+                    $memberNamesList = $roomMembersList
+                        ->pluck('name')
+                        ->filter()
+                        ->map('trim')
+                        ->filter()
+                        ->unique()
+                        ->sortByDesc(fn($name) => mb_strlen($name))
+                        ->values();
+
+                    if ($memberNamesList->isNotEmpty()) {
+                        $escapedBladeNames = $memberNamesList->map(fn($name) => preg_quote(e($name), '/'))->implode('|');
+                        $bladeMentionRegex = '/@(' . $escapedBladeNames . '|[^\s@,]+)/ui';
+                    } else {
+                        $bladeMentionRegex = '/@([^\s@,]+)/u';
+                    }
                 @endphp
 
                 {{-- WhatsApp-like Pinned Message Bar (Single line, single message, tap to navigate & cycle) --}}
@@ -536,7 +597,7 @@
                             @php $previousMessageDate = $msgDateKey; @endphp
                         @endif
                         <div id="msg-bubble-{{ $msg['id'] }}" class="chat-message-row group flex w-full {{ $isMe ? 'justify-end' : 'justify-start' }}" data-message-id="{{ $msg['id'] }}" data-author="{{ $msg['author'] }}">
-                            <article class="min-w-0 w-fit max-w-[90%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible p-3 {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
+                            <article class="min-w-0 w-fit max-w-[94%] sm:max-w-[85%] rounded-xl border shadow-2xs transition-all relative hover:shadow-xs overflow-visible p-2.5 sm:p-3 {{ $isMe ? 'bg-[#edf4fb] border-[#cfe0f2]' : 'bg-canvas/70 border-line/60' }}">
                                 <div class="flex items-start gap-2.5 min-w-0">
                                     @unless($isMe)
                                         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-slate-200 text-slate-700">
@@ -589,7 +650,7 @@
                                         @endif
 
                                         {{-- Isi Pesan (Render Mention @User dengan badge) --}}
-                                        <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{!! preg_replace('/@([A-Za-z0-9_.\\s]+?)(?=[,\\s\\n]|$)/', '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">@$1</span>', e(trim($msg['content']))) !!}</p>
+                                        <p class="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-slate-800">{!! preg_replace($bladeMentionRegex, '<span class="inline-flex items-center px-1 py-0.2 rounded bg-brand/10 text-brand font-semibold text-[11px]">$0</span>', e(trim($msg['content']))) !!}</p>
                                         <div class="mt-1 flex justify-end">
                                             <time class="text-[10px] text-muted">{{ $msg['time'] }}</time>
                                         </div>
@@ -954,7 +1015,19 @@
 
         function appendChatContent(container, content) {
             const value = content == null ? '' : String(content);
-            const mentionPattern = /@([A-Za-z0-9_.\s]+?)(?=[,\s\n]|$)/g;
+            const names = (roomMembers || [])
+                .map(m => m && m.name ? String(m.name).trim() : '')
+                .filter(n => n.length > 0)
+                .sort((a, b) => b.length - a.length);
+
+            let mentionPattern;
+            if (names.length > 0) {
+                const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+                mentionPattern = new RegExp(`@(${escaped}|[^\\s@,]+)`, 'giu');
+            } else {
+                mentionPattern = /@([^\s@,]+)/gu;
+            }
+
             let cursor = 0;
             let match;
 
@@ -1165,7 +1238,7 @@
                 const data = await res.json();
                 if (!data.success) return;
 
-                if (totalBadge) totalBadge.textContent = `${data.messages.length} pesan`;
+                if (totalBadge) totalBadge.textContent = `${data.total ?? data.messages.length} pesan`;
 
                 if (data.pinned_messages !== undefined) {
                     window.pinnedMessagesData = data.pinned_messages || [];

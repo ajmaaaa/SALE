@@ -1031,5 +1031,124 @@ class TugasQuestionBuilderTest extends TestCase
         $this->assertSame($this->cpmk2->code, $assessment->learning_payload['coding_steps'][1]['cpmk']);
         $this->assertSame(50, $assessment->learning_payload['coding_steps'][1]['points']);
     }
+
+    public function test_quiz_and_coding_assignment_timer_integration_persists_and_renders_timer(): void
+    {
+        $mhsRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'role_id' => $mhsRole->id,
+            'email' => 'mhs.timer@example.test',
+        ]);
+        $this->section->students()->attach($student->id, ['status' => 'enrolled']);
+
+        // 1. Dosen membuat Kuis dengan timer 45 menit
+        $quizPayload = [
+            'type' => 'kuis',
+            'task_mode' => 'quiz',
+            'question_type' => 'uraian',
+            'title' => 'Kuis Algoritma Berwaktu',
+            'module' => 'Modul 2: Kompleksitas',
+            'body' => 'Kerjakan kuis dengan cermat sebelum timer habis.',
+            'duration_mode' => 'enabled',
+            'duration_minutes' => 45,
+            'cpmk' => $this->cpmk1->code,
+            'questions' => [
+                [
+                    'type' => 'uraian',
+                    'prompt' => 'Jelaskan kompleksitas binary search.',
+                    'cpmk' => $this->cpmk1->code,
+                    'points' => 100,
+                ],
+            ],
+        ];
+
+        $quizStore = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $quizPayload
+        );
+        $quizStore->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $quiz = Assessment::where('name', 'Kuis Algoritma Berwaktu')->firstOrFail();
+        $this->assertTrue($quiz->learning_payload['duration_enabled']);
+        $this->assertSame(45, $quiz->learning_payload['duration_minutes']);
+
+        // Mahasiswa melihat halaman detail kuis dan countdown timer di quiz room
+        $itemView = $this->actingAs($student)->get(route('mahasiswa.course.item', [$this->section->id, $quiz->id]));
+        $itemView->assertOk();
+        $itemView->assertSee('45 menit');
+
+        $quizRoomView = $this->actingAs($student)->get(route('mahasiswa.quiz.room', [$this->section->id, $quiz->id]));
+        $quizRoomView->assertOk();
+        $quizRoomView->assertSee('data-duration="2700"', false);
+
+        // 2. Dosen membuat Tugas Pemrograman dengan timer 90 menit menggunakan duration_toggle
+        $codingPayload = [
+            'type' => 'tugas',
+            'task_mode' => 'coding',
+            'question_type' => 'coding',
+            'title' => 'Praktikum Sorting Berwaktu',
+            'module' => 'Modul 3: Sorting',
+            'body' => 'Selesaikan implementasi sorting algoritma dalam waktu yang ditentukan.',
+            'duration_toggle' => '1',
+            'duration_minutes' => 90,
+            'cpmk' => $this->cpmk1->code,
+            'coding_steps' => [
+                [
+                    'title' => 'Soal 1: Quick Sort',
+                    'body' => 'Tulis fungsi quicksort.',
+                    'cpmk' => $this->cpmk1->code,
+                    'points' => 100,
+                ],
+            ],
+        ];
+
+        $codingStore = $this->actingAs($this->dosen)->post(
+            route('dosen.item.store', $this->section->id),
+            $codingPayload
+        );
+        $codingStore->assertRedirect(route('dosen.course.show', $this->section->id))
+            ->assertSessionHasNoErrors();
+
+        $codingAssessment = Assessment::where('name', 'Praktikum Sorting Berwaktu')->firstOrFail();
+        $this->assertTrue($codingAssessment->learning_payload['duration_enabled']);
+        $this->assertSame(90, $codingAssessment->learning_payload['duration_minutes']);
+
+        // Mahasiswa melihat halaman editor coding dengan timer 90 menit (5400 detik)
+        $codeEditorView = $this->actingAs($student)->get(route('course.assignment.code', [$this->section->id, $codingAssessment->id]));
+        $codeEditorView->assertOk();
+        $codeEditorView->assertSee('id="code-countdown"', false);
+        $codeEditorView->assertSee('data-duration="5400"', false);
+
+        // 3. Dosen mengubah tugas menjadi tanpa batas waktu (duration_mode = disabled)
+        $codingPayload['duration_mode'] = 'disabled';
+        unset($codingPayload['duration_toggle']);
+        $updateResponse = $this->actingAs($this->dosen)->put(
+            route('dosen.item.update', ['course' => $this->section->id, 'item' => $codingAssessment->id]),
+            $codingPayload
+        );
+        $updateResponse->assertRedirect(route('dosen.course.item', [$this->section->id, $codingAssessment->id]))
+            ->assertSessionHasNoErrors();
+
+        $codingAssessment->refresh();
+        $this->assertFalse($codingAssessment->learning_payload['duration_enabled']);
+        $this->assertNull($codingAssessment->learning_payload['duration_minutes']);
+
+        // 4. Verifikasi tata letak form dosen memuat susun soal yang mengalir ke bawah dari data-content-setup
+        $createForm = $this->actingAs($this->dosen)->get(route('dosen.item.create', [
+            'course' => $this->section->id,
+            'type' => 'kuis',
+        ]));
+        $createForm->assertOk();
+        $html = $createForm->getContent();
+        $setupPos = strpos($html, 'data-content-setup');
+        $builderPos = strpos($html, 'data-question-builder');
+        $codingBuilderPos = strpos($html, 'data-coding-step-builder');
+        $this->assertNotFalse($setupPos);
+        $this->assertNotFalse($builderPos);
+        $this->assertNotFalse($codingBuilderPos);
+        $this->assertTrue($setupPos < $builderPos, 'Setup information must be positioned above question builder.');
+        $this->assertTrue($builderPos < $codingBuilderPos, 'Question builder and coding builder must follow downwards.');
+    }
 }
 

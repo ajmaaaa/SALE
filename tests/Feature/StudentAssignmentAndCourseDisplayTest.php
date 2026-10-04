@@ -181,7 +181,7 @@ class StudentAssignmentAndCourseDisplayTest extends TestCase
         $response->assertDontSee('Terlambat');
     }
 
-    public function test_topbar_profile_header_displays_name_profile_link_and_logout_button_without_dropdown(): void
+    public function test_topbar_profile_header_displays_name_role_and_dropdown(): void
     {
         $response = $this->actingAs($this->student)->get(route('mahasiswa.dashboard'));
         $response->assertOk();
@@ -190,14 +190,11 @@ class StudentAssignmentAndCourseDisplayTest extends TestCase
         $response->assertSee('Mahasiswa Web Cerdas');
         $response->assertSee('20230001');
 
-        // Mengarah ke route profil mahasiswa
-        $response->assertSee(route('mahasiswa.profile.index'));
+        // Memiliki dropdown details di area profil
+        $response->assertSee('<details class="group relative">', false);
 
         // Memiliki form logout
         $response->assertSee(route('logout'));
-
-        // Tidak lagi memakai dropdown details di area profil
-        $response->assertDontSee('<details class="group relative">', false);
     }
 
     public function test_assignment_page_supports_search_and_sorting_terbaru_vs_terdekat(): void

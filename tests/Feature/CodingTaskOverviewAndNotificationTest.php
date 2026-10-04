@@ -245,5 +245,72 @@ class CodingTaskOverviewAndNotificationTest extends TestCase
         $this->assertSame('Tugas Pekan Depan', $itemTitles[1]);
         $this->assertSame('Tugas Sudah Terlewat', $itemTitles[2]);
     }
+
+    public function test_lecturer_coding_task_card_does_not_have_duplicate_white_grading_button(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'CODING-LEC',
+            'name' => 'Tugas Praktikum Algoritma',
+            'type' => 'coding',
+            'description' => 'Kerjakan tugas python.',
+            'learning_payload' => [
+                'task_mode' => 'coding',
+                'question_type' => 'coding',
+                'points' => 100,
+            ],
+            'final_weight' => 10,
+            'status' => Assessment::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->dosen)->get(route('dosen.course.item', [$this->section->id, $assessment->id]));
+        $response->assertOk();
+
+        // White button in content card must NOT exist
+        $response->assertDontSee('Lihat dan Nilai Mahasiswa');
+
+        // Blue button in right sidebar MUST exist
+        $response->assertSee('Lihat &amp; Nilai Mahasiswa', false);
+        $response->assertSee(route('dosen.penilaian.asesmen.nilai', [$this->section->id, $assessment->id]));
+    }
+
+    public function test_archived_class_fades_and_disables_coding_button_and_blocks_direct_access(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'CODING-ARCHIVED',
+            'name' => 'Tugas Coding Kelas Arsip',
+            'type' => 'coding',
+            'description' => 'Kerjakan tugas python.',
+            'learning_payload' => [
+                'task_mode' => 'coding',
+                'question_type' => 'coding',
+                'points' => 100,
+            ],
+            'final_weight' => 10,
+            'status' => Assessment::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        // Archive the class
+        $this->section->update(['archived_at' => now()]);
+
+        // Mahasiswa visits item detail page
+        $res = $this->actingAs($this->mahasiswa)->get(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+        $res->assertOk();
+
+        // Button must be disabled, faded (opacity-40), and NOT a clickable link
+        $res->assertSee('Mulai Kerjakan Tugas Koding');
+        $res->assertSee('opacity-40');
+        $res->assertSee('disabled');
+        $res->assertSee('cursor-not-allowed');
+        $res->assertDontSee(route('course.assignment.code', [$this->section->id, $assessment->id]));
+
+        // Direct URL access to programming workbench must be redirected
+        $directRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $directRes->assertRedirect(route('mahasiswa.course.item', [$this->section->id, $assessment->id]));
+        $directRes->assertSessionHas('notice', 'Kelas telah diarsipkan. Halaman pemrograman tidak dapat diakses.');
+    }
 }
 

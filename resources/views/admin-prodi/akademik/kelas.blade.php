@@ -68,11 +68,11 @@
     @endif
 
     <!-- Filter Bar -->
-    <div class="surface p-4 flex flex-wrap items-center justify-between gap-4">
-        <form id="filterForm" method="GET" class="flex flex-wrap items-center gap-3">
+    <div class="surface p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <form id="filterForm" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <input type="hidden" name="prodi_id" value="{{ $activeProdi->id }}">
-            <label for="filter_semester" class="text-xs font-semibold text-muted">Semester:</label>
-            <select name="semester_id" id="filter_semester" onchange="this.form.submit()" class="field text-xs font-semibold w-48">
+            <label for="filter_semester" class="text-xs font-semibold text-muted shrink-0">Semester:</label>
+            <select name="semester_id" id="filter_semester" onchange="this.form.submit()" class="field text-xs font-semibold w-full sm:w-48">
                 @foreach($semesters as $sem)
                     <option value="{{ $sem->id }}" {{ $selectedSemesterId == $sem->id ? 'selected' : '' }}>
                         {{ $sem->name }} {{ $sem->is_active ? '(Aktif)' : '' }}
@@ -81,7 +81,7 @@
             </select>
         </form>
 
-        <div class="text-xs text-muted">
+        <div class="text-xs text-muted break-words">
             Menampilkan <strong class="text-ink">{{ $classes->count() }}</strong> seksi kelas prodi <strong class="text-ink">{{ $activeProdi->name }}</strong>
         </div>
     </div>

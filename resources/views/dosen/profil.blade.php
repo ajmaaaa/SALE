@@ -122,22 +122,49 @@
                 @if(!$settingsWritable)
                     <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Perubahan keamanan tersedia untuk akun dosen yang tersimpan di database.</p>
                 @endif
-                <form action="{{ route('dosen.profile.password') }}" method="POST" class="mt-6 grid max-w-4xl gap-4 lg:grid-cols-2">
+                <form action="{{ route('dosen.profile.password') }}" method="POST" class="mt-6 max-w-lg space-y-4" autocomplete="off">
                     @csrf
                     @method('PUT')
-                    <div><label for="current-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi saat ini</label><input id="current-password" name="current_password" type="password" autocomplete="current-password" required @disabled(!$settingsWritable) class="field">@error('current_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror</div>
-                    <div><label for="new-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi baru</label><input id="new-password" name="new_password" type="password" autocomplete="new-password" minlength="8" required @disabled(!$settingsWritable) class="field" aria-describedby="password-help"><p id="password-help" class="mt-1.5 text-xs text-muted">Minimal 8 karakter dengan kombinasi huruf dan angka.</p>@error('new_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror</div>
-                    <div><label for="confirm-password" class="mb-1.5 block text-sm font-semibold text-ink">Konfirmasi kata sandi baru</label><input id="confirm-password" name="new_password_confirmation" type="password" autocomplete="new-password" minlength="8" required @disabled(!$settingsWritable) class="field"></div>
-                    <div class="flex items-end"><button type="submit" @disabled(!$settingsWritable) class="button-primary">Perbarui kata sandi</button></div>
+                    <div>
+                        <label for="current-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi saat ini</label>
+                        <div class="relative">
+                            <input id="current-password" name="current_password" type="password" autocomplete="off" value="" readonly onfocus="this.removeAttribute('readonly')" onpointerdown="this.removeAttribute('readonly')" required @disabled(!$settingsWritable) class="field pr-10">
+                            <button type="button" onclick="togglePasswordVisibility('current-password', this)" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer" aria-label="Tampilkan kata sandi">
+                                <svg class="h-4 w-4 eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg class="h-4 w-4 eye-off-icon hidden" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg>
+                            </button>
+                        </div>
+                        @error('current_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="new-password" class="mb-1.5 block text-sm font-semibold text-ink">Kata sandi baru</label>
+                        <div class="relative">
+                            <input id="new-password" name="new_password" type="password" autocomplete="new-password" value="" minlength="8" required @disabled(!$settingsWritable) class="field pr-10" aria-describedby="password-help">
+                            <button type="button" onclick="togglePasswordVisibility('new-password', this)" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer" aria-label="Tampilkan kata sandi">
+                                <svg class="h-4 w-4 eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg class="h-4 w-4 eye-off-icon hidden" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg>
+                            </button>
+                        </div>
+                        <p id="password-help" class="mt-1.5 text-xs text-muted">Minimal 8 karakter dengan kombinasi huruf dan angka.</p>
+                        @error('new_password')<p class="mt-1 text-xs text-danger">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="confirm-password" class="mb-1.5 block text-sm font-semibold text-ink">Konfirmasi kata sandi baru</label>
+                        <div class="relative">
+                            <input id="confirm-password" name="new_password_confirmation" type="password" autocomplete="new-password" value="" minlength="8" required @disabled(!$settingsWritable) class="field pr-10">
+                            <button type="button" onclick="togglePasswordVisibility('confirm-password', this)" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer" aria-label="Tampilkan kata sandi">
+                                <svg class="h-4 w-4 eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg class="h-4 w-4 eye-off-icon hidden" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pt-2"><button type="submit" @disabled(!$settingsWritable) class="button-primary">Perbarui kata sandi</button></div>
                 </form>
             </section>
 
             <section data-settings-panel id="notifikasi" class="hidden rounded-xl bg-white p-6 shadow-sm" role="tabpanel" aria-labelledby="tab-notifikasi" tabindex="0">
                 <h2 id="notification-heading" class="section-heading">Preferensi Notifikasi</h2>
                 <p class="mt-1 text-sm text-muted">Atur pemberitahuan yang ingin Anda terima terkait aktivitas pengajaran.</p>
-                @if(session('status') === 'notification-preferences-updated')
-                    <p role="status" class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Preferensi notifikasi berhasil disimpan.</p>
-                @endif
                 @if(!$settingsWritable)
                     <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Preferensi hanya dapat disimpan untuk akun dosen yang tersimpan di database.</p>
                 @endif
@@ -170,5 +197,56 @@
             window.location.hash = '#keamanan';
         }
     </script>
+@elseif(session('status') === 'notification-preferences-updated')
+    <script>
+        if (!window.location.hash || window.location.hash === '#profil') {
+            window.location.hash = '#notifikasi';
+        }
+    </script>
 @endif
+<script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        const eyeIcon = btn.querySelector('.eye-icon');
+        const eyeOffIcon = btn.querySelector('.eye-off-icon');
+        if (eyeIcon && eyeOffIcon) {
+            eyeIcon.style.display = isPassword ? 'none' : 'block';
+            eyeOffIcon.style.display = isPassword ? 'block' : 'none';
+            eyeOffIcon.classList.toggle('hidden', !isPassword);
+            eyeIcon.classList.toggle('hidden', isPassword);
+        }
+        btn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+    }
+
+    function resetPasswordInputs() {
+        ['current-password', 'new-password', 'confirm-password'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el && !el.dataset.userTyped) {
+                el.value = '';
+            }
+        });
+    }
+
+    ['current-password', 'new-password', 'confirm-password'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', function() {
+                el.dataset.userTyped = 'true';
+            });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        resetPasswordInputs();
+        setTimeout(resetPasswordInputs, 50);
+        setTimeout(resetPasswordInputs, 200);
+        setTimeout(resetPasswordInputs, 500);
+    });
+    window.addEventListener('pageshow', function() {
+        resetPasswordInputs();
+    });
+</script>
 @endsection

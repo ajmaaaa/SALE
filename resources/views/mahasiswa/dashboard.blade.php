@@ -17,16 +17,16 @@
         <div class="surface flex items-center justify-between gap-4 border border-line/50 p-5">
             <div>
                 <p class="text-sm text-muted">Course diikuti</p>
-                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $allCourses->count() }} <span class="text-sm font-normal text-muted">course aktif</span></p>
+                <p class="mt-0.5 text-xl font-semibold text-ink">{{ $allCourses->count() }} <span class="text-sm font-normal text-muted">course</span></p>
             </div>
-            <a href="{{ route('mahasiswa.course.index') }}" class="button-secondary shrink-0 text-xs">Lihat Course</a>
+            <a href="{{ route('mahasiswa.course.index') }}" class="button-secondary shrink-0 text-xs w-[115px] sm:w-32 justify-center text-center">Lihat Course</a>
         </div>
         <div class="surface flex items-center justify-between gap-4 border border-line/50 p-5">
             <div>
                 <p class="text-sm text-muted">Tugas belum dikerjakan</p>
                 <p class="mt-0.5 text-xl font-semibold text-ink">{{ $activeItems->count() }} <span class="text-sm font-normal text-muted">pekerjaan</span></p>
             </div>
-            <a href="{{ route('mahasiswa.assignment.index') }}" class="button-secondary shrink-0 text-xs">Lihat Tugas</a>
+            <a href="{{ route('mahasiswa.assignment.index') }}" class="button-secondary shrink-0 text-xs w-[115px] sm:w-32 justify-center text-center">Lihat Tugas</a>
         </div>
     </section>
 

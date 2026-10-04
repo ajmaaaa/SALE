@@ -29,8 +29,9 @@ class DashboardController extends Controller
         $activeItems = collect();
         if ($user && $enrolledSections->isNotEmpty()) {
             if (Schema::hasTable('assessments')) {
-                $sectionIds = $enrolledSections->pluck('id');
-                $assessments = Assessment::whereIn('class_section_id', $sectionIds)
+                // Hanya hitung tugas aktif dari kelas yang belum diarsipkan
+                $activeSectionIds = $enrolledSections->filter(fn ($s) => ! $s->isArchived())->pluck('id');
+                $assessments = Assessment::whereIn('class_section_id', $activeSectionIds)
                     ->whereIn('type', ['tugas', 'coding', 'kuis', 'uts', 'uas', 'pbl', 'case', 'project', 'lainnya'])
                     ->where('status', 'published')
                     ->get();
@@ -53,7 +54,8 @@ class DashboardController extends Controller
         }
 
         if ($user) {
-            $courses = $enrolledSections->map(function ($sec) use ($activeItems) {
+            $activeSections = $enrolledSections->filter(fn ($s) => ! $s->isArchived());
+            $courses = $activeSections->map(function ($sec) use ($activeItems) {
                 $secAssessments = $sec->relationLoaded('assessments') ? $sec->assessments : $sec->assessments()->get();
 
                 // 1. Cek tugas dalam waktu dekat (belum dikerjakan dan belum terlewat / upcoming)
@@ -92,6 +94,7 @@ class DashboardController extends Controller
                     'dosen_anggota' => $sec->relationLoaded('dosenAnggota') && $sec->dosenAnggota->isNotEmpty() ? $sec->dosenAnggota->pluck('name')->join(', ') : $sec->dosenPendamping?->name,
                     'cover' => null,
                     'type' => 'Kelas Aktif',
+                    'is_archived' => false,
                     'work' => 'Perkuliahan semester '.($sec->semester->name ?? 'aktif'),
                     'semester_id' => $sec->semester_id,
                     'semester_name' => $sec->semester?->name,

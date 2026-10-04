@@ -69,8 +69,8 @@
 
     <div class="surface p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="relative w-64 max-w-full">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                <div class="relative w-full sm:w-64 max-w-full">
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
@@ -78,14 +78,14 @@
                     </div>
                     <input type="text" id="mk-search" onkeyup="filterMks()" placeholder="Cari kode atau nama..." class="field text-xs font-medium w-full" style="padding-left: 2.25rem !important;">
                 </div>
-                <select id="filter-semester-paket" onchange="switchSemesterPaket(this.value)" class="field text-xs font-semibold w-40">
+                <select id="filter-semester-paket" onchange="switchSemesterPaket(this.value)" class="field text-xs font-semibold w-full sm:w-40">
                     <option value="">Semua Semester</option>
                     @for($i = 1; $i <= 8; $i++)
                         <option value="{{ $i }}" {{ isset($selectedSemesterPaket) && $selectedSemesterPaket === $i ? 'selected' : '' }}>Semester {{ $i }}</option>
                     @endfor
                 </select>
             </div>
-            <div class="text-xs text-muted whitespace-nowrap">
+            <div class="text-xs text-muted break-words">
                 Total terdaftar di <span class="font-semibold text-ink">{{ $activeProdi?->name }}</span>: <strong class="text-ink font-bold" id="mk-count">{{ $mataKuliahs->count() }}</strong> mata kuliah
             </div>
         </div>

@@ -103,15 +103,17 @@ class LecturerProfileSettingsTest extends TestCase
 
     public function test_notification_preferences_persist_checked_and_unchecked_values(): void
     {
-        $this->actingAs($this->lecturer)
+        $response = $this->actingAs($this->lecturer)
             ->put(route('dosen.profile.notifications'), [
                 'preferences' => [
                     'notif_deadline' => '1',
                     'notif_forum' => '1',
                 ],
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('status', 'notification-preferences-updated');
+            ]);
+
+        $response->assertRedirect()
+            ->assertSessionHas('status', 'notification-preferences-updated')
+            ->assertSessionHas('notice', 'Preferensi notifikasi berhasil disimpan.');
 
         $this->assertSame([
             'notif_submission' => false,
@@ -119,6 +121,10 @@ class LecturerProfileSettingsTest extends TestCase
             'notif_forum' => true,
             'notif_rekap' => false,
         ], $this->lecturer->fresh()->notification_preferences);
+
+        $view = $this->actingAs($this->lecturer)->get(route('dosen.profile.index'));
+        $view->assertSee('id="toast-notice"', false);
+        $view->assertSee('Preferensi notifikasi berhasil disimpan.');
     }
 
     public function test_non_dosen_cannot_update_lecturer_settings(): void
@@ -206,5 +212,98 @@ class LecturerProfileSettingsTest extends TestCase
         // Verify it is removed from the profile information card section
         $content = $response->getContent();
         $this->assertStringNotContainsString('Bantuan &amp; Narahubung:', $content);
+    }
+
+    public function test_lecturer_notification_preferences_filter_notifications_returned_by_service(): void
+    {
+        $prodi = \App\Models\Prodi::create([
+            'code' => 'TI',
+            'name' => 'Teknik Informatika',
+            'slug' => 'teknik-informatika-dosen',
+        ]);
+        $course = \App\Models\MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'TI201',
+            'name' => 'Struktur Data',
+            'sks' => 3,
+            'semester' => 2,
+        ]);
+        $semester = \App\Models\Semester::create([
+            'code' => '20262',
+            'name' => '2026/2027 Genap',
+            'academic_year' => '2026/2027',
+            'term' => 2,
+            'is_active' => true,
+        ]);
+        $section = \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $course->id,
+            'semester_id' => $semester->id,
+            'dosen_id' => $this->lecturer->id,
+            'section_code' => 'A',
+            'capacity' => 40,
+        ]);
+
+        $assessment = \App\Models\Assessment::create([
+            'class_section_id' => $section->id,
+            'code' => 'TUGAS-2',
+            'name' => 'Tugas 2',
+            'type' => 'tugas',
+            'final_weight' => 20,
+            'status' => 'published',
+            'due_at' => now()->addDays(3),
+        ]);
+
+        $studentRole = Role::firstOrCreate(['name' => Role::MAHASISWA], ['label' => 'Mahasiswa']);
+        $student = User::create([
+            'name' => 'Siswa Pengumpul',
+            'email' => 'siswa-pengumpul@test.local',
+            'password' => 'Pass12345!',
+            'role_id' => $studentRole->id,
+        ]);
+
+        $submission = \App\Models\Submission::create([
+            'assessment_id' => $assessment->id,
+            'user_id' => $student->id,
+            'mahasiswa_id' => $student->id,
+            'attempt' => 1,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'answer' => 'Jawaban mahasiswa.',
+        ]);
+
+        $service = app(\App\Services\DatabaseNotificationService::class);
+
+        // By default (no preferences or notif_submission: true), submission notification is visible
+        $this->lecturer->forceFill(['notification_preferences' => null])->save();
+        $notifs = $service->forUser($this->lecturer, 'dosen');
+        $this->assertTrue(collect($notifs)->contains('id', "submission_{$submission->id}"));
+
+        // When notif_submission is muted, submission notification is filtered out
+        $this->lecturer->forceFill(['notification_preferences' => [
+            'notif_submission' => false,
+            'notif_deadline' => true,
+            'notif_forum' => true,
+            'notif_rekap' => true,
+        ]])->save();
+        $notifsFiltered = $service->forUser($this->lecturer, 'dosen');
+        $this->assertFalse(collect($notifsFiltered)->contains('id', "submission_{$submission->id}"));
+
+        // Verify on HTTP notification page: submission is not shown when muted
+        $this->actingAs($this->lecturer)
+            ->get(route('dosen.notifications'))
+            ->assertOk()
+            ->assertDontSee('Siswa Pengumpul');
+
+        // When notif_submission is re-enabled, submission appears on notification page
+        $this->lecturer->forceFill(['notification_preferences' => [
+            'notif_submission' => true,
+            'notif_deadline' => true,
+            'notif_forum' => true,
+            'notif_rekap' => true,
+        ]])->save();
+        $this->actingAs($this->lecturer)
+            ->get(route('dosen.notifications'))
+            ->assertOk()
+            ->assertSee('Siswa Pengumpul');
     }
 }

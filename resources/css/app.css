@@ -21,10 +21,6 @@
     --color-danger: #b42318;
 }
 
-.hidden {
-    display: none !important;
-}
-
 /* Hilangkan ikon mata native bawaan browser (seperti Microsoft Edge, IE, Chrome) agar tidak muncul ganda (double eye icon) */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear,
@@ -144,6 +140,11 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 
 @layer base {
+    :root, html {
+        color-scheme: light !important;
+        supported-color-schemes: light;
+    }
+
     html {
         color-scheme: light;
         overscroll-behavior-y: none;
@@ -274,7 +275,7 @@ body.workbench-resizing-row {
 }
 
 @layer components {
-    .surface { @apply rounded-xl bg-white shadow-sm; }
+    .surface { @apply rounded-xl bg-white shadow-sm; background-color: #ffffff !important; }
     .eyebrow { @apply text-xs font-semibold tracking-wide text-muted; }
     .form-label { @apply mb-2 block text-sm font-semibold; }
 }

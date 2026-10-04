@@ -293,11 +293,16 @@ class CodingTaskSubmissionAndAiTest extends TestCase
 
         // Dosen reviewing student with ?student=
         $dosenReviewRes = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]) . '?student=' . $this->mahasiswa->id);
-        $dosenReviewRes->assertOk();
-        $dosenReviewRes->assertSee('Meninjau:');
+        $dosenReviewRes->assertDontSee('Meninjau:');
+        $dosenReviewRes->assertSee($this->mahasiswa->name);
         $dosenReviewRes->assertSee('Kembali ke Penilaian');
         $dosenReviewRes->assertDontSee('id="panel-ai"', false);
         $dosenReviewRes->assertDontSee('Serahkan');
+        $dosenReviewRes->assertDontSee('Simpan &amp; Selesai', false);
+        $dosenReviewRes->assertDontSee('Simpan Nilai');
+        $dosenReviewRes->assertSee('id="btn-step-next"', false);
+        $dosenReviewRes->assertSee('name="return_to"', false);
+        $dosenReviewRes->assertSee('data-read-only="1"', false);
 
         // 2. Buttons: "Sebelumnya" and "Selanjutnya" exist, and submit is hidden until last step
         $studentRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
@@ -308,7 +313,20 @@ class CodingTaskSubmissionAndAiTest extends TestCase
         $studentRes->assertSee('Serahkan');
         $studentRes->assertDontSee('Kumpulkan Kode');
 
-        // 3. AI Asisten is disabled so panel-ai is not rendered
+        // 3. Mobile responsiveness tabs and panels exist for Android/mobile
+        $studentRes->assertSee('id="mobile-workbench-tabs"', false);
+        $studentRes->assertSee('data-mobile-tab="editor"', false);
+        $studentRes->assertSee('data-mobile-tab="question"', false);
+        $studentRes->assertSee('mobile-panel-active', false);
+        $studentRes->assertSee('data-terminal-fullscreen-toggle', false);
+
+        // Verify order: Soal (question) is before Editor Kode (editor)
+        $content = $studentRes->getContent();
+        $qPos = strpos($content, 'data-mobile-tab="question"');
+        $ePos = strpos($content, 'data-mobile-tab="editor"');
+        $this->assertTrue($qPos !== false && $ePos !== false && $qPos < $ePos, 'Soal tab must be to the left of Editor tab');
+
+        // 4. AI Asisten is disabled so panel-ai is not rendered
         $studentRes->assertDontSee('id="panel-ai"', false);
         $studentRes->assertDontSee('Tanyakan Baris');
 
@@ -526,5 +544,178 @@ class CodingTaskSubmissionAndAiTest extends TestCase
             'mahasiswa_id' => $this->mahasiswa->id,
             'score' => 95,
         ]);
+    }
+
+    public function test_submitted_or_graded_coding_task_is_strictly_read_only_with_no_ai_and_faded_disabled_submit_button(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-LOCK-TEST',
+            'name' => 'Tugas Coding Terkunci',
+            'type' => 'coding',
+            'final_weight' => 15,
+            'status' => 'published',
+            'learning_payload' => [
+                'task_mode' => 'coding',
+                'question_type' => 'coding',
+                'ai_enabled' => true,
+                'points' => 100,
+                'coding_steps' => [
+                    [
+                        'title' => 'Soal 1: Binary Tree',
+                        'cpmk' => 'CPMK-01',
+                        'points' => 100,
+                        'code' => 'class Node: pass',
+                    ],
+                ],
+            ],
+        ]);
+
+        // Student submits task
+        Submission::create([
+            'assessment_id' => $assessment->id,
+            'user_id' => $this->mahasiswa->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'attempt' => 1,
+            'version' => 1,
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'answer' => json_encode([['name' => 'untitled.py', 'code' => 'print("done")']]),
+        ]);
+
+        $res = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $assessment->id]));
+        $res->assertOk();
+
+        // 1. Editor must be strictly read-only
+        $res->assertSee('data-read-only="1"', false);
+        $res->assertSee('data-is-submitted="1"', false);
+        $res->assertSee('Mode Baca Saja (Tugas Telah Diserahkan - Terkunci)');
+
+        // 2. AI panel must be completely hidden/removed
+        $res->assertDontSee('id="panel-ai"', false);
+        $res->assertDontSee('Tanyakan Baris');
+
+        // 3. Submit button must be disabled, faded (opacity-40), and cannot be clicked (no form / trigger)
+        $res->assertSee('id="status-submitted-badge"', false);
+        $res->assertSee('Sudah Diserahkan');
+        $res->assertSee('opacity-40');
+        $res->assertDontSee('id="btn-submit-code-trigger"', false);
+        $res->assertDontSee('id="form-code-submit"', false);
+        $res->assertDontSee('id="coding-submit-confirm-modal"', false);
+
+        // 4. Also test when student is graded: remains strictly locked even without active submission submitted_at
+        $gradedAssessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-GRADED-TEST',
+            'name' => 'Tugas Coding Sudah Dinilai',
+            'type' => 'coding',
+            'final_weight' => 15,
+            'status' => 'published',
+            'learning_payload' => [
+                'task_mode' => 'coding',
+                'question_type' => 'coding',
+                'ai_enabled' => true,
+                'points' => 100,
+            ],
+        ]);
+
+        \App\Models\StudentAssessmentScore::create([
+            'assessment_id' => $gradedAssessment->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'score' => 88.5,
+            'status' => \App\Models\StudentAssessmentScore::STATUS_PUBLISHED,
+        ]);
+
+        $gradedRes = $this->actingAs($this->mahasiswa)->get(route('course.assignment.code', [$this->section->id, $gradedAssessment->id]));
+        $gradedRes->assertOk();
+        $gradedRes->assertSee('data-read-only="1"', false);
+        $gradedRes->assertDontSee('id="panel-ai"', false);
+        $gradedRes->assertSee('id="status-submitted-badge"', false);
+        $gradedRes->assertDontSee('id="btn-submit-code-trigger"', false);
+    }
+
+    public function test_lecturer_review_coding_submission_displays_student_code_and_completion_time_without_meninjau_badge_or_center_timer(): void
+    {
+        $assessment = Assessment::create([
+            'class_section_id' => $this->section->id,
+            'code' => 'TGS-REVIEW-TEST',
+            'name' => 'Tugas Review Koding',
+            'final_weight' => 15,
+            'status' => 'published',
+            'type' => 'tugas',
+            'learning_payload' => [
+                'type' => 'tugas',
+                'task_mode' => 'coding',
+                'title' => 'Tugas Review Koding',
+                'module' => 'Modul 5',
+                'body' => 'Kerjakan tugas BST.',
+                'question_type' => 'coding',
+                'duration_enabled' => true,
+                'duration_minutes' => 60,
+                'coding_steps' => [
+                    [
+                        'title' => 'Bagian 1: Inisialisasi',
+                        'cpmk' => 'CPMK-01',
+                        'points' => 100,
+                        'code' => 'class Node: pass',
+                    ],
+                ],
+            ],
+        ]);
+        $assessment->cpmks()->attach($this->cpmk->id, ['weight' => 100]);
+
+        // Create attempt: started 40 minutes before submission
+        $startedAt = now()->subMinutes(40);
+        $submittedAt = now();
+
+        \App\Models\AssessmentAttempt::create([
+            'assessment_id' => $assessment->id,
+            'class_section_id' => $this->section->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'attempt' => 1,
+            'started_at' => $startedAt,
+            'submitted_at' => $submittedAt,
+            'deadline_at' => $startedAt->copy()->addMinutes(60),
+            'status' => \App\Models\AssessmentAttempt::STATUS_SUBMITTED,
+        ]);
+
+        $studentCustomCode = 'def my_custom_solution(): return 42';
+        $submission = Submission::create([
+            'assessment_id' => $assessment->id,
+            'user_id' => $this->mahasiswa->id,
+            'mahasiswa_id' => $this->mahasiswa->id,
+            'attempt' => 1,
+            'version' => 1,
+            'status' => 'pending',
+            'submitted_at' => $submittedAt,
+            'answer' => json_encode([
+                [
+                    'name' => 'custom_bst.py',
+                    'code' => $studentCustomCode,
+                    'step' => 1,
+                ],
+            ]),
+        ]);
+
+        // Lecturer opens the student coding review page
+        $res = $this->actingAs($this->dosen)->get(route('course.assignment.code', [$this->section->id, $assessment->id]) . '?student=' . $this->mahasiswa->id);
+        $res->assertOk();
+
+        // 1. Must NOT see 'Meninjau:' badge
+        $res->assertDontSee('Meninjau:');
+
+        // 2. Must NOT see 'Timer: 60 mnt' in center
+        $res->assertDontSee('Timer: 60 mnt');
+
+        // 3. Must see 'Daftar Bagian' in center
+        $res->assertSee('Daftar Bagian');
+
+        // 4. Must see student's submitted code in the payload
+        $res->assertSee($studentCustomCode);
+        $res->assertSee('custom_bst.py');
+
+        // 5. Must see completion time in right panel: '40/60 menit'
+        $res->assertSee('Waktu Selesai:');
+        $res->assertSee('40/60 menit');
     }
 }

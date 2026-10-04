@@ -139,6 +139,9 @@ class ChatController extends Controller
 
         $totalCount = Message::where('room_id', $room->id)->count();
 
+        // Mark discussions as read when reading messages
+        app(\App\Services\DatabaseNotificationService::class)->markDiscussionRead($user, $course);
+
         return response()->json([
             'success' => true,
             'room_id' => $room->id,
@@ -149,6 +152,7 @@ class ChatController extends Controller
             'has_more' => $hasMore,
             'oldest_id' => $messages->first()?->id ?? null,
             'latest_id' => $messages->last()?->id ?? null,
+            'total' => $totalCount,
         ]);
     }
 

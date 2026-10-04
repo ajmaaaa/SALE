@@ -39,32 +39,36 @@
     </header>
 
     <!-- Filter Bar -->
-    <div class="surface p-4 flex flex-wrap items-center justify-between gap-4">
-        <form id="laporanFilterForm" method="GET" class="flex flex-wrap items-center gap-3">
+    <div class="surface p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <form id="laporanFilterForm" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             @if(auth()->user()?->hasRole(\App\Models\Role::ADMIN) && $prodis->count() > 1)
-                <label for="rep_prodi" class="text-xs font-semibold text-muted">Program Studi:</label>
-                <select name="prodi_id" id="rep_prodi" onchange="this.form.submit()" class="field text-xs font-semibold w-56">
-                    @foreach($prodis as $p)
-                        <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
-                            {{ $p->code }} - {{ $p->name }}
-                        </option>
-                    @endforeach
-                </select>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <label for="rep_prodi" class="text-xs font-semibold text-muted shrink-0">Program Studi:</label>
+                    <select name="prodi_id" id="rep_prodi" onchange="this.form.submit()" class="field text-xs font-semibold w-full sm:w-56">
+                        @foreach($prodis as $p)
+                            <option value="{{ $p->id }}" {{ $activeProdi && $activeProdi->id === $p->id ? 'selected' : '' }}>
+                                {{ $p->code }} - {{ $p->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
             @else
                 <input type="hidden" name="prodi_id" value="{{ $activeProdi?->id }}">
             @endif
 
-            <label for="rep_semester" class="text-xs font-semibold text-muted">Semester:</label>
-            <select name="semester_id" id="rep_semester" onchange="this.form.submit()" class="field text-xs font-semibold w-52">
-                @foreach($semesters as $sem)
-                    <option value="{{ $sem->id }}" {{ $activeSemester && $activeSemester->id === $sem->id ? 'selected' : '' }}>
-                        {{ $sem->name }} {{ $sem->is_active ? '(Aktif)' : '' }}
-                    </option>
-                @endforeach
-            </select>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <label for="rep_semester" class="text-xs font-semibold text-muted shrink-0">Semester:</label>
+                <select name="semester_id" id="rep_semester" onchange="this.form.submit()" class="field text-xs font-semibold w-full sm:w-52">
+                    @foreach($semesters as $sem)
+                        <option value="{{ $sem->id }}" {{ $activeSemester && $activeSemester->id === $sem->id ? 'selected' : '' }}>
+                            {{ $sem->name }} {{ $sem->is_active ? '(Aktif)' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </form>
 
-        <div class="text-xs text-muted">
+        <div class="text-xs text-muted break-words">
             Periode: <strong class="text-ink">{{ $activeSemester?->name }}</strong>, Prodi: <strong class="text-ink">{{ $activeProdi?->name }}</strong>
         </div>
     </div>

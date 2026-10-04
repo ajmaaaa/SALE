@@ -47,7 +47,7 @@
 
 
     <!-- Tabs Navigation -->
-    <div class="flex border-b border-line gap-2">
+    <div class="flex border-b border-line gap-2 overflow-x-auto whitespace-nowrap">
         <a href="{{ route('admin-prodi.kurikulum.index', ['prodi_id' => $activeProdi?->id, 'tab' => 'cpl']) }}" 
            class="px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {{ $tab === 'cpl' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }}">
             1. Butir CPL Prodi ({{ $cpls->count() }})

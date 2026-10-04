@@ -23,7 +23,33 @@
         @endunless
     </header>
 
+    {{-- Tab Navigasi [Kelas Aktif] / [Arsip Kelas] (Sama seperti Menu Course) --}}
+    @php
+        $currentTab = $tab ?? 'active';
+        $activeBadge = $activeCount ?? 0;
+        $archivedBadge = $archivedCount ?? 0;
+    @endphp
+    <div class="flex items-center gap-2 border-b border-line/60" role="tablist">
+        <a href="{{ request()->fullUrlWithQuery(['tab' => 'active']) }}"
+           class="px-4 py-2 text-xs font-semibold border-b-2 {{ $currentTab !== 'archived' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }} -mb-px transition flex items-center gap-1.5"
+           aria-selected="{{ $currentTab !== 'archived' ? 'true' : 'false' }}">
+            <span>Kelas Aktif</span>
+            <span class="rounded-full px-1.5 py-0.5 text-[10px] {{ $currentTab !== 'archived' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-600' }} font-bold">
+                {{ $activeBadge }}
+            </span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['tab' => 'archived']) }}"
+           class="px-4 py-2 text-xs font-semibold border-b-2 {{ $currentTab === 'archived' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink' }} -mb-px transition flex items-center gap-1.5"
+           aria-selected="{{ $currentTab === 'archived' ? 'true' : 'false' }}">
+            <span>Arsip Kelas</span>
+            <span class="rounded-full px-1.5 py-0.5 text-[10px] {{ $currentTab === 'archived' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-600' }} font-bold">
+                {{ $archivedBadge }}
+            </span>
+        </a>
+    </div>
+
     <form class="flex flex-col gap-3 sm:flex-row sm:items-center" action="{{ route($isRekap ? 'dosen.rekap.index' : 'dosen.penilaian.index') }}" method="GET">
+        <input type="hidden" name="tab" value="{{ $currentTab }}">
         <label class="sr-only" for="class-search">Cari kelas</label>
         <div class="relative w-full sm:max-w-md">
             <input id="class-search" name="q" type="search" class="field w-full" placeholder="Cari judul, kode, atau dosen..." value="{{ request('q') }}" autocomplete="off">
@@ -44,9 +70,9 @@
 
     @if($sections->isEmpty())
         <div class="surface p-10 text-center">
-            <h2 class="section-heading">{{ request()->filled('q') || request()->filled('semester') ? 'Kelas tidak ditemukan' : 'Belum ada kelas yang diampu' }}</h2>
+            <h2 class="section-heading">{{ request()->filled('q') || request()->filled('semester') ? 'Kelas tidak ditemukan' : ($currentTab === 'archived' ? 'Belum ada kelas yang diarsipkan' : 'Belum ada kelas yang diampu') }}</h2>
             <p class="mt-2 text-sm text-muted max-w-md mx-auto">
-                {{ request()->filled('q') || request()->filled('semester') ? 'Coba ubah kata kunci pencarian atau pilih semester lain.' : 'Kelas yang ditugaskan Admin Prodi atau Anda masuki melalui kode akan muncul di sini.' }}
+                {{ request()->filled('q') || request()->filled('semester') ? 'Coba ubah kata kunci pencarian atau pilih semester lain.' : ($currentTab === 'archived' ? 'Kelas yang telah diarsipkan pada semester sebelumnya akan muncul di sini.' : 'Kelas yang ditugaskan Admin Prodi atau Anda masuki melalui kode akan muncul di sini.') }}
             </p>
         </div>
     @else
@@ -76,6 +102,9 @@
                                     <span class="text-xs font-bold font-mono text-brand shrink-0">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
                                     @if($isAnggota)
                                         <span class="text-xs text-muted shrink-0">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
+                                    @endif
+                                    @if($section->isArchived())
+                                        <span class="rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold shrink-0">Arsip</span>
                                     @endif
                                     <span class="text-slate-300 shrink-0">•</span>
                                     <span class="text-xs text-muted truncate">{{ $section->semester->name }}</span>
@@ -148,6 +177,9 @@
                                         <span class="text-xs font-bold font-mono text-brand">{{ $section->mataKuliah->code }}-{{ $section->section_code }}</span>
                                         @if($isAnggota)
                                             <span class="text-xs text-muted">(Dosen Anggota)<span class="sr-only">Dosen Wakil</span></span>
+                                        @endif
+                                        @if($section->isArchived())
+                                            <span class="rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold shrink-0">Arsip</span>
                                         @endif
                                     </div>
                                     <h2 class="text-base font-bold text-ink leading-snug line-clamp-2 min-h-[2.75rem] group-hover:text-brand transition-colors" title="{{ $section->mataKuliah->name }}">

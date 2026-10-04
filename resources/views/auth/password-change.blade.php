@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#102f50">
     <title>Ganti Password | SALE - Smart Academic Learning Ecosystem</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])

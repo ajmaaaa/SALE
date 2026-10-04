@@ -33,7 +33,7 @@ export function runPython({ files, code, assignmentId, testAssignment = false, r
         };
         signal?.addEventListener('abort', cancel, { once: true });
         if (signal?.aborted) return cancel();
-        deadline(20000, 'Waktu pemuatan runtime Python habis (20 detik). Coba muat ulang halaman.');
+        deadline(60000, 'Python belum berhasil dimuat. Muat ulang halaman dan coba lagi.');
         worker.onerror = () => finish(new Error('Runtime Python gagal dimuat. Coba muat ulang halaman.'));
         worker.onmessage = ({ data }) => {
             if (data.type === 'ready') {

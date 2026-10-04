@@ -77,9 +77,9 @@
                     <thead>
                         {{-- Baris 1: grup nama asesmen --}}
                         <tr class="bg-[#f8fafc]">
-                            <th class="py-2.5 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-r border-line/50 border-b-0 align-bottom">#</th>
-                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-r border-line/40 border-b-0 align-bottom">NIM</th>
-                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-r border-line/50 border-b-0 align-bottom">Nama Mahasiswa</th>
+                            <th class="py-2.5 px-3 text-center text-muted font-semibold w-12 min-w-[48px] max-w-[48px] md:sticky md:left-0 bg-[#f8fafc] md:z-30 border-r border-line/50 border-b-0 align-bottom">#</th>
+                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[130px] min-w-[130px] max-w-[130px] md:sticky md:left-[48px] bg-[#f8fafc] md:z-30 border-r border-line/40 border-b-0 align-bottom">NIM</th>
+                            <th class="py-2.5 px-3 text-left text-muted font-semibold w-[220px] min-w-[220px] max-w-[220px] md:sticky md:left-[178px] bg-[#f8fafc] md:z-30 border-r border-line/50 border-b-0 align-bottom">Nama Mahasiswa</th>
 
                             @foreach($columns as $col)
                                 <th class="py-2.5 px-3 text-center font-semibold text-ink border-b border-l border-line/50 bg-[#f8fafc]"
@@ -98,9 +98,9 @@
 
                         {{-- Baris 2: sub-kolom CPMK per asesmen + kolom Total --}}
                         <tr class="bg-[#f8fafc]">
-                            <th class="py-1.5 px-3 text-center w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-[#f8fafc] z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
-                            <th class="py-1.5 px-3 text-left w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-[#f8fafc] z-30 border-b border-r border-line/40 border-t-0">&nbsp;</th>
-                            <th class="py-1.5 px-3 text-left w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-[#f8fafc] z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-center w-12 min-w-[48px] max-w-[48px] md:sticky md:left-0 bg-[#f8fafc] md:z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-left w-[130px] min-w-[130px] max-w-[130px] md:sticky md:left-[48px] bg-[#f8fafc] md:z-30 border-b border-r border-line/40 border-t-0">&nbsp;</th>
+                            <th class="py-1.5 px-3 text-left w-[220px] min-w-[220px] max-w-[220px] md:sticky md:left-[178px] bg-[#f8fafc] md:z-30 border-b border-r border-line/50 border-t-0">&nbsp;</th>
 
                             @foreach($columns as $col)
                                 @foreach($col['cpmk_cols'] as $cc)
@@ -118,9 +118,9 @@
                     <tbody>
                         @forelse($rows as $idx => $row)
                             <tr class="group bg-white hover:bg-slate-50 transition-colors">
-                                <td class="py-2.5 px-3 text-center text-muted/70 w-12 min-w-[48px] max-w-[48px] sticky left-0 bg-white group-hover:bg-slate-50 z-20 border-b border-r border-line/40">{{ $idx + 1 }}</td>
-                                <td class="py-2.5 px-3 font-mono text-muted w-[130px] min-w-[130px] max-w-[130px] sticky left-[48px] bg-white group-hover:bg-slate-50 z-20 text-[11px] border-b border-r border-line/40">{{ $row['student']->nim_nidn ?? '' }}</td>
-                                <td class="py-2.5 px-3 font-medium text-ink w-[220px] min-w-[220px] max-w-[220px] sticky left-[178px] bg-white group-hover:bg-slate-50 z-20 border-b border-r border-line/50">
+                                <td class="py-2.5 px-3 text-center text-muted/70 w-12 min-w-[48px] max-w-[48px] md:sticky md:left-0 bg-white group-hover:bg-slate-50 md:z-20 border-b border-r border-line/40">{{ $idx + 1 }}</td>
+                                <td class="py-2.5 px-3 font-mono text-muted w-[130px] min-w-[130px] max-w-[130px] md:sticky md:left-[48px] bg-white group-hover:bg-slate-50 md:z-20 text-[11px] border-b border-r border-line/40">{{ $row['student']->nim_nidn ?? '' }}</td>
+                                <td class="py-2.5 px-3 font-medium text-ink w-[220px] min-w-[220px] max-w-[220px] md:sticky md:left-[178px] bg-white group-hover:bg-slate-50 md:z-20 border-b border-r border-line/50">
                                     <div class="truncate" title="{{ $row['student']->name }}">{{ $row['student']->name }}</div>
                                 </td>
 

@@ -47,21 +47,28 @@ class ClassSectionController extends Controller
 
         $selectedSemesterId = $request->query('semester');
         $q = trim((string) $request->query('q', ''));
+        $tab = (string) $request->query('tab', 'active');
 
         $semesters = Semester::orderChronological()->get();
 
-        $sections = ClassSection::query()
+        $baseQuery = ClassSection::query()
             ->where(function ($query) use ($dosen) {
                 $query->where('dosen_id', $dosen->id)
                     ->orWhere('dosen_pendamping_id', $dosen->id)
                     ->orWhereHas('dosenAnggota', fn ($sub) => $sub->where('users.id', $dosen->id));
             })
+            ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
+                $query->where('semester_id', $selectedSemesterId);
+            });
+
+        $activeCount = (clone $baseQuery)->whereNull('archived_at')->count();
+        $archivedCount = (clone $baseQuery)->whereNotNull('archived_at')->count();
+
+        $sections = (clone $baseQuery)
+            ->when($tab === 'archived', fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
             ->with(['mataKuliah', 'semester', 'dosen', 'dosenPendamping', 'dosenAnggota'])
             ->withCount('students')
             ->withCount(['assessments' => fn ($query) => $query->whereNotIn('type', ['materi', 'pengumuman', 'lainnya'])])
-            ->when($selectedSemesterId, function ($query) use ($selectedSemesterId) {
-                $query->where('semester_id', $selectedSemesterId);
-            })
             ->when($q !== '', function ($query) use ($q) {
                 $lower = mb_strtolower($q);
                 $query->where(function ($sub) use ($lower) {
@@ -107,6 +114,9 @@ class ClassSectionController extends Controller
             'mode' => $mode,
             'semesters' => $semesters,
             'selectedSemesterId' => $selectedSemesterId,
+            'tab' => $tab,
+            'activeCount' => $activeCount,
+            'archivedCount' => $archivedCount,
         ]);
     }
 

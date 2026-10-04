@@ -38,7 +38,7 @@
     {{-- KHS Table (Klik baris langsung untuk melihat detail nilai) --}}
     <div class="surface overflow-hidden">
         <div class="border-b border-line/60 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah ({{ $selectedSemester?->name ?? 'Semester Terpilih' }})</h2>
+            <h2 class="font-semibold text-ink text-sm">Daftar Mata Kuliah ({{ $selectedSemester?->display_name ?? $selectedSemester?->name ?? 'Semester Terpilih' }})</h2>
             <span class="text-xs text-muted">Total Beban: <strong class="font-semibold text-ink">{{ $totalCredits }} SKS</strong></span>
         </div>
 

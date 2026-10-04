@@ -25,7 +25,7 @@ class DashboardController extends Controller
             return view('dosen.dashboard', compact('courses', 'pendingCount', 'recentDiscussions'));
         }
 
-        $courses = ClassSection::query()
+        $sections = ClassSection::query()
             ->where(function ($query) use ($dosen) {
                 $query->where('dosen_id', $dosen->id)
                     ->orWhere('dosen_pendamping_id', $dosen->id)
@@ -36,7 +36,11 @@ class DashboardController extends Controller
             ->orderByDesc('semester_id')
             ->orderBy('mata_kuliah_id')
             ->orderBy('section_code')
-            ->get()
+            ->get();
+
+        $activeSections = $sections->filter(fn (ClassSection $section) => ! $section->isArchived());
+
+        $courses = $activeSections
             ->map(function (ClassSection $section) {
                 if (empty($section->enrollment_code)) {
                     $section->update(['enrollment_code' => ClassSection::generateUniqueEnrollmentCode()]);
@@ -84,6 +88,7 @@ class DashboardController extends Controller
                     'dosen_anggota' => $anggotaNames,
                     'cover' => null,
                     'type' => 'Kelas Aktif',
+                    'is_archived' => false,
                     'work' => 'Perkuliahan semester '.($section->semester?->name ?? 'aktif'),
                     'due' => '',
                     'students_count' => $section->students_count,
@@ -105,6 +110,9 @@ class DashboardController extends Controller
             ->values();
 
         $pendingCount = $courses->filter(function (array $course): bool {
+            if (! empty($course['is_archived'])) {
+                return false;
+            }
             $section = ClassSection::withCount('students')->find($course['id']);
             $assessmentIds = $section?->gradableAssessments()->pluck('id') ?? collect();
             $expected = $assessmentIds->count() * ($section?->students_count ?? 0);

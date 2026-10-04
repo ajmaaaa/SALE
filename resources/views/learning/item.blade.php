@@ -212,7 +212,7 @@
                                         @elseif($isArchived)
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Lembar Kuis (Read-Only)</a>
                                         @elseif($isLocked || $isAttemptRejected)
-                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed">Kerjakan</button>
+                                            <button type="button" disabled class="button-secondary text-xs py-2.5 px-5 font-semibold opacity-50 cursor-not-allowed">Kuis Ditutup</button>
                                         @else
                                             <a href="{{ route('mahasiswa.quiz.room', [$course['id'], $item['id']]) }}" class="button-primary text-xs py-2.5 px-5 font-semibold">Mulai Kerjakan Kuis</a>
                                         @endif
@@ -267,14 +267,13 @@
                                     @endif
                                 </div>
 
+                                @if(!$isLecturer || !$isCodingTask)
                                 <div class="flex shrink-0 items-center">
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($isLecturer)
-                                            @if($isCodingTask)
-                                                <a href="{{ route('dosen.penilaian.asesmen.nilai', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Lihat dan Nilai Mahasiswa</a>
-                                            @else
-                                                <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Praktikum Kode</a>
-                                            @endif
+                                            <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Praktikum Kode</a>
+                                        @elseif($isArchived)
+                                            <button type="button" disabled class="button-primary text-xs py-2.5 px-5 font-semibold opacity-40 cursor-not-allowed select-none" title="Kelas telah diarsipkan. Halaman pemrograman ditutup.">{{ $isGraded || $submission ? 'Buka Editor Kode / Jawaban' : ($isCodingMaterial ? 'Buka Praktikum Kode' : 'Mulai Kerjakan Tugas Koding') }}</button>
                                         @elseif($isGraded || $submission)
                                             <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="button-secondary bg-white text-xs py-2.5 px-5 font-semibold">Buka Editor Kode / Jawaban</a>
                                         @elseif($isLocked)
@@ -284,6 +283,7 @@
                                         @endif
                                     </div>
                                 </div>
+                                @endif
                             </div>
                         </div>
                     @endif
@@ -841,7 +841,9 @@
                                 @if($isJsonCode)
                                     <div class="flex items-center justify-between gap-2 pt-0.5">
                                         <span class="text-ink font-medium">Kode program telah diserahkan.</span>
-                                        <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="text-brand hover:underline font-semibold shrink-0">Buka di Editor Kode ↗</a>
+                                        @if(!$isArchived)
+                                            <a href="{{ route('course.assignment.code', [$course['id'], $item['id']]) }}" class="text-brand hover:underline font-semibold shrink-0">Buka di Editor Kode ↗</a>
+                                        @endif
                                     </div>
                                 @else
                                     <p class="text-ink line-clamp-3">{{ $submission['answer'] }}</p>

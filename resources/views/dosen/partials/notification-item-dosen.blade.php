@@ -45,11 +45,18 @@
 
         <!-- Notification Details -->
         <div class="min-w-0 flex-1 space-y-1.5">
-            <h3 class="text-sm sm:text-[15px] font-bold transition-colors leading-snug {{ $isRead ? 'text-slate-500 font-semibold' : 'text-slate-900 group-hover:text-[#102f50]' }}">
-                <a href="{{ route('dosen.notifications.read', [$notif['id'], 'target' => $notif['link'], 'back_category' => request('category')]) }}" class="hover:underline">
-                    {{ $notif['title'] }}
-                </a>
-            </h3>
+            <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-sm sm:text-[15px] font-bold transition-colors leading-snug {{ $isRead ? 'text-slate-500 font-semibold' : 'text-slate-900 group-hover:text-[#102f50]' }}">
+                    <a href="{{ route('dosen.notifications.read', [$notif['id'], 'target' => $notif['link'], 'back_category' => request('category')]) }}" class="hover:underline">
+                        {{ $notif['title'] }}
+                    </a>
+                </h3>
+                @if(!$isRead && !empty($notif['mention_count']) && $notif['mention_count'] > 0)
+                    <span class="inline-flex items-center gap-0.5 rounded-full bg-[#102f50] px-2 py-0.5 text-[11px] font-bold text-white shadow-2xs shrink-0" title="{{ $notif['mention_count'] }} sebutan (@) untuk Anda">
+                        <span class="font-mono font-black">@</span>{{ $notif['mention_count'] }}
+                    </span>
+                @endif
+            </div>
 
             <p class="text-xs sm:text-sm leading-relaxed max-w-3xl {{ $isRead ? 'text-slate-400' : 'text-slate-600' }}">
                 {{ $notif['message'] }}

@@ -922,6 +922,7 @@ class LearningController extends Controller
             'options' => 'nullable|string|max:10000000', 'cpmk' => 'nullable|string|max:1000',
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
+            'duration_toggle' => 'nullable',
         ]);
 
         $category = $data['type'];
@@ -1147,8 +1148,11 @@ class LearningController extends Controller
         if ($isQuizMode && ! empty($data['due'])) {
             $data['allow_late'] = false;
         }
-        $data['duration_enabled'] = $request->input('duration_mode', 'disabled') === 'enabled';
-        $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
+        $durationEnabled = $request->input('duration_mode') === 'enabled'
+            || $request->boolean('duration_toggle')
+            || ($request->filled('duration_minutes') && (int) $request->input('duration_minutes') > 0 && $request->input('duration_mode') !== 'disabled');
+        $data['duration_enabled'] = $durationEnabled;
+        $data['duration_minutes'] = $data['duration_enabled'] ? max(1, (int) $request->input('duration_minutes', 60)) : null;
         $data['randomize_questions'] = $request->boolean('randomize_questions', false);
         $data['language'] = $data['question_type'] === 'coding' ? ($data['code_language'] ?? 'python') : 'python';
         $data['ai_enabled'] = $request->has('ai_enabled')
@@ -1458,6 +1462,7 @@ class LearningController extends Controller
             'options' => 'nullable|string|max:10000000', 'cpmk' => 'nullable|string|max:1000',
             'duration_mode' => 'nullable|in:enabled,disabled',
             'duration_minutes' => 'nullable|integer|min:1|max:1440',
+            'duration_toggle' => 'nullable',
             'randomize_questions' => 'nullable|boolean',
             'ai_enabled' => 'nullable|boolean',
             'linked_material_ids' => 'nullable|array',
@@ -1468,8 +1473,11 @@ class LearningController extends Controller
         $data['question_type'] = $data['question_type'] ?? ($existingItem['question_type'] ?? 'uraian');
         $data['formats'] = $data['formats'] ?? ($existingItem['formats'] ?? ['file', 'image', 'link', 'text']);
         $data['allow_late'] = $request->boolean('allow_late', true);
-        $data['duration_enabled'] = $request->input('duration_mode', 'disabled') === 'enabled';
-        $data['duration_minutes'] = $data['duration_enabled'] ? (int) $request->input('duration_minutes', 60) : null;
+        $durationEnabled = $request->input('duration_mode') === 'enabled'
+            || $request->boolean('duration_toggle')
+            || ($request->filled('duration_minutes') && (int) $request->input('duration_minutes') > 0 && $request->input('duration_mode') !== 'disabled');
+        $data['duration_enabled'] = $durationEnabled;
+        $data['duration_minutes'] = $data['duration_enabled'] ? max(1, (int) $request->input('duration_minutes', 60)) : null;
         $data['randomize_questions'] = $request->boolean('randomize_questions', false);
         $data['pin_video'] = $request->boolean('pin_video');
         $data['ai_enabled'] = $request->has('ai_enabled')
@@ -1864,6 +1872,27 @@ class LearningController extends Controller
             'content' => $content,
         ]);
 
+        if (Schema::hasTable('message_mentions') && str_contains($content, '@')) {
+            $roomMembers = $room->members()->get();
+            foreach ($roomMembers as $member) {
+                if ($member->id !== $user->id && str_contains(mb_strtolower($content), '@'.mb_strtolower($member->name))) {
+                    \App\Models\MessageMention::firstOrCreate([
+                        'message_id' => $message->id,
+                        'mentioned_user_id' => $member->id,
+                    ]);
+
+                    if (Schema::hasTable('chat_notifications')) {
+                        \App\Models\ChatNotification::create([
+                            'user_id' => $member->id,
+                            'type' => 'mention',
+                            'message_id' => $message->id,
+                            'is_read' => false,
+                        ]);
+                    }
+                }
+            }
+        }
+
         return $message->load('user.role')->toChatPayload($user);
     }
 
@@ -1910,9 +1939,16 @@ class LearningController extends Controller
                 ->first();
 
             if (! $assessmentAttempt && $this->timedDurationMinutes($resource) !== null) {
-                return back()->withErrors([
-                    'submission' => 'Attempt belum dimulai. Buka ruang kuis terlebih dahulu.',
-                ])->withInput();
+                if ($resource['type'] === 'coding'
+                    || ($resource['task_mode'] ?? null) === 'coding'
+                    || ($resource['question_type'] ?? null) === 'coding'
+                    || in_array($resource['type'], ['tugas', 'pbl', 'case', 'project'], true)) {
+                    $assessmentAttempt = $this->startTimedAssessmentAttempt($assessment, $user, $resource);
+                } else {
+                    return back()->withErrors([
+                        'submission' => 'Attempt belum dimulai. Buka ruang kuis terlebih dahulu.',
+                    ])->withInput();
+                }
             }
 
             if ($assessmentAttempt && $assessmentAttempt->status !== AssessmentAttempt::STATUS_IN_PROGRESS) {
@@ -2159,6 +2195,10 @@ class LearningController extends Controller
 
         if ($request->boolean('from_quiz_room')) {
             return redirect()->route('mahasiswa.quiz.room', [$course, $item])->with('notice', 'Jawaban berhasil dikirim! Kuis Anda telah berhasil dikumpulkan.');
+        }
+
+        if ($request->boolean('from_code_editor')) {
+            return redirect()->route('course.assignment.code', [$course, $item])->with('notice', 'Tugas coding berhasil diserahkan!');
         }
 
         return redirect()->route('mahasiswa.course.item', [$course, $item])->with('notice', 'Jawaban berhasil disimpan dan menunggu penilaian.');
@@ -2765,7 +2805,26 @@ class LearningController extends Controller
             'diskusi' => count(array_filter($unreadNotifs, fn ($n) => ($n['category'] ?? '') === 'diskusi')),
         ];
 
-        $forumUnreadCount = $categoryCounts['diskusi'];
+        $courseDiscussionCounts = [];
+        $courseMentionCounts = [];
+        $totalDiscussionUnread = 0;
+        $totalMentionUnread = 0;
+
+        foreach ($unreadNotifs as $notif) {
+            if (($notif['category'] ?? '') === 'diskusi') {
+                $secId = (int) ($notif['class_section_id'] ?? 0);
+                $uCount = (int) ($notif['unread_count'] ?? 1);
+                $mCount = (int) ($notif['mention_count'] ?? 0);
+
+                $courseDiscussionCounts[$secId] = $uCount;
+                $courseMentionCounts[$secId] = $mCount;
+                $totalDiscussionUnread += $uCount;
+                $totalMentionUnread += $mCount;
+            }
+        }
+
+        $forumUnreadCount = $totalDiscussionUnread > 0 ? $totalDiscussionUnread : $categoryCounts['diskusi'];
+        $forumMentionCount = $totalMentionUnread;
         $pendingTaskCount = $user->hasRole(Role::MAHASISWA) ? $this->notifications->pendingTaskCount($user) : 0;
         $pendingGradingCount = $user->hasRole(Role::DOSEN) ? DosenNavigation::pendingGradingCount() : 0;
 
@@ -2777,12 +2836,6 @@ class LearningController extends Controller
             ? $this->notifications->unreadCount($user, Role::MAHASISWA)
             : 0;
 
-        $courseDiscussionCounts = collect($unreadNotifs)
-            ->where('category', 'diskusi')
-            ->groupBy('class_section_id')
-            ->map(fn ($items) => count($items))
-            ->all();
-
         return response()->json([
             'success' => true,
             'role' => $role,
@@ -2791,9 +2844,11 @@ class LearningController extends Controller
             'mhs_unread_notif_count' => $mhsUnreadNotifCount,
             'category_counts' => $categoryCounts,
             'forum_unread_count' => $forumUnreadCount,
+            'forum_mention_count' => $forumMentionCount,
             'pending_task_count' => $pendingTaskCount,
             'pending_grading_count' => $pendingGradingCount,
             'course_discussion_counts' => $courseDiscussionCounts,
+            'course_mention_counts' => $courseMentionCounts,
         ], 200, [
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',

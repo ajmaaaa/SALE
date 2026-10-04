@@ -109,15 +109,17 @@ class StudentProfileSettingsTest extends TestCase
     {
         $this->student->forceFill(['notification_preferences' => ['notif_forum' => true]])->save();
 
-        $this->actingAs($this->student)
+        $response = $this->actingAs($this->student)
             ->put(route('mahasiswa.profile.notifications'), [
                 'preferences' => [
                     'deadline' => '1',
                     'forum' => '1',
                 ],
-            ])
-            ->assertRedirect(route('mahasiswa.profile.index').'#notifikasi')
-            ->assertSessionHas('status', 'notification-preferences-updated');
+            ]);
+
+        $response->assertRedirect(route('mahasiswa.profile.index').'#notifikasi')
+            ->assertSessionHas('status', 'notification-preferences-updated')
+            ->assertSessionHas('notice', 'Preferensi notifikasi berhasil disimpan.');
 
         $this->assertSame([
             'notif_forum' => true,
@@ -126,6 +128,10 @@ class StudentProfileSettingsTest extends TestCase
             'grade' => false,
             'forum' => true,
         ], $this->student->fresh()->notification_preferences);
+
+        $view = $this->actingAs($this->student)->get(route('mahasiswa.profile.index'));
+        $view->assertSee('id="toast-notice"', false);
+        $view->assertSee('Preferensi notifikasi berhasil disimpan.');
     }
 
     public function test_profile_photo_can_be_uploaded_and_replaced(): void
@@ -261,5 +267,86 @@ class StudentProfileSettingsTest extends TestCase
         // Verify it is removed from the profile information card section
         $content = $response->getContent();
         $this->assertStringNotContainsString('Bantuan &amp; Narahubung:', $content);
+    }
+
+    public function test_notification_preferences_filter_notifications_returned_by_service(): void
+    {
+        $prodi = \App\Models\Prodi::create([
+            'code' => 'TI',
+            'name' => 'Teknik Informatika',
+            'slug' => 'teknik-informatika',
+        ]);
+        $course = \App\Models\MataKuliah::create([
+            'prodi_id' => $prodi->id,
+            'code' => 'TI101',
+            'name' => 'Dasar Pemrograman',
+            'sks' => 3,
+            'semester' => 1,
+        ]);
+        $semester = \App\Models\Semester::create([
+            'code' => '20261',
+            'name' => '2026/2027 Ganjil',
+            'academic_year' => '2026/2027',
+            'term' => 1,
+            'is_active' => true,
+        ]);
+        $section = \App\Models\ClassSection::create([
+            'mata_kuliah_id' => $course->id,
+            'semester_id' => $semester->id,
+            'section_code' => 'A',
+            'capacity' => 40,
+        ]);
+        \Illuminate\Support\Facades\DB::table('class_section_student')->insert([
+            'class_section_id' => $section->id,
+            'mahasiswa_id' => $this->student->id,
+            'status' => 'enrolled',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $assessment = \App\Models\Assessment::create([
+            'class_section_id' => $section->id,
+            'code' => 'TUGAS-1',
+            'name' => 'Tugas 1',
+            'type' => 'tugas',
+            'final_weight' => 20,
+            'status' => 'published',
+            'due_at' => now()->addDays(2),
+        ]);
+
+        $service = app(\App\Services\DatabaseNotificationService::class);
+
+        // By default (no preferences or all true), pending notification is visible
+        $this->student->forceFill(['notification_preferences' => null])->save();
+        $notifs = $service->forUser($this->student, 'mahasiswa');
+        $this->assertTrue(collect($notifs)->contains('id', "pending_{$assessment->id}"));
+
+        // When deadline is muted, pending notification is filtered out
+        $this->student->forceFill(['notification_preferences' => [
+            'deadline' => false,
+            'announcement' => true,
+            'grade' => true,
+            'forum' => true,
+        ]])->save();
+        $notifsFiltered = $service->forUser($this->student, 'mahasiswa');
+        $this->assertFalse(collect($notifsFiltered)->contains('id', "pending_{$assessment->id}"));
+
+        // Verify on HTTP notification page: task is not shown when muted
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.notifications'))
+            ->assertOk()
+            ->assertDontSee('Tugas 1');
+
+        // When deadline is re-enabled, task appears on notification page
+        $this->student->forceFill(['notification_preferences' => [
+            'deadline' => true,
+            'announcement' => true,
+            'grade' => true,
+            'forum' => true,
+        ]])->save();
+        $this->actingAs($this->student)
+            ->get(route('mahasiswa.notifications'))
+            ->assertOk()
+            ->assertSee('Tugas 1');
     }
 }
