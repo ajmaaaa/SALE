@@ -1,2 +1,0 @@
-CONFIRMED: raw user markup reaches pinnedList.innerHTML and reply excerpt in chatMessages.innerHTML.
-Boundary: renderer tested in a DOM stub; JavaScript execution in a real browser was not tested.
