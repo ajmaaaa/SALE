@@ -122,7 +122,7 @@
                         <input id="password" name="password" type="password" required autocomplete="current-password" class="field pr-10" placeholder="Masukkan kata sandi">
                         <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer" aria-label="Tampilkan kata sandi">
                             <svg id="eye-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7Z"></path>
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                             <svg id="eye-off-icon" class="h-4 w-4 hidden" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -146,7 +146,7 @@
 
     {{-- Footer --}}
     <footer class="w-full max-w-5xl text-center text-xs text-[#b9cedf] z-20 mt-3 sm:mt-0">
-        Smart Academic Learning Ecosystem &copy; {{ date('Y') }}
+        &copy; Smart Academic Learning Ecosystem {{ date('Y') }}
     </footer>
 
     <script nonce="{{ $cspNonce }}">

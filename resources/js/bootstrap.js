@@ -4,11 +4,13 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
-if (reverbKey) {
+const configuredHost = import.meta.env.VITE_REVERB_HOST;
+const isLocalDevHost = !configuredHost || configuredHost === 'localhost' || configuredHost === '127.0.0.1' || configuredHost.startsWith('192.168.') || configuredHost.startsWith('10.');
+
+if (reverbKey && reverbKey !== 'local' && (!import.meta.env.PROD || !isLocalDevHost)) {
     const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'https';
     const reverbPort = Number(import.meta.env.VITE_REVERB_PORT || (reverbScheme === 'https' ? 443 : 80));
-    const configuredHost = import.meta.env.VITE_REVERB_HOST;
-    const wsHost = (configuredHost && configuredHost !== '127.0.0.1' && configuredHost !== 'localhost')
+    const wsHost = (!isLocalDevHost && configuredHost)
         ? configuredHost
         : (typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : 'localhost');
 
