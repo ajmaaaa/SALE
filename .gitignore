@@ -23,5 +23,5 @@ yarn-error.log
 /.zed
 
 /public/vendor/pyodide
-.security/
-*.sql
+
+/screenshots
